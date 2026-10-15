@@ -116,7 +116,8 @@ tarea, con el estilo de Dash.
 - [ ] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
       peticiones/respuestas). Medir con `bench`.
 - [ ] D4. **Listas que crecen.** Añadir, quitar, insertar; lista vacía con tipo; que conserven el tipo de sus
-      elementos como parámetro y al devolverse; asignar al campo de un elemento (`l[0].x = 5`).
+      elementos como parámetro y al devolverse; asignar al campo de un elemento (`l[0].x = 5`);
+      `for x in [1, 2, 3]` (hoy, error de sintaxis: solo admite una variable).
 - [ ] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
 - [ ] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
 - [ ] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
@@ -132,6 +133,7 @@ tarea, con el estilo de Dash.
       certificado.
 - [ ] D12. **Imágenes.** Cargar PNG/GIF/JPEG por datatypes a un bitmap y pintarlo con `gfx_` (fuera de MUI).
       Avisar a la sesión de MUI del nombre (su tarea 9 lo usará).
+- [x] D13. **`elif`.** (lo pidió la tarea 3)
 
 ### Fase A: sin MUI
 
@@ -144,7 +146,7 @@ tarea, con el estilo de Dash.
       memoria de cada cosa, cómo se pasa de una fase a otra (bytes → tokens → DOM → estilo → cajas → dibujo).
       Repasa qué tiene Dash hoy (structs, listas, textos, `@native`, contador de referencias) y convierte
       lo que falte en tareas `D<n>` de la sección "Dash", con la tarea de dashweb que las necesita.
-- [ ] 3. **URL.** (necesita D1, D2) Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
+- [~] 3. **URL.** (necesita D1, D2, D13) Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
       ruta, consulta, fragmento; `..` y `.`). Tests con casos raros.
 - [ ] 4. **Texto.** (necesita D2, D3, D7) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
       exista; entidades HTML (`&amp;`, `&#233;`, `&eacute;`...). Tests.
@@ -264,3 +266,12 @@ Formato:
   ejemplos 32/32. Tras el rebase: 130/130 sin emulador y los tests de D1/D2 en el emulador.
 - Pendiente / riesgos: un texto modificado por dentro desde C con la misma dirección daría una longitud vieja
   (los textos de Dash no se modifican; documentarlo si aparece algún caso).
+
+### 2026-10-15 — D13 (Dash: `elif`)
+- Hecho (rama `dashweb`, a20e520): `elif` en la gramática; el transformador lo pliega en `if` anidados dentro del
+  `else`, así que el C es el mismo de siempre (comprobado con `tools/cmp_dash_c.sh`: solo aparece el test nuevo).
+  Manual y referencia rápida.
+- Tests (Dash): `test_elif` en A1200, A500 y 3.2. 131/131 sin emulador, ejemplos 32/32. No relancé la batería
+  completa con emuladores: el C de todos los programas anteriores es idéntico.
+- Encontrado: `for x in [1, 2]` no compila (solo variables): apuntado en D4.
+- Pendiente: `lib/url.dash` escrito (tarea 3, sin probar ni commit): la siguiente vuelta.
