@@ -96,7 +96,13 @@ Acordado el 2026-10-15 por mensaje entre sesiones (escribirle con SendMessage si
 - **Avisos técnicos:** MUI pide 32 KB de pila (codegen la sube sola). Las funciones `__inline` de los SDK que
   pasan `&tags` dan etiquetas basura con `-O2` (usar `NO_INLINE_STDARG` y arrays). En 68000, las macros
   `register asm` del NDK se machacan con llamadas a libgcc (`__mulsi3`...): calcular antes en variables.
-- **Zona de dibujo:** la API de `docs/MUI_DISEÑO.md` (`mui_canvas_on_draw(c, f)` con `f(x, y, ancho, alto)`
+- **Temporizadores:** su tarea 8 trae `mui_timer(ms, id)` (un disparo, timer.device) además de
+  `mui_wait_event_signals(mask)` y `mui_signals()`. `setTimeout`/`setInterval` de JS (tarea 16) y las
+  animaciones usan eso: no hacer temporizadores propios.
+- **Coste de pintar (medido por ellos, A1200 3.1):** zona de 320x200, 20 ms el fondo y ~4,7 ms por línea de 50
+  caracteres con `gfx_text_at` (página llena ~115 ms): el pintor (tarea 13) debe repintar por partes
+  (solo lo que cambia) y usar `ScrollRaster` al desplazar.
+- **Zona de dibujo (en commit eec3247):** la API de `docs/MUI_DISEÑO.md` (`mui_canvas_on_draw(c, f)` con `f(x, y, ancho, alto)`
   pintando con `gfx_`). Nos avisará antes de cambiarla.
 
 ## Tareas
@@ -113,7 +119,7 @@ tarea, con el estilo de Dash.
       orden. Sin crear un texto por carácter. **Coste:** hoy `s[i]` recorre el texto desde el principio
       (`DashString_char_at` comprueba el final carácter a carácter) y `s.length` es `strlen`: recorrer un texto
       por posición es cuadrático. Arreglarlo (acceso directo; longitud guardada o calculada una vez).
-- [ ] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
+- [~] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
       peticiones/respuestas). Medir con `bench`.
 - [ ] D4. **Listas que crecen.** Añadir, quitar, insertar; lista vacía con tipo; que conserven el tipo de sus
       elementos como parámetro y al devolverse; asignar al campo de un elemento (`l[0].x = 5`);
