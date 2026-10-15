@@ -1,0 +1,63 @@
+# Test: lib/html.dash (tokenizador): etiquetas, atributos con y sin comillas, autocierre,
+# comentarios, DOCTYPE, entidades, script/style crudos, CDATA, <?xml?>, HTML roto.
+# memcheck
+# expect-out: D[html]
+# expect-out: I<html lang=es>
+# expect-out: T[\n]
+# expect-out: I<p class=a b id=x data-v=1>
+# expect-out: T[Hola & adiós <b>]
+# expect-out: F</p>
+# expect-out: C[ nota ]
+# expect-out: I<br/>
+# expect-out: I<img src=a.png alt=dos "palabras">
+# expect-out: I<script>
+# expect-out: T[if (a < b && c) { x = "</p>"; }]
+# expect-out: F</script>
+# expect-out: I<style>
+# expect-out: T[p > a { }]
+# expect-out: F</style>
+# expect-out: T[5 < 6]
+# expect-out: C[xml version="1.0"?]
+# expect-out: T[x]
+# expect-out: T[<]
+# expect-out: T[3]
+# expect-out: I<input disabled= value=v>
+# expect-out: I<a href=/a?x=1&y=2>
+# expect-out: T[fin]
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/html.dash"
+
+func muestra(tok: HtmlToken) -> String
+    if tok.tipo == HT_TEXTO
+        return "T[" + str_replace(tok.texto, "\n", "\\n") + "]"
+    elif tok.tipo == HT_COMENTARIO
+        return "C[" + tok.texto + "]"
+    elif tok.tipo == HT_DOCTYPE
+        return "D[" + tok.texto + "]"
+    elif tok.tipo == HT_FIN
+        return "F</" + tok.nombre + ">"
+    end
+    r = "I<" + tok.nombre
+    for a in tok.atributos
+        r = r + " " + a.nombre + "=" + a.valor
+    end
+    if tok.autocierre
+        r = r + "/"
+    end
+    return r + ">"
+end
+
+Main
+    html = "<!DOCTYPE html><HTML Lang=es>\n<p class='a b' ID=\"x\" data-v=1 class=z>Hola &amp; adi&oacute;s &lt;b&gt;</P>"
+    html = html + "<!-- nota --><br/><img src=a.png alt=\"dos &quot;palabras&quot;\">"
+    html = html + "<script>if (a < b && c) { x = \"</p>\"; }</SCRIPT><style>p > a { }</style>"
+    html = html + "<![CDATA[5 < 6]]><?xml version=\"1.0\"?>x<3<input disabled value=v>"
+    html = html + "<a href=\"/a?x=1&amp;y=2\">fin"
+    t = html_tokenizador(html)
+    tok = html_siguiente(t)
+    while tok != nil
+        Print muestra(tok)
+        tok = html_siguiente(t)
+    end
+end

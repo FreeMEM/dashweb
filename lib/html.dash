@@ -1,0 +1,256 @@
+# Tokenizador de HTML (y XHTML), tolerante con el HTML mal escrito.
+#
+#   t = html_tokenizador(texto)          # el texto ya en Latin-1 (lib/texto.dash)
+#   tok = html_siguiente(t)
+#   while tok != nil
+#       if tok.tipo == HT_INICIO
+#           Print tok.nombre             # en minúsculas; tok.atributos, tok.autocierre
+#       end
+#       tok = html_siguiente(t)
+#   end
+#
+# El texto y los valores de los atributos llegan con las entidades ya cambiadas. Dentro de
+# script, style, textarea y title (y xmp, plaintext...) todo es texto hasta su etiqueta de cierre.
+
+import "texto.dash"
+
+const HT_TEXTO = 1
+const HT_INICIO = 2
+const HT_FIN = 3
+const HT_COMENTARIO = 4
+const HT_DOCTYPE = 5
+
+struct Atributo
+    nombre: String
+    valor: String
+end
+
+struct HtmlToken
+    tipo: Int
+    nombre: String
+    texto: String
+    atributos: [Atributo]
+    autocierre: Bool
+end
+
+struct Tokenizador
+    texto: String
+    pos: Int
+    crudo: String
+end
+
+func html_tokenizador(texto: String) -> Tokenizador
+    return Tokenizador(texto, 0, "")
+end
+
+func _token(tipo: Int, nombre: String, texto: String) -> HtmlToken
+    var atributos: [Atributo] = []
+    return HtmlToken(tipo, nombre, texto, atributos, false)
+end
+
+# Elementos cuyo contenido es texto sin etiquetas
+func _es_crudo(nombre: String) -> Bool
+    return nombre == "script" or nombre == "style" or nombre == "textarea" or nombre == "title" or nombre == "xmp" or nombre == "iframe" or nombre == "noembed" or nombre == "noframes" or nombre == "plaintext"
+end
+
+# Letra ASCII
+func _letra(c: Int) -> Bool
+    return (c >= 97 and c <= 122) or (c >= 65 and c <= 90)
+end
+
+# Espacio, tabulador, salto de línea, retorno, salto de página
+func _blanco(c: Int) -> Bool
+    return c == 32 or c == 9 or c == 10 or c == 13 or c == 12
+end
+
+# El siguiente token, o nil al final del texto
+func html_siguiente(t: Tokenizador) -> HtmlToken
+    s = t.texto
+    n = s.length
+    if t.pos >= n
+        var fin: HtmlToken = nil
+        return fin
+    end
+    if t.crudo != ""
+        return _texto_crudo(t)
+    end
+    if str_code(s, t.pos) != 60
+        # texto hasta el siguiente "<"
+        p = str_find_from(s, "<", t.pos + 1)
+        if p < 0
+            p = n
+        end
+        texto = s[t.pos:p]
+        t.pos = p
+        return _token(HT_TEXTO, "", html_entidades(texto))
+    end
+    c = str_code(s, t.pos + 1)
+    if c == 33
+        return _marca(t)
+    elif c == 63
+        # <?xml ...?>: se toma como comentario
+        fin = str_find_from(s, ">", t.pos)
+        if fin < 0
+            fin = n - 1
+        end
+        texto = s[t.pos + 2:fin]
+        t.pos = fin + 1
+        return _token(HT_COMENTARIO, "", texto)
+    elif c == 47 and _letra(str_code(s, t.pos + 2))
+        return _etiqueta(t, true)
+    elif _letra(c)
+        return _etiqueta(t, false)
+    end
+    # un "<" suelto es texto
+    t.pos = t.pos + 1
+    return _token(HT_TEXTO, "", "<")
+end
+
+# <!-- comentario -->, <!DOCTYPE ...>, <![CDATA[ ... ]]>
+func _marca(t: Tokenizador) -> HtmlToken
+    s = t.texto
+    n = s.length
+    if str_starts(s[t.pos:t.pos + 4], "<!--")
+        fin = str_find_from(s, "-->", t.pos + 4)
+        texto = ""
+        if fin < 0
+            texto = s[t.pos + 4:]
+            t.pos = n
+        else
+            texto = s[t.pos + 4:fin]
+            t.pos = fin + 3
+        end
+        return _token(HT_COMENTARIO, "", texto)
+    end
+    if s[t.pos:t.pos + 9] == "<![CDATA["
+        fin = str_find_from(s, "]]>", t.pos + 9)
+        if fin < 0
+            fin = n
+        end
+        texto = s[t.pos + 9:fin]
+        t.pos = fin + 3
+        return _token(HT_TEXTO, "", texto)
+    end
+    fin = str_find_from(s, ">", t.pos)
+    if fin < 0
+        fin = n - 1
+    end
+    contenido = s[t.pos + 2:fin]
+    t.pos = fin + 1
+    if str_starts(str_lower(contenido), "doctype")
+        return _token(HT_DOCTYPE, "", str_trim(contenido[7:]))
+    end
+    return _token(HT_COMENTARIO, "", contenido)
+end
+
+# <nombre atr="valor" ...> o </nombre>
+func _etiqueta(t: Tokenizador, cierre: Bool) -> HtmlToken
+    s = t.texto
+    n = s.length
+    i = t.pos + 1
+    if cierre
+        i = i + 1
+    end
+    inicio = i
+    while i < n and not _blanco(str_code(s, i)) and str_code(s, i) != 47 and str_code(s, i) != 62
+        i = i + 1
+    end
+    tipo = HT_INICIO
+    if cierre
+        tipo = HT_FIN
+    end
+    tok = _token(tipo, str_lower(s[inicio:i]), "")
+    # atributos hasta ">"
+    while i < n and str_code(s, i) != 62
+        c = str_code(s, i)
+        if _blanco(c)
+            i = i + 1
+        elif c == 47
+            # "/" de <br/>: solo cuenta justo antes de ">"
+            if i + 1 < n and str_code(s, i + 1) == 62
+                tok.autocierre = true
+            end
+            i = i + 1
+        else
+            inicio = i
+            while i < n and not _blanco(str_code(s, i)) and str_code(s, i) != 61 and str_code(s, i) != 62 and str_code(s, i) != 47
+                i = i + 1
+            end
+            nombre = str_lower(s[inicio:i])
+            while i < n and _blanco(str_code(s, i))
+                i = i + 1
+            end
+            valor = ""
+            if i < n and str_code(s, i) == 61
+                i = i + 1
+                while i < n and _blanco(str_code(s, i))
+                    i = i + 1
+                end
+                q = str_code(s, i)
+                if q == 34 or q == 39
+                    fin = str_find_from(s, str_char(q), i + 1)
+                    if fin < 0
+                        fin = n
+                    end
+                    valor = s[i + 1:fin]
+                    i = fin + 1
+                else
+                    inicio = i
+                    while i < n and not _blanco(str_code(s, i)) and str_code(s, i) != 62
+                        i = i + 1
+                    end
+                    valor = s[inicio:i]
+                end
+            end
+            if nombre != "" and not cierre and not _tiene_atributo(tok, nombre)
+                tok.atributos.push(Atributo(nombre, html_entidades(valor)))
+            end
+        end
+    end
+    t.pos = i + 1
+    if tok.tipo == HT_INICIO and not tok.autocierre and _es_crudo(tok.nombre)
+        t.crudo = tok.nombre
+    end
+    return tok
+end
+
+func _tiene_atributo(tok: HtmlToken, nombre: String) -> Bool
+    for a in tok.atributos
+        if a.nombre == nombre
+            return true
+        end
+    end
+    return false
+end
+
+# Texto hasta "</nombre" (sin mirar mayúsculas) del elemento crudo abierto
+func _texto_crudo(t: Tokenizador) -> HtmlToken
+    s = t.texto
+    n = s.length
+    buscado = "</" + t.crudo
+    largo = buscado.length
+    p = str_find_from(s, "</", t.pos)
+    while p >= 0 and str_lower(s[p:p + largo]) != buscado
+        p = str_find_from(s, "</", p + 2)
+    end
+    if p < 0
+        p = n
+    end
+    texto = s[t.pos:p]
+    if t.crudo == "textarea" or t.crudo == "title"
+        texto = html_entidades(texto)
+    end
+    t.pos = p
+    t.crudo = ""
+    return _token(HT_TEXTO, "", texto)
+end
+
+# Valor de un atributo, o "" si no está
+func html_atributo(tok: HtmlToken, nombre: String) -> String
+    for a in tok.atributos
+        if a.nombre == nombre
+            return a.valor
+        end
+    end
+    return ""
+end

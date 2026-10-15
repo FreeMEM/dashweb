@@ -171,7 +171,7 @@ tarea, con el estilo de Dash.
 - [x] 7. **HTTPS.** (necesita D11) AmiSSL 5 para OS3: script que lo descarga a `~/.cache` y lo mete en el sistema
       emulado; conexión TLS con verificación de certificado. Test contra un servidor HTTPS local con una CA
       propia. Si hace falta decidir algo de licencias o versiones, `[?]`.
-- [ ] 8. **Tokenizador HTML.** (necesita D2, D3, D4) Etiquetas, atributos (con y sin comillas), texto, comentarios, `DOCTYPE`,
+- [x] 8. **Tokenizador HTML.** (necesita D2, D3, D4) Etiquetas, atributos (con y sin comillas), texto, comentarios, `DOCTYPE`,
       entidades, `<script>`/`<style>` como texto crudo. Tolerante con HTML mal formado; XHTML también.
 - [ ] 9. **Árbol DOM.** (necesita D4, D6) Nodos (elemento, texto, comentario), etiquetas implícitas (`html`, `head`, `body`),
       cierres implícitos (`p`, `li`, `td`...), elementos vacíos (`br`, `img`...). Tests con páginas reales
@@ -427,3 +427,14 @@ Formato:
 - `tests/run.py`: los tests con `# emu-needs: amisslmaster.library` arrancan `$DASH_EMU_SYS_SSL`.
   `tests/servers/http.py PUERTO tls`: el mismo servidor con HTTPS (certificado firmado por la CA de prueba).
 - Tests: `test_https` (longitud, chunked, redirección a https, nombre que no coincide). 6/6, también con `--memcheck`.
+
+### 2026-10-16 — Tarea 8 (tokenizador HTML)
+- Hecho: `lib/html.dash`: `html_tokenizador(texto)` y `html_siguiente(t)` (un token cada vez; nil al final):
+  `HT_TEXTO`, `HT_INICIO` (nombre en minúsculas, `[Atributo]` en orden —el primero gana si se repite—,
+  `autocierre`), `HT_FIN`, `HT_COMENTARIO`, `HT_DOCTYPE`. Atributos con comillas dobles, simples o sin ellas, y
+  sin valor. Entidades cambiadas en texto y atributos. Texto crudo en script, style, textarea, title, xmp, iframe,
+  noembed, noframes, plaintext (hasta su cierre sin mirar mayúsculas; entidades solo en textarea y title).
+  XHTML: `<![CDATA[...]]>` como texto, `<?xml ...?>` como comentario. Un `<` que no abre etiqueta es texto; como
+  en HTML5, `<y<input` es una etiqueta llamada `y<input`. `html_atributo(tok, nombre)`.
+- `tests/run.py`: directiva `# memcheck` (siempre con `--memcheck`).
+- Tests: `test_html_tokens` (`--memcheck`). 7/7, también con `--memcheck`.

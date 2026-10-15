@@ -13,6 +13,7 @@ comparing what they print, line by line.
 
 Lines a test can have:
     # expect-out: <line>        expected output, one per printed line, in order
+    # memcheck                 always compiled with --memcheck (its summary line is in the expect-out)
     # dash-flags: <flags>       extra ./dash options (e.g. --stack 65536)
     # cflags: <flags>           extra gcc options/objects (DASH_CFLAGS), paths relative to the repo
     # emu-config: key = value   extra FS-UAE option (e.g. bsdsocket_library = 1); tests with
@@ -48,7 +49,7 @@ def directives(src: Path, key: str):
 def compile_test(src: Path, memcheck: bool):
     exe = BUILD / src.stem
     cmd = [sys.executable, str(DASH / "dash"), "--fpu", str(src), "-o", str(exe)]
-    if memcheck:
+    if memcheck or any(l.strip() == "# memcheck" for l in src.read_text().splitlines()):
         cmd.append("--memcheck")
     for f in directives(src, "dash-flags"):
         cmd += shlex.split(f)
