@@ -1,0 +1,32 @@
+# Test: lib/red.dash contra tests/servers/lineas.py (líneas, trozos, hasta el cierre, eco)
+# emu-server: lineas.py 40841
+# expect-out: [uno]
+# expect-out: [dos]
+# expect-out: 3000 x
+# expect-out: [
+# expect-out: fin]
+# expect-out: cerrada
+# expect-out: eco: [hola]
+# expect-out: error: conexión rechazada
+
+import "../lib/red.dash"
+
+Main
+    c = red_abrir("127.0.0.1", 40841, 5000)
+    red_enviar(c, "HOLA\n")
+    Print "[" + red_leer_linea(c) + "]"
+    Print "[" + red_leer_linea(c) + "]"
+    x = red_leer(c, 3000)
+    Print "" + x.length + " " + x[2999]
+    Print "[" + red_leer_todo(c) + "]"
+    if red_leer_linea(c) == nil and c.cerrada
+        Print "cerrada"
+    end
+    red_cerrar(c)
+    e = red_abrir("127.0.0.1", 40841, 5000)
+    red_enviar(e, "ECO hola\n")
+    Print "eco: [" + red_leer_linea(e) + "]"
+    red_cerrar(e)
+    m = red_abrir("127.0.0.1", 1, 3000)
+    Print "error: " + m.error
+end

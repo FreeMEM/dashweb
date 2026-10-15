@@ -1,0 +1,133 @@
+# Conexiones TCP con lectura por líneas y por trozos, sobre los builtins net_ de Dash.
+#
+#   c = red_abrir("ejemplo.org", 80, 10000)     # tiempo límite en ms para cada espera
+#   if c.error != ""
+#       Print c.error
+#   end
+#   red_enviar(c, "GET / HTTP/1.0\r\n\r\n")
+#   linea = red_leer_linea(c)                   # sin el salto de línea; nil al cerrarse
+#   cuerpo = red_leer_todo(c)
+#   red_cerrar(c)
+
+const RED_TROZO = 4096
+
+struct Conexion
+    sock: Int
+    espera: Int
+    pendiente: String
+    pos: Int
+    cerrada: Bool
+    error: String
+end
+
+func red_abrir(host: String, puerto: Int, espera_ms: Int) -> Conexion
+    c = Conexion(-1, espera_ms, "", 0, false, "")
+    c.sock = net_connect(host, puerto, espera_ms)
+    if c.sock < 0
+        c.cerrada = true
+        c.error = net_error()
+    end
+    return c
+end
+
+func red_enviar(c: Conexion, texto: String) -> Bool
+    if c.cerrada
+        return false
+    end
+    if net_send(c.sock, texto) < 0
+        c.error = net_error()
+        return false
+    end
+    return true
+end
+
+# Trae otro trozo a lo pendiente; false si la conexión se cerró o no llegó nada a tiempo
+func _red_traer(c: Conexion) -> Bool
+    if c.cerrada
+        return false
+    end
+    trozo = net_recv(c.sock, RED_TROZO, c.espera)
+    if trozo == nil
+        c.cerrada = true
+        return false
+    end
+    if trozo == ""
+        c.error = "tiempo agotado"
+        c.cerrada = true
+        return false
+    end
+    # lo ya leído se descarta antes de añadir (así lo pendiente no crece sin fin)
+    if c.pos > 0
+        c.pendiente = c.pendiente[c.pos:]
+        c.pos = 0
+    end
+    c.pendiente = c.pendiente + trozo
+    return true
+end
+
+# Una línea sin "\r\n" ni "\n"; nil si la conexión se cerró sin dar más
+func red_leer_linea(c: Conexion) -> String
+    p = str_find_from(c.pendiente, "\n", c.pos)
+    while p < 0
+        if not _red_traer(c)
+            if c.pos < c.pendiente.length
+                resto = c.pendiente[c.pos:]
+                c.pos = c.pendiente.length
+                return resto
+            end
+            var nada: String = nil
+            return nada
+        end
+        p = str_find_from(c.pendiente, "\n", c.pos)
+    end
+    fin = p
+    if fin > c.pos and c.pendiente[fin - 1] == "\r"
+        fin = fin - 1
+    end
+    linea = c.pendiente[c.pos:fin]
+    c.pos = p + 1
+    return linea
+end
+
+# n bytes (menos si la conexión se cierra antes)
+func red_leer(c: Conexion, n: Int) -> String
+    while c.pendiente.length - c.pos < n
+        if not _red_traer(c)
+            break
+        end
+    end
+    fin = c.pos + n
+    if fin > c.pendiente.length
+        fin = c.pendiente.length
+    end
+    r = c.pendiente[c.pos:fin]
+    c.pos = fin
+    return r
+end
+
+# Todo lo que llegue hasta que la conexión se cierre
+func red_leer_todo(c: Conexion) -> String
+    r = c.pendiente[c.pos:]
+    c.pendiente = ""
+    c.pos = 0
+    while not c.cerrada
+        trozo = net_recv(c.sock, RED_TROZO, c.espera)
+        if trozo == nil
+            c.cerrada = true
+        elif trozo == ""
+            c.error = "tiempo agotado"
+            c.cerrada = true
+        else
+            r = r + trozo
+        end
+    end
+    return r
+end
+
+func red_cerrar(c: Conexion)
+    if c.sock >= 0
+        net_close(c.sock)
+        c.sock = -1
+    end
+    c.cerrada = true
+end

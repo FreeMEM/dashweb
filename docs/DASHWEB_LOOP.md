@@ -145,6 +145,7 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+- [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
 
 ### Fase A: sin MUI
 
@@ -161,7 +162,7 @@ tarea, con el estilo de Dash.
       ruta, consulta, fragmento; `..` y `.`). Tests con casos raros.
 - [x] 4. **Texto.** (necesita D2, D3, D7, D4a) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
       exista; entidades HTML (`&amp;`, `&#233;`, `&eacute;`...). Tests.
-- [ ] 5. **TCP.** (necesita D8) `lib/red.dash` sobre los builtins de red: conexión con tiempo límite y
+- [x] 5. **TCP.** (necesita D8) `lib/red.dash` sobre los builtins de red: conexión con tiempo límite y
       lectura por trozos. `tests/run.py` arranca el servidor Python local que pida el test (directiva nueva).
 - [ ] 6. **HTTP/1.1.** (necesita D3, D4, D5) GET con cabeceras, `Content-Length`, `chunked`, redirecciones (máx. 5),
       `Content-Type` y juego de caracteres, errores. Tests contra un servidor local que cubra cada caso.
@@ -351,3 +352,13 @@ Formato:
   inexistente) en A1200, A500 y 3.2 y con `--memcheck`. 140/140 sin emulador, ejemplos 32/32. Mismo C en los
   programas previos.
 - Pendiente: señales de los sockets para el bucle de MUI (apuntado en la tarea 20).
+
+### 2026-10-16 — Tarea 5 (TCP) y D15
+- Hecho: `lib/red.dash`: `struct Conexion` (socket, espera, lo pendiente con su posición, cerrada, error),
+  `red_abrir`, `red_enviar`, `red_leer_linea` (quita `\r\n`; nil al cerrarse), `red_leer(c, n)`,
+  `red_leer_todo`, `red_cerrar`. Lo ya leído se descarta antes de traer más. `tests/run.py`: directiva
+  `# emu-server: script.py PUERTO` (FS-UAE con `bsdsocket_library = 1` y el script de `tests/servers/` en el PC).
+- D15 (Dash, e7d2a1e): `c == "\r"` comparaba un carácter con un puntero (nunca cierto); ahora con `'\r'`.
+  Test `test_char_escapes` en A1200, A500 y 3.2; 141/141 sin emulador; solo cambia el C de ese test.
+- Tests: `test_red` contra `tests/servers/lineas.py` (líneas con `\r\n` y `\n`, 3000 bytes en dos envíos, hasta el
+  cierre, eco, puerto cerrado). 4/4, también con `--memcheck`.
