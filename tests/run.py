@@ -112,7 +112,17 @@ def main():
             continue
         for (src, _, expected), out in zip(group, outs):
             got = (out.output or "").replace("\r", "").splitlines()
-            if out.timed_out:
+            leak = None
+            if args.memcheck and not any(e.startswith("memcheck:") for e in expected):
+                # --memcheck adds a summary line: nothing alive and no errors, or it fails
+                summary = [g for g in got if g.startswith("memcheck:")]
+                got = [g for g in got if not g.startswith("memcheck:")]
+                # (a program that allocates nothing has no memory runtime and prints none)
+                if summary and ("vivos 0 objetos y 0 strings" not in summary[-1] or "errores 0" not in summary[-1]):
+                    leak = summary[-1]
+            if leak:
+                results[src.stem] = (False, "memcheck: " + leak)
+            elif out.timed_out:
                 results[src.stem] = (False, "TIMEOUT\n" + "\n".join(got))
             elif got == expected and out.rc == 0:
                 results[src.stem] = (True, "ok (emulator)")

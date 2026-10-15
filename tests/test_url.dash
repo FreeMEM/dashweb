@@ -1,0 +1,122 @@
+# Test: lib/url.dash. Resolución: todos los ejemplos del RFC 3986 (apartados 5.4.1 y 5.4.2,
+# base http://a/b/c/d;p?q); análisis: partes, mayúsculas, puertos, IPv6, sin ruta.
+# expect-out: http|User|ejemplo.org|8080|/a/B|x=1|Arriba|8080
+# expect-out: https||ejemplo.org|-1|||(sin)|443
+# expect-out: http||[::1]|81|/x||(sin)|81
+# expect-out: file|||-1|/DH0:pagina.html||(sin)|-1
+# expect-out: mailto|||-1|yo@ejemplo.org||(sin)|-1
+# expect-out: |||-1|/solo/ruta|q|(sin)|-1
+# expect-out: g:h
+# expect-out: http://a/b/c/g
+# expect-out: http://a/b/c/g
+# expect-out: http://a/b/c/g/
+# expect-out: http://a/g
+# expect-out: http://g
+# expect-out: http://a/b/c/d;p?y
+# expect-out: http://a/b/c/g?y
+# expect-out: http://a/b/c/d;p?q#s
+# expect-out: http://a/b/c/g#s
+# expect-out: http://a/b/c/g?y#s
+# expect-out: http://a/b/c/;x
+# expect-out: http://a/b/c/g;x
+# expect-out: http://a/b/c/g;x?y#s
+# expect-out: http://a/b/c/d;p?q
+# expect-out: http://a/b/c/
+# expect-out: http://a/b/c/
+# expect-out: http://a/b/
+# expect-out: http://a/b/
+# expect-out: http://a/b/g
+# expect-out: http://a/
+# expect-out: http://a/
+# expect-out: http://a/g
+# expect-out: http://a/g
+# expect-out: http://a/g
+# expect-out: http://a/g
+# expect-out: http://a/g
+# expect-out: http://a/b/c/g.
+# expect-out: http://a/b/c/.g
+# expect-out: http://a/b/c/g..
+# expect-out: http://a/b/c/..g
+# expect-out: http://a/b/g
+# expect-out: http://a/b/c/g/
+# expect-out: http://a/b/c/g/h
+# expect-out: http://a/b/c/h
+# expect-out: http://a/b/c/g;x=1/y
+# expect-out: http://a/b/c/y
+# expect-out: http://a/b/c/g?y/./x
+# expect-out: http://a/b/c/g?y/../x
+# expect-out: http://a/b/c/g#s/./x
+# expect-out: http://a/b/c/g#s/../x
+# expect-out: http:g
+# expect-out: http://ejemplo.org/
+# expect-out: http://otro.net/x/y.html
+
+import "../lib/url.dash"
+
+func partes(texto: String)
+    u = url_parse(texto)
+    f = "(sin)"
+    if u.tiene_fragmento
+        f = u.fragmento
+    end
+    Print u.esquema + "|" + u.usuario + "|" + u.host + "|" + u.puerto + "|" + u.ruta + "|" + u.consulta + "|" + f + "|" + url_port(u)
+end
+
+func prueba(base: Url, ref: String)
+    Print url_text(url_resolve(base, ref))
+end
+
+Main
+    partes("HTTP://User@Ejemplo.ORG:8080/a/B?x=1#Arriba")
+    partes("https://ejemplo.org")
+    partes("http://[::1]:81/x")
+    partes("file:///DH0:pagina.html")
+    partes("mailto:yo@ejemplo.org")
+    partes("/solo/ruta?q")
+    base = url_parse("http://a/b/c/d;p?q")
+    prueba(base, "g:h")
+    prueba(base, "g")
+    prueba(base, "./g")
+    prueba(base, "g/")
+    prueba(base, "/g")
+    prueba(base, "//g")
+    prueba(base, "?y")
+    prueba(base, "g?y")
+    prueba(base, "#s")
+    prueba(base, "g#s")
+    prueba(base, "g?y#s")
+    prueba(base, ";x")
+    prueba(base, "g;x")
+    prueba(base, "g;x?y#s")
+    prueba(base, "")
+    prueba(base, ".")
+    prueba(base, "./")
+    prueba(base, "..")
+    prueba(base, "../")
+    prueba(base, "../g")
+    prueba(base, "../..")
+    prueba(base, "../../")
+    prueba(base, "../../g")
+    prueba(base, "../../../g")
+    prueba(base, "../../../../g")
+    prueba(base, "/./g")
+    prueba(base, "/../g")
+    prueba(base, "g.")
+    prueba(base, ".g")
+    prueba(base, "g..")
+    prueba(base, "..g")
+    prueba(base, "./../g")
+    prueba(base, "./g/.")
+    prueba(base, "g/./h")
+    prueba(base, "g/../h")
+    prueba(base, "g;x=1/./y")
+    prueba(base, "g;x=1/../y")
+    prueba(base, "g?y/./x")
+    prueba(base, "g?y/../x")
+    prueba(base, "g#s/./x")
+    prueba(base, "g#s/../x")
+    prueba(base, "http:g")
+    e = url_parse("http://Ejemplo.org")
+    prueba(e, "/")
+    prueba(url_parse("http://otro.net/x/"), "y.html")
+end

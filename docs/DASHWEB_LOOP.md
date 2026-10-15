@@ -146,7 +146,7 @@ tarea, con el estilo de Dash.
       memoria de cada cosa, cómo se pasa de una fase a otra (bytes → tokens → DOM → estilo → cajas → dibujo).
       Repasa qué tiene Dash hoy (structs, listas, textos, `@native`, contador de referencias) y convierte
       lo que falte en tareas `D<n>` de la sección "Dash", con la tarea de dashweb que las necesita.
-- [~] 3. **URL.** (necesita D1, D2, D13) Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
+- [x] 3. **URL.** (necesita D1, D2, D13) Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
       ruta, consulta, fragmento; `..` y `.`). Tests con casos raros.
 - [ ] 4. **Texto.** (necesita D2, D3, D7) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
       exista; entidades HTML (`&amp;`, `&#233;`, `&eacute;`...). Tests.
@@ -275,3 +275,12 @@ Formato:
   completa con emuladores: el C de todos los programas anteriores es idéntico.
 - Encontrado: `for x in [1, 2]` no compila (solo variables): apuntado en D4.
 - Pendiente: `lib/url.dash` escrito (tarea 3, sin probar ni commit): la siguiente vuelta.
+
+### 2026-10-15 — Tarea 3 (URL)
+- Hecho: `lib/url.dash`: `struct Url` (esquema y host en minúsculas, puerto -1 si no se da, `tiene_*` para
+  distinguir partes vacías de ausentes), `url_parse`, `url_resolve` (RFC 3986 5.2.2), `url_remove_dots` (5.2.4),
+  `url_text`, `url_port` (80/443). IPv6 entre corchetes, usuario, URLs relativas.
+- `tests/run.py --memcheck`: compila con `--memcheck` y falla si la línea de resumen no dice 0 vivos y 0 errores.
+- Tests: `test_url` con los 42 ejemplos del RFC 3986 (5.4.1 y 5.4.2) y 6 de análisis: todo a la primera.
+  2/2, y 2/2 con `--memcheck` (0 objetos y 0 textos vivos).
+- Pendiente / riesgos: sin `%xx` (codificar/decodificar): cuando haga falta (HTTP y formularios).
