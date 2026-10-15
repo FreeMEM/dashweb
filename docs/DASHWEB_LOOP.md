@@ -119,7 +119,7 @@ tarea, con el estilo de Dash.
       orden. Sin crear un texto por carácter. **Coste:** hoy `s[i]` recorre el texto desde el principio
       (`DashString_char_at` comprueba el final carácter a carácter) y `s.length` es `strlen`: recorrer un texto
       por posición es cuadrático. Arreglarlo (acceso directo; longitud guardada o calculada una vez).
-- [~] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
+- [x] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
       peticiones/respuestas). Medir con `bench`.
 - [ ] D4. **Listas que crecen.** Añadir, quitar, insertar; lista vacía con tipo; que conserven el tipo de sus
       elementos como parámetro y al devolverse; asignar al campo de un elemento (`l[0].x = 5`);
@@ -290,3 +290,16 @@ Formato:
 - Tests: `test_url` con los 42 ejemplos del RFC 3986 (5.4.1 y 5.4.2) y 6 de análisis: todo a la primera.
   2/2, y 2/2 con `--memcheck` (0 objetos y 0 textos vivos).
 - Pendiente / riesgos: sin `%xx` (codificar/decodificar): cuando haga falta (HTTP y formularios).
+
+### 2026-10-16 — D3 (Dash: textos que crecen)
+- Hecho (rama `dashweb`, cb49e29 tras rebase sobre la tarea 7 de MUI): `s = s + a + b...` sobre una variable
+  String dueña de su texto (local, global, o parámetro reasignado, que Dash ya copia) emite
+  `_dash_str_append` por cada parte: copia al final si cabe; si no, bloque del doble. La caché de longitudes de
+  D2 se actualiza (`_dash_str_setlen`). No se aplica si otra parte de la suma lee la variable. No hizo falta
+  una API nueva. Construir 20.000 caracteres de uno en uno: 231 s → 0,87 s en el A1200 real.
+- Tests (Dash): `test_string_append` (`--memcheck`, global, parámetro, `s = s + s`). 318/318 con
+  `--emu --emu-a500 --emu-32`, 195/195 con `--emu --memcheck`, ejemplos 32/32. Tras el rebase: 134/134 sin
+  emulador y 199/199 en el A1200 (incluidos los de MUI).
+- C: cambian los programas que hacen `s = s + ...` y los que ya usaban el runtime de texto (trae dos funciones
+  más).
+- Pendiente / riesgos: campos de structs (`self.t = self.t + x`) siguen copiando: si el HTML los necesita, ampliar.
