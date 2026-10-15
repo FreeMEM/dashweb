@@ -126,7 +126,7 @@ tarea, con el estilo de Dash.
 - [x] D4b. **Listas que crecen.** Añadir, quitar, insertar (sin copiar la lista entera); lista vacía con tipo
       que ya sepa qué guarda.
 - [ ] D4c. **Campo de un elemento.** `l[0].x = 5` (hoy hay que pasar por una variable).
-- [ ] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
+- [x] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
 - [ ] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
 - [x] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
       longitud. Bytes nulos: decidir qué pasa.
@@ -372,3 +372,13 @@ Formato:
   `--memcheck`).
 - Tests (Dash): `test_list_methods` (`--memcheck`) en A1200, A500 y 3.2; errores `list_method_unknown`,
   `list_push_type`, `list_method_args`. 141/141 + nuevos sin emulador. Mismo C en los 133 programas previos.
+
+### 2026-10-16 — D5 (Dash: diccionarios)
+- Hecho (rama `dashweb`, 6cb1367 tras rebase sobre la tarea 10 de MUI): tipo `{String: T}`, literal `{"k": v}`,
+  `d[k]`, `d[k] = v`, `has`, `remove`, `keys` (lista de textos), `clear`, `length`; valores Int, Bool, String,
+  structs y listas. `DICT_RUNTIME` (solo si se usa): tabla hash (djb2, sondeo lineal, borrado desplazando hacia
+  atrás, crece al 75 %), dueña de claves y valores. Gramática: asignar a un índice a través de campos
+  (`h.reglas["k"] = v`, `self.l[i] = v`). Errores: claves no texto, `for k in d`, métodos que no existen.
+  2.000 altas + 2.000 lecturas + 1.000 bajas con claves `"k" + i`: 3,4 s en el A1200 real.
+- Tests (Dash): `test_dict` (`--memcheck`) en A1200, A500 y 3.2; errores `dict_int_key`, `dict_for`,
+  `dict_method_unknown`. Mismo C en los 134 programas previos. Tras el rebase: todo pasa sin emulador y en el A1200.
