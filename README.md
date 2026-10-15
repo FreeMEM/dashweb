@@ -32,3 +32,7 @@ tools/build_qjs.sh 020fpu -m68020 -m68881    # 68020+ con FPU
 export DASH_KICKSTART=... DASH_EMU_SYS=...   # como en Dash
 tools/emu_qjs.py build/qjs-000/qjs tests/js "hello.js" "test_language.js"
 ```
+
+## Licencia
+
+MIT (ver [LICENSE](LICENSE)). `third_party/quickjs` también es MIT.
