@@ -68,7 +68,7 @@ Dos fases:
 
 ### Fase A: sin MUI
 
-- [ ] 1. **Base del repo.** Clon de Dash (regla 3). `tests/run.py`: compila `tests/test_*.dash` con
+- [x] 1. **Base del repo.** Clon de Dash (regla 3). `tests/run.py`: compila `tests/test_*.dash` con
       `$DASH/dash --fpu` y los ejecuta en FS-UAE con `$DASH/tools/emu_run.py`, comparando con sus
       `# expect-out:` (como el runner de Dash). Un test trivial. `CLAUDE.md` de dashweb (corto: qué es,
       comandos, reglas de este fichero). `.gitignore` de `build/`.
@@ -146,3 +146,12 @@ Formato:
 ### 2026-10-15 — Plan
 - Hecho: plan creado. Estado de MUI en Dash: tarea 1 hecha, tarea 2 en curso (otra sesión, rama `mui`).
 - Fase B: cerrada.
+
+### 2026-10-15 — Tarea 1 (base del repo)
+- Hecho: clon de Dash en `~/.cache/dashweb/dash` (rama `mui`, commit b8439a1). `tests/run.py`: compila con
+  `$DASH/dash --fpu` (con `PYTHONPATH=$DASH`: `./dash` ejecuta `python3 -m compiler.main` y escribe `build/` en
+  el directorio actual) y ejecuta en FS-UAE (A1200 + 68882) los que tienen `# expect-out:`; directivas
+  `# dash-flags:`, `# cflags:`, `# emu-config:` (agrupa arranques por opciones) y `# emu-needs:`.
+  `tests/test_hola.dash`. `CLAUDE.md` de dashweb. `.gitignore` ya tenía `build/`.
+- Tests: 1/1. Comprobado que el runner detecta una línea distinta y que `import "../lib/x.dash"` funciona.
+- Pendiente / riesgos: MUI en Dash va por la tarea 2 (diseño hecho), fase B cerrada.

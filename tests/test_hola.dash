@@ -1,0 +1,8 @@
+# Trivial test: the runner compiles and runs in the emulator.
+# expect-out: dashweb
+# expect-out: 42
+
+Main
+    Print "dashweb"
+    Print 6 * 7
+end
