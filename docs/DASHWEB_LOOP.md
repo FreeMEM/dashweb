@@ -107,7 +107,7 @@ tarea, con el estilo de Dash.
 
 - [x] D1. **Errores encontrados.** `lista + [x]` transpila pero da C inválido (error de gcc); `String < String`
       compara punteros (debe comparar el texto o dar error). Test de cada uno.
-- [ ] D2. **Texto.** Código de un carácter y carácter desde código; buscar un texto (desde una posición);
+- [x] D2. **Texto.** Código de un carácter y carácter desde código; buscar un texto (desde una posición);
       empieza/termina por; mayúsculas/minúsculas; quitar espacios; texto a número (decimal y hex); comparar
       orden. Sin crear un texto por carácter. **Coste:** hoy `s[i]` recorre el texto desde el principio
       (`DashString_char_at` comprueba el final carácter a carácter) y `s.length` es `strlen`: recorrer un texto
@@ -245,3 +245,21 @@ Formato:
 - dashweb: 1/1.
 - Pendiente / riesgos: sumar en un bucle copia la lista entera (cuadrático): `push` llega en D4. Encontrado
   para D2: `s[i]` y `s.length` cuestan O(n).
+
+### 2026-10-15 — D2 (Dash: texto)
+- Hecho (rama `dashweb`, af3ca65 tras rebase sobre la tarea 5 de MUI): `TEXT_RUNTIME` y builtins `str_code`,
+  `str_char`, `str_find`, `str_find_from`, `str_starts`, `str_ends`, `str_lower`, `str_upper` (Latin-1),
+  `str_trim`, `str_to_int`, `str_from_int`, `str_replace`; `Int("42")`, `Int(s[i])` (0-255). `s[i]` y `s.length`
+  usan una caché de longitudes de textos largos (>= 64 bytes, 4 entradas, se olvida en `_dash_str_drop`):
+  recorrer 8 KB por posición, 91,9 s → 0,15 s en el A1200 real. Campo `reads_only` en `BuiltinFunc`: los
+  builtins que solo leen no copian para siempre sus argumentos (sin él, cada llamada dejaba un texto escapado).
+- Corrección de D1: la comparación "mismo C" de D1 estaba mal (`python3 -m compiler.main` carga el compilador
+  del directorio actual: las dos pasadas usaban el nuevo). Hecha bien (script `cmpc.sh` en el scratchpad): la
+  suma de listas pasa a `ARRAY_CONCAT_RUNTIME` (solo si se usa) y los parámetros `Array` cuentan referencias
+  como los structs (cambia `test_refcount_paths`, que pasa con `--memcheck`). Ahora solo cambia el C de los
+  programas que usan `s[i]`, `s.length`, `str_*` o la suma de listas.
+- Tests (Dash): `test_text` (con `--memcheck`, 0 vivos y 0 escapados); `expect-c` de `test_loops` y
+  `test_arrays_adv` al nombre nuevo. 298/298 con `--emu --emu-a500 --emu-32` (con esos dos ya corregidos),
+  ejemplos 32/32. Tras el rebase: 130/130 sin emulador y los tests de D1/D2 en el emulador.
+- Pendiente / riesgos: un texto modificado por dentro desde C con la misma dirección daría una longitud vieja
+  (los textos de Dash no se modifican; documentarlo si aparece algún caso).
