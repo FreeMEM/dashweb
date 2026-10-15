@@ -126,7 +126,7 @@ tarea, con el estilo de Dash.
       `for x in [1, 2, 3]` (hoy, error de sintaxis: solo admite una variable).
 - [ ] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
 - [ ] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
-- [ ] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
+- [x] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
       longitud. Bytes nulos: decidir qué pasa.
 - [ ] D8. **Red.** Builtins sobre `bsdsocket.library`: resolver nombre, conectar, enviar, recibir, cerrar,
       tiempo límite, sin bloqueo y su máscara de señales (para `mui_wait_event_signals`). Test en FS-UAE
@@ -303,3 +303,11 @@ Formato:
 - C: cambian los programas que hacen `s = s + ...` y los que ya usaban el runtime de texto (trae dos funciones
   más).
 - Pendiente / riesgos: campos de structs (`self.t = self.t + x`) siguen copiando: si el HTML los necesita, ampliar.
+
+### 2026-10-16 — D7 (Dash: ficheros y buffers como texto)
+- Hecho (rama `dashweb`, f710a0e tras rebase sobre la tarea 8 de MUI): `file_read_text` (fichero entero; `nil`
+  si no se puede leer), `file_write_text`, `str_from_buffer`, `str_to_buffer`. Los bytes 0 pasan a espacios (un
+  String termina en el 0). En `TEXT_IO_RUNTIME`, solo si se usan: mismo C en todos los programas anteriores.
+- Tests (Dash): `test_text_files` (`--memcheck`, fichero de 30 KB, fichero que no existe, vacío, buffers) en
+  A1200, A500 y 3.2. Tras el rebase: 136/136 sin emulador, 203/203 en el A1200 (con MUI), ejemplos 32/32.
+- Pendiente: los conflictos del rebase son siempre `docs/BUILTINS.md` (generado): se regenera.
