@@ -121,9 +121,11 @@ tarea, con el estilo de Dash.
       por posición es cuadrático. Arreglarlo (acceso directo; longitud guardada o calculada una vez).
 - [x] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
       peticiones/respuestas). Medir con `bench`.
-- [ ] D4. **Listas que crecen.** Añadir, quitar, insertar; lista vacía con tipo; que conserven el tipo de sus
-      elementos como parámetro y al devolverse; asignar al campo de un elemento (`l[0].x = 5`);
-      `for x in [1, 2, 3]` (hoy, error de sintaxis: solo admite una variable).
+- [x] D4a. **Tipos de lista.** `[T]` en globales, `var`, parámetros, retornos y campos (conservan el tipo de sus
+      elementos); `for x in` cualquier expresión de lista.
+- [ ] D4b. **Listas que crecen.** Añadir, quitar, insertar (sin copiar la lista entera); lista vacía con tipo
+      que ya sepa qué guarda.
+- [ ] D4c. **Campo de un elemento.** `l[0].x = 5` (hoy hay que pasar por una variable).
 - [ ] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
 - [ ] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
 - [x] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
@@ -154,7 +156,7 @@ tarea, con el estilo de Dash.
       lo que falte en tareas `D<n>` de la sección "Dash", con la tarea de dashweb que las necesita.
 - [x] 3. **URL.** (necesita D1, D2, D13) Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
       ruta, consulta, fragmento; `..` y `.`). Tests con casos raros.
-- [ ] 4. **Texto.** (necesita D2, D3, D7) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
+- [~] 4. **Texto.** (necesita D2, D3, D7, D4a) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
       exista; entidades HTML (`&amp;`, `&#233;`, `&eacute;`...). Tests.
 - [ ] 5. **TCP.** (necesita D8) `lib/red.dash` sobre los builtins de red: conexión con tiempo límite y
       lectura por trozos. `tests/run.py` arranca el servidor Python local que pida el test (directiva nueva).
@@ -311,3 +313,15 @@ Formato:
 - Tests (Dash): `test_text_files` (`--memcheck`, fichero de 30 KB, fichero que no existe, vacío, buffers) en
   A1200, A500 y 3.2. Tras el rebase: 136/136 sin emulador, 203/203 en el A1200 (con MUI), ejemplos 32/32.
 - Pendiente: los conflictos del rebase son siempre `docs/BUILTINS.md` (generado): se regenera.
+
+### 2026-10-16 — D4a (Dash: tipos de lista)
+- Motivo: la tabla de entidades HTML de la tarea 4 (lista de textos global) se leía como enteros: una lista
+  perdía el tipo de sus elementos en globales, parámetros, retornos y campos. D4 dividida en D4a/D4b/D4c.
+- Hecho (rama `dashweb`, 392b05c): tipo `[T]` (terminal `TYPE_NAME`, sin espacios); el analizador da
+  `elem_struct`/`ARRAY_STRING` a globales, `var`, parámetros (funciones, lambdas, métodos) y mira el tipo
+  declarado de llamadas y campos; codegen lleva `array:string`/`array:struct:X`/`array:array` a esos sitios
+  y a los accesos `f()[i]`, `obj.campo[i]`. `for x in <expresión>` (antes solo una variable): campos,
+  llamadas y literales, con el tipo de sus elementos. Error claro para `[Cosa]` inexistente.
+- Tests (Dash): `test_list_types` (`--memcheck`) en A1200, A500 y 3.2; `errors/list_type_unknown`. 138/138
+  sin emulador, ejemplos 32/32. Mismo C en los 129 programas previos (`tools/cmp_dash_c.sh`).
+- Pendiente: la tarea 4 (`lib/texto.dash`) sigue a medias; `lib/entidades.dash` generado debe usar `[String]`.
