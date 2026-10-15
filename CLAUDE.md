@@ -8,9 +8,9 @@ Plan, reglas y bitácora: `docs/DASHWEB_LOOP.md` (se trabaja con `/loop`, rama l
 
 ## Dash
 
-No se toca `~/Projects/FreeMEMLang` (otra sesión trabaja ahí). Se compila con un clon:
-`~/.cache/dashweb/dash` (`$DASH`), actualizado con `git -C ~/.cache/dashweb/dash pull`. Lo que le falte
-a Dash va a `docs/DASH_NECESIDADES.md`, con el rodeo usado.
+dashweb existe para hacer crecer Dash: **lo que le falte a Dash se añade a Dash** (tareas `D<n>` del plan),
+sin rodeos con `@native`. Se trabaja en el worktree `~/Projects/FreeMEMLang-dashweb` (rama `dashweb`, sale
+de `mui`; `$DASH` por defecto). No se toca `~/Projects/FreeMEMLang`: allí trabaja la sesión de MUI.
 
 ## Comandos
 

@@ -11,6 +11,9 @@ Arranque (desde cualquier directorio):
 Un navegador ligero para AmigaOS 3.x escrito en Dash, con interfaz MUI 5: XHTML, CSS, JavaScript
 (QuickJS, ya portado en `third_party/quickjs`) y HTTPS (AmiSSL).
 
+**dashweb existe para hacer crecer Dash** (usuario, 2026-10-15): todo lo que le falte a Dash se le añade a
+Dash. Nada de rodeos con `@native`: eso queda para lo que es C por naturaleza (el pegamento con QuickJS).
+
 Máquina objetivo (decisión del usuario del 2026-10-15): **PiStorm (Emu68) y emulación (UAE con JIT)**.
 No se optimiza para la velocidad de un 68k real ni se piden medidas en hardware real. Se compila para
 68020 con FPU (`./dash --fpu`, `-m68020 -m68881`) y la versión sin FPU debe seguir compilando.
@@ -26,23 +29,33 @@ Dos fases:
 
 1. **Vigilar MUI.** Mira cómo va la otra sesión:
    `git -C ~/Projects/FreeMEMLang show mui:docs/MUI_LOOP.md | grep -E '^- \[.\] ([1-9]|1[01])\.'`.
-   - Si las tareas 1-11 están todas `[x]` y la fase B aún no está "abierta" en la bitácora: actualiza el clon
-     de Dash (regla 3), apunta en la bitácora "Fase B abierta" y avisa con PushNotification. Desde ahí
+   - Si las tareas 1-11 están todas `[x]` y la fase B aún no está "abierta" en la bitácora: pon al día la
+     rama `dashweb` de Dash (regla 3), apunta en la bitácora "Fase B abierta" y avisa con PushNotification. Desde ahí
      las tareas de la fase B ya se pueden coger.
-   - Si no quedan tareas `[ ]` de la fase A y MUI no ha terminado: no hagas nada más. Programa la siguiente
+   - Si no quedan tareas `[ ]` de la fase A ni de Dash y MUI no ha terminado: no hagas nada más. Programa la siguiente
      vuelta con ScheduleWakeup a 1800 s (`noop: true`) y termina.
 2. **Rama.** Trabaja en `~/Projects/dashweb`, rama local `dev` (sale de `main`). Sin push.
-3. **Dash.** **No toques `~/Projects/FreeMEMLang`**: otra sesión trabaja ahí, en la misma copia. Compila
-   con un clon propio: `~/.cache/dashweb/dash` (`git clone -b mui ~/Projects/FreeMEMLang ~/.cache/dashweb/dash`).
-   Para actualizarlo: `git -C ~/.cache/dashweb/dash pull`. Solo trae commits ya hechos, nunca cambios a medio
-   hacer. Variable `DASH=~/.cache/dashweb/dash`. Si a Dash le falta algo, no lo cambies: apúntalo en
-   `docs/DASH_NECESIDADES.md` (qué, para qué, rodeo usado) y sigue con un rodeo (`@native`, `@extern`).
-   Para enlazar objetos de C (QuickJS) con un programa Dash: `DASH_CFLAGS="... ficheros.o"`.
+3. **Dash.** Lo que le falte a Dash se añade a Dash, como tarea `D<n>` de la lista (sección "Dash").
+   - **Dónde:** el worktree `~/Projects/FreeMEMLang-dashweb`, rama `dashweb` (sale de `mui`). `DASH` apunta ahí
+     (es el valor por defecto de `tests/run.py`). **No toques `~/Projects/FreeMEMLang`**: allí trabaja la
+     sesión de MUI, en la misma copia.
+   - **Al día con MUI:** al empezar la vuelta, si `mui` tiene commits que `dashweb` no tiene
+     (`git -C ~/Projects/FreeMEMLang-dashweb log --oneline dashweb..mui`), haz
+     `git -C ~/Projects/FreeMEMLang-dashweb rebase mui`. Si hay conflictos y no los resuelves bien,
+     `git rebase --abort` y apúntalo en la bitácora.
+   - **Reglas de Dash:** cada cambio con su test en `tests/` de Dash (normal, de error, `# expect-c:` o
+     `# expect-out:`); antes y después `python3 tests/run_tests.py` y `./compile_all.sh`, y al cerrar
+     `python3 tests/run_tests.py --emu --emu-a500 --emu-32`: nada que funcionaba puede romperse. Un programa
+     que no usa lo nuevo sale con el mismo C. Documenta en `docs/QUICK_REFERENCE.md`,
+     `docs/MANUAL_REFERENCIA.md` y, si hay builtins nuevos, `python3 tools/gen_builtins_doc.py`. Commit en la
+     rama `dashweb`: `dashweb: D<n> - <resumen>`. Sin push.
+   - Para enlazar objetos de C (QuickJS) mientras no exista la tarea D10: `DASH_CFLAGS="... ficheros.o"`.
 4. **Base.** `python3 tests/run.py` (cuando exista) antes de empezar. Anota si cambia respecto a la última entrada.
-5. **Tarea.** Coge la primera tarea `[ ]` de la fase abierta. Márcala `[~]` mientras trabajas. Una por
+5. **Tarea.** Coge la primera tarea `[ ]` de la fase abierta. Si dice "necesita D<n>" y esa tarea de
+   Dash no está `[x]`, haz antes la de Dash (la primera que falte). Márcala `[~]` mientras trabajas. Una por
    iteración. Si es grande, divídela en la lista y haz solo la primera parte.
-6. **Hacer.** Código del navegador en Dash (`src/`), módulos reutilizables en `lib/`, C solo donde haga
-   falta (`@native`, `third_party/`). Cada cosa con su test en `tests/`, ejecutado en el emulador.
+6. **Hacer.** Código del navegador en Dash (`src/`), módulos reutilizables en `lib/`. C solo en
+   `third_party/` y en el pegamento con él. Cada cosa con su test en `tests/`, ejecutado en el emulador.
    Entorno (no va al repo):
    `export DASH_KICKSTART="/home/freemem/Descargas/Telegram Desktop/ks31a1200.rom"`,
    `DASH_EMU_SYS=~/.cache/dash-emu/sys31`, para MUI `DASH_EMU_SYS_MUI=~/.cache/dash-emu/sys31mui`.
@@ -64,7 +77,58 @@ Dos fases:
   red al Amiga emulado). Nada de pruebas automáticas contra webs de terceros.
 - Si una tarea exige una decisión del usuario, déjala `[?]` con la pregunta y pasa a la siguiente.
 
+## Coordinación con la sesión de MUI (`freememlang-49`, rama `mui`)
+
+Acordado el 2026-10-15 por mensaje entre sesiones (escribirle con SendMessage si algo cambia):
+
+- **Sus tareas, no las dupliques:** 8 (`mui_wait_event_signals`) y 9 (imágenes con `Dtpic`). Las imágenes
+  fuera de MUI (datatypes a bitmap pintado con `gfx_`, D12) son nuestras: al hacerlas, avísale del nombre de
+  los builtins, que su tarea 9 se apoyará en ellos.
+- **Para no chocar en Dash:** lo nuestro va en diccionarios y plantillas propios (`NET_FUNCTIONS`/`NET_RUNTIME`,
+  `FONT_FUNCTIONS`...), no en `MUI_FUNCTIONS` ni `CTemplates.MUI_RUNTIME` (suyos), y en líneas separadas de
+  `_RUNTIME_FLAGS` y `GROUPS` de `tools/gen_builtins_doc.py`. Docs: secciones propias.
+- **Convención de builtins:** los objetos (sockets, fuentes, imágenes...) son `LONG` en Dash, como ficheros y
+  buffers. Runtime con nombre `_dash_*` y plantilla que es una llamada simple: así codegen hace los casts y la
+  inclusión del runtime (`runtime_index` por nombre) sola.
+- **Latin-1:** su tarea 3 trae `compiler/latin1.py` (los literales no ASCII salen en Latin-1) y `emu_run.py` lee
+  la salida como Latin-1. Las páginas en UTF-8 las convierte dashweb (tarea 4).
+- **Avisos técnicos:** MUI pide 32 KB de pila (codegen la sube sola). Las funciones `__inline` de los SDK que
+  pasan `&tags` dan etiquetas basura con `-O2` (usar `NO_INLINE_STDARG` y arrays). En 68000, las macros
+  `register asm` del NDK se machacan con llamadas a libgcc (`__mulsi3`...): calcular antes en variables.
+- **Zona de dibujo:** la API de `docs/MUI_DISEÑO.md` (`mui_canvas_on_draw(c, f)` con `f(x, y, ancho, alto)`
+  pintando con `gfx_`). Nos avisará antes de cambiarla.
+
 ## Tareas
+
+### Dash: lo que dashweb necesita (rama `dashweb`, regla 3)
+
+Se hacen cuando una tarea de dashweb las pide ("necesita D<n>"). Los nombres concretos se deciden en cada
+tarea, con el estilo de Dash.
+
+- [ ] D1. **Errores encontrados.** `lista + [x]` transpila pero da C inválido (error de gcc); `String < String`
+      compara punteros (debe comparar el texto o dar error). Test de cada uno.
+- [ ] D2. **Texto.** Código de un carácter y carácter desde código; buscar un texto (desde una posición);
+      empieza/termina por; mayúsculas/minúsculas; quitar espacios; texto a número (decimal y hex); comparar
+      orden. Sin crear un texto por carácter.
+- [ ] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
+      peticiones/respuestas). Medir con `bench`.
+- [ ] D4. **Listas que crecen.** Añadir, quitar, insertar; lista vacía con tipo; que conserven el tipo de sus
+      elementos como parámetro y al devolverse; asignar al campo de un elemento (`l[0].x = 5`).
+- [ ] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
+- [ ] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
+- [ ] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
+      longitud. Bytes nulos: decidir qué pasa.
+- [ ] D8. **Red.** Builtins sobre `bsdsocket.library`: resolver nombre, conectar, enviar, recibir, cerrar,
+      tiempo límite, sin bloqueo y su máscara de señales (para `mui_wait_event_signals`). Test en FS-UAE
+      (`bsdsocket_library = 1`) con un servidor Python local.
+- [ ] D9. **Fuentes y colores.** Abrir fuentes de disco con tamaño, estilo (negrita, cursiva, subrayado),
+      medir texto con la fuente actual, colores RGB en pantallas de paleta (`ObtainBestPen`/`ReleasePen`) y en RTG.
+- [ ] D10. **C externo.** Enlazar objetos o librerías C desde el programa (directiva o opción) y llamar a
+      funciones Dash desde C (callbacks), para QuickJS.
+- [ ] D11. **AmiSSL.** Conexiones TLS sobre los sockets de D8 (módulo o builtins), con verificación de
+      certificado.
+- [ ] D12. **Imágenes.** Cargar PNG/GIF/JPEG por datatypes a un bitmap y pintarlo con `gfx_` (fuera de MUI).
+      Avisar a la sesión de MUI del nombre (su tarea 9 lo usará).
 
 ### Fase A: sin MUI
 
@@ -72,44 +136,43 @@ Dos fases:
       `$DASH/dash --fpu` y los ejecuta en FS-UAE con `$DASH/tools/emu_run.py`, comparando con sus
       `# expect-out:` (como el runner de Dash). Un test trivial. `CLAUDE.md` de dashweb (corto: qué es,
       comandos, reglas de este fichero). `.gitignore` de `build/`.
-- [ ] 2. **Arquitectura.** `docs/ARQUITECTURA.md`: módulos (red, URL, HTTP, TLS, texto, HTML, DOM, CSS,
+- [x] 2. **Arquitectura.** `docs/ARQUITECTURA.md`: módulos (red, URL, HTTP, TLS, texto, HTML, DOM, CSS,
       estilo, maquetación, dibujo, imágenes, JS, interfaz), qué va en Dash y qué en C, quién es dueño de la
       memoria de cada cosa, cómo se pasa de una fase a otra (bytes → tokens → DOM → estilo → cajas → dibujo).
-      Repasa qué tiene Dash hoy (structs, listas, textos, `@native`, contador de referencias) y apunta lo
-      que falte en `docs/DASH_NECESIDADES.md` (por ejemplo diccionarios, búferes de bytes, recursión profunda).
-- [ ] 3. **URL.** Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
+      Repasa qué tiene Dash hoy (structs, listas, textos, `@native`, contador de referencias) y convierte
+      lo que falte en tareas `D<n>` de la sección "Dash", con la tarea de dashweb que las necesita.
+- [ ] 3. **URL.** (necesita D1, D2) Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
       ruta, consulta, fragmento; `..` y `.`). Tests con casos raros.
-- [ ] 4. **Texto.** UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
+- [ ] 4. **Texto.** (necesita D2, D3, D7) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
       exista; entidades HTML (`&amp;`, `&#233;`, `&eacute;`...). Tests.
-- [ ] 5. **TCP.** Módulo de sockets sobre `bsdsocket.library` (abrir, conectar con DNS, enviar, recibir,
-      cerrar, tiempo límite) y modo sin bloqueo con `WaitSelect` y señales, para el bucle de eventos de la
-      fase B. Test en FS-UAE con `bsdsocket_library = 1` contra un servidor Python local.
-- [ ] 6. **HTTP/1.1.** GET con cabeceras, `Content-Length`, `chunked`, redirecciones (máx. 5),
+- [ ] 5. **TCP.** (necesita D8) `lib/red.dash` sobre los builtins de red: conexión con tiempo límite y
+      lectura por trozos. `tests/run.py` arranca el servidor Python local que pida el test (directiva nueva).
+- [ ] 6. **HTTP/1.1.** (necesita D3, D4, D5) GET con cabeceras, `Content-Length`, `chunked`, redirecciones (máx. 5),
       `Content-Type` y juego de caracteres, errores. Tests contra un servidor local que cubra cada caso.
-- [ ] 7. **HTTPS.** AmiSSL 5 para OS3: script que lo descarga a `~/.cache` y lo mete en el sistema
+- [ ] 7. **HTTPS.** (necesita D11) AmiSSL 5 para OS3: script que lo descarga a `~/.cache` y lo mete en el sistema
       emulado; conexión TLS con verificación de certificado. Test contra un servidor HTTPS local con una CA
       propia. Si hace falta decidir algo de licencias o versiones, `[?]`.
-- [ ] 8. **Tokenizador HTML.** Etiquetas, atributos (con y sin comillas), texto, comentarios, `DOCTYPE`,
+- [ ] 8. **Tokenizador HTML.** (necesita D2, D3, D4) Etiquetas, atributos (con y sin comillas), texto, comentarios, `DOCTYPE`,
       entidades, `<script>`/`<style>` como texto crudo. Tolerante con HTML mal formado; XHTML también.
-- [ ] 9. **Árbol DOM.** Nodos (elemento, texto, comentario), etiquetas implícitas (`html`, `head`, `body`),
+- [ ] 9. **Árbol DOM.** (necesita D4, D6) Nodos (elemento, texto, comentario), etiquetas implícitas (`html`, `head`, `body`),
       cierres implícitos (`p`, `li`, `td`...), elementos vacíos (`br`, `img`...). Tests con páginas reales
       pequeñas guardadas en `tests/pages/`.
-- [ ] 10. **CSS: lectura.** Tokenizador y analizador: reglas, selectores (tipo, clase, id, descendiente,
+- [ ] 10. **CSS: lectura.** (necesita D2, D4) Tokenizador y analizador: reglas, selectores (tipo, clase, id, descendiente,
       hijo, atributo, `:hover` ignorado), declaraciones, `!important`, `@media` (solo `screen`/`all`),
       hojas `<style>` y `<link rel=stylesheet>` (vía HTTP).
-- [ ] 11. **CSS: estilo.** Selección de elementos, cascada (origen, especificidad, orden), herencia,
+- [ ] 11. **CSS: estilo.** (necesita D4, D5) Selección de elementos, cascada (origen, especificidad, orden), herencia,
       hoja por defecto del navegador, atributo `style`. Estilo calculado por nodo para las propiedades que
       se vayan a usar (display, colores, fuente, márgenes, relleno, bordes, ancho/alto, alineación, listas).
-- [ ] 12. **Maquetación.** Cajas de bloque y en línea, cortes de línea con las medidas de la fuente
+- [ ] 12. **Maquetación.** (necesita D9) Cajas de bloque y en línea, cortes de línea con las medidas de la fuente
       (`TextLength`), márgenes/relleno/bordes, anchos y altos, listas. Sale una lista de cosas que dibujar.
       Tablas y `float`, más adelante (añadir tareas si hace falta).
-- [ ] 13. **Dibujo y visor sin MUI.** Dibujar esa lista en una ventana normal de Intuition con los
+- [ ] 13. **Dibujo y visor sin MUI.** (necesita D9) Dibujar esa lista en una ventana normal de Intuition con los
       builtins `gfx_` de Dash (texto, rectángulos, bordes, colores). Programa `src/visor.dash`: abre un
       fichero HTML local, lo pinta y hace scroll con teclas. Captura de pantalla en el emulador. Medir el tiempo
       de cada fase en la configuración "objetivo" (regla 6).
-- [ ] 14. **Imágenes.** Datatypes (PNG, GIF, JPEG) a bitmap y dibujarlas en la página; `width`/`height`
+- [ ] 14. **Imágenes.** (necesita D12) Datatypes (PNG, GIF, JPEG) a bitmap y dibujarlas en la página; `width`/`height`
       del HTML; imágenes que llegan por HTTP.
-- [ ] 15. **QuickJS enlazable.** Compilar QuickJS como objetos que se enlazan con un programa Dash
+- [ ] 15. **QuickJS enlazable.** (necesita D10) Compilar QuickJS como objetos que se enlazan con un programa Dash
       (`tools/build_qjs.sh` con modo librería), fdlibm para que `Math.*` sea exacto (ver
       `docs/quickjs_amiga.md`), y un módulo `lib/js.dash` con `@native`: crear el motor, evaluar, errores,
       `console.log`. Test.
@@ -155,3 +218,15 @@ Formato:
   `tests/test_hola.dash`. `CLAUDE.md` de dashweb. `.gitignore` ya tenía `build/`.
 - Tests: 1/1. Comprobado que el runner detecta una línea distinta y que `import "../lib/x.dash"` funciona.
 - Pendiente / riesgos: MUI en Dash va por la tarea 2 (diseño hecho), fase B cerrada.
+
+### 2026-10-15 — Tarea 2 (arquitectura)
+- Hecho: `docs/ARQUITECTURA.md` (flujo de una página, módulos, datos, memoria, juego de caracteres, red, JS).
+  Probado qué tiene Dash: `s.length`, `s[i]` (da un `char`, sin crear texto), `"n=" + 42`, recursión con `nil`,
+  `@native` con `String`. No tiene: listas que crecen, funciones de texto, diccionarios, fuentes/colores RGB,
+  red. Errores: `a + [3]` transpila a C inválido; `"abc" < "abd"` compara punteros.
+- Cambio de reglas (usuario): lo que falte a Dash se añade a Dash. Worktree `~/Projects/FreeMEMLang-dashweb`,
+  rama `dashweb` desde `mui` (b8439a1); borrado el clon de `~/.cache`. Tareas D1-D12. `tests/run.py` usa el worktree.
+- Coordinación con la sesión de MUI por mensaje: reparto y convenciones en la sección "Coordinación".
+- Tests: 1/1.
+- Pendiente / riesgos: choques al hacer `rebase mui` en `amiga_builtins.py`/`codegen.py` (minimizados con
+  bloques propios).

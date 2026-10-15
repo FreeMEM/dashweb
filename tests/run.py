@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """dashweb test runner.
 
-Compiles tests/test_*.dash with Dash ($DASH, default ~/.cache/dashweb/dash) for a 68020
+Compiles tests/test_*.dash with Dash ($DASH, default ~/Projects/FreeMEMLang-dashweb) for a 68020
 with FPU and runs the ones with "# expect-out:" lines in FS-UAE (Dash's tools/emu_run.py),
 comparing what they print, line by line.
 
@@ -32,7 +32,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DASH = Path(os.environ.get("DASH", Path.home() / ".cache" / "dashweb" / "dash"))
+DASH = Path(os.environ.get("DASH", Path.home() / "Projects" / "FreeMEMLang-dashweb"))
 BUILD = ROOT / "build" / "tests"
 EMU_BASE = "fpu = 68882\n"          # the tests are built with --fpu (68020 + 68881)
 
