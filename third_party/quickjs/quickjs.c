@@ -68,7 +68,7 @@
 
 /* define to include Atomics.* operations which depend on the OS
    threads */
-#if !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__) && !defined(__amigaos__)
 #define CONFIG_ATOMICS
 #endif
 
@@ -2140,7 +2140,7 @@ static size_t js_def_malloc_usable_size(const void *ptr)
     return malloc_size(ptr);
 #elif defined(_WIN32)
     return _msize((void *)ptr);
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(__amigaos__)
     return 0;
 #elif defined(__linux__) || defined(__GLIBC__)
     return malloc_usable_size((void *)ptr);
@@ -47251,7 +47251,7 @@ static int getTimezoneOffset(int64_t time)
         }
     }
     ti = time;
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__amigaos__)
     {
         struct tm *tm;
         time_t gm_ti, loc_ti;
