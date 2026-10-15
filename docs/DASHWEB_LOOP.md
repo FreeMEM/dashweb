@@ -130,7 +130,7 @@ tarea, con el estilo de Dash.
 - [ ] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
 - [x] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
       longitud. Bytes nulos: decidir qué pasa.
-- [ ] D8. **Red.** Builtins sobre `bsdsocket.library`: resolver nombre, conectar, enviar, recibir, cerrar,
+- [x] D8. **Red.** Builtins sobre `bsdsocket.library`: resolver nombre, conectar, enviar, recibir, cerrar,
       tiempo límite, sin bloqueo y su máscara de señales (para `mui_wait_event_signals`). Test en FS-UAE
       (`bsdsocket_library = 1`) con un servidor Python local.
 - [ ] D9. **Fuentes y colores.** Abrir fuentes de disco con tamaño, estilo (negrita, cursiva, subrayado),
@@ -207,7 +207,8 @@ tarea, con el estilo de Dash.
 - [ ] 19. **Navegación.** Clic en enlaces, historial, recargar, scroll con ratón y teclado, título de la
       ventana, errores de red mostrados en la página.
 - [ ] 20. **Bucle de eventos.** Red y temporizadores de JS con `mui_wait_event_signals`: las páginas se
-      cargan sin congelar la interfaz y se pueden cancelar.
+      cargan sin congelar la interfaz y se pueden cancelar. Falta en Dash: señal de los sockets (FIOASYNC +
+      `SBTC_SIGIOMASK`, o `WaitSelect` con máscara) para pasarla a `mui_wait_event_signals`.
 - [ ] 21. **Formularios.** `input`, `button`, `select`, `textarea`, `checkbox`; envío GET y POST.
 - [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
 - [ ] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
@@ -339,3 +340,14 @@ Formato:
 - Tests: `test_texto` (UTF-8 de 2, 3 y 4 bytes, inválido, Windows-1252, entidades, búsqueda). 3/3, también con
   `--memcheck`.
 - Encontrado: una función del programa llamada `b` impide a los módulos usar una variable local `b` → D14.
+
+### 2026-10-16 — D8 (Dash: red TCP)
+- Hecho (rama `dashweb`): `NET_FUNCTIONS`/`NET_RUNTIME`: `net_connect(host, puerto, ms)` (DNS o dirección,
+  conexión sin bloqueo con `WaitSelect` y tiempo límite), `net_send`, `net_send_buffer`, `net_recv` (texto; `""` si
+  nada en el tiempo dado, `nil` al cerrarse), `net_recv_buffer`, `net_wait`, `net_close`, `net_resolve`,
+  `net_error` (en español). `bsdsocket.library` se abre al usarla y se cierra al salir. Runner de Dash:
+  `# emu-net: PUERTO` → arranque aparte con `bsdsocket_library = 1` y un servidor de eco en 127.0.0.1 del PC.
+- Tests (Dash): `test_net` (resolver, conectar, enviar, recibir hasta el cierre, puerto cerrado, host
+  inexistente) en A1200, A500 y 3.2 y con `--memcheck`. 140/140 sin emulador, ejemplos 32/32. Mismo C en los
+  programas previos.
+- Pendiente: señales de los sockets para el bucle de MUI (apuntado en la tarea 20).
