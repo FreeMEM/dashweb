@@ -164,7 +164,7 @@ tarea, con el estilo de Dash.
       exista; entidades HTML (`&amp;`, `&#233;`, `&eacute;`...). Tests.
 - [x] 5. **TCP.** (necesita D8) `lib/red.dash` sobre los builtins de red: conexión con tiempo límite y
       lectura por trozos. `tests/run.py` arranca el servidor Python local que pida el test (directiva nueva).
-- [ ] 6. **HTTP/1.1.** (necesita D3, D4, D5) GET con cabeceras, `Content-Length`, `chunked`, redirecciones (máx. 5),
+- [x] 6. **HTTP/1.1.** (necesita D3, D4, D5) GET con cabeceras, `Content-Length`, `chunked`, redirecciones (máx. 5),
       `Content-Type` y juego de caracteres, errores. Tests contra un servidor local que cubra cada caso.
 - [ ] 7. **HTTPS.** (necesita D11) AmiSSL 5 para OS3: script que lo descarga a `~/.cache` y lo mete en el sistema
       emulado; conexión TLS con verificación de certificado. Test contra un servidor HTTPS local con una CA
@@ -187,7 +187,8 @@ tarea, con el estilo de Dash.
       builtins `gfx_` de Dash (texto, rectángulos, bordes, colores). Programa `src/visor.dash`: abre un
       fichero HTML local, lo pinta y hace scroll con teclas. Captura de pantalla en el emulador. Medir el tiempo
       de cada fase en la configuración "objetivo" (regla 6).
-- [ ] 14. **Imágenes.** (necesita D12) Datatypes (PNG, GIF, JPEG) a bitmap y dibujarlas en la página; `width`/`height`
+- [ ] 14. **Imágenes.** (necesita D12) Hace falta un cuerpo HTTP en buffer (`http_get` da texto: los bytes 0
+      pasan a espacios y una imagen se rompería). Datatypes (PNG, GIF, JPEG) a bitmap y dibujarlas en la página; `width`/`height`
       del HTML; imágenes que llegan por HTTP.
 - [ ] 15. **QuickJS enlazable.** (necesita D10) Compilar QuickJS como objetos que se enlazan con un programa Dash
       (`tools/build_qjs.sh` con modo librería), fdlibm para que `Math.*` sea exacto (ver
@@ -382,3 +383,15 @@ Formato:
   2.000 altas + 2.000 lecturas + 1.000 bajas con claves `"k" + i`: 3,4 s en el A1200 real.
 - Tests (Dash): `test_dict` (`--memcheck`) en A1200, A500 y 3.2; errores `dict_int_key`, `dict_for`,
   `dict_method_unknown`. Mismo C en los 134 programas previos. Tras el rebase: todo pasa sin emulador y en el A1200.
+
+### 2026-10-16 — Tarea 6 (HTTP/1.1)
+- Hecho: `lib/http.dash`: `struct Respuesta` (estado, razón, cabeceras `{String: String}` en minúsculas —las
+  repetidas se unen con ", "—, cuerpo, URL final, tipo y juego de caracteres de `Content-Type`, error);
+  `http_get(url, ms)` sigue hasta 5 redirecciones (301/302/303/307/308, `Location` relativa o absoluta);
+  cuerpo por `Content-Length`, `chunked` (con cabeceras finales) o hasta el cierre; `http_texto(r)` lo pasa a
+  Latin-1 con `lib/texto.dash`. Petición con `Host`, `User-Agent`, `Accept-Encoding: identity`, `Connection: close`.
+- Tests: `test_http` contra `tests/servers/http.py` (longitud, chunked, UTF-8, redirección relativa y absoluta,
+  bucle, 404 con cabeceras repetidas, sin longitud, petición enviada sin el fragmento, esquema no admitido, puerto
+  cerrado). 5/5, también con `--memcheck`.
+- Pendiente: HTTPS (tarea 7); cuerpos binarios en buffer (apuntado en la tarea 14); conexiones persistentes y
+  compresión, más adelante si hace falta.

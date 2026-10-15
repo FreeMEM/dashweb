@@ -1,0 +1,221 @@
+# Cliente HTTP/1.1: GET con redirecciones, Content-Length, chunked y hasta el cierre.
+#
+#   r = http_get("http://ejemplo.org/", 15000)
+#   if r.error != ""
+#       Print r.error
+#   end
+#   Print r.estado                  # 200
+#   Print r.cabeceras["content-type"]
+#   html = http_texto(r)            # el cuerpo en Latin-1, según su juego de caracteres
+#
+# Las cabeceras se guardan con el nombre en minúsculas. El cuerpo es texto: los bytes 0
+# pasan a espacios (para imágenes hará falta un cuerpo en buffer).
+
+import "url.dash"
+import "red.dash"
+import "texto.dash"
+
+const HTTP_MAX_REDIRECCIONES = 5
+const HTTP_AGENTE = "dashweb/0.1 (AmigaOS)"
+
+struct Respuesta
+    estado: Int
+    razon: String
+    cabeceras: {String: String}
+    cuerpo: String
+    url: String
+    tipo: String
+    juego: String
+    error: String
+end
+
+func _respuesta_vacia(url: String) -> Respuesta
+    var c: {String: String} = {}
+    return Respuesta(0, "", c, "", url, "", "", "")
+end
+
+# GET de una URL, siguiendo hasta 5 redirecciones
+func http_get(direccion: String, espera_ms: Int) -> Respuesta
+    actual = url_parse(direccion)
+    for vuelta in (0..HTTP_MAX_REDIRECCIONES)
+        r = _http_una(actual, espera_ms)
+        if r.error != ""
+            return r
+        end
+        es_redireccion = r.estado == 301 or r.estado == 302 or r.estado == 303 or r.estado == 307 or r.estado == 308
+        if not es_redireccion or not r.cabeceras.has("location")
+            return r
+        end
+        actual = url_resolve(actual, r.cabeceras["location"])
+    end
+    r = _respuesta_vacia(url_text(actual))
+    r.error = "demasiadas redirecciones"
+    return r
+end
+
+func _http_una(u: Url, espera_ms: Int) -> Respuesta
+    r = _respuesta_vacia(url_text(u))
+    if u.esquema != "http"
+        r.error = "esquema no admitido: " + u.esquema
+        return r
+    end
+    c = red_abrir(u.host, url_port(u), espera_ms)
+    if c.error != ""
+        r.error = c.error
+        return r
+    end
+    ruta = u.ruta
+    if ruta == ""
+        ruta = "/"
+    end
+    if u.tiene_consulta
+        ruta = ruta + "?" + u.consulta
+    end
+    host = u.host
+    if u.puerto >= 0
+        host = host + ":" + u.puerto
+    end
+    peticion = "GET " + ruta + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: " + HTTP_AGENTE
+    peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n"
+    if not red_enviar(c, peticion)
+        r.error = c.error
+        red_cerrar(c)
+        return r
+    end
+    _leer_estado(c, r)
+    if r.error == ""
+        _leer_cabeceras(c, r)
+    end
+    if r.error == ""
+        _leer_cuerpo(c, r)
+    end
+    red_cerrar(c)
+    return r
+end
+
+# "HTTP/1.1 200 OK"
+func _leer_estado(c: Conexion, r: Respuesta)
+    linea = red_leer_linea(c)
+    if linea == nil
+        r.error = "el servidor cerró sin responder"
+        if c.error != ""
+            r.error = c.error
+        end
+        return
+    end
+    if not str_starts(linea, "HTTP/")
+        r.error = "respuesta que no es HTTP"
+        return
+    end
+    p = str_find(linea, " ")
+    if p < 0
+        r.error = "línea de estado rota"
+        return
+    end
+    resto = linea[p + 1:]
+    r.estado = Int(resto)
+    q = str_find(resto, " ")
+    if q >= 0
+        r.razon = resto[q + 1:]
+    end
+end
+
+# "Nombre: valor" hasta una línea vacía; nombres en minúsculas
+func _leer_cabeceras(c: Conexion, r: Respuesta)
+    linea = red_leer_linea(c)
+    while linea != nil and linea != ""
+        p = str_find(linea, ":")
+        if p > 0
+            nombre = str_lower(str_trim(linea[:p]))
+            valor = str_trim(linea[p + 1:])
+            if r.cabeceras.has(nombre)
+                r.cabeceras[nombre] = r.cabeceras[nombre] + ", " + valor
+            else
+                r.cabeceras[nombre] = valor
+            end
+        end
+        linea = red_leer_linea(c)
+    end
+    if linea == nil
+        r.error = "cabeceras cortadas"
+        return
+    end
+    if r.cabeceras.has("content-type")
+        _tipo_y_juego(r, r.cabeceras["content-type"])
+    end
+end
+
+# "text/html; charset=UTF-8" -> tipo "text/html", juego "utf-8"
+func _tipo_y_juego(r: Respuesta, valor: String)
+    v = str_lower(valor)
+    p = str_find(v, ";")
+    if p < 0
+        r.tipo = str_trim(v)
+        return
+    end
+    r.tipo = str_trim(v[:p])
+    q = str_find(v, "charset=")
+    if q >= 0
+        j = str_trim(v[q + 8:])
+        fin = str_find(j, ";")
+        if fin >= 0
+            j = j[:fin]
+        end
+        r.juego = str_replace(str_trim(j), "\"", "")
+    end
+end
+
+func _leer_cuerpo(c: Conexion, r: Respuesta)
+    if r.estado == 204 or r.estado == 304 or (r.estado >= 100 and r.estado < 200)
+        return
+    end
+    codificacion = ""
+    if r.cabeceras.has("transfer-encoding")
+        codificacion = str_lower(r.cabeceras["transfer-encoding"])
+    end
+    if str_find(codificacion, "chunked") >= 0
+        _leer_chunked(c, r)
+    elif r.cabeceras.has("content-length")
+        n = Int(r.cabeceras["content-length"])
+        r.cuerpo = red_leer(c, n)
+        if r.cuerpo.length < n
+            r.error = "cuerpo cortado"
+        end
+    else
+        r.cuerpo = red_leer_todo(c)
+    end
+end
+
+# Trozos: tamaño en hexadecimal, datos, salto; un trozo de tamaño 0 termina
+func _leer_chunked(c: Conexion, r: Respuesta)
+    cuerpo = ""
+    linea = red_leer_linea(c)
+    while linea != nil
+        n = str_to_int(str_trim(linea), 16)
+        if n <= 0
+            # cabeceras finales, hasta una línea vacía
+            fin = red_leer_linea(c)
+            while fin != nil and fin != ""
+                fin = red_leer_linea(c)
+            end
+            r.cuerpo = cuerpo
+            return
+        end
+        trozo = red_leer(c, n)
+        cuerpo = cuerpo + trozo
+        if trozo.length < n
+            r.cuerpo = cuerpo
+            r.error = "cuerpo cortado"
+            return
+        end
+        red_leer_linea(c)
+        linea = red_leer_linea(c)
+    end
+    r.cuerpo = cuerpo
+    r.error = "cuerpo cortado"
+end
+
+# El cuerpo en Latin-1, según su juego de caracteres (sin él: UTF-8)
+func http_texto(r: Respuesta) -> String
+    return texto_decodificar(r.cuerpo, r.juego)
+end

@@ -1,0 +1,41 @@
+# Test: lib/http.dash contra tests/servers/http.py
+# emu-server: http.py 40851
+# expect-out: 200 OK text/plain [hola]
+# expect-out: 200 text/html utf-8 [unodostres-cuatr]
+# expect-out: café
+# expect-out: 200 [hola] http://127.0.0.1:40851/hola
+# expect-out: 200 [hola]
+# expect-out: demasiadas redirecciones
+# expect-out: 404 a=1, b=2
+# expect-out: 200 5000 z
+# expect-out: [GET /eco?x=1 HTTP/1.1]
+# expect-out: esquema no admitido: ftp
+# expect-out: conexión rechazada
+
+import "../lib/http.dash"
+
+Main
+    base = "http://127.0.0.1:40851"
+    r = http_get(base + "/hola", 5000)
+    Print "" + r.estado + " " + r.razon + " " + r.tipo + " [" + r.cuerpo + "]"
+    r = http_get(base + "/chunked", 5000)
+    Print "" + r.estado + " " + r.tipo + " " + r.juego + " [" + r.cuerpo + "]"
+    r = http_get(base + "/utf8", 5000)
+    Print http_texto(r)
+    r = http_get(base + "/redir", 5000)
+    Print "" + r.estado + " [" + r.cuerpo + "] " + r.url
+    r = http_get(base + "/redir2", 5000)
+    Print "" + r.estado + " [" + r.cuerpo + "]"
+    r = http_get(base + "/bucle", 5000)
+    Print r.error
+    r = http_get(base + "/no", 5000)
+    Print "" + r.estado + " " + r.cabeceras["set-cookie"]
+    r = http_get(base + "/cerrar", 5000)
+    Print "" + r.estado + " " + r.cuerpo.length + " " + r.cuerpo[4999]
+    r = http_get(base + "/eco?x=1#frag", 5000)
+    Print "[" + str_trim(r.cuerpo) + "]"
+    r = http_get("ftp://127.0.0.1/", 5000)
+    Print r.error
+    r = http_get("http://127.0.0.1:1/", 3000)
+    Print r.error
+end
