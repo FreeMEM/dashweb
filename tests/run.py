@@ -17,7 +17,8 @@ Lines a test can have:
     # cflags: <flags>           extra gcc options/objects (DASH_CFLAGS), paths relative to the repo
     # emu-config: key = value   extra FS-UAE option (e.g. bsdsocket_library = 1); tests with
                                 the same options share one boot
-    # emu-needs: x.library      skip on the emulator when $DASH_EMU_SYS has no Libs/x.library
+    # emu-needs: x.library      skip on the emulator when $DASH_EMU_SYS has no Libs/x.library;
+                                amisslmaster.library: the system is $DASH_EMU_SYS_SSL (AmiSSL)
     # emu-server: script.py PORT  the test uses the network: FS-UAE gets bsdsocket.library (the PC's
                                 network) and tests/servers/script.py PORT runs on the PC meanwhile
 
@@ -93,7 +94,9 @@ def main():
             results[src.stem] = (False, "compile failed:\n" + err)
             continue
         expected = directives(src, "expect-out")
-        missing = [lib for lib in directives(src, "emu-needs") if not (Path(sysdir) / "Libs" / lib).exists()]
+        system = os.environ.get("DASH_EMU_SYS_SSL", "") if "amisslmaster.library" in directives(src, "emu-needs") else sysdir
+        missing = [lib for lib in directives(src, "emu-needs")
+                   if not any((Path(system) / d / lib).exists() for d in ("Libs", "AmiSSL/Libs"))]
         if not expected or args.no_emu:
             results[src.stem] = (True, "compiled")
         elif missing:
@@ -102,11 +105,11 @@ def main():
             cfg = EMU_BASE + "".join(c + "\n" for c in directives(src, "emu-config"))
             if directives(src, "emu-server"):
                 cfg += "bsdsocket_library = 1\n"
-            to_run.setdefault(cfg, []).append((src, exe, expected))
+            to_run.setdefault((cfg, system), []).append((src, exe, expected))
 
     if to_run and not os.environ.get("DASH_KICKSTART"):
         print("warning: $DASH_KICKSTART not set, FS-UAE uses AROS: results do not count", file=sys.stderr)
-    for cfg, group in to_run.items():
+    for (cfg, system), group in to_run.items():
         servers = [subprocess.Popen([sys.executable, str(ROOT / "tests" / "servers" / d.split()[0])] + d.split()[1:],
                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                    for src, _, _ in group for d in directives(src, "emu-server")]
@@ -114,7 +117,7 @@ def main():
             time.sleep(1)       # let them listen
         try:
             outs = run_programs([exe for _, exe, _ in group], timeout=args.timeout,
-                                kickstart=os.environ.get("DASH_KICKSTART"), extra_config=cfg)
+                                kickstart=os.environ.get("DASH_KICKSTART"), extra_config=cfg, system=system or None)
         except RuntimeError as e:
             for src, _, _ in group:
                 results[src.stem] = (False, f"emulator: {e}")

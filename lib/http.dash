@@ -1,4 +1,4 @@
-# Cliente HTTP/1.1: GET con redirecciones, Content-Length, chunked y hasta el cierre.
+# Cliente HTTP/1.1 y HTTPS (AmiSSL): GET con redirecciones, Content-Length, chunked y hasta el cierre.
 #
 #   r = http_get("http://ejemplo.org/", 15000)
 #   if r.error != ""
@@ -55,11 +55,16 @@ end
 
 func _http_una(u: Url, espera_ms: Int) -> Respuesta
     r = _respuesta_vacia(url_text(u))
-    if u.esquema != "http"
+    if u.esquema != "http" and u.esquema != "https"
         r.error = "esquema no admitido: " + u.esquema
         return r
     end
-    c = red_abrir(u.host, url_port(u), espera_ms)
+    var c: Conexion = nil
+    if u.esquema == "https"
+        c = red_abrir_tls(u.host, url_port(u), espera_ms)
+    else
+        c = red_abrir(u.host, url_port(u), espera_ms)
+    end
     if c.error != ""
         r.error = c.error
         return r

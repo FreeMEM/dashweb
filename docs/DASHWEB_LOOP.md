@@ -168,7 +168,7 @@ tarea, con el estilo de Dash.
       lectura por trozos. `tests/run.py` arranca el servidor Python local que pida el test (directiva nueva).
 - [x] 6. **HTTP/1.1.** (necesita D3, D4, D5) GET con cabeceras, `Content-Length`, `chunked`, redirecciones (máx. 5),
       `Content-Type` y juego de caracteres, errores. Tests contra un servidor local que cubra cada caso.
-- [ ] 7. **HTTPS.** (necesita D11) AmiSSL 5 para OS3: script que lo descarga a `~/.cache` y lo mete en el sistema
+- [x] 7. **HTTPS.** (necesita D11) AmiSSL 5 para OS3: script que lo descarga a `~/.cache` y lo mete en el sistema
       emulado; conexión TLS con verificación de certificado. Test contra un servidor HTTPS local con una CA
       propia. Si hace falta decidir algo de licencias o versiones, `[?]`.
 - [ ] 8. **Tokenizador HTML.** (necesita D2, D3, D4) Etiquetas, atributos (con y sin comillas), texto, comentarios, `DOCTYPE`,
@@ -419,3 +419,11 @@ Formato:
   ventana 1,9 s; `mui_list_add` 35 ms por línea (7 ms con `mui_list_quiet`).
 - Orden: se siguen haciendo primero las tareas `[ ]` de la fase A (regla 5: la primera `[ ]` de la fase
   abierta; las dos fases están abiertas, se van cogiendo en orden de la lista).
+
+### 2026-10-16 — Tarea 7 (HTTPS)
+- Hecho: `lib/red.dash`: campo `tls` en `Conexion`, `red_abrir_tls` (conexión + `tls_connect` con certificado y nombre
+  comprobados), envío y lectura por TLS cuando lo hay; `red_cerrar` termina TLS y cierra el socket.
+  `lib/http.dash`: `https:` (puerto 443 por defecto). AmiSSL (descarga, sistema emulado, CA de prueba) quedó en D11 de Dash.
+- `tests/run.py`: los tests con `# emu-needs: amisslmaster.library` arrancan `$DASH_EMU_SYS_SSL`.
+  `tests/servers/http.py PUERTO tls`: el mismo servidor con HTTPS (certificado firmado por la CA de prueba).
+- Tests: `test_https` (longitud, chunked, redirección a https, nombre que no coincide). 6/6, también con `--memcheck`.

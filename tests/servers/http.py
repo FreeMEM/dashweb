@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test HTTP server for test_http: one route per case (length, chunked, close, UTF-8,
-redirects, loop, 404). Usage: http.py PORT"""
+redirects, loop, 404). Usage: http.py PORT [tls]  (tls: HTTPS with a certificate for
+127.0.0.1 signed by the test CA of Dash's tools/emu_sys_amissl.sh)"""
 import socketserver
 import sys
 
@@ -41,5 +42,37 @@ class Handler(socketserver.StreamRequestHandler):
         self.wfile.write(ROUTES.get(path, ROUTES["/no"]))
 
 
+def tls_context():
+    import os
+    import ssl
+    import subprocess
+    import tempfile
+    from pathlib import Path
+    ca = Path(os.path.expanduser("~/.cache/dash-amissl/testca"))
+    tmp = Path(tempfile.mkdtemp(prefix="dashweb_tls_"))
+    subprocess.run(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-subj", "/CN=localhost",
+                    "-keyout", tmp / "srv.key", "-out", tmp / "srv.csr"], check=True, capture_output=True)
+    (tmp / "ext.cnf").write_text("subjectAltName=DNS:localhost,IP:127.0.0.1\n")
+    subprocess.run(["openssl", "x509", "-req", "-in", tmp / "srv.csr", "-CA", ca / "ca.pem", "-CAkey", ca / "ca.key",
+                    "-CAcreateserial", "-CAserial", tmp / "ca.srl", "-days", "2", "-extfile", tmp / "ext.cnf",
+                    "-out", tmp / "srv.pem"], check=True, capture_output=True)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(tmp / "srv.pem", tmp / "srv.key")
+    return context
+
+
+class TLSServer(socketserver.ThreadingTCPServer):
+    def get_request(self):
+        sock, addr = super().get_request()
+        return CONTEXT.wrap_socket(sock, server_side=True), addr
+
+    def handle_error(self, request, client_address):
+        pass
+
+
 socketserver.ThreadingTCPServer.allow_reuse_address = True
-socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler).serve_forever()
+if len(sys.argv) > 2 and sys.argv[2] == "tls":
+    CONTEXT = tls_context()
+    TLSServer(("127.0.0.1", PORT), Handler).serve_forever()
+else:
+    socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler).serve_forever()

@@ -1,0 +1,22 @@
+# Test: HTTPS con lib/http.dash contra tests/servers/http.py en modo TLS (certificado para
+# 127.0.0.1 firmado por la CA de prueba del sistema con AmiSSL)
+# emu-server: http.py 40881 tls
+# emu-needs: amisslmaster.library
+# expect-out: 200 OK [hola]
+# expect-out: 200 [unodostres-cuatr]
+# expect-out: 200 [hola] https://127.0.0.1:40881/hola
+# expect-out: hostname mismatch
+
+import "../lib/http.dash"
+
+Main
+    base = "https://127.0.0.1:40881"
+    r = http_get(base + "/hola", 10000)
+    Print "" + r.estado + " " + r.razon + " [" + r.cuerpo + "]"
+    r = http_get(base + "/chunked", 10000)
+    Print "" + r.estado + " [" + r.cuerpo + "]"
+    r = http_get(base + "/redir", 10000)
+    Print "" + r.estado + " [" + r.cuerpo + "] " + r.url
+    r = http_get("https://localhost.localdomain:40881/hola", 10000)
+    Print r.error
+end
