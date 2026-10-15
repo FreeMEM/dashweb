@@ -129,7 +129,7 @@ tarea, con el estilo de Dash.
       que ya sepa qué guarda.
 - [ ] D4c. **Campo de un elemento.** `l[0].x = 5` (hoy hay que pasar por una variable).
 - [x] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
-- [ ] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
+- [x] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
 - [x] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
       longitud. Bytes nulos: decidir qué pasa.
 - [x] D8. **Red.** Builtins sobre `bsdsocket.library`: resolver nombre, conectar, enviar, recibir, cerrar,
@@ -438,3 +438,12 @@ Formato:
   en HTML5, `<y<input` es una etiqueta llamada `y<input`. `html_atributo(tok, nombre)`.
 - `tests/run.py`: directiva `# memcheck` (siempre con `--memcheck`).
 - Tests: `test_html_tokens` (`--memcheck`). 7/7, también con `--memcheck`.
+
+### 2026-10-16 — D6 (Dash: campos weak)
+- Hecho (rama `dashweb`, d00c956): `weak padre: Nodo` en un struct: el constructor, la asignación y el destructor
+  no cuentan esa referencia. Con `--memcheck`, leer un `weak` cuyo objeto ya se liberó da
+  `memcheck: ERROR campo weak de un objeto ya liberado` y `nil` (`WEAK_RUNTIME`, solo si hay campos weak).
+  Error si se usa con Int/String/... Medido: 101 árboles con padre fuerte dejan 1010 objetos y 505 textos vivos
+  al salir; con `weak`, 0.
+- Tests (Dash): `test_weak`, `test_weak_dangling` (los dos con `--memcheck`) en A1200, A500 y 3.2;
+  `errors/weak_int`. 154/154 sin emulador, ejemplos 33/33. Mismo C en los programas previos.
