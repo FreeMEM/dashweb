@@ -1,0 +1,297 @@
+# Texto de las páginas al juego de caracteres del Amiga (Latin-1).
+#
+#   t = texto_decodificar(bytes, "utf-8")   # también "iso-8859-1", "windows-1252", "us-ascii"
+#   t = html_entidades("caf&eacute; &amp; t&#233; &#x263A;")   # "café & té ?"
+#
+# Lo que no existe en Latin-1 se sustituye por algo parecido (comillas tipográficas por
+# rectas, guiones largos por "-", "…" por "...", "€" por "EUR") o por "?".
+
+import "entidades.dash"
+
+# Latin-1 para un código Unicode
+func latin1_de(cp: Int) -> String
+    if cp < 256
+        if cp == 0
+            return " "
+        end
+        return str_char(cp)
+    end
+    if cp == 8216 or cp == 8217 or cp == 8218 or cp == 8242 or cp == 8249 or cp == 8250
+        return "'"
+    elif cp == 8220 or cp == 8221 or cp == 8222 or cp == 8243
+        return "\""
+    elif cp == 8211 or cp == 8212 or cp == 8722 or cp == 8208 or cp == 8209
+        return "-"
+    elif cp == 8230
+        return "..."
+    elif cp == 8364
+        return "EUR"
+    elif cp == 8482
+        return "(TM)"
+    elif cp == 8226
+        return str_char(183)
+    elif cp == 8194 or cp == 8195 or cp == 8201 or cp == 8239 or cp == 8287
+        return " "
+    elif cp == 8203 or cp == 8204 or cp == 8205 or cp == 8206 or cp == 8207 or cp == 65279
+        return ""
+    elif cp == 338
+        return "OE"
+    elif cp == 339
+        return "oe"
+    elif cp == 352
+        return "S"
+    elif cp == 353
+        return "s"
+    elif cp == 376
+        return "Y"
+    elif cp == 381
+        return "Z"
+    elif cp == 382
+        return "z"
+    elif cp == 402
+        return "f"
+    elif cp == 710
+        return "^"
+    elif cp == 732
+        return "~"
+    elif cp == 8224 or cp == 8225
+        return "+"
+    elif cp == 8240
+        return "o/oo"
+    elif cp == 8592
+        return "<-"
+    elif cp == 8594
+        return "->"
+    elif cp == 8804
+        return "<="
+    elif cp == 8805
+        return ">="
+    elif cp == 8800
+        return "!="
+    end
+    return "?"
+end
+
+# Windows-1252: 0x80-0x9F son caracteres (comillas, €...), no controles como en Latin-1
+func _cp1252(b: Int) -> Int
+    if b == 128
+        return 8364
+    elif b == 130
+        return 8218
+    elif b == 131
+        return 402
+    elif b == 132
+        return 8222
+    elif b == 133
+        return 8230
+    elif b == 134
+        return 8224
+    elif b == 135
+        return 8225
+    elif b == 136
+        return 710
+    elif b == 137
+        return 8240
+    elif b == 138
+        return 352
+    elif b == 139
+        return 8249
+    elif b == 140
+        return 338
+    elif b == 142
+        return 381
+    elif b == 145
+        return 8216
+    elif b == 146
+        return 8217
+    elif b == 147
+        return 8220
+    elif b == 148
+        return 8221
+    elif b == 149
+        return 8226
+    elif b == 150
+        return 8211
+    elif b == 151
+        return 8212
+    elif b == 152
+        return 732
+    elif b == 153
+        return 8482
+    elif b == 154
+        return 353
+    elif b == 155
+        return 8250
+    elif b == 156
+        return 339
+    elif b == 158
+        return 382
+    elif b == 159
+        return 376
+    end
+    return b
+end
+
+# ¿Hay algún byte de 128 o más?
+func _solo_ascii(s: String) -> Bool
+    n = s.length
+    i = 0
+    while i < n
+        if str_code(s, i) >= 128
+            return false
+        end
+        i = i + 1
+    end
+    return true
+end
+
+# UTF-8 a Latin-1. Un byte que no forma una secuencia válida se toma como Latin-1
+# (páginas que dicen UTF-8 y no lo son).
+func utf8_a_latin1(s: String) -> String
+    if _solo_ascii(s)
+        return s
+    end
+    r = ""
+    n = s.length
+    i = 0
+    while i < n
+        b = str_code(s, i)
+        if b < 128
+            # copia de una vez el tramo ASCII
+            j = i + 1
+            while j < n and str_code(s, j) < 128
+                j = j + 1
+            end
+            r = r + s[i:j]
+            i = j
+        else
+            largo = 0
+            cp = 0
+            if b >= 194 and b <= 223
+                largo = 2
+                cp = b - 192
+            elif b >= 224 and b <= 239
+                largo = 3
+                cp = b - 224
+            elif b >= 240 and b <= 244
+                largo = 4
+                cp = b - 240
+            end
+            k = 1
+            while k < largo and i + k < n and str_code(s, i + k) >= 128 and str_code(s, i + k) < 192
+                cp = cp * 64 + str_code(s, i + k) - 128
+                k = k + 1
+            end
+            if largo > 0 and k == largo
+                r = r + latin1_de(cp)
+                i = i + largo
+            else
+                r = r + latin1_de(b)
+                i = i + 1
+            end
+        end
+    end
+    return r
+end
+
+# Windows-1252 a Latin-1
+func cp1252_a_latin1(s: String) -> String
+    if _solo_ascii(s)
+        return s
+    end
+    r = ""
+    n = s.length
+    i = 0
+    while i < n
+        b = str_code(s, i)
+        if b >= 128 and b < 160
+            r = r + latin1_de(_cp1252(b))
+        else
+            r = r + str_char(b)
+        end
+        i = i + 1
+    end
+    return r
+end
+
+# Según el juego de caracteres que declara la página (sin él, UTF-8)
+func texto_decodificar(s: String, juego: String) -> String
+    j = str_lower(str_trim(juego))
+    if j == "iso-8859-1" or j == "latin1" or j == "iso8859-1" or j == "us-ascii" or j == "ascii"
+        # los navegadores leen ISO-8859-1 como Windows-1252
+        return cp1252_a_latin1(s)
+    elif j == "windows-1252" or j == "cp1252"
+        return cp1252_a_latin1(s)
+    end
+    return utf8_a_latin1(s)
+end
+
+# Código de una entidad con nombre ("amp" -> 38), o -1 si no se conoce
+func entidad_codigo(nombre: String) -> Int
+    a = 0
+    b = ENTIDAD_NOMBRES.length - 1
+    while a <= b
+        m = (a + b) / 2
+        e = ENTIDAD_NOMBRES[m]
+        if e == nombre
+            return ENTIDAD_CODIGOS[m]
+        elif e < nombre
+            a = m + 1
+        else
+            b = m - 1
+        end
+    end
+    return -1
+end
+
+# Cambia las entidades (&amp; &eacute; &#233; &#xE9;) por su carácter. Las que no conoce
+# se quedan como están. Sin ";" solo se aceptan amp, lt, gt y quot (como hacen los navegadores).
+func html_entidades(s: String) -> String
+    p = str_find(s, "&")
+    if p < 0
+        return s
+    end
+    r = ""
+    desde = 0
+    while p >= 0
+        r = r + s[desde:p]
+        fin = p + 1
+        n = s.length
+        while fin < n and fin - p < 32 and _caracter_de_entidad(str_code(s, fin))
+            fin = fin + 1
+        end
+        nombre = s[p + 1:fin]
+        con_punto_coma = fin < n and s[fin] == ";"
+        cp = -1
+        if str_starts(nombre, "#x") or str_starts(nombre, "#X")
+            if nombre.length > 2
+                cp = str_to_int(nombre[2:], 16)
+            end
+        elif str_starts(nombre, "#")
+            if nombre.length > 1
+                cp = Int(nombre[1:])
+            end
+        elif con_punto_coma
+            cp = entidad_codigo(nombre)
+        elif nombre == "amp" or nombre == "lt" or nombre == "gt" or nombre == "quot"
+            cp = entidad_codigo(nombre)
+        end
+        if cp >= 0
+            r = r + latin1_de(cp)
+            desde = fin
+            if con_punto_coma
+                desde = fin + 1
+            end
+        else
+            r = r + "&"
+            desde = p + 1
+        end
+        p = str_find_from(s, "&", desde)
+    end
+    return r + s[desde:]
+end
+
+# Letras, cifras y "#" (lo que puede ir en una entidad)
+func _caracter_de_entidad(c: Int) -> Bool
+    return (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == 35
+end

@@ -1,0 +1,42 @@
+# Generado por tools/gen_entidades.py: no editar a mano.
+# Entidades HTML con nombre que conoce dashweb, ordenadas (búsqueda binaria), y su código Unicode.
+
+var ENTIDAD_NOMBRES: [String] = [
+    "AElig", "Aacute", "Acirc", "Agrave", "Aring", "Atilde", "Auml", "Ccedil",
+    "Dagger", "ETH", "Eacute", "Ecirc", "Egrave", "Euml", "Iacute", "Icirc",
+    "Igrave", "Iuml", "Ntilde", "OElig", "Oacute", "Ocirc", "Ograve", "Omega",
+    "Oslash", "Otilde", "Ouml", "Prime", "Scaron", "THORN", "Uacute", "Ucirc",
+    "Ugrave", "Uuml", "Yacute", "Yuml", "aacute", "acirc", "acute", "aelig",
+    "agrave", "alpha", "amp", "apos", "aring", "asymp", "atilde", "auml",
+    "bdquo", "beta", "brvbar", "bull", "ccedil", "cedil", "cent", "circ",
+    "clubs", "copy", "curren", "dagger", "darr", "deg", "diams", "divide",
+    "eacute", "ecirc", "egrave", "emsp", "ensp", "equiv", "eth", "euml",
+    "euro", "fnof", "frac12", "frac14", "frac34", "frasl", "ge", "gt",
+    "harr", "hearts", "hellip", "iacute", "icirc", "iexcl", "igrave", "infin",
+    "iquest", "iuml", "laquo", "larr", "ldquo", "le", "lrm", "lsaquo",
+    "lsquo", "lt", "macr", "mdash", "micro", "middot", "minus", "mu",
+    "nbsp", "ndash", "ne", "not", "ntilde", "oacute", "ocirc", "oelig",
+    "ograve", "oline", "ordf", "ordm", "oslash", "otilde", "ouml", "para",
+    "permil", "pi", "plusmn", "pound", "prime", "quot", "raquo", "rarr",
+    "rdquo", "reg", "rlm", "rsaquo", "rsquo", "sbquo", "scaron", "sect",
+    "shy", "sigma", "spades", "sup1", "sup2", "sup3", "szlig", "thinsp",
+    "thorn", "tilde", "times", "trade", "uacute", "uarr", "ucirc", "ugrave",
+    "uml", "uuml", "yacute", "yen", "yuml", "zwj", "zwnj"
+]
+
+var ENTIDAD_CODIGOS: [Int] = [
+    198, 193, 194, 192, 197, 195, 196, 199, 8225, 208, 201, 202,
+    200, 203, 205, 206, 204, 207, 209, 338, 211, 212, 210, 937,
+    216, 213, 214, 8243, 352, 222, 218, 219, 217, 220, 221, 376,
+    225, 226, 180, 230, 224, 945, 38, 39, 229, 8776, 227, 228,
+    8222, 946, 166, 8226, 231, 184, 162, 710, 9827, 169, 164, 8224,
+    8595, 176, 9830, 247, 233, 234, 232, 8195, 8194, 8801, 240, 235,
+    8364, 402, 189, 188, 190, 8260, 8805, 62, 8596, 9829, 8230, 237,
+    238, 161, 236, 8734, 191, 239, 171, 8592, 8220, 8804, 8206, 8249,
+    8216, 60, 175, 8212, 181, 183, 8722, 956, 160, 8211, 8800, 172,
+    241, 243, 244, 339, 242, 8254, 170, 186, 248, 245, 246, 182,
+    8240, 960, 177, 163, 8242, 34, 187, 8594, 8221, 174, 8207, 8250,
+    8217, 8218, 353, 167, 173, 963, 9824, 185, 178, 179, 223, 8201,
+    254, 732, 215, 8482, 250, 8593, 251, 249, 168, 252, 253, 165,
+    255, 8205, 8204
+]

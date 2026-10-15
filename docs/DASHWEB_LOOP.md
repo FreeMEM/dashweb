@@ -142,6 +142,9 @@ tarea, con el estilo de Dash.
 - [ ] D12. **Imágenes.** Cargar PNG/GIF/JPEG por datatypes a un bitmap y pintarlo con `gfx_` (fuera de MUI).
       Avisar a la sesión de MUI del nombre (su tarea 9 lo usará).
 - [x] D13. **`elif`.** (lo pidió la tarea 3)
+- [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
+      usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
+      los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
 
 ### Fase A: sin MUI
 
@@ -156,7 +159,7 @@ tarea, con el estilo de Dash.
       lo que falte en tareas `D<n>` de la sección "Dash", con la tarea de dashweb que las necesita.
 - [x] 3. **URL.** (necesita D1, D2, D13) Analizar y resolver URLs relativas (subconjunto de RFC 3986: esquema, host, puerto,
       ruta, consulta, fragmento; `..` y `.`). Tests con casos raros.
-- [~] 4. **Texto.** (necesita D2, D3, D7, D4a) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
+- [x] 4. **Texto.** (necesita D2, D3, D7, D4a) UTF-8 a Latin-1 (el juego de caracteres del Amiga), con sustituto para lo que no
       exista; entidades HTML (`&amp;`, `&#233;`, `&eacute;`...). Tests.
 - [ ] 5. **TCP.** (necesita D8) `lib/red.dash` sobre los builtins de red: conexión con tiempo límite y
       lectura por trozos. `tests/run.py` arranca el servidor Python local que pida el test (directiva nueva).
@@ -325,3 +328,14 @@ Formato:
 - Tests (Dash): `test_list_types` (`--memcheck`) en A1200, A500 y 3.2; `errors/list_type_unknown`. 138/138
   sin emulador, ejemplos 32/32. Mismo C en los 129 programas previos (`tools/cmp_dash_c.sh`).
 - Pendiente: la tarea 4 (`lib/texto.dash`) sigue a medias; `lib/entidades.dash` generado debe usar `[String]`.
+
+### 2026-10-16 — Tarea 4 (texto)
+- Hecho: `lib/texto.dash`: `utf8_a_latin1` (tramos ASCII de una vez; bytes sueltos se toman como Latin-1),
+  `cp1252_a_latin1`, `texto_decodificar(s, juego)` (ISO-8859-1 se lee como Windows-1252, como los navegadores),
+  `latin1_de(cp)` con sustitutos (comillas, guiones, "...", EUR, (TM), OE...), `html_entidades` (con nombre,
+  `&#nnn;`, `&#xhh;`; sin `;` solo amp/lt/gt/quot) y `entidad_codigo` (búsqueda binaria con el `<` de textos de
+  D1). `lib/entidades.dash` (159 entidades) generado por `tools/gen_entidades.py` desde `html.entities` de Python,
+  como listas globales `[String]`/`[Int]` (D4a).
+- Tests: `test_texto` (UTF-8 de 2, 3 y 4 bytes, inválido, Windows-1252, entidades, búsqueda). 3/3, también con
+  `--memcheck`.
+- Encontrado: una función del programa llamada `b` impide a los módulos usar una variable local `b` → D14.

@@ -1,0 +1,35 @@
+# Test: lib/texto.dash: UTF-8 y Windows-1252 a Latin-1, sustitutos, entidades HTML.
+# Los bytes UTF-8 se arman con str_char (los literales de Dash ya salen en Latin-1).
+# expect-out: café
+# expect-out: "cita" - fin...
+# expect-out: 10 EUR
+# expect-out: suelto é
+# expect-out: risa ?
+# expect-out: "hola" EUR
+# expect-out: Ñu
+# expect-out: a & b <c> éÉ éé EUR &copy &nope; ? & ©
+# expect-out: 198 8204 -1 38
+# expect-out: sin cambios
+
+import "../lib/texto.dash"
+
+func bytes_de(codigos: [Int]) -> String
+    r = ""
+    for c in codigos
+        r = r + str_char(c)
+    end
+    return r
+end
+
+Main
+    Print utf8_a_latin1("caf" + bytes_de([195, 169]))
+    Print utf8_a_latin1(bytes_de([226, 128, 156]) + "cita" + bytes_de([226, 128, 157, 32, 226, 128, 148]) + " fin" + bytes_de([226, 128, 166]))
+    Print utf8_a_latin1("10 " + bytes_de([226, 130, 172]))
+    Print utf8_a_latin1("suelto " + bytes_de([233]))
+    Print utf8_a_latin1("risa " + bytes_de([240, 159, 152, 128]))
+    Print cp1252_a_latin1(bytes_de([147]) + "hola" + bytes_de([148, 32, 128]))
+    Print texto_decodificar(bytes_de([209]) + "u", " ISO-8859-1")
+    Print html_entidades("a &amp; b &lt;c&gt; &eacute;&Eacute; &#233;&#xE9; &#8364; &copy &nope; &#x263A; &amp &copy;")
+    Print "" + entidad_codigo("AElig") + " " + entidad_codigo("zwnj") + " " + entidad_codigo("zzz") + " " + entidad_codigo("amp")
+    Print html_entidades(texto_decodificar("sin cambios", "utf-8"))
+end
