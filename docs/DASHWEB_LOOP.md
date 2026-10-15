@@ -123,7 +123,7 @@ tarea, con el estilo de Dash.
       peticiones/respuestas). Medir con `bench`.
 - [x] D4a. **Tipos de lista.** `[T]` en globales, `var`, parámetros, retornos y campos (conservan el tipo de sus
       elementos); `for x in` cualquier expresión de lista.
-- [ ] D4b. **Listas que crecen.** Añadir, quitar, insertar (sin copiar la lista entera); lista vacía con tipo
+- [x] D4b. **Listas que crecen.** Añadir, quitar, insertar (sin copiar la lista entera); lista vacía con tipo
       que ya sepa qué guarda.
 - [ ] D4c. **Campo de un elemento.** `l[0].x = 5` (hoy hay que pasar por una variable).
 - [ ] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
@@ -362,3 +362,13 @@ Formato:
   Test `test_char_escapes` en A1200, A500 y 3.2; 141/141 sin emulador; solo cambia el C de ese test.
 - Tests: `test_red` contra `tests/servers/lineas.py` (líneas con `\r\n` y `\n`, 3000 bytes en dos envíos, hasta el
   cierre, eco, puerto cerrado). 4/4, también con `--memcheck`.
+
+### 2026-10-16 — D4b (Dash: listas que crecen)
+- Hecho (rama `dashweb`, b2097c7): `l.push(x)`, `l.pop()`, `l.insert(i, x)`, `l.remove(i)`, `l.clear()` en
+  `LIST_RUNTIME` (solo si se usa): el bloque de datos se dobla al llenarse; con listas tipadas, `_obj`/`_str` (la
+  lista retiene structs y es dueña de textos; `pop` los entrega como temporales; `remove`/`clear` los sueltan).
+  Gramática: llamadas a métodos como instrucción a través de campos (`n.hijos.push(h)`, `self.l.clear()`). El
+  analizador revisa nombre, número de argumentos y tipo del elemento. 20.000 `push` en 0,44 s (A1200 real, con
+  `--memcheck`).
+- Tests (Dash): `test_list_methods` (`--memcheck`) en A1200, A500 y 3.2; errores `list_method_unknown`,
+  `list_push_type`, `list_method_args`. 141/141 + nuevos sin emulador. Mismo C en los 133 programas previos.
