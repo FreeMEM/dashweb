@@ -105,11 +105,13 @@ Acordado el 2026-10-15 por mensaje entre sesiones (escribirle con SendMessage si
 Se hacen cuando una tarea de dashweb las pide ("necesita D<n>"). Los nombres concretos se deciden en cada
 tarea, con el estilo de Dash.
 
-- [ ] D1. **Errores encontrados.** `lista + [x]` transpila pero da C inválido (error de gcc); `String < String`
+- [x] D1. **Errores encontrados.** `lista + [x]` transpila pero da C inválido (error de gcc); `String < String`
       compara punteros (debe comparar el texto o dar error). Test de cada uno.
 - [ ] D2. **Texto.** Código de un carácter y carácter desde código; buscar un texto (desde una posición);
       empieza/termina por; mayúsculas/minúsculas; quitar espacios; texto a número (decimal y hex); comparar
-      orden. Sin crear un texto por carácter.
+      orden. Sin crear un texto por carácter. **Coste:** hoy `s[i]` recorre el texto desde el principio
+      (`DashString_char_at` comprueba el final carácter a carácter) y `s.length` es `strlen`: recorrer un texto
+      por posición es cuadrático. Arreglarlo (acceso directo; longitud guardada o calculada una vez).
 - [ ] D3. **Constructor de textos.** Añadir trozos sin coste cuadrático (para tokenizadores y para montar
       peticiones/respuestas). Medir con `bench`.
 - [ ] D4. **Listas que crecen.** Añadir, quitar, insertar; lista vacía con tipo; que conserven el tipo de sus
@@ -230,3 +232,16 @@ Formato:
 - Tests: 1/1.
 - Pendiente / riesgos: choques al hacer `rebase mui` en `amiga_builtins.py`/`codegen.py` (minimizados con
   bloques propios).
+
+### 2026-10-15 — D1 (Dash: sumar listas, orden de textos)
+- Hecho (rama `dashweb` de Dash, commit 3db48f3 tras el rebase): `a + b` une listas en una nueva
+  (`DashArray_concat`, toma el tipo de la primera tipada y es dueña de sus textos y structs); `[1] + ["a"]` y
+  `lista + 3` son errores claros (antes C inválido). `<`, `>`, `<=`, `>=` entre textos usan `strcmp`. Los
+  parámetros `Array` se tratan como listas en codegen (antes `"number"`). Docs: manual y referencia rápida.
+- Tests (Dash): `test_list_concat` (con `--memcheck`, 0 vivos), `test_string_order`, `errors/list_add_mixed`,
+  `errors/list_add_number`. Mismo C en los 115 tests y ejemplos previos. 293/293 con `--emu --emu-a500
+  --emu-32`, ejemplos 31/31. Tras el rebase sobre `mui` (24cd343, tarea 3 de MUI con `latin1.py`): sin
+  emulador todo pasa y los dos tests nuevos pasan en el emulador.
+- dashweb: 1/1.
+- Pendiente / riesgos: sumar en un bucle copia la lista entera (cuadrático): `push` llega en D4. Encontrado
+  para D2: `s[i]` y `s.length` cuestan O(n).
