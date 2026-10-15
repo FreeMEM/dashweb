@@ -46,7 +46,8 @@ Dos fases:
    - **Reglas de Dash:** cada cambio con su test en `tests/` de Dash (normal, de error, `# expect-c:` o
      `# expect-out:`); antes y después `python3 tests/run_tests.py` y `./compile_all.sh`, y al cerrar
      `python3 tests/run_tests.py --emu --emu-a500 --emu-32`: nada que funcionaba puede romperse. Un programa
-     que no usa lo nuevo sale con el mismo C. Documenta en `docs/QUICK_REFERENCE.md`,
+     que no usa lo nuevo sale con el mismo C: compruébalo con `tools/cmp_dash_c.sh <commit> WORK` (no con
+     `python3 -m compiler.main` desde el worktree: carga el compilador del directorio actual). Documenta en `docs/QUICK_REFERENCE.md`,
      `docs/MANUAL_REFERENCIA.md` y, si hay builtins nuevos, `python3 tools/gen_builtins_doc.py`. Commit en la
      rama `dashweb`: `dashweb: D<n> - <resumen>`. Sin push.
    - Para enlazar objetos de C (QuickJS) mientras no exista la tarea D10: `DASH_CFLAGS="... ficheros.o"`.
