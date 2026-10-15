@@ -59,7 +59,9 @@ Dos fases:
    `third_party/` y en el pegamento con él. Cada cosa con su test en `tests/`, ejecutado en el emulador.
    Entorno (no va al repo):
    `export DASH_KICKSTART="/home/freemem/Descargas/Telegram Desktop/ks31a1200.rom"`,
-   `DASH_EMU_SYS=~/.cache/dash-emu/sys31`, para MUI `DASH_EMU_SYS_MUI=~/.cache/dash-emu/sys31mui`.
+   `DASH_EMU_SYS=~/.cache/dash-emu/sys31`, para MUI `DASH_EMU_SYS_MUI=~/.cache/dash-emu/sys31mui`, para AmiSSL
+   `DASH_EMU_SYS_SSL=~/.cache/dash-emu/sys31ssl` y `DASH_EMU_SYS_32_SSL=~/.cache/dash-emu/sys32ssl`
+   (`tools/get_amissl.sh` y `tools/emu_sys_amissl.sh` de Dash).
    **Sin `DASH_KICKSTART` se usa la ROM AROS** y los resultados no valen. Para medir "como el objetivo":
    FS-UAE con `cpu = 68040`, `fpu = 68040`, `jit_compiler = 1`, `uae_cpu_speed = max`.
 7. **Verificar.** Repite el paso 4. Nada que antes funcionaba puede romperse. Si algo se rompe y no lo
@@ -137,7 +139,7 @@ tarea, con el estilo de Dash.
       medir texto con la fuente actual, colores RGB en pantallas de paleta (`ObtainBestPen`/`ReleasePen`) y en RTG.
 - [ ] D10. **C externo.** Enlazar objetos o librerías C desde el programa (directiva o opción) y llamar a
       funciones Dash desde C (callbacks), para QuickJS.
-- [ ] D11. **AmiSSL.** Conexiones TLS sobre los sockets de D8 (módulo o builtins), con verificación de
+- [x] D11. **AmiSSL.** Conexiones TLS sobre los sockets de D8 (módulo o builtins), con verificación de
       certificado.
 - [ ] D12. **Imágenes.** Cargar PNG/GIF/JPEG por datatypes a un bitmap y pintarlo con `gfx_` (fuera de MUI).
       Avisar a la sesión de MUI del nombre (su tarea 9 lo usará).
@@ -395,3 +397,25 @@ Formato:
   cerrado). 5/5, también con `--memcheck`.
 - Pendiente: HTTPS (tarea 7); cuerpos binarios en buffer (apuntado en la tarea 14); conexiones persistentes y
   compresión, más adelante si hace falta.
+
+### 2026-10-16 — D11 (Dash: TLS con AmiSSL)
+- Hecho (rama `dashweb`, 692ca21 tras rebase sobre la tarea 12 de MUI): `tls_connect(socket, host)` (verifica
+  certificado y nombre contra `AmiSSL:Certs`), `tls_send`, `tls_send_buffer`, `tls_recv`, `tls_recv_buffer`,
+  `tls_close`; errores por `net_error()` ("hostname mismatch"...). AmiSSL 5.27 (Apache 2.0) fuera de git:
+  `tools/get_amissl.sh` (descarga del GitHub oficial con SHA-256) y `tools/emu_sys_amissl.sh` (sistema emulado con
+  AmiSSL y una CA de prueba en `~/.cache/dash-amissl/testca`, puesta en `AmiSSL:Certs`; `UserCerts` no se lee por
+  defecto). `./dash` y el runner añaden `-I` del SDK si el C usa AmiSSL (`compiler/cflags.amissl_flags`).
+- Encontrado: OpenSSL 3 (AmiSSL) se cuelga en `SSL_CTX_new` con poca pila: el programa pide 64 KB si usa TLS.
+- Runner de Dash: `# emu-net-tls: PUERTO` (servidor de eco TLS con certificado para 127.0.0.1 firmado por la CA de
+  prueba); los tests con `# emu-needs: amisslmaster.library` arrancan `$DASH_EMU_SYS_SSL`/`$DASH_EMU_SYS_32_SSL`
+  y se saltan en el A500 (AmiSSL pide 68020).
+- Tests (Dash): `test_tls` (`--memcheck`) en A1200 y 3.2 (~30 s cada uno: cargar AmiSSL en la emulación). Tras
+  el rebase: 151/151 sin emulador, 226/226 en el A1200, ejemplos 33/33.
+
+### 2026-10-16 — Fase B abierta
+- MUI 1-11 completas en la rama `mui` (f63dbcf, aviso de la otra sesión). La rama `dashweb` ya está encima
+  (rebase hecho). Referencias: `examples/mui_navegador.dash` del worktree; capturas con
+  `tools/emu_run.py --autoclose 30 --screenshot 20 shot.png prog.dash`. Medidas suyas en A1200: abrir app y
+  ventana 1,9 s; `mui_list_add` 35 ms por línea (7 ms con `mui_list_quiet`).
+- Orden: se siguen haciendo primero las tareas `[ ]` de la fase A (regla 5: la primera `[ ]` de la fase
+  abierta; las dos fases están abiertas, se van cogiendo en orden de la lista).
