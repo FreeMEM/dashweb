@@ -338,17 +338,25 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     end
     # el fondo va antes que el contenido: se pone ahora y se mide al final
     fondo = -1
+    alfa_fondo = 255
     if e.has("background-color")
-        fondo = css_color(e["background-color"])
+        fondo = css_color_opaco(e["background-color"])
+        alfa_fondo = css_alfa(e["background-color"])
+        if alfa_fondo == 0
+            fondo = -1
+        end
     end
     var caja_fondo: Dibujo = nil
     if fondo >= 0
         caja_fondo = _dibujo(D_RECT, x + ml, y + mt, interior + bl + br + pl + pr, 0, fondo)
         caja_fondo.nodo = n
+        if alfa_fondo < 255
+            caja_fondo.espaciado = alfa_fondo     # un rectángulo con espaciado > 0: mezclado con esa opacidad
+        end
         m.pagina.dibujos.push(caja_fondo)
     end
     var degradado: Dibujo = nil
-    if e.has("background-image") and str_starts(str_lower(e["background-image"]), "linear-gradient(")
+    if e.has("background-image") and _es_degradado(e["background-image"])
         degradado = _degradado(e["background-image"], x + ml, y + mt, interior + bl + br + pl + pr)
         if degradado != nil
             degradado.nodo = n
@@ -423,6 +431,12 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     return mt + alto_caja + mb
 end
 
+# linear-gradient(...), también con prefijo (-webkit-, -moz-, -o-: la sintaxis vieja)
+func _es_degradado(v: String) -> Bool
+    l = str_lower(str_trim(v))
+    return str_starts(l, "linear-gradient(") or str_starts(l, "-webkit-linear-gradient(") or str_starts(l, "-moz-linear-gradient(") or str_starts(l, "-o-linear-gradient(")
+end
+
 # Un linear-gradient: la dirección (to top/bottom/left/right o un ángulo) y su primer y último color
 # (sin las posiciones de cada parada); nil si no se entiende
 func _degradado(v: String, x: Int, y: Int, ancho: Int) -> Dibujo
@@ -441,6 +455,20 @@ func _degradado(v: String, x: Int, y: Int, ancho: Int) -> Dibujo
     al_reves = false
     primera = 0
     d = str_lower(str_trim(partes[0]))
+    if str_code(str_trim(v), 0) == 45
+        # con prefijo, la dirección es el lado donde empieza: top = to bottom, left = to right...
+        if d == "top" or d == "bottom" or d == "left" or d == "right"
+            if d == "top"
+                d = "to bottom"
+            elif d == "bottom"
+                d = "to top"
+            elif d == "left"
+                d = "to right"
+            else
+                d = "to left"
+            end
+        end
+    end
     if str_starts(d, "to ") or str_ends(d, "deg") or str_ends(d, "turn")
         primera = 1
         if d == "to top"

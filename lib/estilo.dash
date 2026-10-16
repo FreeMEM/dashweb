@@ -36,9 +36,8 @@ var _calc_vars: {String: String} = nil
 # Lo que declaran las reglas que cumple un elemento, por la lista de sus números ("3,17,40"): muchos
 # elementos cumplen las mismas reglas (todos los <p> sin clase...) y no hace falta repasarlas otra vez
 var _ganadoras_hechas: {String: {String: Candidata}} = {}
-# Apagada mientras Dash no lleve bien un diccionario de diccionarios (memoria liberada que se usa:
-# tarea 4 encargada a la otra sesión el 2026-10-16)
-var _ganadoras_cache: Bool = false
+# Se puede apagar para medir o depurar (estuvo apagada hasta que Dash llevó bien un diccionario de diccionarios)
+var _ganadoras_cache: Bool = true
 
 func _antepasado(clave: String, cuanto: Int)
     if _antepasados.has(clave)
@@ -755,7 +754,7 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
         tam = "auto"
         for t in _palabras(v)
             tl = str_lower(t)
-            if str_starts(tl, "url(") or str_starts(tl, "linear-gradient(")
+            if str_starts(tl, "url(") or str_starts(tl, "linear-gradient(") or str_starts(tl, "-webkit-linear-gradient(") or str_starts(tl, "-moz-linear-gradient(") or str_starts(tl, "-o-linear-gradient(")
                 imagen = t
             elif tl == "repeat" or tl == "no-repeat" or tl == "repeat-x" or tl == "repeat-y"
                 repetir = tl

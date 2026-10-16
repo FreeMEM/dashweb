@@ -309,9 +309,13 @@ tarea, con el estilo de Dash.
       position relative/absolute (el título encima de la imagen), top/left/bottom.
 - [x] 28d. **Tipografía.** text-transform, letter-spacing, fuentes web (Lato...) a las del Amiga, tamaños.
 - [x] 28e. **Iconos.** Los de Font Awesome más comunes (menú, lupa, calendario, comentario) dibujados.
-- [~] 28f. **Degradados.** linear-gradient (los títulos de las entradas destacadas sobre una sombra) leído y en la
+- [x] 28f. **Degradados.** linear-gradient (los títulos de las entradas destacadas sobre una sombra) leído y en la
       maqueta (`D_DEGRADADO`); pintarlo mezclado con lo de debajo necesita D42 (tarea 6 de la otra sesión:
       `gfx_blend_rect`, `gfx_gradient_rect`). Mientras, solo los tramos casi opacos.
+- [ ] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
+      objetivo): QuickJS 24 %. libqjs.a va sin FPU (fp-bit): compilarlo para 68020+FPU como dashweb.
+- [ ] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
+      recursos del mismo servidor.
 - [x] 29. **Imágenes con decodificadores propios.** Pregunta del usuario (2026-10-16): ¿son óptimos los datatypes? No:
       decodifican a tamaño completo (una foto de freemem.space no acabó en 5 min en la máquina RTG), sin límites de
       memoria ni tiempo, sin WebP/SVG y distintos en cada sistema. Decodificar en C (third_party: stb_image para
@@ -1297,3 +1301,18 @@ Formato:
   como dashweb (IMG_CPU="" para uno sin FPU). El test de decodificadores baja de 124 s a 95 s en el A1200.
 - Test: test_imagen_dec con un SVG (rectángulos, un círculo, una parte transparente) a su tamaño y al doble.
 - Tras pasar `dev` a esta versión hay que rehacer build/img-lib en ~/Projects/dashweb (`tools/build_img.sh`).
+
+### 2026-10-16 — Tarea 28f (degradados y fondos semitransparentes)
+- Dash fusionado: diccionarios de diccionarios, operadores de bits y D42 (gfx_blend_rect, gfx_gradient_rect,
+  gfx_pixel_rgb) de la otra sesión (dashweb 54571e8).
+- El pintor mezcla `D_DEGRADADO` con lo de debajo (gfx_gradient_rect, con los colores de los bordes recortados
+  calculados sobre el degradado entero) y los fondos rgba con su opacidad (`D_RECT` con espaciado = alfa;
+  antes, por debajo de 0,5 no se pintaban y por encima eran opacos). `-webkit-`/`-moz-`/`-o-linear-gradient`
+  con su dirección vieja (top = to bottom): es el que da la sombra en freemem.space. Comparación enviada
+  (comparar7): la sombra bajo los títulos y el título de la cuarta casilla, como en Chrome.
+- La caché de reglas cumplidas (`_ganadoras_cache`) encendida: estilo 2,0 s → 1,5 s (era 5,0 s).
+- Perfil de la otra sesión de la carga real (12 s): QuickJS 24 %, TLS 21 %, imágenes 14 %, estilo 14 %.
+  Nuevas 28g (QuickJS con FPU) y 28h (keep-alive).
+- Usuario: explicado otra vez lo de YouTube (en su recuadro o a pantalla completa solo con la conversión en
+  otro ordenador). 30a/30b siguen igual.
+- Tests: test_maqueta_cajas (fondo rgba con alfa), test_maqueta_css (-webkit-linear-gradient).

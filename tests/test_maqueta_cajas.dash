@@ -2,7 +2,7 @@
 # (letras de 8x8): float left/right en filas (con anchos en % del contenedor, no de la caja), lo que
 # no flota debajo; inline-block con bloques dentro como un flotante; position absolute (bottom y
 # right) respecto al padre; min-height; max-width con margin auto; visibility: hidden (ocupa sitio,
-# no se pinta); una imagen de fondo (D_FONDO); rgba casi transparente sin fondo.
+# no se pinta); una imagen de fondo (D_FONDO); un fondo rgba con su opacidad (se mezcla al pintar).
 # expect-out: T 0,1 [a] c=0 e=0
 # expect-out: T 80,1 [b] c=0 e=0
 # expect-out: T 0,11 [c] c=0 e=0
@@ -13,6 +13,7 @@
 # expect-out: F 0,40 200x50 http://x/f.png
 # expect-out: T 184,81 [ab] c=0 e=0
 # expect-out: T 76,91 [centro] c=0 e=0
+# expect-out: R 0,110 200x10 c=0 a=51
 # expect-out: T 0,111 [visible] c=0 e=0
 # expect-out: alto 120
 # expect-out: fin
@@ -29,7 +30,11 @@ func muestra(d: Dibujo) -> String
     if d.tipo == D_TEXTO
         return "T " + d.x + "," + d.y + " [" + str_trim(d.texto) + "] c=" + str_from_int(d.color, 16) + " e=" + d.estilo
     elif d.tipo == D_RECT
-        return "R " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " c=" + str_from_int(d.color, 16)
+        r = "R " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " c=" + str_from_int(d.color, 16)
+        if d.espaciado > 0
+            r = r + " a=" + d.espaciado
+        end
+        return r
     elif d.tipo == D_FONDO
         return "F " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " " + d.texto
     end
