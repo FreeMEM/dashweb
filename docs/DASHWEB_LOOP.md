@@ -163,6 +163,7 @@ tarea, con el estilo de Dash.
 - [x] D28. **Medir textos sin ventana.** `font_*` sobre un RastPort propio si no hay `_dash_rp` (lo pidió la 18:
       con MUI la página se maqueta fuera de la zona de dibujo). D12b: `IMAGE_RUNTIME` con el prototipo de
       `DoMethod` (chocaba con las cabeceras de MUI).
+- [x] D29. **Programas en segundo plano en `emu_run`.** Para las pruebas de interfaz del navegador (tarea 19).
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -774,7 +775,11 @@ Formato:
   cargar").
 - `lib/documento.dash`: `documento_enlace`, `documento_y_de`, `documento_sin_fragmento`/`documento_fragmento`.
 - Test `test_navegacion` (sin ventana, gracias a D28; `--memcheck`). dashweb 19/19 compila.
-- No probado en el emulador: los clics y teclas dentro del navegador MUI (emu_run ejecuta los programas uno
-  tras otro y no hay con qué mandarle eventos mientras corre; haría falta un "Run" en segundo plano en
-  `tools/emu_run.py` de Dash).
+- Pruebas de interfaz: D29 (Dash, `tools/emu_run.py` con programas en segundo plano) y
+  `tools/amiga/clicar.dash` (espera una ventana por su título, la trae al frente y le manda clics y teclas con
+  `input.device`); `tools/medir_visor.py --acciones "dashweb e 150 c 150 62 ..." --guardar DIR`. Probado en el
+  emulador: clic en un enlace de `tests/pages/enlaces.html` → abre `js.html` (historial con dos entradas, "<"
+  activo); después el botón "<" → vuelve (">" activo). Encontrado al montarlo: la consola de arranque quedaba
+  delante (la salida del programa en segundo plano iba a ella).
+- Aún sin probar en el emulador: anclas, teclas en la zona, rueda, historial por la lista.
 

@@ -36,11 +36,16 @@ def main():
                     "with --sistema ~/.cache/dash-emu/sys31muiweb)")
     ap.add_argument("--sistema", metavar="DIR", help="emulated system (default $DASH_EMU_SYS; with fonts: "
                     "tools/emu_sys_fuentes.sh)")
+    ap.add_argument("--acciones", metavar="'TÍTULO e 100 c X Y ...'",
+                    help="tools/amiga/clicar.dash in the background: clicks and keys in that window")
+    ap.add_argument("--guardar", metavar="DIR", help="keep the emulated disk there (outputs: out0.txt, bg0.txt)")
     ap.add_argument("--segundos", type=int, default=40, help="the visor closes itself after this")
     args = ap.parse_args()
 
     sys.path.insert(0, str(DASH / "tools"))
     from emu_run import run_programs
+    # emu_run compiles .dash (clicar.dash) with "python3 -m compiler.main": Dash's compiler
+    os.environ["PYTHONPATH"] = str(DASH) + os.pathsep + os.environ.get("PYTHONPATH", "")
 
     with tempfile.TemporaryDirectory(prefix="visor_") as tmp:
         exe = Path(tmp) / "visor"
@@ -58,7 +63,9 @@ def main():
             out = run_programs([str(exe)], timeout=args.segundos + 60,
                                kickstart=os.environ.get("DASH_KICKSTART"),
                                extra_config="bsdsocket_library = 1\n" + MAQUINAS[args.maquina],
-                               screenshot=shot, system=args.sistema, args=[f"http://127.0.0.1:{PORT}/pages/{args.pagina}"])[0]
+                               screenshot=shot, system=args.sistema, keep=args.guardar,
+                               background=[(str(ROOT / "tools" / "amiga" / "clicar.dash"), args.acciones)]
+                               if args.acciones else None, args=[f"http://127.0.0.1:{PORT}/pages/{args.pagina}"])[0]
         finally:
             server.kill()
             server.wait()

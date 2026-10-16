@@ -1,0 +1,134 @@
+# Pruebas de interfaz en el emulador: espera una ventana (por el principio de su título) y le manda
+# clics y teclas con input.device. Lo lanza tools/medir_visor.py --acciones en segundo plano (Run).
+#
+#   clicar "dashweb" e 100 c 50 40 e 50 t 0x4D
+#
+# Acciones: "e N" espera N/50 s; "c X Y" clic en X, Y dentro de los bordes de la ventana;
+# "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...). Escribe lo que hace.
+
+@header "#include <devices/input.h>"
+@header "#include <intuition/intuitionbase.h>"
+
+# La ventana cuyo título empieza por t (en cualquier pantalla), o 0
+@native(borrow) func ventana(t: String) -> Int
+"""
+    struct Screen *s;
+    struct Window *w, *r = NULL;
+    ULONG lock = LockIBase(0);
+    LONG n = strlen((char *)t);
+    for (s = IntuitionBase->FirstScreen; s && !r; s = s->NextScreen)
+        for (w = s->FirstWindow; w && !r; w = w->NextWindow)
+            if (w->Title && !strncmp((char *)w->Title, (char *)t, n)) r = w;
+    UnlockIBase(lock);
+    return (LONG)r;
+"""
+end
+
+@native(borrow) func ventana_texto(win: Int) -> String
+"""
+    static char b[80];
+    struct Window *w = (struct Window *)win;
+    sprintf(b, "%d,%d %dx%d bordes %d,%d", w->LeftEdge, w->TopEdge, w->Width, w->Height, w->BorderLeft, w->BorderTop);
+    return (STRPTR)b;
+"""
+end
+
+# La ventana delante de todo y activa (los clics y las teclas van a la ventana activa)
+@native(borrow) func al_frente(win: Int)
+"""
+    struct Window *w = (struct Window *)win;
+    ScreenToFront(w->WScreen);
+    WindowToFront(w);
+    ActivateWindow(w);
+    Delay(10);
+"""
+end
+
+@native func evento(win: Int, tipo: Int, x: Int, y: Int, codigo: Int)
+"""
+    struct MsgPort *port = CreateMsgPort();
+    struct IOStdReq *io = port ? (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq)) : NULL;
+    struct Window *w = (struct Window *)win;
+    if (w && io && OpenDevice((CONST_STRPTR)"input.device", 0, (struct IORequest *)io, 0) == 0) {
+        struct InputEvent ie;
+        struct IEPointerPixel pp;
+        io->io_Command = IND_WRITEEVENT;
+        io->io_Data = &ie;
+        io->io_Length = sizeof(ie);
+        if (tipo == 1) {                 /* clic */
+            memset(&ie, 0, sizeof(ie));
+            pp.iepp_Screen = w->WScreen;
+            pp.iepp_Position.X = w->LeftEdge + w->BorderLeft + x;
+            pp.iepp_Position.Y = w->TopEdge + w->BorderTop + y;
+            ie.ie_Class = IECLASS_NEWPOINTERPOS;
+            ie.ie_SubClass = IESUBCLASS_PIXEL;
+            ie.ie_EventAddress = (APTR)&pp;
+            DoIO((struct IORequest *)io);
+            Delay(3);
+            memset(&ie, 0, sizeof(ie));
+            ie.ie_Class = IECLASS_RAWMOUSE;
+            ie.ie_Code = IECODE_LBUTTON;
+            ie.ie_Qualifier = IEQUALIFIER_LEFTBUTTON | IEQUALIFIER_RELATIVEMOUSE;
+            DoIO((struct IORequest *)io);
+            Delay(3);
+            ie.ie_Code = IECODE_LBUTTON | IECODE_UP_PREFIX;
+            ie.ie_Qualifier = IEQUALIFIER_RELATIVEMOUSE;
+            DoIO((struct IORequest *)io);
+        } else {                         /* tecla */
+            memset(&ie, 0, sizeof(ie));
+            ie.ie_Class = IECLASS_RAWKEY;
+            ie.ie_Code = codigo;
+            DoIO((struct IORequest *)io);
+            Delay(2);
+            ie.ie_Code = codigo | IECODE_UP_PREFIX;
+            DoIO((struct IORequest *)io);
+        }
+        CloseDevice((struct IORequest *)io);
+    }
+    if (io) DeleteIORequest((struct IORequest *)io);
+    if (port) DeleteMsgPort(port);
+"""
+end
+
+@native(borrow) func esperar(ticks: Int)
+"""
+    Delay(ticks > 0 ? ticks : 1);
+"""
+end
+
+Main
+    titulo = arg(0)
+    w = 0
+    vueltas = 0
+    while w == 0 and vueltas < 1500
+        w = ventana(titulo)
+        if w == 0
+            esperar(10)
+        end
+        vueltas = vueltas + 1
+    end
+    if w == 0
+        Print "clicar: no aparece la ventana " + titulo
+    else
+        Print "clicar: ventana " + titulo + " en " + ventana_texto(w)
+        al_frente(w)
+        i = 1
+        while i < arg_count()
+            a = arg(i)
+            if a == "e" and i + 1 < arg_count()
+                esperar(Int(arg(i + 1)))
+                i = i + 2
+            elif a == "c" and i + 2 < arg_count()
+                evento(w, 1, Int(arg(i + 1)), Int(arg(i + 2)), 0)
+                Print "clicar: clic " + arg(i + 1) + "," + arg(i + 2)
+                i = i + 3
+            elif a == "t" and i + 1 < arg_count()
+                evento(w, 2, 0, 0, str_to_int(str_replace(arg(i + 1), "0x", ""), 16))
+                Print "clicar: tecla " + arg(i + 1)
+                i = i + 2
+            else
+                i = i + 1
+            end
+        end
+    end
+end
