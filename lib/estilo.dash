@@ -1,0 +1,572 @@
+# Estilo calculado: qué reglas CSS se aplican a cada elemento (selectores), cuál gana
+# (cascada: importancia, origen, especificidad, orden), herencia y atajos desplegados.
+#
+#   hojas = estilo_hojas(doc, "http://ejemplo.org/")   # la del navegador + <style>, <link>, @import
+#   estilo_aplicar(doc, hojas)                          # cada elemento: nodo.estilo["color"]...
+#
+# Los valores quedan como texto, salvo font-size, que se guarda en píxeles ("16px"). El tamaño
+# normal (medium) es 13 píxeles: lo que cabe bien en una pantalla de Amiga con sus fuentes.
+
+import "dom.dash"
+import "css.dash"
+import "http.dash"
+
+const ESTILO_MEDIUM = 13
+
+struct Hojas
+    lista: [HojaCSS]
+    autor: [Bool]
+end
+
+# Hoja por defecto del navegador (orden negativo: va antes que todo lo del autor)
+func estilo_hoja_navegador() -> HojaCSS
+    c = "html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, li, dl, dt, dd, pre, blockquote, form, "
+    c = c + "table, center, address, hr, header, footer, nav, section, article, aside, main, figure, "
+    c = c + "fieldset, legend, details, summary, menu, dir, noscript { display: block } "
+    c = c + "head, script, style, title, meta, link, base, template, [hidden] { display: none } "
+    c = c + "li { display: list-item } table { display: table } tr { display: table-row } "
+    c = c + "td, th { display: table-cell; padding: 1px } thead, tbody, tfoot { display: table-row-group } "
+    c = c + "body { margin: 8px } p, dl, blockquote, pre, ul, ol, figure { margin-top: 1em; margin-bottom: 1em } "
+    c = c + "h1 { font-size: 2em; margin: 0.67em 0; font-weight: bold } "
+    c = c + "h2 { font-size: 1.5em; margin: 0.83em 0; font-weight: bold } "
+    c = c + "h3 { font-size: 1.17em; margin: 1em 0; font-weight: bold } "
+    c = c + "h4 { margin: 1.33em 0; font-weight: bold } h5 { font-size: 0.83em; margin: 1.67em 0; font-weight: bold } "
+    c = c + "h6 { font-size: 0.67em; margin: 2.33em 0; font-weight: bold } "
+    c = c + "b, strong, th { font-weight: bold } i, em, cite, var, dfn, address { font-style: italic } "
+    c = c + "u, ins { text-decoration: underline } s, strike, del { text-decoration: line-through } "
+    c = c + "pre, code, tt, kbd, samp { font-family: monospace } pre { white-space: pre } "
+    c = c + "ul, ol { padding-left: 40px } ol { list-style-type: decimal } ul { list-style-type: disc } "
+    c = c + "ul ul { list-style-type: circle } blockquote { margin-left: 40px; margin-right: 40px } "
+    c = c + "dd { margin-left: 40px } center, th { text-align: center } "
+    c = c + "a:link { color: #0000ee; text-decoration: underline } small { font-size: smaller } big { font-size: larger } "
+    c = c + "hr { border: 1px inset; margin: 0.5em 0 } sub, sup { font-size: smaller } "
+    c = c + "img { display: inline }"
+    hoja = css_leer(c, -10000)
+    return hoja
+end
+
+# Las hojas del documento, en orden: la del navegador, luego <style> y <link rel=stylesheet>
+# como aparecen (con sus @import delante). base: URL de la página, para las relativas.
+func estilo_hojas(doc: Nodo, base: String) -> Hojas
+    var lista: [HojaCSS] = [estilo_hoja_navegador()]
+    var autor: [Bool] = [false]
+    h = Hojas(lista, autor)
+    _estilo_recoger(h, doc, url_parse(base))
+    return h
+end
+
+func _estilo_recoger(h: Hojas, n: Nodo, base: Url)
+    if n.tipo == DOM_ELEMENTO and n.nombre == "style"
+        _estilo_agregar(h, css_leer(dom_texto(n), h.lista.length * 1000), base, 0)
+    elif n.tipo == DOM_ELEMENTO and n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0
+        _estilo_cargar(h, url_text(url_resolve(base, dom_atributo(n, "href"))), 0)
+    end
+    for hijo in n.hijos
+        _estilo_recoger(h, hijo, base)
+    end
+end
+
+func _estilo_agregar(h: Hojas, hoja: HojaCSS, base: Url, nivel: Int)
+    if nivel < 4
+        for imp in hoja.importes
+            _estilo_cargar(h, url_text(url_resolve(base, imp)), nivel + 1)
+        end
+    end
+    h.lista.push(hoja)
+    h.autor.push(true)
+end
+
+# Una hoja por URL: http(s), o un fichero (file: o una ruta del Amiga)
+func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
+    u = url_parse(direccion)
+    texto = ""
+    if u.esquema == "http" or u.esquema == "https"
+        r = http_get(direccion, 15000)
+        if r.error != "" or r.estado != 200
+            return
+        end
+        texto = http_texto(r)
+    else
+        ruta = direccion
+        if u.esquema == "file"
+            ruta = u.ruta
+            if str_starts(ruta, "/")
+                ruta = ruta[1:]
+            end
+        end
+        leido = file_read_text(ruta)
+        if leido == nil
+            return
+        end
+        texto = utf8_a_latin1(leido)
+    end
+    _estilo_agregar(h, css_leer(texto, h.lista.length * 1000), u, nivel)
+end
+
+# === Selectores ===
+
+func _anterior_elemento(n: Nodo) -> Nodo
+    var nada: Nodo = nil
+    p = n.padre
+    if p == nil
+        return nada
+    end
+    var previo: Nodo = nil
+    for h in p.hijos
+        if h == n
+            return previo
+        end
+        if h.tipo == DOM_ELEMENTO
+            previo = h
+        end
+    end
+    return nada
+end
+
+func _es_primero(n: Nodo) -> Bool
+    return _anterior_elemento(n) == nil
+end
+
+func _es_ultimo(n: Nodo) -> Bool
+    p = n.padre
+    if p == nil
+        return true
+    end
+    visto = false
+    for h in p.hijos
+        if visto and h.tipo == DOM_ELEMENTO
+            return false
+        end
+        if h == n
+            visto = true
+        end
+    end
+    return true
+end
+
+func _tiene_clase(n: Nodo, clase: String) -> Bool
+    clases = " " + str_replace(str_replace(dom_atributo(n, "class"), "\t", " "), "\n", " ") + " "
+    return str_find(clases, " " + clase + " ") >= 0
+end
+
+func _cumple_atributo(n: Nodo, a: SelAtributo) -> Bool
+    if not dom_tiene_atributo(n, a.nombre)
+        return false
+    end
+    v = dom_atributo(n, a.nombre)
+    if a.op == ""
+        return true
+    elif a.op == "="
+        return v == a.valor
+    elif a.op == "~="
+        return str_find(" " + v + " ", " " + a.valor + " ") >= 0
+    elif a.op == "|="
+        return v == a.valor or str_starts(v, a.valor + "-")
+    elif a.op == "^="
+        return a.valor != "" and str_starts(v, a.valor)
+    elif a.op == "$="
+        return a.valor != "" and str_ends(v, a.valor)
+    elif a.op == "*="
+        return a.valor != "" and str_find(v, a.valor) >= 0
+    end
+    return false
+end
+
+# Pseudo-clases que se saben sin interacción; las demás (hover, focus...) no se cumplen
+func _cumple_pseudo(n: Nodo, p: String) -> Bool
+    if p == "first-child"
+        return _es_primero(n)
+    elif p == "last-child"
+        return _es_ultimo(n)
+    elif p == "only-child"
+        return _es_primero(n) and _es_ultimo(n)
+    elif p == "link" or p == "any-link"
+        return n.nombre == "a" and dom_tiene_atributo(n, "href")
+    elif p == "root"
+        return n.padre != nil and n.padre.tipo == DOM_DOCUMENTO
+    elif p == "empty"
+        return n.hijos.length == 0
+    end
+    return false
+end
+
+func _cumple_simple(n: Nodo, s: SelSimple) -> Bool
+    if n.tipo != DOM_ELEMENTO or s.pseudo_elemento != ""
+        return false
+    end
+    if s.etiqueta != "" and s.etiqueta != n.nombre
+        return false
+    end
+    if s.id != "" and dom_atributo(n, "id") != s.id
+        return false
+    end
+    for c in s.clases
+        if not _tiene_clase(n, c)
+            return false
+        end
+    end
+    for a in s.atributos
+        if not _cumple_atributo(n, a)
+            return false
+        end
+    end
+    for p in s.pseudo
+        if not _cumple_pseudo(n, p)
+            return false
+        end
+    end
+    return true
+end
+
+# ¿Se cumple el selector, partes 0..i, con n como sujeto de la parte i?
+func _cumple_desde(n: Nodo, sel: Selector, i: Int) -> Bool
+    parte = sel.partes[i]
+    if not _cumple_simple(n, parte.simple)
+        return false
+    end
+    if i == 0
+        return true
+    end
+    if parte.combinador == CSS_HIJO
+        p = n.padre
+        return p != nil and _cumple_desde(p, sel, i - 1)
+    elif parte.combinador == CSS_DESCENDIENTE
+        p = n.padre
+        while p != nil
+            if _cumple_desde(p, sel, i - 1)
+                return true
+            end
+            p = p.padre
+        end
+        return false
+    elif parte.combinador == CSS_ADYACENTE
+        a = _anterior_elemento(n)
+        return a != nil and _cumple_desde(a, sel, i - 1)
+    elif parte.combinador == CSS_HERMANO
+        a = _anterior_elemento(n)
+        while a != nil
+            if _cumple_desde(a, sel, i - 1)
+                return true
+            end
+            a = _anterior_elemento(a)
+        end
+        return false
+    end
+    return false
+end
+
+func estilo_cumple(n: Nodo, sel: Selector) -> Bool
+    return _cumple_desde(n, sel, sel.partes.length - 1)
+end
+
+# === Cascada ===
+
+# Quién gana para una propiedad: el peso más alto
+struct Candidata
+    valor: String
+    importante: Bool
+    autor: Bool
+    especificidad: Int
+    orden: Int
+end
+
+func _gana(nueva: Candidata, vieja: Candidata) -> Bool
+    if nueva.importante != vieja.importante
+        return nueva.importante
+    end
+    if nueva.autor != vieja.autor
+        # normal: el autor gana; !important: el navegador (no hay hoja del usuario)
+        return nueva.autor != nueva.importante
+    end
+    if nueva.especificidad != vieja.especificidad
+        return nueva.especificidad > vieja.especificidad
+    end
+    return nueva.orden >= vieja.orden
+end
+
+func _proponer(ganadoras: {String: Candidata}, propiedad: String, c: Candidata)
+    if not ganadoras.has(propiedad) or _gana(c, ganadoras[propiedad])
+        ganadoras[propiedad] = c
+    end
+end
+
+# Una declaración, con los atajos ya repartidos en sus propiedades
+func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp: Int, orden: Int)
+    p = d.propiedad
+    v = d.valor
+    if p == "margin" or p == "padding"
+        _cuatro(ganadoras, p + "-", "", v, d.importante, autor, esp, orden)
+    elif p == "border-width" or p == "border-style" or p == "border-color"
+        _cuatro(ganadoras, "border-", p[6:], v, d.importante, autor, esp, orden)
+    elif p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left"
+        lados = ["top", "right", "bottom", "left"]
+        if p != "border"
+            lados = [p[7:]]
+        end
+        ancho = "medium"
+        tipo = "none"
+        color = "currentcolor"
+        for t in _palabras(v)
+            if _es_estilo_borde(t)
+                tipo = t
+            elif _es_longitud(t) or t == "thin" or t == "medium" or t == "thick"
+                ancho = t
+            else
+                color = t
+            end
+        end
+        for lado in lados
+            _proponer(ganadoras, "border-" + lado + "-width", Candidata(ancho, d.importante, autor, esp, orden))
+            _proponer(ganadoras, "border-" + lado + "-style", Candidata(tipo, d.importante, autor, esp, orden))
+            _proponer(ganadoras, "border-" + lado + "-color", Candidata(color, d.importante, autor, esp, orden))
+        end
+    elif p == "background"
+        color = "transparent"
+        for t in _palabras(v)
+            if _es_color(t)
+                color = t
+            end
+        end
+        _proponer(ganadoras, "background-color", Candidata(color, d.importante, autor, esp, orden))
+    elif p == "list-style"
+        for t in _palabras(v)
+            if t != "inside" and t != "outside" and not str_starts(t, "url(")
+                _proponer(ganadoras, "list-style-type", Candidata(t, d.importante, autor, esp, orden))
+            end
+        end
+    elif p == "font"
+        _fuente(ganadoras, v, d.importante, autor, esp, orden)
+    else
+        _proponer(ganadoras, p, Candidata(v, d.importante, autor, esp, orden))
+    end
+end
+
+# margin: 1 a 4 valores -> top right bottom left
+func _cuatro(g: {String: Candidata}, prefijo: String, sufijo: String, v: String, imp: Bool, autor: Bool, esp: Int, orden: Int)
+    t = _palabras(v)
+    if t.length == 0
+        return
+    end
+    arriba = t[0]
+    derecha = arriba
+    abajo = arriba
+    izquierda = arriba
+    if t.length >= 2
+        derecha = t[1]
+        izquierda = t[1]
+    end
+    if t.length >= 3
+        abajo = t[2]
+    end
+    if t.length >= 4
+        izquierda = t[3]
+    end
+    _proponer(g, prefijo + "top" + sufijo, Candidata(arriba, imp, autor, esp, orden))
+    _proponer(g, prefijo + "right" + sufijo, Candidata(derecha, imp, autor, esp, orden))
+    _proponer(g, prefijo + "bottom" + sufijo, Candidata(abajo, imp, autor, esp, orden))
+    _proponer(g, prefijo + "left" + sufijo, Candidata(izquierda, imp, autor, esp, orden))
+end
+
+# font: [style] [weight] size[/line-height] family
+func _fuente(g: {String: Candidata}, v: String, imp: Bool, autor: Bool, esp: Int, orden: Int)
+    t = _palabras(v)
+    i = 0
+    while i < t.length
+        x = str_lower(t[i])
+        if x == "italic" or x == "oblique"
+            _proponer(g, "font-style", Candidata(x, imp, autor, esp, orden))
+        elif x == "bold" or x == "bolder" or x == "lighter" or (x.length == 3 and str_ends(x, "00"))
+            _proponer(g, "font-weight", Candidata(x, imp, autor, esp, orden))
+        elif _es_longitud(x) or str_find(x, "/") > 0 or x == "small" or x == "medium" or x == "large" or str_ends(x, "-small") or str_ends(x, "-large")
+            barra = str_find(x, "/")
+            if barra > 0
+                _proponer(g, "line-height", Candidata(x[barra + 1:], imp, autor, esp, orden))
+                x = x[:barra]
+            end
+            _proponer(g, "font-size", Candidata(x, imp, autor, esp, orden))
+            familia = ""
+            for k in (i + 1..t.length - 1)
+                familia = familia + " " + t[k]
+            end
+            if familia != ""
+                _proponer(g, "font-family", Candidata(str_trim(familia), imp, autor, esp, orden))
+            end
+            return
+        end
+        i = i + 1
+    end
+end
+
+func _palabras(v: String) -> [String]
+    var r: [String] = []
+    for p in css_partir(str_replace(str_replace(v, "\t", " "), "\n", " "), 32)
+        if str_trim(p) != ""
+            r.push(str_trim(p))
+        end
+    end
+    return r
+end
+
+func _es_estilo_borde(t: String) -> Bool
+    return t == "none" or t == "hidden" or t == "solid" or t == "dashed" or t == "dotted" or t == "double" or t == "groove" or t == "ridge" or t == "inset" or t == "outset"
+end
+
+func _es_longitud(t: String) -> Bool
+    if t == "0"
+        return true
+    end
+    c = str_code(t, 0)
+    return (c >= 48 and c <= 57) or c == 46 or c == 45
+end
+
+func _es_color(t: String) -> Bool
+    return str_starts(t, "#") or str_starts(t, "rgb") or str_starts(t, "hsl") or (not _es_longitud(t) and not str_starts(t, "url(") and t != "none" and t != "no-repeat" and t != "repeat" and t != "repeat-x" and t != "repeat-y" and t != "center" and t != "top" and t != "left" and t != "right" and t != "bottom" and t != "fixed" and t != "scroll")
+end
+
+# Propiedades que se heredan si el elemento no dice nada
+func _se_hereda(p: String) -> Bool
+    return p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform"
+end
+
+# Calcula el estilo de todo el árbol
+func estilo_aplicar(doc: Nodo, hojas: Hojas)
+    var raiz: {String: String} = {"color": "black", "font-family": "sans-serif", "font-size": "" + ESTILO_MEDIUM + "px", "font-weight": "normal", "font-style": "normal", "text-align": "left", "white-space": "normal", "list-style-type": "disc", "visibility": "visible", "display": "block"}
+    for h in doc.hijos
+        _estilo_nodo(h, hojas, raiz)
+    end
+end
+
+func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
+    if n.tipo != DOM_ELEMENTO
+        return
+    end
+    var ganadoras: {String: Candidata} = {}
+    for k in (0..hojas.lista.length - 1)
+        hoja = hojas.lista[k]
+        autor = hojas.autor[k]
+        for regla in hoja.reglas
+            mejor = -1
+            for sel in regla.selectores
+                if sel.especificidad > mejor and estilo_cumple(n, sel)
+                    mejor = sel.especificidad
+                end
+            end
+            if mejor >= 0
+                for d in regla.declaraciones
+                    _declarar(ganadoras, d, autor, mejor, regla.orden)
+                end
+            end
+        end
+    end
+    if dom_tiene_atributo(n, "style")
+        for d in css_declaraciones(dom_atributo(n, "style"))
+            _declarar(ganadoras, d, true, 1000000, 1000000)
+        end
+    end
+    # lo heredado, y encima lo propio
+    var e: {String: String} = {}
+    for p in padre.keys()
+        if _se_hereda(p)
+            e[p] = padre[p]
+        end
+    end
+    e["display"] = "inline"
+    for p in ganadoras.keys()
+        v = ganadoras[p].valor
+        if str_lower(v) == "inherit"
+            if padre.has(p)
+                e[p] = padre[p]
+            end
+        elif p != "font-size"
+            e[p] = v
+        end
+    end
+    if ganadoras.has("font-size")
+        e["font-size"] = "" + estilo_tamano(ganadoras["font-size"].valor, estilo_px(padre["font-size"], 0, 0)) + "px"
+    end
+    n.estilo = e
+    for h in n.hijos
+        _estilo_nodo(h, hojas, e)
+    end
+end
+
+# font-size en píxeles, según el del padre
+func estilo_tamano(v: String, padre: Int) -> Int
+    x = str_lower(str_trim(v))
+    if x == "xx-small"
+        return ESTILO_MEDIUM * 3 / 5
+    elif x == "x-small"
+        return ESTILO_MEDIUM * 3 / 4
+    elif x == "small"
+        return ESTILO_MEDIUM * 8 / 9
+    elif x == "medium"
+        return ESTILO_MEDIUM
+    elif x == "large"
+        return ESTILO_MEDIUM * 6 / 5
+    elif x == "x-large"
+        return ESTILO_MEDIUM * 3 / 2
+    elif x == "xx-large"
+        return ESTILO_MEDIUM * 2
+    elif x == "smaller"
+        return padre * 5 / 6
+    elif x == "larger"
+        return padre * 6 / 5
+    end
+    return estilo_px(x, padre, padre)
+end
+
+# Una longitud CSS en píxeles: px, pt, em (respecto a em_px), % (respecto a cien), sin unidad = px.
+# Decimales con hasta dos cifras ("1.5em"). Lo que no se entiende vale 0.
+func estilo_px(v: String, em_px: Int, cien: Int) -> Int
+    x = str_lower(str_trim(v))
+    n = x.length
+    i = 0
+    signo = 1
+    if i < n and str_code(x, i) == 45
+        signo = -1
+        i = i + 1
+    end
+    entero = 0
+    while i < n and str_code(x, i) >= 48 and str_code(x, i) <= 57
+        entero = entero * 10 + str_code(x, i) - 48
+        i = i + 1
+    end
+    centesimas = 0
+    if i < n and str_code(x, i) == 46
+        i = i + 1
+        cifras = 0
+        while i < n and str_code(x, i) >= 48 and str_code(x, i) <= 57
+            if cifras < 2
+                centesimas = centesimas * 10 + str_code(x, i) - 48
+                cifras = cifras + 1
+            end
+            i = i + 1
+        end
+        if cifras == 1
+            centesimas = centesimas * 10
+        end
+    end
+    valor = entero * 100 + centesimas
+    unidad = x[i:]
+    r = valor / 100
+    if unidad == "em" or unidad == "rem"
+        r = valor * em_px / 100
+    elif unidad == "ex"
+        r = valor * em_px / 200
+    elif unidad == "%"
+        r = valor * cien / 10000
+    elif unidad == "pt"
+        r = valor * 4 / 300
+    elif unidad == "pc"
+        r = valor * 16 / 100
+    elif unidad == "in"
+        r = valor * 96 / 100
+    elif unidad == "cm"
+        r = valor * 3780 / 10000
+    elif unidad == "mm"
+        r = valor * 378 / 10000
+    elif unidad != "px" and unidad != ""
+        r = 0
+    end
+    return signo * r
+end

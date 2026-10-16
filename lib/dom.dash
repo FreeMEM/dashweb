@@ -7,7 +7,7 @@
 #   Print dom_texto(cuerpo)
 #
 # Los hijos van en una lista; el padre es un campo weak (el árbol se libera entero cuando
-# nadie retiene el documento).
+# nadie retiene el documento). estilo: las propiedades CSS calculadas (lib/estilo.dash).
 
 import "html.dash"
 
@@ -23,13 +23,15 @@ struct Nodo
     atributos: [Atributo]
     hijos: [Nodo]
     weak padre: Nodo
+    estilo: {String: String}
 end
 
 func dom_nodo(tipo: Int, nombre: String, texto: String) -> Nodo
     var atributos: [Atributo] = []
     var hijos: [Nodo] = []
     var nadie: Nodo = nil
-    return Nodo(tipo, nombre, texto, atributos, hijos, nadie)
+    var estilo: {String: String} = {}
+    return Nodo(tipo, nombre, texto, atributos, hijos, nadie, estilo)
 end
 
 func dom_agregar(padre: Nodo, hijo: Nodo)

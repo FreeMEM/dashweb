@@ -141,7 +141,7 @@ func _css_cierre(s: String, i: Int) -> Int
 end
 
 # Trozos de s separados por el carácter c fuera de comillas y paréntesis
-func _css_partir(s: String, c: Int) -> [String]
+func css_partir(s: String, c: Int) -> [String]
     var r: [String] = []
     desde = 0
     p = _css_buscar(s, c, 0)
@@ -157,7 +157,7 @@ end
 # Las declaraciones de un bloque (o del atributo style)
 func css_declaraciones(texto: String) -> [Declaracion]
     var r: [Declaracion] = []
-    for trozo in _css_partir(texto, 59)
+    for trozo in css_partir(texto, 59)
         p = str_find(trozo, ":")
         if p > 0
             propiedad = str_lower(str_trim(trozo[:p]))
@@ -374,7 +374,7 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int) -> Int
             end
             cierre = _css_cierre(s, llave)
             var selectores: [Selector] = []
-            for parte in _css_partir(s[i:llave], 44)
+            for parte in css_partir(s[i:llave], 44)
                 sel = css_selector(parte)
                 if sel != nil
                     selectores.push(sel)
@@ -396,7 +396,7 @@ func _css_media_pantalla(medios: String) -> Bool
     if m == ""
         return true
     end
-    for parte in _css_partir(m, 44)
+    for parte in css_partir(m, 44)
         p = str_trim(parte)
         if str_starts(p, "screen") or str_starts(p, "all") or str_starts(p, "(") or str_starts(p, "only screen")
             return true

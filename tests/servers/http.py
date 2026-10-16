@@ -22,6 +22,9 @@ ROUTES = {
     "/redir": reply("302 Found", [("Location", "/hola"), ("Content-Length", "0")]),
     "/redir2": reply("301 Moved", [("Location", f"http://127.0.0.1:{PORT}/redir"), ("Content-Length", "0")]),
     "/bucle": reply("302 Found", [("Location", "/bucle"), ("Content-Length", "0")]),
+    "/estilo.css": reply("200 OK", [("Content-Type", "text/css"), ("Content-Length", "37")],
+                         b'@import "imp.css"; p { color: teal }\n'),
+    "/imp.css": reply("200 OK", [("Content-Type", "text/css"), ("Content-Length", "20")], b"em { color: olive }\n"),
     "/no": reply("404 Not Found", [("Content-Type", "text/plain"), ("Content-Length", "2"),
                                    ("Set-Cookie", "a=1"), ("Set-Cookie", "b=2")], b"no"),
 }

@@ -182,7 +182,7 @@ tarea, con el estilo de Dash.
 - [x] 10. **CSS: lectura.** (necesita D2, D4) Tokenizador y analizador: reglas, selectores (tipo, clase, id, descendiente,
       hijo, atributo, `:hover` ignorado), declaraciones, `!important`, `@media` (solo `screen`/`all`),
       hojas `<style>` y `<link rel=stylesheet>` (vía HTTP).
-- [ ] 11. **CSS: estilo.** (necesita D4, D5) Incluye reunir las hojas del documento: `<style>`, `<link rel=stylesheet>`
+- [x] 11. **CSS: estilo.** (necesita D4, D5) Incluye reunir las hojas del documento: `<style>`, `<link rel=stylesheet>`
       (HTTP o fichero) y sus `@import` (la tarea 10 solo los lee). Selección de elementos, cascada (origen, especificidad, orden), herencia,
       hoja por defecto del navegador, atributo `style`. Estilo calculado por nodo para las propiedades que
       se vayan a usar (display, colores, fuente, márgenes, relleno, bordes, ancho/alto, alineación, listas).
@@ -476,3 +476,19 @@ Formato:
   a `importes`; `@charset`, `@font-face` y demás reglas `@` saltadas; selectores que no se entienden, descartados.
 - Tests: `test_css` (`--memcheck`). 9/9.
 - Pendiente: reunir `<style>`/`<link>`/`@import` del documento → tarea 11.
+
+### 2026-10-16 — Tarea 11 (CSS: estilo)
+- Hecho: `lib/estilo.dash`: hoja del navegador (bloques, display none de head/script/style, márgenes de p y h1-h6,
+  negritas y cursivas, listas, pre, a:link, tablas...); `estilo_hojas(doc, base)` reúne en orden `<style>` y
+  `<link rel=stylesheet>` (HTTP(S) o fichero) con sus `@import` (hasta 4 niveles); selectores evaluados de derecha a
+  izquierda con los cuatro combinadores, atributos y pseudo-clases sin interacción (first/last/only-child, link,
+  root, empty; hover y demás no se cumplen; pseudo-elementos no); cascada por importancia, origen (con !important gana
+  el navegador), especificidad y orden; atributo `style`; atajos (margin, padding, border y lados, border-*-*,
+  background, list-style, font); herencia de las propiedades que se heredan; `inherit`; font-size calculado en px
+  (keywords, smaller/larger, em, %, pt); `estilo_px` (px, em, ex, %, pt, pc, in, cm, mm, dos decimales).
+  Estilo guardado en `nodo.estilo` (`{String: String}`, campo nuevo de `Nodo`). Tamaño normal: 13 px.
+- `css_partir` público (lo usa estilo).
+- Tests: `test_estilo` (`--memcheck`), `test_estilo_enlaces` (link + @import por HTTP contra `tests/servers/http.py`).
+  11/11, también con `--memcheck`.
+- Pendiente: rendimiento con muchas reglas (todas contra todos los elementos; indexar por id/clase/etiqueta si
+  hace falta, se medirá en la tarea 17).

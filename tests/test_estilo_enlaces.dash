@@ -1,0 +1,16 @@
+# Test: estilo_hojas carga <link rel=stylesheet> por HTTP con su @import (URL relativa a la página)
+# emu-server: http.py 40891
+# expect-out: p: teal
+# expect-out: em: olive
+# expect-out: hojas: 3
+
+import "../lib/estilo.dash"
+
+Main
+    doc = dom_desde_html("<link rel=\"Stylesheet\" href=\"estilo.css\"><p>x<em>y</em>")
+    hojas = estilo_hojas(doc, "http://127.0.0.1:40891/pagina.html")
+    estilo_aplicar(doc, hojas)
+    Print "p: " + dom_buscar(doc, "p").estilo["color"]
+    Print "em: " + dom_buscar(doc, "em").estilo["color"]
+    Print "hojas: " + hojas.lista.length
+end
