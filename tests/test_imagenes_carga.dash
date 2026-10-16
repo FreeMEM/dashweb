@@ -1,0 +1,61 @@
+# Test: imágenes sin esperar (imagenes_pedir, imagenes_avanzar de lib/imagenes.dash): las descargas
+# empiezan y el programa sigue (con el servidor en el PC suelen llegar ya en la primera vuelta); al llegar, los <img> sin tamaño toman el real (dos con el mismo src,
+# uno con width) y la que no existe queda en 0.
+# emu-server: http.py 40856
+# memcheck
+# expect-out: pendientes al final: 0
+# expect-out: cuadro.iff 8x4, cuadro.iff 8x4, cuadro.iff 16x8, no.iff sin tamaño
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/imagenes.dash"
+
+Window W
+    title "Imágenes"
+    width 200
+    height 80
+end
+
+@native(borrow) func esperar(ticks: Int)
+"""
+    Delay(ticks);
+"""
+end
+
+func tamanos(n: Nodo) -> String
+    r = ""
+    if n.nombre == "img"
+        if dom_tiene_atributo(n, "height")
+            r = dom_atributo(n, "src") + " " + dom_atributo(n, "width") + "x" + dom_atributo(n, "height")
+        else
+            r = dom_atributo(n, "src") + " sin tamaño"
+        end
+    end
+    for h in n.hijos
+        t = tamanos(h)
+        if t != ""
+            if r != ""
+                r = r + ", "
+            end
+            r = r + t
+        end
+    end
+    return r
+end
+
+Main
+    W.open
+    doc = dom_desde_html("<body><img src=cuadro.iff><img src=cuadro.iff><img src=cuadro.iff width=16><img src=no.iff></body>")
+    im = imagenes_nuevas()
+    imagenes_pedir(im, doc, "http://127.0.0.1:40856/pages/x.html")
+    llegadas = 0
+    vueltas = 0
+    while imagenes_pendientes(im) > 0 and vueltas < 500
+        llegadas = llegadas + imagenes_avanzar(im, doc)
+        esperar(1)
+        vueltas = vueltas + 1
+    end
+    Print "pendientes al final: " + imagenes_pendientes(im)
+    Print tamanos(doc)
+    imagenes_liberar(im)
+    W.close
+end

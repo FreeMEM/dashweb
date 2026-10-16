@@ -6,6 +6,8 @@
 #   pintar(d.pagina, d.im, desde, x, y, ancho, alto)
 #   if documento_al_dia(d) ...                    # tras un clic o un temporizador: si el JS lo cambió,
 #                                                 # vuelve a dar estilo y a maquetar (true si lo hizo)
+#   if documento_imagenes(d) ...                  # las imágenes llegan sin esperar: true si llegó alguna
+#                                                 # (y se volvió a maquetar); imagenes_pendientes(d.im)
 #   documento_liberar(d)
 #
 # Con imágenes, abrir después de que la ventana esté en su pantalla (colores).
@@ -95,7 +97,7 @@ func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
     end
     d.hojas = estilo_hojas(d.doc, d.direccion)
     estilo_aplicar(d.doc, d.hojas)
-    imagenes_cargar(d.im, d.doc, d.direccion)
+    imagenes_pedir(d.im, d.doc, d.direccion)
     d.ms = time_ms() - t0
     return d
 end
@@ -115,7 +117,21 @@ func documento_al_dia(d: Documento) -> Bool
     d.cambios = jsdom_cambios(d.js)
     d.titulo = jsdom_titulo(d.doc)
     estilo_aplicar(d.doc, d.hojas)
-    imagenes_cargar(d.im, d.doc, d.direccion)
+    imagenes_pedir(d.im, d.doc, d.direccion)
+    if d.ancho > 0
+        d.pagina = maquetar(d.doc, d.ancho)
+    end
+    return true
+end
+
+# Las imágenes que siguen llegando (sin esperar); true si llegó alguna y se volvió a maquetar
+func documento_imagenes(d: Documento) -> Bool
+    if imagenes_pendientes(d.im) == 0
+        return false
+    end
+    if imagenes_avanzar(d.im, d.doc) == 0
+        return false
+    end
     if d.ancho > 0
         d.pagina = maquetar(d.doc, d.ancho)
     end

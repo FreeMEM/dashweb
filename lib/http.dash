@@ -300,11 +300,21 @@ struct Carga
     respuesta: Respuesta
     total: Int             # bytes de la respuesta entera si se sabe (Content-Length), -1 si aún no, -2 si no
     ultimo: Int            # time_ms del último dato
+    fichero: String = ""   # el cuerpo de una respuesta 2xx va a este fichero (http_empezar_a_fichero)
 end
 
 func http_empezar(direccion: String, espera_ms: Int) -> Carga
     var sin: Conexion = nil
     c = Carga(url_parse(direccion), sin, espera_ms, 0, false, _respuesta_vacia(direccion), -1, time_ms())
+    _carga_conectar(c)
+    return c
+end
+
+# Lo mismo que http_a_fichero, sin esperar
+func http_empezar_a_fichero(direccion: String, fichero: String, espera_ms: Int) -> Carga
+    var sin: Conexion = nil
+    c = Carga(url_parse(direccion), sin, espera_ms, 0, false, _respuesta_vacia(direccion), -1, time_ms())
+    c.fichero = fichero
     _carga_conectar(c)
     return c
 end
@@ -342,7 +352,7 @@ func http_avanzar(c: Carga) -> Bool
         end
         return false
     end
-    _http_leer(c.conexion, c.respuesta, "")
+    _http_leer(c.conexion, c.respuesta, c.fichero)
     r = c.respuesta
     redireccion = r.estado == 301 or r.estado == 302 or r.estado == 303 or r.estado == 307 or r.estado == 308
     if r.error == "" and redireccion and r.cabeceras.has("location")

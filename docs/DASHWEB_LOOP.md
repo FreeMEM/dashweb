@@ -245,9 +245,11 @@ tarea, con el estilo de Dash.
       ventana, errores de red mostrados en la página.
 - [x] 20a. **Bucle de eventos: la página principal.** Se recibe sin congelar la ventana (sondeo cada 50 ms
       con `mui_timer`, junto con los temporizadores del JS) y se puede parar.
-- [ ] 20b. **Bucle de eventos: el resto.** CSS, imágenes y `<script src>` también sin esperar (hoy se traen
-      al montar la página); conectar, DNS y la negociación TLS sin bloquear. Si una pila TCP/IP real da
-      `SIGIO`, usarlo con `mui_wait_event_signals` (FS-UAE no lo da: probado, ver bitácora).
+- [x] 20b. **Bucle de eventos: imágenes.** Las imágenes llegan sin esperar (4 a la vez) y la página se vuelve a
+      maquetar al llegar cada una.
+- [ ] 20c. **Bucle de eventos: el resto.** CSS y `<script src>` sin esperar (hoy se traen al montar la página;
+      los scripts tienen que ejecutarse en orden); conectar, DNS y la negociación TLS sin bloquear. Si una pila
+      TCP/IP real da `SIGIO`, usarlo con `mui_wait_event_signals` (FS-UAE no lo da).
 - [ ] 21. **Formularios.** `input`, `button`, `select`, `textarea`, `checkbox`; envío GET y POST.
 - [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
 - [ ] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
@@ -803,4 +805,18 @@ Formato:
   /ruta`. Test `test_http_carga` (longitud, chunked, redirección, 404, progreso a medias, cancelar, rechazada;
   `--memcheck`). En el emulador: reloj.html llega y el contador sigue; clic en "Parar" durante /lento → "Parado".
   dashweb 20/20, también con `--memcheck`.
+
+### 2026-10-16 — Tarea 20b (imágenes sin esperar)
+- Tarea 20b acotada a las imágenes; CSS, scripts y conectar sin bloquear pasan a 20c.
+- `lib/http.dash`: `http_empezar_a_fichero` (el cuerpo de una 2xx al fichero, como `http_a_fichero`, sin
+  esperar; `Carga.fichero`). `lib/imagenes.dash`: `imagenes_pedir` (las de http(s) a una cola, las de disco
+  ya), `imagenes_avanzar(im, doc)` (como mucho 4 descargas a la vez; al llegar una, `image_load` y el tamaño en
+  todos sus `<img>`; cuántas llegaron), `imagenes_pendientes`; `imagenes_liberar` cancela las que faltan.
+  `imagenes_cargar` (esperando) sigue para el visor.
+- `lib/documento.dash`: pide las imágenes sin esperar; `documento_imagenes(d)` (true si llegó alguna: vuelve a
+  maquetar). `src/dashweb.dash`: el tic sigue cada 50 ms mientras faltan imágenes, repinta cuando llegan y lo
+  dice en la barra de estado.
+- Test `test_imagenes_carga` (mismo `src` dos veces, uno con `width`, uno que no existe; `--memcheck`). En el
+  emulador: imagenes.html en el navegador, las imágenes salen tras la página. dashweb 21/21, también con
+  `--memcheck`.
 

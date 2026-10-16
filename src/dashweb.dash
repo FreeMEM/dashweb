@@ -163,7 +163,8 @@ func programar(v: Navegador)
             espera = 1
         end
     end
-    if dw_carga != nil and (espera < 0 or espera > 50)
+    trayendo = dw_carga != nil or (dw_actual != nil and imagenes_pendientes(dw_actual.im) > 0)
+    if trayendo and (espera < 0 or espera > 50)
         espera = 50
     end
     if espera > 0
@@ -314,6 +315,15 @@ Main
             end
             if ev == ID_TIC
                 avanzar_carga(v)
+                if dw_actual != nil and documento_imagenes(dw_actual)
+                    ajustar_barra(v)
+                    mui_canvas_redraw(v.pagina)
+                end
+                if dw_actual != nil and dw_carga == nil and imagenes_pendientes(dw_actual.im) > 0
+                    mui_set_text(v.estado, "Imágenes: faltan " + imagenes_pendientes(dw_actual.im))
+                elif dw_actual != nil and dw_carga == nil and str_starts(mui_get_text(v.estado), "Imágenes")
+                    mui_set_text(v.estado, "Listo")
+                end
                 if dw_js_cuando >= 0 and time_ms() >= dw_js_cuando
                     temporizadores(v)
                 else
