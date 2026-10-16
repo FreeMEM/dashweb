@@ -30,7 +30,9 @@ Main
             documento_al_dia(d)
         else
             t = file_read_text(arg(0))
+            t1 = time_ms()
             d = documento_html("file:///" + arg(0), utf8_a_latin1(t))
+            Print "leer, árbol, CSS y estilo: " + (time_ms() - t1) + " ms"
         end
         maqueta_traza = Int(arg(2))
         t0 = time_ms()

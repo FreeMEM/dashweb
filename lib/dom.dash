@@ -25,6 +25,46 @@ struct Nodo
     hijos: [Nodo]
     weak padre: Nodo
     estilo: {String: String}
+    clases_cache: [String] = nil   # dom_clases y dom_id: el atributo class partido y el id, la primera vez que
+    id_cache: String = nil         # se piden (dom_olvidar_atributos al cambiar un atributo)
+end
+
+# Las clases del elemento (class="a  b\tc" -> a, b, c), partidas una vez
+func dom_clases(n: Nodo) -> [String]
+    if n.clases_cache == nil
+        var r: [String] = []
+        t = dom_atributo(n, "class")
+        i = 0
+        while i < t.length
+            while i < t.length and str_code(t, i) <= 32
+                i = i + 1
+            end
+            inicio = i
+            while i < t.length and str_code(t, i) > 32
+                i = i + 1
+            end
+            if i > inicio
+                r.push(t[inicio:i])
+            end
+        end
+        n.clases_cache = r
+    end
+    return n.clases_cache
+end
+
+func dom_id(n: Nodo) -> String
+    if n.id_cache == nil
+        n.id_cache = dom_atributo(n, "id")
+    end
+    return n.id_cache
+end
+
+# Tras cambiar un atributo: class e id se vuelven a leer
+func dom_olvidar_atributos(n: Nodo)
+    var sin_clases: [String] = nil
+    var sin_id: String = nil
+    n.clases_cache = sin_clases
+    n.id_cache = sin_id
 end
 
 func dom_nodo(tipo: Int, nombre: String, texto: String) -> Nodo

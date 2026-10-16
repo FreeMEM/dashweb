@@ -19,6 +19,53 @@ struct Entrada
     sel: Selector
     regla: Regla
     autor: Bool
+    # lo que tiene que haber entre los antecesores ("#id", ".clase" o la etiqueta de cada parte de
+    # antes de un combinador de descendiente o hijo): sin ello el selector no se prueba
+    antes: [String] = nil
+end
+
+# Cuántos antecesores del nodo que se está mirando tienen cada etiqueta, "#id" y ".clase" (el filtro de
+# antecesores de los navegadores: un selector como ".menu a" se descarta sin subir por el árbol)
+var _antepasados: {String: Int} = {}
+
+func _antepasado(clave: String, cuanto: Int)
+    if _antepasados.has(clave)
+        _antepasados[clave] = _antepasados[clave] + cuanto
+    else
+        _antepasados[clave] = cuanto
+    end
+end
+
+func _antepasados_cambiar(n: Nodo, cuanto: Int)
+    _antepasado(n.nombre, cuanto)
+    if dom_id(n) != ""
+        _antepasado("#" + dom_id(n), cuanto)
+    end
+    for c in dom_clases(n)
+        _antepasado("." + c, cuanto)
+    end
+end
+
+# Las claves que el selector pide a los antecesores (solo por la cadena de descendiente/hijo desde el sujeto)
+func _requisitos(sel: Selector) -> [String]
+    var r: [String] = []
+    i = sel.partes.length - 1
+    while i > 0
+        comb = sel.partes[i].combinador
+        if comb != CSS_DESCENDIENTE and comb != CSS_HIJO
+            break
+        end
+        k = _clave(sel.partes[i - 1].simple)
+        if k != ""
+            r.push(k)
+        end
+        i = i - 1
+    end
+    if r.length == 0
+        var nada: [String] = nil
+        return nada
+    end
+    return r
 end
 
 struct Hojas
@@ -178,16 +225,12 @@ func _es_ultimo(n: Nodo) -> Bool
     return true
 end
 
-# Sin crear textos: busca la clase en el atributo y mira que esté entre blancos (o en un borde)
+# Las clases ya partidas del nodo (dom_clases)
 func _tiene_clase(n: Nodo, clase: String) -> Bool
-    t = dom_atributo(n, "class")
-    largo = clase.length
-    p = str_find(t, clase)
-    while p >= 0
-        if (p == 0 or str_code(t, p - 1) <= 32) and (p + largo == t.length or str_code(t, p + largo) <= 32)
+    for c in dom_clases(n)
+        if c == clase
             return true
         end
-        p = str_find_from(t, clase, p + 1)
     end
     return false
 end
@@ -356,7 +399,7 @@ func _cumple_simple(n: Nodo, s: SelSimple) -> Bool
     if s.etiqueta != "" and s.etiqueta != n.nombre
         return false
     end
-    if s.id != "" and dom_atributo(n, "id") != s.id
+    if s.id != "" and dom_id(n) != s.id
         return false
     end
     for c in s.clases
@@ -458,6 +501,7 @@ func _estilo_indexar(h: Hojas)
             for sel in regla.selectores
                 if estilo_puede_cumplirse(sel)
                     e = Entrada(sel, regla, h.autor[k])
+                    e.antes = _requisitos(sel)
                     clave = _clave(sel.partes[sel.partes.length - 1].simple)
                     if clave == ""
                         universales.push(e)
@@ -488,28 +532,20 @@ func estilo_cambia_con(h: Hojas, ancho: Int) -> Bool
     return false
 end
 
-# Las clases de un elemento (class="a  b\tc")
-func _clases_de(n: Nodo) -> [String]
-    var r: [String] = []
-    t = dom_atributo(n, "class")
-    i = 0
-    while i < t.length
-        while i < t.length and str_code(t, i) <= 32
-            i = i + 1
-        end
-        inicio = i
-        while i < t.length and str_code(t, i) > 32
-            i = i + 1
-        end
-        if i > inicio
-            r.push(t[inicio:i])
+func _antepasados_tienen(claves: [String]) -> Bool
+    for k in claves
+        if not _antepasados.has(k) or _antepasados[k] <= 0
+            return false
         end
     end
-    return r
+    return true
 end
 
 func _probar(n: Nodo, entradas: [Entrada], ganadoras: {String: Candidata})
     for e in entradas
+        if e.antes != nil and not _antepasados_tienen(e.antes)
+            continue
+        end
         if estilo_cumple(n, e.sel)
             for d in e.regla.declaraciones
                 _declarar(ganadoras, d, e.autor, e.sel.especificidad, e.regla.orden)
@@ -719,6 +755,8 @@ func estilo_aplicar(doc: Nodo, hojas: Hojas)
     if hojas.indice == nil or hojas.indice_ancho != css_vista_ancho()
         _estilo_indexar(hojas)
     end
+    var limpios: {String: Int} = {}
+    _antepasados = limpios
     var raiz: {String: String} = {"color": "black", "font-family": "sans-serif", "font-size": "" + ESTILO_MEDIUM + "px", "font-weight": "normal", "font-style": "normal", "text-align": "left", "white-space": "normal", "list-style-type": "disc", "visibility": "visible", "display": "block"}
     for h in doc.hijos
         _estilo_nodo(h, hojas, raiz)
@@ -736,11 +774,11 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
     if hojas.indice.has(n.nombre)
         _probar(n, hojas.indice[n.nombre], ganadoras)
     end
-    id = dom_atributo(n, "id")
+    id = dom_id(n)
     if id != "" and hojas.indice.has("#" + id)
         _probar(n, hojas.indice["#" + id], ganadoras)
     end
-    for c in _clases_de(n)
+    for c in dom_clases(n)
         if hojas.indice.has("." + c)
             _probar(n, hojas.indice["." + c], ganadoras)
         end
@@ -775,9 +813,11 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
         e["display"] = "none"
     end
     n.estilo = e
+    _antepasados_cambiar(n, 1)
     for h in n.hijos
         _estilo_nodo(h, hojas, e)
     end
+    _antepasados_cambiar(n, -1)
 end
 
 # El texto solo para lectores de pantalla ("Saltar al contenido", .screen-reader-text): fuera del

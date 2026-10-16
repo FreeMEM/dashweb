@@ -1175,3 +1175,16 @@ Formato:
 - Dash rebasado sobre main 45231f8 (interpolación nueva, ReAction con varias ventanas...): D40/D41 en ef0022f.
   Dash 196/196, 34/34, 514/514 en tres máquinas y 306/306 con memcheck (antes del rebase); dashweb 28/28 sobre
   el Dash rebasado. Desde ahora los cambios de Dash los hace la otra sesión por encargo (lo pidió el usuario).
+
+### 2026-10-16 — Estilo más rápido (algoritmo) y la FPU del 68040 en sys32rtg
+- Perfil de la otra sesión (8,0 s leer y aplicar el CSS de freemem.space en 68040+JIT; aplicar 6 s): cada
+  _cumple_simple volvía a leer class con dom_atributo. Ahora `dom_clases`/`dom_id` guardan las clases y el id
+  partidos en el Nodo (se olvidan al cambiar un atributo: jsdom, formularios) y un filtro de antecesores
+  (`_antepasados`: cuántos antecesores tienen cada etiqueta, #id y .clase mientras se recorre el árbol) descarta
+  los selectores cuyas partes de antes de un descendiente/hijo no están entre los antecesores. Medido con
+  `tools/traza.py` sobre la copia local: 7.632 ms → 4.465 ms (leer, árbol, CSS y estilo); maqueta 1 s. dashweb
+  28/28 con memcheck.
+- La otra sesión acelera lo de Dash por su cuenta (rama `rendimiento`): copias de textos al devolver, la lista
+  de temporales, retain/release en los for.
+- sys32rtg: `C:SetPatch` con `680x0.library`, `68040.library` y `mmu.library` (la de 3.2 es de MMULib): pone
+  AFF_68881 y los programas de `./dash --fpu` arrancan (libnix comprueba ese bit).

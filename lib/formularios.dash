@@ -47,6 +47,7 @@ func _form_es_boton_envio(n: Nodo) -> Bool
 end
 
 func _form_poner(n: Nodo, nombre: String, valor: String)
+    dom_olvidar_atributos(n)
     for a in n.atributos
         if a.nombre == nombre
             a.valor = valor
@@ -57,6 +58,7 @@ func _form_poner(n: Nodo, nombre: String, valor: String)
 end
 
 func _form_quitar(n: Nodo, nombre: String)
+    dom_olvidar_atributos(n)
     i = 0
     while i < n.atributos.length
         a = n.atributos[i]

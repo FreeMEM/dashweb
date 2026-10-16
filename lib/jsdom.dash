@@ -98,6 +98,7 @@ func jsdom_tiene_atributo(n: Nodo, nombre: String) -> Bool
 end
 
 func jsdom_poner_atributo(n: Nodo, nombre: String, valor: String)
+    dom_olvidar_atributos(n)
     clave = str_lower(nombre)
     for a in n.atributos
         if a.nombre == clave
@@ -109,6 +110,7 @@ func jsdom_poner_atributo(n: Nodo, nombre: String, valor: String)
 end
 
 func jsdom_quitar_atributo(n: Nodo, nombre: String)
+    dom_olvidar_atributos(n)
     clave = str_lower(nombre)
     i = 0
     while i < n.atributos.length
