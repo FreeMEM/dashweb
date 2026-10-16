@@ -28,7 +28,7 @@ MAQUINAS = {
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--pagina", default="prueba.html", help="file of tests/pages/")
+    ap.add_argument("--pagina", default="prueba.html", help="file of tests/pages/ (or /route of tests/servers/http.py)")
     ap.add_argument("--maquina", choices=sorted(MAQUINAS), default="a1200")
     ap.add_argument("--captura", metavar="FILE.png", help="screen picture after the first paint")
     ap.add_argument("--fases", action="store_true", help="run tests/bench/fases.dash instead (no window)")
@@ -65,7 +65,7 @@ def main():
                                extra_config="bsdsocket_library = 1\n" + MAQUINAS[args.maquina],
                                screenshot=shot, system=args.sistema, keep=args.guardar,
                                background=[(str(ROOT / "tools" / "amiga" / "clicar.dash"), args.acciones)]
-                               if args.acciones else None, args=[f"http://127.0.0.1:{PORT}/pages/{args.pagina}"])[0]
+                               if args.acciones else None, args=[f"http://127.0.0.1:{PORT}{args.pagina}" if args.pagina.startswith("/") else f"http://127.0.0.1:{PORT}/pages/{args.pagina}"])[0]
         finally:
             server.kill()
             server.wait()

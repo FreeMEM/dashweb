@@ -56,6 +56,21 @@ func documento_abrir(direccion: String) -> Documento
     return documento_desde_html(d, documento_texto(direccion, d), t0)
 end
 
+# Con la respuesta ya recibida (lib/http.dash, sin esperar: http_empezar/http_avanzar)
+func documento_desde_respuesta(direccion: String, r: Respuesta) -> Documento
+    t0 = time_ms()
+    var nadie: Nodo = nil
+    var sin_hojas: Hojas = nil
+    var sin_pagina: Pagina = nil
+    d = Documento(direccion, "", 0, nadie, sin_hojas, imagenes_nuevas(), 0, 0, sin_pagina, 0, "", 0)
+    if r.error != ""
+        d.error = r.error
+        return documento_desde_html(d, "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>", t0)
+    end
+    d.direccion = r.url
+    return documento_desde_html(d, http_texto(r), t0)
+end
+
 # Lo mismo con el HTML ya en la mano (una página de inicio, una de error)
 func documento_html(direccion: String, html: String) -> Documento
     var nadie: Nodo = nil

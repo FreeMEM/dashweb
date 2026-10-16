@@ -52,6 +52,13 @@
                 "event": 3
               },
               {
+                "type": "button",
+                "name": "parar",
+                "label": "_Parar",
+                "event": 13,
+                "disabled": true
+              },
+              {
                 "type": "string",
                 "name": "url",
                 "text": "",

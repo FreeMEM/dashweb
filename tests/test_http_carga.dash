@@ -1,0 +1,56 @@
+# Test: HTTP sin esperar (http_empezar, http_avanzar, http_cancelar de lib/http.dash). Entre vuelta
+# y vuelta el programa podría atender la interfaz. Con longitud, chunked, una redirección, un 404,
+# una respuesta lenta (se ve el progreso a medias: 1000 de 2000+cabeceras) y una carga cancelada.
+# emu-server: http.py 40855
+# memcheck
+# expect-out: 200 [hola]
+# expect-out: 200 [unodostres-cuatr]
+# expect-out: 200 [hola] http://127.0.0.1:40855/hola
+# expect-out: 404 [no]
+# expect-out: lento: 200 2000 bytes, a medias: 1
+# expect-out: cancelada: [cancelada]
+# expect-out: rechazada: [conexión rechazada]
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/http.dash"
+
+@native(borrow) func esperar(ticks: Int)
+"""
+    Delay(ticks);
+"""
+end
+
+func traer(direccion: String) -> Respuesta
+    c = http_empezar(direccion, 10000)
+    while not http_avanzar(c)
+        esperar(2)
+    end
+    return c.respuesta
+end
+
+Main
+    base = "http://127.0.0.1:40855"
+    r = traer(base + "/hola")
+    Print "" + r.estado + " [" + r.cuerpo + "]"
+    r = traer(base + "/chunked")
+    Print "" + r.estado + " [" + r.cuerpo + "]"
+    r = traer(base + "/redir")
+    Print "" + r.estado + " [" + r.cuerpo + "] " + r.url
+    r = traer(base + "/no")
+    Print "" + r.estado + " [" + r.cuerpo + "]"
+    c = http_empezar(base + "/lento", 10000)
+    a_medias = false
+    while not http_avanzar(c)
+        if http_total(c) > 0 and http_recibidos(c) > 0 and http_recibidos(c) < http_total(c)
+            a_medias = true
+        end
+        esperar(5)
+    end
+    Print "lento: " + c.respuesta.estado + " " + c.respuesta.cuerpo.length + " bytes, a medias: " + a_medias
+    c = http_empezar(base + "/lento", 10000)
+    http_cancelar(c)
+    Print "cancelada: [" + c.respuesta.error + "]"
+    c = http_empezar("http://127.0.0.1:1/", 3000)
+    http_avanzar(c)
+    Print "rechazada: [" + c.respuesta.error + "]"
+end

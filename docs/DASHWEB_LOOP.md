@@ -243,9 +243,11 @@ tarea, con el estilo de Dash.
       Ejemplo hecho: `examples/mui_navegador.dashui` + `examples/mui_navegador_editor.dash` (mui 2dd0e0a, plan MUI terminado).
 - [x] 19. **Navegación.** Clic en enlaces, historial, recargar, scroll con ratón y teclado, título de la
       ventana, errores de red mostrados en la página.
-- [ ] 20. **Bucle de eventos.** Red y temporizadores de JS con `mui_wait_event_signals`: las páginas se
-      cargan sin congelar la interfaz y se pueden cancelar. Falta en Dash: señal de los sockets (FIOASYNC +
-      `SBTC_SIGIOMASK`, o `WaitSelect` con máscara) para pasarla a `mui_wait_event_signals`.
+- [x] 20a. **Bucle de eventos: la página principal.** Se recibe sin congelar la ventana (sondeo cada 50 ms
+      con `mui_timer`, junto con los temporizadores del JS) y se puede parar.
+- [ ] 20b. **Bucle de eventos: el resto.** CSS, imágenes y `<script src>` también sin esperar (hoy se traen
+      al montar la página); conectar, DNS y la negociación TLS sin bloquear. Si una pila TCP/IP real da
+      `SIGIO`, usarlo con `mui_wait_event_signals` (FS-UAE no lo da: probado, ver bitácora).
 - [ ] 21. **Formularios.** `input`, `button`, `select`, `textarea`, `checkbox`; envío GET y POST.
 - [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
 - [ ] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
@@ -782,4 +784,23 @@ Formato:
   activo); después el botón "<" → vuelve (">" activo). Encontrado al montarlo: la consola de arranque quedaba
   delante (la salida del programa en segundo plano iba a ella).
 - Aún sin probar en el emulador: anclas, teclas en la zona, rueda, historial por la lista.
+
+### 2026-10-16 — Tarea 20a (cargar sin congelar la ventana) y D29
+- Tarea 20 partida en 20a (la página principal) y 20b (el resto de recursos, conectar sin bloquear).
+- Intento de D30 (señal de los sockets): `SocketBaseTagList(SBTC_SIGIOMASK)` + `FIOASYNC`, y también
+  `SetSocketSignals`; el `bsdsocket.library` de FS-UAE no manda la señal en ninguna de las tres máquinas, así
+  que no se puede probar aquí y no se quedó en Dash (revertido). En su lugar, sondeo: leer sin esperar.
+- `lib/red.dash`: `red_recibir_ya` (lo que haya, sin esperar; -1 cerrada), `red_pendientes`. `lib/http.dash`:
+  conectar y leer separados (`_http_conectar`, `_http_leer`); carga por pasos: `http_empezar` (conecta y pide:
+  eso aún espera), `http_avanzar` (true al acabar: la respuesta se analiza cuando la conexión se cierra o ya llegó
+  todo el `Content-Length`; redirecciones; tiempo agotado si nada llega en `espera` ms), `http_recibidos`,
+  `http_total` (cabeceras + `Content-Length`, -1 si aún no se sabe), `http_cancelar`.
+- `src/dashweb.dash`: por http(s) `abrir` empieza la carga y vuelve; un solo `mui_timer` (ID_TIC) cada 50 ms
+  mientras llega y, si no, al siguiente temporizador del JS (`programar`); barra de progreso por bytes;
+  botón "Parar" (nuevo en `navegador.dashui`). `lib/documento.dash`: `documento_desde_respuesta`. El historial
+  apunta la dirección pedida (la página aún no ha llegado).
+- `tests/servers/http.py`: `/lento` (media respuesta, 1,5 s de pausa, el resto). `tools/medir_visor.py --pagina
+  /ruta`. Test `test_http_carga` (longitud, chunked, redirección, 404, progreso a medias, cancelar, rechazada;
+  `--memcheck`). En el emulador: reloj.html llega y el contador sigue; clic en "Parar" durante /lento → "Parado".
+  dashweb 20/20, también con `--memcheck`.
 

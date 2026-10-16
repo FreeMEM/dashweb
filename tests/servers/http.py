@@ -46,6 +46,13 @@ class Handler(socketserver.StreamRequestHandler):
         if path == "/cerrar":       # no length: the body ends when the connection closes
             self.wfile.write(b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n" + b"z" * 5000)
             return
+        if path == "/lento":        # half the body, a pause, the other half: progress can be seen
+            import time
+            self.wfile.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2000\r\n\r\n" + b"a" * 1000)
+            self.wfile.flush()
+            time.sleep(1.5)
+            self.wfile.write(b"b" * 1000)
+            return
         if path.startswith("/pages/"):     # files of tests/pages
             import os
             f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages", os.path.basename(path))

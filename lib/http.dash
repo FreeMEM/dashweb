@@ -10,6 +10,13 @@
 #   r = http_a_fichero("http://ejemplo.org/logo.png", "T:logo.png", 15000)
 #   Print r.bytes                   # el cuerpo va tal cual al fichero (con estado 2xx; si no, a r.cuerpo)
 #
+# Sin esperar (para una interfaz que no se congela): conectar y pedir esperan, recibir no.
+#   c = http_empezar("http://ejemplo.org/", 15000)
+#   while not http_avanzar(c)                  # lee lo que haya llegado; true al acabar
+#       ... la interfaz; http_recibidos(c), http_total(c) para el progreso; http_cancelar(c)
+#   end
+#   r = c.respuesta
+#
 # Las cabeceras se guardan con el nombre en minúsculas. En http_get el cuerpo es texto: los
 # bytes 0 pasan a espacios.
 
@@ -67,11 +74,21 @@ end
 
 func _http_una(u: Url, espera_ms: Int, fichero: String) -> Respuesta
     r = _respuesta_vacia(url_text(u))
-    if u.esquema != "http" and u.esquema != "https"
-        r.error = "esquema no admitido: " + u.esquema
+    c = _http_conectar(u, espera_ms, r)
+    if c == nil
         return r
     end
+    _http_leer(c, r, fichero)
+    return r
+end
+
+# Conecta y manda la petición; nil (con r.error) si no se pudo
+func _http_conectar(u: Url, espera_ms: Int, r: Respuesta) -> Conexion
     var c: Conexion = nil
+    if u.esquema != "http" and u.esquema != "https"
+        r.error = "esquema no admitido: " + u.esquema
+        return c
+    end
     if u.esquema == "https"
         c = red_abrir_tls(u.host, url_port(u), espera_ms)
     else
@@ -79,7 +96,8 @@ func _http_una(u: Url, espera_ms: Int, fichero: String) -> Respuesta
     end
     if c.error != ""
         r.error = c.error
-        return r
+        var nada: Conexion = nil
+        return nada
     end
     ruta = u.ruta
     if ruta == ""
@@ -97,8 +115,14 @@ func _http_una(u: Url, espera_ms: Int, fichero: String) -> Respuesta
     if not red_enviar(c, peticion)
         r.error = c.error
         red_cerrar(c)
-        return r
+        var nada: Conexion = nil
+        return nada
     end
+    return c
+end
+
+# Lee la respuesta (estado, cabeceras y cuerpo, a r.cuerpo o al fichero) y cierra la conexión
+func _http_leer(c: Conexion, r: Respuesta, fichero: String)
     _leer_estado(c, r)
     if r.error == ""
         _leer_cabeceras(c, r)
@@ -119,7 +143,6 @@ func _http_una(u: Url, espera_ms: Int, fichero: String) -> Respuesta
         end
     end
     red_cerrar(c)
-    return r
 end
 
 # "HTTP/1.1 200 OK"
@@ -265,3 +288,120 @@ end
 func http_texto(r: Respuesta) -> String
     return texto_decodificar(r.cuerpo, r.juego)
 end
+
+# === Sin esperar ===
+
+struct Carga
+    actual: Url
+    conexion: Conexion
+    espera: Int            # ms sin recibir nada antes de darla por perdida
+    redirecciones: Int
+    hecha: Bool
+    respuesta: Respuesta
+    total: Int             # bytes de la respuesta entera si se sabe (Content-Length), -1 si aún no, -2 si no
+    ultimo: Int            # time_ms del último dato
+end
+
+func http_empezar(direccion: String, espera_ms: Int) -> Carga
+    var sin: Conexion = nil
+    c = Carga(url_parse(direccion), sin, espera_ms, 0, false, _respuesta_vacia(direccion), -1, time_ms())
+    _carga_conectar(c)
+    return c
+end
+
+func _carga_conectar(c: Carga)
+    c.respuesta = _respuesta_vacia(url_text(c.actual))
+    c.total = -1
+    c.ultimo = time_ms()
+    c.conexion = _http_conectar(c.actual, c.espera, c.respuesta)
+    if c.conexion == nil
+        c.hecha = true
+    end
+end
+
+# Lee lo que haya llegado sin esperar; true cuando la respuesta está entera (o hubo error) en c.respuesta
+func http_avanzar(c: Carga) -> Bool
+    if c.hecha
+        return true
+    end
+    n = red_recibir_ya(c.conexion)
+    while n > 0
+        c.ultimo = time_ms()
+        n = red_recibir_ya(c.conexion)
+    end
+    if c.total == -1
+        c.total = _carga_total(c.conexion)
+    end
+    entera = n < 0 or (c.total > 0 and red_pendientes(c.conexion) >= c.total)
+    if not entera
+        if time_ms() - c.ultimo > c.espera
+            red_cerrar(c.conexion)
+            c.respuesta.error = "tiempo agotado"
+            c.hecha = true
+            return true
+        end
+        return false
+    end
+    _http_leer(c.conexion, c.respuesta, "")
+    r = c.respuesta
+    redireccion = r.estado == 301 or r.estado == 302 or r.estado == 303 or r.estado == 307 or r.estado == 308
+    if r.error == "" and redireccion and r.cabeceras.has("location")
+        if c.redirecciones >= HTTP_MAX_REDIRECCIONES
+            r.error = "demasiadas redirecciones"
+        else
+            c.redirecciones = c.redirecciones + 1
+            c.actual = url_resolve(c.actual, r.cabeceras["location"])
+            _carga_conectar(c)
+            return c.hecha
+        end
+    end
+    c.hecha = true
+    return true
+end
+
+# Bytes de la respuesta ya recibidos y lo que medirá entera (-1 si no se sabe), para el progreso
+func http_recibidos(c: Carga) -> Int
+    if c.conexion == nil
+        return 0
+    end
+    return red_pendientes(c.conexion)
+end
+
+func http_total(c: Carga) -> Int
+    if c.total < 0
+        return -1
+    end
+    return c.total
+end
+
+func http_cancelar(c: Carga)
+    if not c.hecha
+        red_cerrar(c.conexion)
+        c.respuesta.error = "cancelada"
+        c.hecha = true
+    end
+end
+
+# Cabeceras + Content-Length cuando ya llegaron las cabeceras: el tamaño de la respuesta entera;
+# -1 si aún no han llegado, -2 si no lo dicen (chunked, hasta el cierre)
+func _carga_total(c: Conexion) -> Int
+    n = red_pendientes(c)
+    i = 0
+    while i + 3 < n
+        if buffer_get_byte(c.buf, c.ini + i) == 13 and buffer_get_byte(c.buf, c.ini + i + 1) == 10 and buffer_get_byte(c.buf, c.ini + i + 2) == 13 and buffer_get_byte(c.buf, c.ini + i + 3) == 10
+            cabeceras = str_lower(str_from_buffer(c.buf, c.ini, i))
+            p = str_find(cabeceras, "\ncontent-length:")
+            if p < 0 or str_find(cabeceras, "chunked") >= 0
+                return -2
+            end
+            fin = str_find_from(cabeceras, "\r", p + 1)
+            if fin < 0
+                fin = cabeceras.length
+            end
+            return i + 4 + Int(str_trim(cabeceras[p + 16:fin]))
+        end
+        i = i + 1
+    end
+    return -1
+end
+

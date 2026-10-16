@@ -9,6 +9,7 @@
 #   linea = red_leer_linea(c)                   # sin el salto de línea; nil al cerrarse
 #   cuerpo = red_leer_todo(c)
 #   red_copiar(c, fichero, n)                   # n bytes tal cual a un fichero abierto (-1: hasta el cierre)
+#   n = red_recibir_ya(c)                       # lo que haya llegado, sin esperar (-1: cerrada)
 #   red_cerrar(c)
 #
 # Lo recibido se guarda en bytes (un buffer): las líneas y los textos se sacan de ahí (los bytes 0
@@ -117,6 +118,31 @@ func _red_traer(c: Conexion) -> Bool
     end
     c.fin = c.fin + n
     return true
+end
+
+# Lo que haya llegado, sin esperar: los bytes nuevos (0 si no hay), -1 si la conexión se cerró
+func red_recibir_ya(c: Conexion) -> Int
+    if c.cerrada
+        return -1
+    end
+    _red_sitio(c)
+    n = 0
+    if c.tls >= 0
+        n = tls_recv_buffer(c.tls, c.buf + c.fin, c.cap - c.fin, 0)
+    else
+        n = net_recv_buffer(c.sock, c.buf + c.fin, c.cap - c.fin, 0)
+    end
+    if n < 0
+        c.cerrada = true
+        return -1
+    end
+    c.fin = c.fin + n
+    return n
+end
+
+# Bytes recibidos y sin leer
+func red_pendientes(c: Conexion) -> Int
+    return c.fin - c.ini
 end
 
 # Los n primeros bytes sin leer como texto, y los da por leídos
