@@ -149,6 +149,7 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+- [x] D24. **Pila desde un módulo.** `@stack N` (lo pide la tarea 15: QuickJS necesita 256 KB).
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -643,4 +644,11 @@ Formato:
   función Dash, un texto de C), `errors/link_missing`. Mismo C en los programas previos. Manual y referencia rápida.
   176/176 sin emulador, 445/445 en A1200, A500 y 3.2, ejemplos 34/34.
 - Para la tarea 15: QuickJS se enlaza como `libqjs.a` con `@link` desde `lib/js.dash`, con `quickjs.h` al lado.
+
+### 2026-10-16 — D24 (Dash: `@stack`)
+- La tarea 15 necesita 256 KB de pila para QuickJS y un módulo (`lib/js.dash`) no podía pedirla. Hecho: `@stack N`
+  en un programa o un módulo; el programa toma la mayor (sobre 16 KB, 32 KB con MUI y 64 KB con TLS); `--stack`
+  sigue mandando. Test `test_stack_directive` (módulo con 40000 sobre el programa con 20000; la pila de la tarea
+  se mide con `FindTask`) en A1200, A500 y 3.2, y en modo multifichero. 178/178 sin emulador, ejemplos 34/34. Mismo
+  C en los programas previos, así que la batería completa en emulador no cambia (no se repitió).
 
