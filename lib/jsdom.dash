@@ -3,9 +3,11 @@
 # createElement, appendChild, removeChild... sobre el árbol de lib/dom.dash.
 #
 #   js = js_nuevo()
-#   jsdom_preparar(js, doc)                     # document = doc
+#   jsdom_preparar(js, doc)                     # document = doc, eventos y temporizadores
 #   jsdom_ejecutar_scripts(js, doc, base)       # los <script> en orden (en línea y src)
 #   if jsdom_cambios(js) > 0 ...                # cuántas veces lo cambió el JS (para volver a maquetar)
+#   seguir = jsdom_clic(js, nodo)               # evento click (sube hasta document); false: preventDefault
+#   espera = jsdom_temporizadores(js)           # los setTimeout/setInterval que tocan; ms al siguiente, -1 si no hay
 #   js_liberar(js)                              # suelta también los nodos que tenía el JS
 #
 # Cada nodo tiene un solo objeto JS (a === b funciona); el objeto sujeta su Nodo hasta js_liberar.
@@ -620,6 +622,30 @@ static JSValue _jsdom_title(JSContext *ctx, JSValueConst this_val) {
     return _jsdom_cadena(ctx, jsdom_titulo(_jsdom_de(ctx)->doc));
 }
 
+/* milliseconds since the program started (Dash's time_ms) */
+static JSValue _jsdom_reloj(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    return JS_NewInt32(ctx, _dash_time_ms());
+}
+
+/* Calls the global function name with the arguments; the result, or undefined after
+   writing the exception in one line */
+static JSValue _jsdom_llamar(JSContext *ctx, const char *name, int argc, JSValueConst *argv) {
+    JSValue global = JS_GetGlobalObject(ctx), f = JS_GetPropertyStr(ctx, global, name), r;
+    r = JS_Call(ctx, f, global, argc, argv);
+    JS_FreeValue(ctx, f);
+    JS_FreeValue(ctx, global);
+    if (JS_IsException(r)) {
+        char *e = _js_excepcion(ctx), *p;
+        for (p = e; p && *p; p++) if (*p == '\n') *p = ' ';
+        PutStr((CONST_STRPTR)"JS: ");
+        PutStr((CONST_STRPTR)(e ? e : "error"));
+        PutStr((CONST_STRPTR)"\n");
+        free(e);
+        return JS_UNDEFINED;
+    }
+    return r;
+}
+
 static const JSCFunctionListEntry _jsdom_documento[] = {
     JS_CFUNC_DEF("getElementById", 1, _jsdom_getElementById),
     JS_CFUNC_MAGIC_DEF("createElement", 1, _jsdom_crear, 0),
@@ -631,8 +657,8 @@ static const JSCFunctionListEntry _jsdom_documento[] = {
 """
 end
 
-# document = doc en el motor js (una sola vez por motor)
-@native(borrow) func jsdom_preparar(js: Int, doc: Nodo)
+# document = doc en el motor js (una sola vez por motor); jsdom_preparar pone además el preludio
+@native(borrow) func jsdom_motor_dom(js: Int, doc: Nodo)
 """
     _JsMotor *m = (_JsMotor *)js;
     _JsDom *d;
@@ -656,6 +682,7 @@ end
     global = JS_GetGlobalObject(m->ctx);
     JS_SetPropertyStr(m->ctx, global, "document", documento);
     JS_SetPropertyStr(m->ctx, global, "window", JS_DupValue(m->ctx, global));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_reloj", JS_NewCFunction(m->ctx, _jsdom_reloj, "__dashweb_reloj", 0));
     JS_FreeValue(m->ctx, global);
 """
 end
@@ -667,3 +694,80 @@ end
     return m && m->extra ? ((_JsDom *)m->extra)->cambios : 0;
 """
 end
+
+# Eventos (addEventListener, onclick, el atributo onclick; suben hasta document; preventDefault,
+# stopPropagation) y temporizadores (setTimeout, setInterval, clear*), en JavaScript
+func _jsdom_preludio() -> String
+    j = "(function (g) {"
+    j = j + "var N = Object.getPrototypeOf(document);"
+    j = j + "N.addEventListener = function (t, f) { if (typeof f != 'function') return; var e = this.__ev || (this.__ev = {}); (e[t] || (e[t] = [])).push(f); };"
+    j = j + "N.removeEventListener = function (t, f) { var l = this.__ev && this.__ev[t]; if (l && l.indexOf(f) >= 0) l.splice(l.indexOf(f), 1); };"
+    j = j + "function llamar(f, n, ev) { try { return f.call(n, ev); } catch (e) { console.log('JS: ' + e); } }"
+    j = j + "function despachar(nodo, ev) { var parar = false; ev.target = nodo; ev.defaultPrevented = false;"
+    j = j + " ev.preventDefault = function () { ev.defaultPrevented = true; }; ev.stopPropagation = function () { parar = true; };"
+    j = j + " for (var n = nodo; n && !parar; n = n.parentNode) { ev.currentTarget = n; var h = n['on' + ev.type];"
+    j = j + "  if (typeof h != 'function' && n.nodeType == 1 && n.hasAttribute('on' + ev.type)) { try { h = new Function('event', n.getAttribute('on' + ev.type)); } catch (e) { console.log('JS: ' + e); } }"
+    j = j + "  if (typeof h == 'function' && llamar(h, n, ev) === false) ev.defaultPrevented = true;"
+    j = j + "  var l = n.__ev && n.__ev[ev.type]; if (l) l.slice().forEach(function (f) { llamar(f, n, ev); }); }"
+    j = j + " return !ev.defaultPrevented; }"
+    j = j + "N.dispatchEvent = function (ev) { return despachar(this, ev); };"
+    j = j + "N.click = function () { return despachar(this, {type: 'click'}); };"
+    j = j + "g.__dashweb_despachar = function (n, t) { return despachar(n, {type: t}); };"
+    j = j + "var cola = [], sig = 1;"
+    j = j + "function poner(f, ms, args, rep) { if (typeof f == 'string') { var c = f; f = function () { (0, eval)(c); }; }"
+    j = j + " ms = +ms || 0; if (ms < 0) ms = 0; var id = sig++; cola.push({id: id, f: f, ms: ms, cuando: __dashweb_reloj() + ms, args: args, rep: rep}); return id; }"
+    j = j + "g.setTimeout = function (f, ms) { return poner(f, ms, [].slice.call(arguments, 2), false); };"
+    j = j + "g.setInterval = function (f, ms) { return poner(f, ms, [].slice.call(arguments, 2), true); };"
+    j = j + "g.clearTimeout = g.clearInterval = function (id) { for (var i = 0; i < cola.length; i++) if (cola[i].id === id) { cola.splice(i, 1); return; } };"
+    j = j + "g.__dashweb_tick = function () { var ahora = __dashweb_reloj();"
+    j = j + " cola.filter(function (t) { return t.cuando <= ahora; }).sort(function (a, b) { return a.cuando - b.cuando || a.id - b.id; }).forEach(function (t) {"
+    j = j + "  var i = cola.indexOf(t); if (i < 0) return; if (t.rep) t.cuando = ahora + Math.max(t.ms, 10); else cola.splice(i, 1);"
+    j = j + "  try { t.f.apply(g, t.args); } catch (e) { console.log('JS: ' + e); } });"
+    j = j + " if (!cola.length) return -1; var p = Infinity; cola.forEach(function (t) { if (t.cuando < p) p = t.cuando; });"
+    j = j + " return Math.max(0, p - __dashweb_reloj()); };"
+    j = j + "})(globalThis);"
+    return j
+end
+
+# document = doc en el motor js, con eventos y temporizadores (una sola vez por motor)
+func jsdom_preparar(js: Int, doc: Nodo)
+    jsdom_motor_dom(js, doc)
+    js_evaluar(js, _jsdom_preludio(), "dashweb")
+    if js_error(js) != ""
+        Print "JS: " + js_error(js)
+    end
+end
+
+# Un clic en n: el evento click sube de n hasta document. false si alguien llamó a preventDefault
+# (o devolvió false en onclick): entonces no se sigue el enlace.
+@native(borrow) func jsdom_clic(js: Int, n: Nodo) -> Bool
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue args[2], r;
+    BOOL seguir = TRUE;
+    if (!m || !m->extra || !n) return TRUE;
+    args[0] = _jsdom_objeto(m->ctx, n);
+    args[1] = JS_NewString(m->ctx, "click");
+    r = _jsdom_llamar(m->ctx, "__dashweb_despachar", 2, args);
+    if (JS_IsBool(r)) seguir = JS_ToBool(m->ctx, r);
+    JS_FreeValue(m->ctx, r);
+    JS_FreeValue(m->ctx, args[0]);
+    JS_FreeValue(m->ctx, args[1]);
+    return seguir;
+"""
+end
+
+# Ejecuta los setTimeout/setInterval que ya tocan; los ms que faltan para el siguiente, o -1
+@native(borrow) func jsdom_temporizadores(js: Int) -> Int
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue r;
+    int32_t ms = -1;
+    if (!m || !m->extra) return -1;
+    r = _jsdom_llamar(m->ctx, "__dashweb_tick", 0, NULL);
+    if (JS_IsNumber(r)) JS_ToInt32(m->ctx, &ms, r);
+    JS_FreeValue(m->ctx, r);
+    return ms;
+"""
+end
+

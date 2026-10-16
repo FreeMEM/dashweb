@@ -39,9 +39,10 @@ Dos fases:
    - **Dónde:** el worktree `~/Projects/FreeMEMLang-dashweb`, rama `dashweb` (sale de `mui`). `DASH` apunta ahí
      (es el valor por defecto de `tests/run.py`). **No toques `~/Projects/FreeMEMLang`**: allí trabaja la
      sesión de MUI, en la misma copia.
-   - **Al día con MUI:** al empezar la vuelta, si `mui` tiene commits que `dashweb` no tiene
-     (`git -C ~/Projects/FreeMEMLang-dashweb log --oneline dashweb..mui`), haz
-     `git -C ~/Projects/FreeMEMLang-dashweb rebase mui`. Si hay conflictos y no los resuelves bien,
+   - **Al día con `main`:** (desde el 2026-10-16 la otra sesión trabaja en `main`, que ya tiene `mui` y
+     `dashweb` hasta D25) al empezar la vuelta, si `main` tiene commits que `dashweb` no tiene
+     (`git -C ~/Projects/FreeMEMLang-dashweb log --oneline dashweb..main`), haz
+     `git -C ~/Projects/FreeMEMLang-dashweb rebase main`. Si hay conflictos y no los resuelves bien,
      `git rebase --abort` y apúntalo en la bitácora.
    - **Reglas de Dash:** cada cambio con su test en `tests/` de Dash (normal, de error, `# expect-c:` o
      `# expect-out:`); antes y después `python3 tests/run_tests.py` y `./compile_all.sh`, y al cerrar
@@ -154,6 +155,8 @@ tarea, con el estilo de Dash.
       un programa con QuickJS (o `printf` en una `@native`) se colgaba al terminar. (Lo encontró la tarea 15.)
 - [x] D26. **`@native(borrow)`.** La `@native` solo usa sus argumentos durante la llamada (lo pidió la 16a:
       el documento y el código de cada evaluación quedaban retenidos hasta salir).
+- [x] D27. **Clic y temporizador en el EventLoop.** `On Click` (`click_x()`, `click_y()`) y `On Timer N`
+      (lo pidió la 16b).
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -218,7 +221,7 @@ tarea, con el estilo de Dash.
 - [x] 16a. **DOM en JavaScript.** `document`, `getElementById`, `querySelector(All)` (con el selector
       de CSS de la tarea 11), `textContent`, `innerHTML`, `createElement`, `appendChild`, `setAttribute`;
       los `<script>` de la página (en línea y `src`). Tests en JS dentro de páginas.
-- [ ] 16b. **Eventos y temporizadores.** `addEventListener` (clic), `setTimeout`/`setInterval` (cola de
+- [x] 16b. **Eventos y temporizadores.** `addEventListener` (clic), `setTimeout`/`setInterval` (cola de
       temporizadores), volver a dar estilo y maquetar tras los cambios (`jsdom_cambios`).
 - [ ] 17. **Repaso de la fase A.** Tamaño del ejecutable, memoria (`--memcheck`), tiempos por fase en la
       configuración objetivo y en el A1200, páginas de prueba. Resumen en la bitácora y en el README.
@@ -698,4 +701,29 @@ Formato:
   que no para el resto, crear/mover/quitar, `innerHTML`, atributos; el árbol visto después desde Dash;
   `--memcheck`). dashweb 15/15, también con `--memcheck`. Dash: 180/180 sin emulador, ejemplos 34/34.
 - La sesión de MUI fusiona `dashweb` (hasta 942d2b3) en `main` y lo sube a GitHub a petición del usuario.
+
+### 2026-10-16 — Tarea 16b (eventos y temporizadores) y D27
+- Rebase de `dashweb` sobre `main` (la sesión de MUI fusionó y subió `main` = 942d2b3 + documentación,
+  3dafc57; desde ahora trabaja en `main`). Regla 3 actualizada: la base es `main`.
+- D27 (Dash, 8832a2e): `On Click` (botón izquierdo en la ventana; `click_x()`, `click_y()` dentro de los
+  bordes, tomados antes de devolver el mensaje) y `On Timer N` (número o variable, leída cada vez;
+  `timer.device` mientras el bucle espera). Test `test_on_click_timer` (un proceso hace clic con
+  `input.device`) en A1200, A500 y 3.2. Mismo C en los programas previos. 181/181, ejemplos 34/34.
+- `lib/jsdom.dash`: preludio en JS con `addEventListener`/`removeEventListener`, `onclick` (propiedad y
+  atributo, `return false`), el evento sube hasta `document` (`target`, `currentTarget`), `preventDefault`,
+  `stopPropagation`, `dispatchEvent`, `click()`; `setTimeout` (también con texto), `setInterval`,
+  `clearTimeout`/`clearInterval` con una cola ordenada por tiempo (`__dashweb_reloj` = `time_ms`). Desde
+  Dash: `jsdom_clic(js, nodo)` (false si se paró) y `jsdom_temporizadores(js)` (ms al siguiente, -1 si no
+  hay). Los errores de JS en eventos y temporizadores salen en una línea.
+- `lib/maqueta.dash`: cada `Dibujo` (texto, imagen, fondo de caja) sabe su elemento (`nodo`);
+  `maqueta_nodo_en(p, x, y)` da el elemento bajo un punto. Textos de elementos distintos ya no se juntan
+  en un solo dibujo.
+- `src/visor.dash`: `On Click` busca el nodo y despacha el clic; `On Timer` corre los temporizadores; si
+  `jsdom_cambios` cambió, estilo, imágenes y maqueta otra vez, y se pinta. `tests/pages/reloj.html`: un
+  contador con `setInterval` que sube solo en la captura (unos 140 ms por vuelta en el objetivo, sobre todo
+  por volver a maquetar entera la página).
+- Tests: `test_jsdom_eventos` (burbujeo, `preventDefault`, `onclick` del atributo, orden de temporizadores,
+  nodo bajo un punto; `--memcheck`). dashweb 16/16, también con `--memcheck`.
+- No probado: el clic dentro del visor en el emulador (sí `jsdom_clic` y `maqueta_nodo_en` por separado).
+  Pendiente: seguir enlaces (tarea 19), volver a maquetar solo lo que cambió.
 

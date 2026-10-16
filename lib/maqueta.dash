@@ -35,6 +35,7 @@ struct Dibujo
     fuente: Int
     estilo: Int
     enlace: String
+    nodo: Nodo = nil     # el elemento que lo puso (para saber qué hay bajo un clic)
 end
 
 struct Pagina
@@ -59,6 +60,7 @@ struct Pieza
     salto: Bool
     imagen: Bool
     pegada: Bool = false     # sin blanco con la anterior: no se puede cortar la línea entre las dos
+    nodo: Nodo = nil         # el elemento de la palabra o la imagen
 end
 
 struct Maquetador
@@ -208,6 +210,7 @@ func _bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     var caja_fondo: Dibujo = nil
     if fondo >= 0
         caja_fondo = _dibujo(D_RECT, x + ml, y + mt, interior + bl + br + pl + pr, 0, fondo)
+        caja_fondo.nodo = n
         m.pagina.dibujos.push(caja_fondo)
     end
     cx = x + ml + bl + pl
@@ -272,7 +275,7 @@ end
 # Las piezas en línea de un nodo (texto, elementos en línea, br, img)
 func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza], enlace: String)
     if n.tipo == DOM_TEXTO
-        _palabras(m, n.texto, e_padre, piezas, enlace)
+        _palabras(m, n.texto, e_padre, piezas, enlace, n.padre)
         return
     end
     if n.tipo != DOM_ELEMENTO or _oculto(n)
@@ -292,7 +295,9 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         if h <= 0
             h = 16
         end
-        piezas.push(Pieza(dom_atributo(n, "src"), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true))
+        img = Pieza(dom_atributo(n, "src"), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true)
+        img.nodo = n
+        piezas.push(img)
         m.blanco = 0
         return
     end
@@ -306,7 +311,7 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
 end
 
 # Palabras de un texto con el estilo de su elemento
-func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza], enlace: String)
+func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza], enlace: String, elemento: Nodo)
     tam = estilo_px(e["font-size"], 0, 0)
     f = _fuente(m, e["font-family"], tam)
     estilo = _estilo_texto(e)
@@ -333,14 +338,18 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
         p = str_find(texto, "\n")
         while p >= 0
             linea = str_replace(texto[inicio:p], "\t", "        ")
-            piezas.push(Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false))
+            pz = Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false)
+            pz.nodo = elemento
+            piezas.push(pz)
             piezas.push(Pieza("", 0, alto, base, f, estilo, color, false, enlace, 0, true, false))
             inicio = p + 1
             p = str_find_from(texto, "\n", inicio)
         end
         linea = str_replace(texto[inicio:], "\t", "        ")
         if linea != ""
-            piezas.push(Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false))
+            pz = Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false)
+            pz.nodo = elemento
+            piezas.push(pz)
         end
         return
     end
@@ -365,6 +374,7 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
             end
             m.blanco = 0
             pz = Pieza(palabra, font_text_width(palabra), alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
+            pz.nodo = elemento
             if not hubo_blanco and piezas.length > 0
                 anterior = piezas[piezas.length - 1]
                 pz.pegada = not anterior.salto and not anterior.imagen and not str_ends(anterior.texto, " ")
@@ -486,9 +496,10 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             img = _dibujo(D_IMAGEN, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
             img.texto = p.texto
             img.enlace = p.enlace
+            img.nodo = p.nodo
             m.pagina.dibujos.push(img)
             actual = nil
-        elif actual != nil and actual.fuente == p.fuente and actual.estilo == p.estilo and actual.color == p.color and actual.enlace == p.enlace
+        elif actual != nil and actual.fuente == p.fuente and actual.estilo == p.estilo and actual.color == p.color and actual.enlace == p.enlace and actual.nodo == p.nodo
             actual.texto = actual.texto + _espacios(p.espacio, actual) + p.texto
             actual.ancho = cx + p.ancho - actual.x
         else
@@ -497,6 +508,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             actual.fuente = p.fuente
             actual.estilo = p.estilo
             actual.enlace = p.enlace
+            actual.nodo = p.nodo
             m.pagina.dibujos.push(actual)
         end
         if p.tachado
@@ -622,3 +634,19 @@ func _filas(n: Nodo, filas: [Nodo])
         end
     end
 end
+
+# El elemento que hay en el punto x, y de la página (lo último que se pintó allí: un texto, una
+# imagen o un fondo de caja), o nil
+func maqueta_nodo_en(p: Pagina, x: Int, y: Int) -> Nodo
+    i = p.dibujos.length - 1
+    while i >= 0
+        d = p.dibujos[i]
+        if d.nodo != nil and x >= d.x and x < d.x + d.ancho and y >= d.y and y < d.y + d.alto
+            return d.nodo
+        end
+        i = i - 1
+    end
+    var nada: Nodo = nil
+    return nada
+end
+

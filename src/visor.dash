@@ -5,6 +5,8 @@
 #   visor http://ejemplo.org/
 #
 # Teclas: abajo/arriba (una línea), espacio/retroceso (una pantalla), Esc o el botón de cerrar.
+# Un clic llega al JavaScript de la página (onclick, addEventListener); setTimeout/setInterval
+# corren mientras el visor espera. Si el JS cambia el documento, se vuelve a maquetar y pintar.
 # Al acabar escribe cuánto tardó cada fase.
 
 import "../lib/pintor.dash"
@@ -49,6 +51,13 @@ func cargar(direccion: String) -> String
     return utf8_a_latin1(t)
 end
 
+# Estilo, imágenes nuevas y maqueta otra vez (tras cambios del JavaScript)
+func rehacer(doc: Nodo, hojas: Hojas, im: Imagenes, direccion: String, ancho: Int) -> Pagina
+    estilo_aplicar(doc, hojas)
+    imagenes_cargar(im, doc, direccion)
+    return maquetar(doc, ancho)
+end
+
 Main
     direccion = "demo"
     texto = ""
@@ -68,7 +77,7 @@ Main
     t1 = time_ms()
     doc = dom_desde_html(texto)
     t_html = time_ms() - t1
-    # los <script> antes del estilo: lo que cambien ya sale maquetado (sin eventos aún: tarea 16b)
+    # los <script> antes del estilo: lo que cambien ya sale maquetado
     t1 = time_ms()
     js = 0
     if dom_buscar(doc, "script") != nil
@@ -78,7 +87,8 @@ Main
     end
     t_js = time_ms() - t1
     t1 = time_ms()
-    estilo_aplicar(doc, estilo_hojas(doc, direccion))
+    hojas = estilo_hojas(doc, direccion)
+    estilo_aplicar(doc, hojas)
     t_estilo = time_ms() - t1
     t1 = time_ms()
     im = imagenes_nuevas()
@@ -94,7 +104,42 @@ Main
     Print "visor: " + direccion + " " + texto.length + " bytes, " + pagina.dibujos.length + " dibujos, alto " + pagina.alto
     Print "tiempos ms: carga " + t_carga + ", html " + t_html + ", js " + t_js + ", estilo " + t_estilo + ", imagenes " + t_imagenes + ", maqueta " + t_maqueta + ", pintar " + t_pintar
     paso = 0
+    cambios = 0
+    espera = 1000
+    if js != 0
+        cambios = jsdom_cambios(js)
+        espera = jsdom_temporizadores(js)
+        if espera < 0
+            espera = 1000
+        end
+    end
     EventLoop
+        On Click
+            if js != 0
+                n = maqueta_nodo_en(pagina, click_x() - x0, click_y() - y0 + desde)
+                if n != nil
+                    jsdom_clic(js, n)
+                end
+                if jsdom_cambios(js) != cambios
+                    cambios = jsdom_cambios(js)
+                    pagina = rehacer(doc, hojas, im, direccion, ancho)
+                    pintar(pagina, im, desde, x0, y0, ancho, alto)
+                end
+            end
+        end
+        On Timer espera
+            if js != 0
+                espera = jsdom_temporizadores(js)
+                if espera < 0
+                    espera = 1000
+                end
+                if jsdom_cambios(js) != cambios
+                    cambios = jsdom_cambios(js)
+                    pagina = rehacer(doc, hojas, im, direccion, ancho)
+                    pintar(pagina, im, desde, x0, y0, ancho, alto)
+                end
+            end
+        end
         On Key "DOWN"
             paso = 20
         end

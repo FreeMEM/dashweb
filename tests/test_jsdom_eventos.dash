@@ -1,0 +1,76 @@
+# Test: eventos y temporizadores de lib/jsdom.dash, y maqueta_nodo_en. Un clic en un enlace sube
+# hasta document (target), preventDefault y onclick="return false" lo paran; setTimeout (también
+# con texto) y setInterval con clearInterval salen en orden de tiempo; el nodo bajo un punto de la
+# página maquetada es el del texto que hay allí. (Dash escribe los Bool como 1 y 0.)
+# memcheck
+# expect-out: a: a
+# expect-out: caja: a
+# expect-out: seguir: 1
+# expect-out: a: a
+# expect-out: bloqueado
+# expect-out: seguir: 0
+# expect-out: onclick del atributo
+# expect-out: seguir: 0
+# expect-out: cambios: 1
+# expect-out: t0
+# expect-out: texto
+# expect-out: iv 1
+# expect-out: iv 2
+# expect-out: iv 3
+# expect-out: t200
+# expect-out: temporizadores: fin
+# expect-out: bajo el punto: a
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+import "../lib/maqueta.dash"
+
+Window W
+    title "Eventos"
+    width 300
+    height 100
+end
+
+@native(borrow) func esperar_ms(ms: Int)
+"""
+    Delay(ms / 20 > 0 ? ms / 20 : 1);
+"""
+end
+
+Main
+    W.open
+    h = "<body><div id=caja><p id=p>Pulsa <a id=a href=x.html>aquí</a> o el botón</p></div>"
+    h = h + "<button id=b onclick=\"console.log('onclick del atributo'); return false\">B</button>"
+    h = h + "<script>var bloquear = false; var a = document.getElementById('a');"
+    h = h + "a.addEventListener('click', function (e) { console.log('a: ' + e.target.id); if (bloquear) { e.preventDefault(); e.stopPropagation(); console.log('bloqueado'); } });"
+    h = h + "document.getElementById('caja').addEventListener('click', function (e) { console.log('caja: ' + e.target.id); document.getElementById('p').className = 'pulsado'; });"
+    h = h + "</script></body>"
+    doc = dom_desde_html(h)
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    jsdom_ejecutar_scripts(js, doc, "file:///x.html")
+    Print "seguir: " + jsdom_clic(js, dom_por_id(doc, "a"))
+    js_evaluar(js, "bloquear = true", "x")
+    Print "seguir: " + jsdom_clic(js, dom_por_id(doc, "a"))
+    Print "seguir: " + jsdom_clic(js, dom_por_id(doc, "b"))
+    Print "cambios: " + jsdom_cambios(js)
+    js_evaluar(js, "setTimeout(function () { console.log('t200') }, 200); setTimeout(function () { console.log('t0') }, 0); var n = 0; var iv = setInterval(function () { n++; console.log('iv ' + n); if (n == 3) clearInterval(iv) }, 20); setTimeout(\"console.log('texto')\", 10)", "x")
+    espera = jsdom_temporizadores(js)
+    vueltas = 0
+    while espera >= 0 and vueltas < 100
+        esperar_ms(espera)
+        espera = jsdom_temporizadores(js)
+        vueltas = vueltas + 1
+    end
+    Print "temporizadores: fin"
+    estilo_aplicar(doc, estilo_hojas(doc, "file:///x.html"))
+    pag = maquetar(doc, 280)
+    for d in pag.dibujos
+        if d.tipo == D_TEXTO and str_starts(d.texto, "aqu")
+            n = maqueta_nodo_en(pag, d.x + 2, d.y + 2)
+            Print "bajo el punto: " + n.nombre
+        end
+    end
+    js_liberar(js)
+    W.close
+end

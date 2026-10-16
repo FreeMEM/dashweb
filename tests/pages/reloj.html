@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Reloj</title>
+<style>body{font-family:sans-serif;margin:8px} #cuenta{font-size:24px;color:#036}</style></head><body>
+<h1>Temporizadores y clics</h1>
+<p id="cuenta">0</p>
+<p id="estado">Pulsa este párrafo para pararlo.</p>
+<script>
+var n = 0;
+var iv = setInterval(function () { n++; document.getElementById('cuenta').textContent = n + ' décimas'; }, 100);
+document.getElementById('estado').onclick = function () { clearInterval(iv); this.textContent = 'Parado en ' + n; };
+</script>
+</body></html>
