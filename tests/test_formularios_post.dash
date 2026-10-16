@@ -1,0 +1,82 @@
+# Test: formularios por POST (http_empezar_post, formulario_envio), textarea y el formulario visto
+# desde JavaScript (.value, .checked, onsubmit con preventDefault, form.submit()).
+# emu-server: http.py 40858
+# memcheck
+# expect-out: POST /eco HTTP/1.1 | a=1&b=dos+tres
+# expect-out: tras 303: 200 GET /eco?visto=1 HTTP/1.1
+# expect-out: textarea: [hola|dos]
+# expect-out: POST http://ej.org/enviar [nota=hola%0Ados&acepto=on&campo=v&s=a]
+# expect-out: js: [x] [b] [] [hola|dos] [x b false]
+# expect-out: onsubmit: 0
+# expect-out: submit(): form, después: nil
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+
+@native(borrow) func esperar(ticks: Int)
+"""
+    Delay(ticks);
+"""
+end
+
+func traer(c: Carga) -> Respuesta
+    while not http_avanzar(c)
+        esperar(2)
+    end
+    return c.respuesta
+end
+
+func marcado(n: Nodo) -> String
+    if dom_tiene_atributo(n, "checked")
+        return "[x]"
+    end
+    return "[]"
+end
+
+Main
+    base = "http://127.0.0.1:40858"
+    r = traer(http_empezar_post(base + "/eco", "a=1&b=dos+tres", "", 10000))
+    Print str_replace(str_trim(r.cuerpo), "\r\n", " | ")
+    r = traer(http_empezar_post(base + "/tras_post", "x=1", "", 10000))
+    Print "tras 303: " + r.estado + " " + str_trim(r.cuerpo)
+    h = "<body><form method=post action=enviar><textarea name=nota></textarea><input type=checkbox name=acepto checked>"
+    h = h + "<input name=campo value=v><select name=s><option value=a>A<option value=b>B</select><button>Ir</button></form></body>"
+    doc = dom_desde_html(h)
+    nota = dom_buscar(doc, "textarea")
+    for c in ["h", "o", "l", "a"]
+        formulario_tecla(nota, c, 0)
+    end
+    formulario_tecla(nota, "", 0x44)
+    for c in ["d", "o", "s"]
+        formulario_tecla(nota, c, 0)
+    end
+    Print "textarea: [" + str_replace(formulario_valor(nota), "\n", "|") + "]"
+    e = formulario_envio(nota, "http://ej.org/form.html")
+    Print e.metodo + " " + e.direccion + " [" + e.cuerpo + "]"
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    js_evaluar(js, "var f = document.querySelector('form'); document.querySelector('input[name=campo]').value = 'x'; document.querySelector('select').value = 'b'; document.querySelector('input[type=checkbox]').checked = false; f.onsubmit = function (e) { e.preventDefault(); };", "x")
+    campo = dom_buscar(doc, "form")
+    var entradas: [Nodo] = []
+    for n in campo.hijos
+        if n.nombre == "input"
+            entradas.push(n)
+        end
+    end
+    lee = js_evaluar(js, "[document.querySelector('input[name=campo]').value, document.querySelector('select').value, document.querySelector('input[type=checkbox]').checked].join(' ')", "x")
+    Print "js: [" + dom_atributo(entradas[1], "value") + "] [" + formulario_valor(dom_buscar(doc, "select")) + "] " + marcado(entradas[0]) + " [" + str_replace(js_evaluar(js, "document.querySelector('textarea').value", "x"), "\n", "|") + "] [" + lee + "]"
+    Print "onsubmit: " + jsdom_evento(js, campo, "submit")
+    js_evaluar(js, "f.submit()", "x")
+    enviado = jsdom_envio(js)
+    otra = jsdom_envio(js)
+    texto = "nil"
+    if enviado != nil
+        texto = enviado.nombre
+    end
+    texto2 = "nil"
+    if otra != nil
+        texto2 = otra.nombre
+    end
+    Print "submit(): " + texto + ", después: " + texto2
+    js_liberar(js)
+end

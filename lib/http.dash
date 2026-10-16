@@ -84,6 +84,11 @@ end
 
 # Conecta y manda la petición; nil (con r.error) si no se pudo
 func _http_conectar(u: Url, espera_ms: Int, r: Respuesta) -> Conexion
+    return _http_conectar_con(u, espera_ms, r, "GET", "", "")
+end
+
+# Con método y cuerpo (POST: el cuerpo y su Content-Type)
+func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cuerpo: String, tipo: String) -> Conexion
     var c: Conexion = nil
     if u.esquema != "http" and u.esquema != "https"
         r.error = "esquema no admitido: " + u.esquema
@@ -110,8 +115,12 @@ func _http_conectar(u: Url, espera_ms: Int, r: Respuesta) -> Conexion
     if u.puerto >= 0
         host = host + ":" + u.puerto
     end
-    peticion = "GET " + ruta + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: " + HTTP_AGENTE
-    peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n"
+    peticion = metodo + " " + ruta + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: " + HTTP_AGENTE
+    peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close"
+    if metodo == "POST"
+        peticion = peticion + "\r\nContent-Type: " + tipo + "\r\nContent-Length: " + cuerpo.length
+    end
+    peticion = peticion + "\r\n\r\n" + cuerpo
     if not red_enviar(c, peticion)
         r.error = c.error
         red_cerrar(c)
@@ -301,6 +310,9 @@ struct Carga
     total: Int             # bytes de la respuesta entera si se sabe (Content-Length), -1 si aún no, -2 si no
     ultimo: Int            # time_ms del último dato
     fichero: String = ""   # el cuerpo de una respuesta 2xx va a este fichero (http_empezar_a_fichero)
+    metodo: String = "GET"
+    cuerpo: String = ""    # lo que se manda con POST
+    tipo: String = ""      # su Content-Type
 end
 
 func http_empezar(direccion: String, espera_ms: Int) -> Carga
@@ -319,11 +331,25 @@ func http_empezar_a_fichero(direccion: String, fichero: String, espera_ms: Int) 
     return c
 end
 
+# POST sin esperar: el cuerpo (application/x-www-form-urlencoded si tipo es "")
+func http_empezar_post(direccion: String, cuerpo: String, tipo: String, espera_ms: Int) -> Carga
+    var sin: Conexion = nil
+    c = Carga(url_parse(direccion), sin, espera_ms, 0, false, _respuesta_vacia(direccion), -1, time_ms())
+    c.metodo = "POST"
+    c.cuerpo = cuerpo
+    c.tipo = tipo
+    if tipo == ""
+        c.tipo = "application/x-www-form-urlencoded"
+    end
+    _carga_conectar(c)
+    return c
+end
+
 func _carga_conectar(c: Carga)
     c.respuesta = _respuesta_vacia(url_text(c.actual))
     c.total = -1
     c.ultimo = time_ms()
-    c.conexion = _http_conectar(c.actual, c.espera, c.respuesta)
+    c.conexion = _http_conectar_con(c.actual, c.espera, c.respuesta, c.metodo, c.cuerpo, c.tipo)
     if c.conexion == nil
         c.hecha = true
     end
@@ -361,6 +387,11 @@ func http_avanzar(c: Carga) -> Bool
         else
             c.redirecciones = c.redirecciones + 1
             c.actual = url_resolve(c.actual, r.cabeceras["location"])
+            if r.estado != 307 and r.estado != 308
+                # tras un POST, la redirección se sigue con GET (como los navegadores)
+                c.metodo = "GET"
+                c.cuerpo = ""
+            end
             _carga_conectar(c)
             return c.hecha
         end

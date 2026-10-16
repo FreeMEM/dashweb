@@ -252,7 +252,7 @@ tarea, con el estilo de Dash.
       esperar; la página se monta cuando están todos, en el orden del documento.
 - [x] 21a. **Formularios: controles y GET.** `input` (texto, password, checkbox, radio, submit, hidden), `button`,
       `select` dibujados en la página; clic y teclado (foco, escribir, marcar, elegir); enviar por GET.
-- [ ] 21b. **Formularios: textarea, POST y JS.** `textarea`; envío POST (`application/x-www-form-urlencoded`);
+- [x] 21b. **Formularios: textarea, POST y JS.** `textarea`; envío POST (`application/x-www-form-urlencoded`);
       `.value`/`.checked` y `submit`/`onsubmit` en JavaScript.
 - [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
 - [ ] 20d. **Bucle de eventos: conectar.** (movida aquí el 2026-10-16: en el emulador conectar es instantáneo y
@@ -868,4 +868,21 @@ Formato:
   función crea una variable nueva en vez de dar error. Test `test_module_scope` (también multifichero). Mismo C
   en los programas previos; 185/185, ejemplos 34/34. Los nombres `dw_*` de `src/dashweb.dash` se quedan (no
   hacen daño).
+
+### 2026-10-16 — Tarea 21b (textarea, POST y formularios en JavaScript)
+- `lib/http.dash`: método y cuerpo en la petición (`_http_conectar_con`), `http_empezar_post(direccion, cuerpo,
+  tipo, espera)` (`application/x-www-form-urlencoded` por defecto); una redirección tras un POST se sigue con
+  GET (salvo 307/308). `tests/servers/http.py`: `/eco` devuelve también el cuerpo; `/tras_post` (303 → GET).
+- `lib/formularios.dash`: `textarea` (foco, Return salta de línea, su valor es su texto), `formulario_valor` y
+  `formulario_poner_valor` (input, textarea, select), `formulario_envio` → `Envio` (GET con la consulta, o POST
+  con el cuerpo). `lib/maqueta.dash`/`lib/pintor.dash`: el `textarea` (`cols` x `rows`, las últimas líneas que
+  caben, cursor).
+- `lib/jsdom.dash`: `.value` (input, textarea, select) y `.checked`; `form.submit()` (lo recoge
+  `jsdom_envio`); `jsdom_evento(js, nodo, tipo)` para cualquier evento (el navegador manda `submit` al form antes
+  de enviarlo: `onsubmit`/`preventDefault` lo paran).
+- `src/dashweb.dash`: `enviar` (evento submit, después GET o POST), `abrir_post`, `envio_del_js` tras clics y
+  temporizadores; `apuntar` (historial).
+- Tests: `test_formularios_post` (POST, 303, textarea, `.value`/`.checked` desde JS, `onsubmit`, `submit()`;
+  `--memcheck`). En el emulador: post.html, escribir "hola", Return, "ab" y clic en Enviar → el servidor recibe
+  `nota=hola%0Aab`. dashweb 24/24, también con `--memcheck`.
 

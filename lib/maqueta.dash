@@ -303,7 +303,7 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
-    if n.nombre == "input" or n.nombre == "select" or n.nombre == "button"
+    if n.nombre == "input" or n.nombre == "select" or n.nombre == "button" or n.nombre == "textarea"
         _control(m, n, e, piezas, enlace)
         return
     end
@@ -348,6 +348,17 @@ func _control(m: Maquetador, n: Nodo, e: {String: String}, piezas: [Pieza], enla
         end
         h = w
         b = w - 1
+    elif n.nombre == "textarea"
+        cols = Int(dom_atributo(n, "cols"))
+        if cols <= 0
+            cols = 20
+        end
+        filas = Int(dom_atributo(n, "rows"))
+        if filas <= 0
+            filas = 2
+        end
+        w = cols * font_text_width("n") + 6
+        h = filas * alto_texto + 6
     else
         cols = Int(dom_atributo(n, "size"))
         if cols <= 0

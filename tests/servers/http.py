@@ -40,8 +40,14 @@ ROUTES = {
 class Handler(socketserver.StreamRequestHandler):
     def handle(self):
         line = self.rfile.readline().decode("latin-1")
-        while self.rfile.readline() not in (b"\r\n", b"\n", b""):
-            pass
+        length = 0
+        while True:
+            header = self.rfile.readline()
+            if header in (b"\r\n", b"\n", b""):
+                break
+            if header.lower().startswith(b"content-length:"):
+                length = int(header.split(b":", 1)[1])
+        body = self.rfile.read(length) if length else b""
         path = line.split(" ")[1] if " " in line else "/"
         if path == "/cerrar":       # no length: the body ends when the connection closes
             self.wfile.write(b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n" + b"z" * 5000)
@@ -62,8 +68,12 @@ class Handler(socketserver.StreamRequestHandler):
                 kind = kinds.get(os.path.splitext(f)[1], "text/html; charset=utf-8")
                 self.wfile.write(reply("200 OK", [("Content-Type", kind), ("Content-Length", str(len(data)))], data))
                 return
-        if path.split("?")[0] == "/eco":   # what the client sent, to check the request
-            self.wfile.write(reply("200 OK", [("Content-Length", str(len(line)))], line.encode("latin-1")))
+        if path.split("?")[0] == "/eco":   # what the client sent, to check the request (and a POST's body)
+            data = line.encode("latin-1") + body
+            self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
+            return
+        if path == "/tras_post" and line.startswith("POST"):   # 303 to a GET, as after a form
+            self.wfile.write(reply("303 See Other", [("Location", "/eco?visto=1"), ("Content-Length", "0")]))
             return
         self.wfile.write(ROUTES.get(path, ROUTES["/no"]))
 

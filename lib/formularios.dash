@@ -5,6 +5,7 @@
 #   r = formulario_clic(n)                     # FORM_NADA, FORM_CAMBIO (repintar), FORM_FOCO, FORM_ENVIAR
 #   r = formulario_tecla(campo, caracter, raw) # FORM_CAMBIO o FORM_ENVIAR (Return)
 #   destino = formulario_destino(n, base)      # la dirección del envío por GET ("" si no hay <form>)
+#   e = formulario_envio(n, base)              # GET o POST según el <form>: e.metodo, e.direccion, e.cuerpo
 
 import "maqueta.dash"
 
@@ -25,8 +26,11 @@ func formulario_de(n: Nodo) -> Nodo
     return nada
 end
 
-# Un campo donde se escribe (input de texto, password, email...)
+# Un campo donde se escribe (input de texto, password, email..., textarea)
 func formulario_es_texto(n: Nodo) -> Bool
+    if n != nil and n.nombre == "textarea"
+        return true
+    end
     if n == nil or n.nombre != "input"
         return false
     end
@@ -126,17 +130,71 @@ func _form_desmarcar(n: Nodo, nombre: String)
     end
 end
 
-# Una tecla en un campo de texto: caracter (mui_canvas_char) y su código raw
+# El valor de un campo: el value de un input, el texto de un textarea, el de la opción elegida
+func formulario_valor(n: Nodo) -> String
+    if n.nombre == "textarea"
+        return dom_texto(n)
+    end
+    if n.nombre == "select"
+        o = formulario_opcion(n)
+        if o == nil
+            return ""
+        end
+        if dom_tiene_atributo(o, "value")
+            return dom_atributo(o, "value")
+        end
+        return str_trim(dom_texto(o))
+    end
+    return dom_atributo(n, "value")
+end
+
+func formulario_poner_valor(n: Nodo, v: String)
+    if n.nombre == "textarea"
+        var nadie: Nodo = nil
+        for h in n.hijos
+            h.padre = nadie
+        end
+        n.hijos.clear()
+        if v != ""
+            dom_agregar(n, dom_nodo(DOM_TEXTO, "", v))
+        end
+        return
+    end
+    if n.nombre == "select"
+        for o in n.hijos
+            if o.tipo == DOM_ELEMENTO and o.nombre == "option"
+                ov = str_trim(dom_texto(o))
+                if dom_tiene_atributo(o, "value")
+                    ov = dom_atributo(o, "value")
+                end
+                if ov == v
+                    _form_poner(o, "selected", "")
+                else
+                    _form_quitar(o, "selected")
+                end
+            end
+        end
+        return
+    end
+    _form_poner(n, "value", v)
+end
+
+# Una tecla en un campo de texto: caracter (mui_canvas_char) y su código raw. Return envía (en un
+# textarea, salta de línea).
 func formulario_tecla(campo: Nodo, caracter: String, raw: Int) -> Int
+    valor = formulario_valor(campo)
     if raw == 0x44 or raw == 0x43
+        if campo.nombre == "textarea"
+            formulario_poner_valor(campo, valor + "\n")
+            return FORM_CAMBIO
+        end
         return FORM_ENVIAR
     end
-    valor = dom_atributo(campo, "value")
     if raw == 0x41
         if valor == ""
             return FORM_NADA
         end
-        _form_poner(campo, "value", valor[:valor.length - 1])
+        formulario_poner_valor(campo, valor[:valor.length - 1])
         return FORM_CAMBIO
     end
     if caracter.length == 1 and str_code(caracter, 0) >= 32 and str_code(caracter, 0) != 127
@@ -144,7 +202,7 @@ func formulario_tecla(campo: Nodo, caracter: String, raw: Int) -> Int
         if maximo > 0 and valor.length >= maximo
             return FORM_NADA
         end
-        _form_poner(campo, "value", valor + caracter)
+        formulario_poner_valor(campo, valor + caracter)
         return FORM_CAMBIO
     end
     return FORM_NADA
@@ -241,3 +299,37 @@ func formulario_destino(desde: Nodo, base: String) -> String
     end
     return destino + "?" + formulario_datos(form, enviado_por)
 end
+
+struct Envio
+    metodo: String       # "GET" o "POST"
+    direccion: String    # con GET, ya con los datos como consulta
+    cuerpo: String       # con POST, los datos (application/x-www-form-urlencoded)
+end
+
+# El envío del formulario de desde según su method; direccion "" si desde no está en un <form>
+func formulario_envio(desde: Nodo, base: String) -> Envio
+    form = formulario_de(desde)
+    if form == nil
+        return Envio("GET", "", "")
+    end
+    if str_lower(str_trim(dom_atributo(form, "method"))) != "post"
+        return Envio("GET", formulario_destino(desde, base), "")
+    end
+    accion = str_trim(dom_atributo(form, "action"))
+    u = url_parse(base)
+    if accion != ""
+        u = url_resolve(u, accion)
+    end
+    destino = url_text(u)
+    p = str_find(destino, "#")
+    if p >= 0
+        destino = destino[:p]
+    end
+    enviado_por = desde
+    if formulario_es_texto(desde)
+        var nadie: Nodo = nil
+        enviado_por = nadie
+    end
+    return Envio("POST", destino, formulario_datos(form, enviado_por))
+end
+

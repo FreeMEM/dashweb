@@ -223,6 +223,7 @@ func temporizadores(v: Navegador)
         if espera >= 0
             dw_js_cuando = time_ms() + espera
         end
+        envio_del_js(v)
     end
     programar(v)
 end
@@ -243,6 +244,7 @@ func clic(v: Navegador)
             mui_canvas_redraw(v.pagina)
         end
         temporizadores(v)
+        envio_del_js(v)
     end
     if not seguir
         return
@@ -271,12 +273,52 @@ func clic(v: Navegador)
     end
 end
 
-# Envía el formulario de desde (un botón o el campo donde se pulsó Return)
+# Envía el formulario de desde (un botón, el campo donde se pulsó Return o el form de form.submit()):
+# antes el evento submit (onsubmit puede pararlo), después GET o POST según su method
 func enviar(v: Navegador, desde: Nodo)
-    destino = formulario_destino(desde, dw_actual.direccion)
-    if destino != ""
-        navegar(v, destino)
+    form = formulario_de(desde)
+    if form == nil
+        return
     end
+    if dw_actual.js != 0 and not jsdom_evento(dw_actual.js, form, "submit")
+        return
+    end
+    e = formulario_envio(desde, dw_actual.direccion)
+    if e.metodo == "POST"
+        abrir_post(v, e.direccion, e.cuerpo)
+        apuntar(v, e.direccion)
+    elif e.direccion != ""
+        navegar(v, e.direccion)
+    end
+end
+
+# Si el JavaScript llamó a form.submit(), se envía
+func envio_del_js(v: Navegador)
+    if dw_actual == nil or dw_actual.js == 0
+        return
+    end
+    f = jsdom_envio(dw_actual.js)
+    if f != nil
+        e = formulario_envio(f, dw_actual.direccion)
+        if e.metodo == "POST"
+            abrir_post(v, e.direccion, e.cuerpo)
+            apuntar(v, e.direccion)
+        elif e.direccion != ""
+            navegar(v, e.direccion)
+        end
+    end
+end
+
+# POST: como abrir, pero la carga manda el cuerpo
+func abrir_post(v: Navegador, direccion: String, cuerpo: String)
+    parar_carga()
+    dw_estado(v, "Enviando a " + direccion + "...")
+    mui_set_value(v.progreso, 5)
+    mui_set_text(v.url, direccion)
+    dw_carga = http_empezar_post(direccion, cuerpo, "", 20000)
+    dw_carga_dir = direccion
+    mui_set_enabled(v.parar, true)
+    programar(v)
 end
 
 # Ir a una dirección nueva: lo que había delante en el historial se descarta. Un enlace a otra parte
@@ -293,6 +335,11 @@ func navegar(v: Navegador, destino: String)
     end
     mui_set_text(v.url, destino)
     abrir(v, destino)
+    apuntar(v, destino)
+end
+
+# Una entrada nueva en el historial (lo que había delante se descarta)
+func apuntar(v: Navegador, destino: String)
     while mui_list_count(v.historial) > dw_visto + 1
         mui_list_remove(v.historial, mui_list_count(v.historial) - 1)
     end

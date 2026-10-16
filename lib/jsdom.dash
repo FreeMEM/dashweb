@@ -15,6 +15,7 @@
 
 import "js.dash"
 import "estilo.dash"
+import "formularios.dash"
 
 # === La parte en Dash (la llaman las funciones de C de abajo) ===
 
@@ -117,6 +118,14 @@ func jsdom_quitar_atributo(n: Nodo, nombre: String)
         end
         i = i + 1
     end
+end
+
+func jsdom_valor(n: Nodo) -> String
+    return formulario_valor(n)
+end
+
+func jsdom_poner_valor(n: Nodo, v: String)
+    formulario_poner_valor(n, v)
 end
 
 func jsdom_crear(nombre: String) -> Nodo
@@ -481,6 +490,35 @@ static JSValue _jsdom_set_atr(JSContext *ctx, JSValueConst this_val, JSValueCons
     return JS_UNDEFINED;
 }
 
+/* value (input, textarea, select) and checked */
+static JSValue _jsdom_value(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    return _jsdom_cadena(ctx, jsdom_valor(n));
+}
+
+static JSValue _jsdom_set_value(JSContext *ctx, JSValueConst this_val, JSValueConst v) {
+    char *t;
+    _JSDOM_ESTE;
+    t = _js_texto(ctx, v);
+    jsdom_poner_valor(n, (STRPTR)(t ? t : ""));
+    free(t);
+    _jsdom_de(ctx)->cambios++;
+    return JS_UNDEFINED;
+}
+
+static JSValue _jsdom_checked(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    return JS_NewBool(ctx, jsdom_tiene_atributo(n, (STRPTR)"checked"));
+}
+
+static JSValue _jsdom_set_checked(JSContext *ctx, JSValueConst this_val, JSValueConst v) {
+    _JSDOM_ESTE;
+    if (JS_ToBool(ctx, v)) jsdom_poner_atributo(n, (STRPTR)"checked", (STRPTR)"");
+    else jsdom_quitar_atributo(n, (STRPTR)"checked");
+    _jsdom_de(ctx)->cambios++;
+    return JS_UNDEFINED;
+}
+
 static JSValue _jsdom_parentNode(JSContext *ctx, JSValueConst this_val) {
     _JSDOM_ESTE;
     return _jsdom_objeto(ctx, jsdom_padre(n));
@@ -586,6 +624,8 @@ static const JSCFunctionListEntry _jsdom_metodos[] = {
     JS_CGETSET_MAGIC_DEF("id", _jsdom_atr, _jsdom_set_atr, 0),
     JS_CGETSET_MAGIC_DEF("className", _jsdom_atr, _jsdom_set_atr, 1),
     JS_CGETSET_DEF("parentNode", _jsdom_parentNode, NULL),
+    JS_CGETSET_DEF("value", _jsdom_value, _jsdom_set_value),
+    JS_CGETSET_DEF("checked", _jsdom_checked, _jsdom_set_checked),
     JS_CGETSET_DEF("parentElement", _jsdom_parentNode, NULL),
     JS_CGETSET_MAGIC_DEF("children", _jsdom_hijos, NULL, 0),
     JS_CGETSET_MAGIC_DEF("childNodes", _jsdom_hijos, NULL, 1),
@@ -722,6 +762,7 @@ func _jsdom_preludio() -> String
     j = j + " return !ev.defaultPrevented; }"
     j = j + "N.dispatchEvent = function (ev) { return despachar(this, ev); };"
     j = j + "N.click = function () { return despachar(this, {type: 'click'}); };"
+    j = j + "N.submit = function () { g.__dashweb_envio = this; };"
     j = j + "g.__dashweb_despachar = function (n, t) { return despachar(n, {type: t}); };"
     j = j + "var cola = [], sig = 1;"
     j = j + "function poner(f, ms, args, rep) { if (typeof f == 'string') { var c = f; f = function () { (0, eval)(c); }; }"
@@ -778,6 +819,41 @@ end
     if (JS_IsNumber(r)) JS_ToInt32(m->ctx, &ms, r);
     JS_FreeValue(m->ctx, r);
     return ms;
+"""
+end
+
+# Un evento de ese tipo en n (sube hasta document); false si se paró (preventDefault, "return false")
+@native(borrow) func jsdom_evento(js: Int, n: Nodo, tipo: String) -> Bool
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue args[2], r;
+    BOOL seguir = TRUE;
+    if (!m || !m->extra || !n) return TRUE;
+    args[0] = _jsdom_objeto(m->ctx, n);
+    args[1] = JS_NewString(m->ctx, (const char *)tipo);
+    r = _jsdom_llamar(m->ctx, "__dashweb_despachar", 2, args);
+    if (JS_IsBool(r)) seguir = JS_ToBool(m->ctx, r);
+    JS_FreeValue(m->ctx, r);
+    JS_FreeValue(m->ctx, args[0]);
+    JS_FreeValue(m->ctx, args[1]);
+    return seguir;
+"""
+end
+
+# El formulario que el JavaScript mandó enviar con form.submit() (y lo olvida), o nil
+@native(borrow) func jsdom_envio(js: Int) -> Nodo
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue global, v;
+    _Dash_Nodo *n = NULL;
+    if (!m || !m->extra) return NULL;
+    global = JS_GetGlobalObject(m->ctx);
+    v = JS_GetPropertyStr(m->ctx, global, "__dashweb_envio");
+    n = _jsdom_nodo(m->ctx, v);
+    JS_FreeValue(m->ctx, v);
+    if (n) JS_SetPropertyStr(m->ctx, global, "__dashweb_envio", JS_NULL);
+    JS_FreeValue(m->ctx, global);
+    return n;
 """
 end
 
