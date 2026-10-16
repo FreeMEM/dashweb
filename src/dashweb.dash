@@ -2,11 +2,12 @@
 # Dash); la página la abre lib/documento.dash y la pinta lib/pintor.dash en la zona de dibujo.
 #
 #   dashweb                       # página de inicio
-#   dashweb http://ejemplo.org/   # esa página
+#   dashweb http://ejemplo.org/   # esa página (con varias direcciones, una ventana para cada una)
 #
 # Barra de URL (Return para ir), atrás, adelante, recargar, historial, barra de estado y de
 # progreso. La rueda, la barra y las teclas (arriba, abajo, espacio, retroceso) desplazan; un clic
 # llega al JavaScript de la página y, si no lo para, sigue el enlace (#ancla: dentro de la página).
+# Hasta 4 ventanas (menú Proyecto: Nueva ventana, Cerrar ventana), cada una con su página.
 # Necesita MUI 3.8 o 5 y un 68020.
 
 import "navegador.dashui"
@@ -14,7 +15,7 @@ import "../lib/documento.dash"
 import "../lib/formularios.dash"
 import "../lib/marcadores.dash"
 
-# Los números de evento del .dashui
+# Los números de evento del .dashui (los mismos en todas las ventanas: la activa dice de cuál viene)
 const ID_ATRAS = 1
 const ID_ADELANTE = 2
 const ID_RECARGAR = 3
@@ -24,26 +25,38 @@ const ID_HISTORIAL = 6
 const ID_ACERCA = 8
 const ID_SALIR = 9
 const ID_PAGINA = 10
-# y los del programa
-const ID_TIC = 11         # el temporizador: la carga en curso y los setTimeout/setInterval de la página
-const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
 const ID_PARAR = 13
 const ID_MARCADORES = 14
 const ID_ANADIR = 15
 const ID_USAR_INICIO = 16
 const ID_INICIO = 17
+const ID_NUEVA = 18
+const ID_CERRAR = 19
+# y los del programa
+const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
+const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
+const ID_CERRADA = 100    # + número de ventana: su botón de cerrar
 
+const MAX_VENTANAS = 4
 const FICHERO_MARCADORES = "PROGDIR:dashweb.marcadores"
 const FICHERO_PREFERENCIAS = "PROGDIR:dashweb.prefs"
 
-var dw_actual: Documento = nil
-var dw_desde: Int = 0
-var dw_visto: Int = -1       # la línea del historial que se ve
-var dw_carga: Carga = nil    # la página que está llegando (sin congelar la ventana)
-var dw_carga_dir: String = ""
-var dw_preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
-var dw_js_cuando: Int = -1   # time_ms del siguiente temporizador del JavaScript, -1 si no hay
-var dw_foco: Nodo = nil      # el campo de formulario donde se escribe
+# Una ventana del navegador y lo que tiene
+struct Ventana
+    v: Navegador
+    numero: Int
+    abierta: Bool = true
+    actual: Documento = nil
+    desde: Int = 0
+    visto: Int = -1          # la línea del historial que se ve
+    carga: Carga = nil       # la página que está llegando (sin congelar la ventana)
+    carga_dir: String = ""
+    preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
+    js_cuando: Int = -1      # time_ms del siguiente temporizador del JavaScript, -1 si no hay
+    foco: Nodo = nil         # el campo de formulario donde se escribe
+end
+
+var dw_ventanas: [Ventana] = []
 
 func dw_inicio() -> String
     h = "<html><head><title>dashweb</title><style>body { font-family: sans-serif; margin: 12px }"
@@ -51,63 +64,85 @@ func dw_inicio() -> String
     h = h + "<h1>dashweb</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
     h = h + "<p>Escribe una dirección arriba (http o https) y pulsa Return.</p>"
     h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
-    h = h + "<p class=nota>Fase B: ventana con MUI 5.</p></body></html>"
+    h = h + "<p class=nota>Fase B: ventanas con MUI 5.</p></body></html>"
     return h
 end
 
 # La barra de estado: un texto largo ensancharía la ventana entera (MUI le da el ancho de su texto)
-func dw_estado(v: Navegador, texto: String)
+func dw_estado(w: Ventana, texto: String)
     t = texto
     if t.length > 48
         t = t[:45] + "..."
     end
-    mui_set_text(v.estado, t)
+    mui_set_text(w.v.estado, t)
 end
 
-# La zona de dibujo de MUI: la página dw_desde "dw_desde"; si el ancho cambió, se maqueta otra vez
-func pinta(x: Int, y: Int, ancho: Int, alto: Int)
-    if dw_actual == nil
+# La zona de dibujo de cada ventana (MUI llama a una función sin decir de qué zona: una por ventana)
+func pinta0(x: Int, y: Int, ancho: Int, alto: Int)
+    pinta_en(0, x, y, ancho, alto)
+end
+
+func pinta1(x: Int, y: Int, ancho: Int, alto: Int)
+    pinta_en(1, x, y, ancho, alto)
+end
+
+func pinta2(x: Int, y: Int, ancho: Int, alto: Int)
+    pinta_en(2, x, y, ancho, alto)
+end
+
+func pinta3(x: Int, y: Int, ancho: Int, alto: Int)
+    pinta_en(3, x, y, ancho, alto)
+end
+
+# La página desde "desde"; si el ancho cambió, se maqueta otra vez
+func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
+    if k >= dw_ventanas.length
+        return
+    end
+    w = dw_ventanas[k]
+    if w.actual == nil
         gfx_pen(color_pen(255, 255, 255))
         gfx_rect(x, y, x + ancho - 1, y + alto - 1)
         return
     end
-    if dw_actual.pagina == nil or dw_actual.ancho != ancho
-        documento_maquetar(dw_actual, ancho)
+    if w.actual.pagina == nil or w.actual.ancho != ancho
+        documento_maquetar(w.actual, ancho)
         mui_timer(1, ID_RANGO)
     end
-    pintar(dw_actual.pagina, dw_actual.im, dw_desde, x, y, ancho, alto)
+    pintor_foco = w.foco
+    pintar(w.actual.pagina, w.actual.im, w.desde, x, y, ancho, alto)
 end
 
 # Barra de desplazamiento: total de la página y lo que se ve
-func ajustar_barra(v: Navegador)
-    if dw_actual == nil or dw_actual.pagina == nil
+func ajustar_barra(w: Ventana)
+    if w.actual == nil or w.actual.pagina == nil
         return
     end
-    alto = mui_height(v.pagina)
-    mui_set_range(v.barra, dw_actual.pagina.alto, alto)
-    if dw_desde > dw_actual.pagina.alto - alto
-        dw_desde = dw_actual.pagina.alto - alto
+    alto = mui_height(w.v.pagina)
+    mui_set_range(w.v.barra, w.actual.pagina.alto, alto)
+    if w.desde > w.actual.pagina.alto - alto
+        w.desde = w.actual.pagina.alto - alto
     end
-    if dw_desde < 0
-        dw_desde = 0
+    if w.desde < 0
+        w.desde = 0
     end
-    mui_set_value(v.barra, dw_desde)
+    mui_set_value(w.v.barra, w.desde)
 end
 
 # Abre la dirección en la ventana (direccion "" = la página de inicio). Por http(s) empieza la carga y
 # vuelve: la página llega en los tics (la ventana sigue respondiendo y se puede parar).
-func abrir(v: Navegador, direccion: String)
-    parar_carga()
+func abrir(w: Ventana, direccion: String)
+    parar_carga(w)
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
-        dw_estado(v, "Conectando con " + direccion + "...")
-        mui_set_value(v.progreso, 5)
-        dw_carga = http_empezar(direccion, 20000)
-        dw_carga_dir = direccion
-        mui_set_enabled(v.parar, true)
-        programar(v)
+        dw_estado(w, "Conectando con " + direccion + "...")
+        mui_set_value(w.v.progreso, 5)
+        w.carga = http_empezar(direccion, 20000)
+        w.carga_dir = direccion
+        mui_set_enabled(w.v.parar, true)
+        programar()
         return
     end
-    dw_estado(v, "Abriendo " + direccion + "...")
+    dw_estado(w, "Abriendo " + direccion + "...")
     var d: Documento = nil
     if direccion == "" or direccion == "dashweb:inicio"
         d = documento_html("dashweb:inicio", dw_inicio())
@@ -116,145 +151,179 @@ func abrir(v: Navegador, direccion: String)
     else
         d = documento_abrir(direccion)
     end
-    mostrar(v, d, direccion)
+    mostrar(w, d, direccion)
 end
 
-# La carga en curso: lo que haya llegado; al acabar, la página
-func avanzar_carga(v: Navegador)
-    if dw_carga == nil
-        return
-    end
-    if not http_avanzar(dw_carga)
-        total = http_total(dw_carga)
-        if total > 0
-            mui_set_value(v.progreso, 10 + http_recibidos(dw_carga) * 80 / total)
-        else
-            mui_set_value(v.progreso, 10 + (http_recibidos(dw_carga) / 1024) % 80)
+# POST: como abrir, pero la carga manda el cuerpo
+func abrir_post(w: Ventana, direccion: String, cuerpo: String)
+    parar_carga(w)
+    dw_estado(w, "Enviando a " + direccion + "...")
+    mui_set_value(w.v.progreso, 5)
+    mui_set_text(w.v.url, direccion)
+    w.carga = http_empezar_post(direccion, cuerpo, "", 20000)
+    w.carga_dir = direccion
+    mui_set_enabled(w.v.parar, true)
+    programar()
+end
+
+# La carga en curso: lo que haya llegado; al acabar, sus hojas y scripts; después la página
+func avanzar_carga(w: Ventana)
+    if w.carga != nil
+        if not http_avanzar(w.carga)
+            total = http_total(w.carga)
+            if total > 0
+                mui_set_value(w.v.progreso, 10 + http_recibidos(w.carga) * 80 / total)
+            else
+                mui_set_value(w.v.progreso, 10 + (http_recibidos(w.carga) / 1024) % 80)
+            end
+            dw_estado(w, "Recibiendo " + w.carga_dir + ": " + http_recibidos(w.carga) / 1024 + " KB")
+            return
         end
-        dw_estado(v, "Recibiendo " + dw_carga_dir + ": " + http_recibidos(dw_carga) / 1024 + " KB")
+        c = w.carga
+        var nada: Carga = nil
+        w.carga = nada
+        mui_set_value(w.v.progreso, 90)
+        dw_estado(w, "Trayendo hojas de estilo y scripts...")
+        w.preparando = documento_empezar(w.carga_dir, c.respuesta)
+    end
+    if w.preparando == nil
         return
     end
-    c = dw_carga
-    dw_carga = nil
-    mui_set_value(v.progreso, 90)
-    dw_estado(v, "Trayendo hojas de estilo y scripts...")
-    dw_preparando = documento_empezar(dw_carga_dir, c.respuesta)
-    avanzar_preparacion(v)
-end
-
-# Las hojas y los scripts de la página que llegó; cuando están todos, la página
-func avanzar_preparacion(v: Navegador)
-    if dw_preparando == nil
+    if not documento_avanzar(w.preparando)
+        dw_estado(w, "Trayendo hojas de estilo y scripts: faltan " + recursos_pendientes(w.preparando.recursos))
         return
     end
-    if not documento_avanzar(dw_preparando)
-        dw_estado(v, "Trayendo hojas de estilo y scripts: faltan " + recursos_pendientes(dw_preparando.recursos))
-        return
-    end
-    d = dw_preparando
-    dw_preparando = nil
-    mui_set_enabled(v.parar, false)
-    mostrar(v, d, dw_carga_dir)
+    d = w.preparando
+    var ninguno: Documento = nil
+    w.preparando = ninguno
+    mui_set_enabled(w.v.parar, false)
+    mostrar(w, d, w.carga_dir)
 end
 
 # Para lo que esté llegando (la página o sus recursos)
-func parar_carga()
-    if dw_carga != nil
-        http_cancelar(dw_carga)
-        dw_carga = nil
+func parar_carga(w: Ventana)
+    if w.carga != nil
+        http_cancelar(w.carga)
+        var nada: Carga = nil
+        w.carga = nada
     end
-    if dw_preparando != nil
-        documento_liberar(dw_preparando)
-        dw_preparando = nil
+    if w.preparando != nil
+        documento_liberar(w.preparando)
+        var ninguno: Documento = nil
+        w.preparando = ninguno
     end
 end
 
 # Pone el documento nuevo en la ventana
-func mostrar(v: Navegador, d: Documento, direccion: String)
-    if dw_actual != nil
-        documento_liberar(dw_actual)
+func mostrar(w: Ventana, d: Documento, direccion: String)
+    if w.actual != nil
+        documento_liberar(w.actual)
     end
-    dw_actual = d
+    w.actual = d
     if direccion != ""
-        mui_set_text(v.url, dw_actual.direccion)
+        mui_set_text(w.v.url, w.actual.direccion)
     end
-    dw_js_cuando = -1
-    dw_desde = 0
-    ancho = mui_width(v.pagina)
+    w.js_cuando = -1
+    w.desde = 0
+    ancho = mui_width(w.v.pagina)
     if ancho > 0
-        documento_maquetar(dw_actual, ancho)
-        y = documento_y_de(dw_actual, documento_fragmento(direccion))
+        documento_maquetar(w.actual, ancho)
+        y = documento_y_de(w.actual, documento_fragmento(direccion))
         if y > 0
-            dw_desde = y
+            w.desde = y
         end
     end
     var nadie: Nodo = nil
-    dw_foco = nadie
-    pintor_foco = nadie
-    mui_set_text(v.window, "dashweb: " + dw_actual.titulo)
-    ajustar_barra(v)
-    if dw_actual.error != ""
-        dw_estado(v, "Error: " + dw_actual.error)
+    w.foco = nadie
+    mui_set_text(w.v.window, "dashweb: " + w.actual.titulo)
+    ajustar_barra(w)
+    if w.actual.error != ""
+        dw_estado(w, "Error: " + w.actual.error)
     else
-        dw_estado(v, "Listo: " + dw_actual.bytes + " bytes en " + dw_actual.ms + " ms")
+        dw_estado(w, "Listo: " + w.actual.bytes + " bytes en " + w.actual.ms + " ms")
     end
-    mui_set_value(v.progreso, 0)
-    mui_canvas_redraw(v.pagina)
-    temporizadores(v)
+    mui_set_value(w.v.progreso, 0)
+    mui_canvas_redraw(w.v.pagina)
+    temporizadores(w)
 end
 
-# El único mui_timer: cada 50 ms mientras llega una página, si no al siguiente temporizador del JS
-func programar(v: Navegador)
+# El único mui_timer, para todas las ventanas: cada 50 ms mientras algo llega, si no al siguiente
+# temporizador del JavaScript
+func programar()
     espera = -1
-    if dw_js_cuando >= 0
-        espera = dw_js_cuando - time_ms()
-        if espera < 1
-            espera = 1
+    for w in dw_ventanas
+        if w.abierta
+            if w.js_cuando >= 0
+                e = w.js_cuando - time_ms()
+                if e < 1
+                    e = 1
+                end
+                if espera < 0 or e < espera
+                    espera = e
+                end
+            end
+            trayendo = w.carga != nil or w.preparando != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
+            if trayendo and (espera < 0 or espera > 50)
+                espera = 50
+            end
         end
-    end
-    trayendo = dw_carga != nil or dw_preparando != nil or (dw_actual != nil and imagenes_pendientes(dw_actual.im) > 0)
-    if trayendo and (espera < 0 or espera > 50)
-        espera = 50
     end
     if espera > 0
         mui_timer(espera, ID_TIC)
     end
 end
 
-# Los setTimeout/setInterval que tocan; después, el temporizador para lo siguiente
-func temporizadores(v: Navegador)
-    if dw_actual != nil and dw_actual.js != 0 and dw_carga == nil
-        espera = jsdom_temporizadores(dw_actual.js)
-        if documento_al_dia(dw_actual)
-            ajustar_barra(v)
-            mui_canvas_redraw(v.pagina)
+# Los setTimeout/setInterval que tocan en esa ventana
+func temporizadores(w: Ventana)
+    if w.actual != nil and w.actual.js != 0 and w.carga == nil
+        espera = jsdom_temporizadores(w.actual.js)
+        if documento_al_dia(w.actual)
+            ajustar_barra(w)
+            mui_canvas_redraw(w.v.pagina)
         end
-        dw_js_cuando = -1
+        w.js_cuando = -1
         if espera >= 0
-            dw_js_cuando = time_ms() + espera
+            w.js_cuando = time_ms() + espera
         end
-        envio_del_js(v)
+        envio_del_js(w)
     end
-    programar(v)
+    programar()
 end
 
-func clic(v: Navegador)
-    if dw_actual == nil or dw_actual.pagina == nil
+# Un tic: cargas, imágenes y temporizadores de una ventana
+func tic(w: Ventana)
+    avanzar_carga(w)
+    if w.actual != nil and documento_imagenes(w.actual)
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+    end
+    if w.actual != nil and w.carga == nil and imagenes_pendientes(w.actual.im) > 0
+        dw_estado(w, "Imágenes: faltan " + imagenes_pendientes(w.actual.im))
+    elif w.actual != nil and w.carga == nil and str_starts(mui_get_text(w.v.estado), "Imágenes")
+        dw_estado(w, "Listo")
+    end
+    if w.js_cuando >= 0 and time_ms() >= w.js_cuando
+        temporizadores(w)
+    end
+end
+
+func clic(w: Ventana)
+    if w.actual == nil or w.actual.pagina == nil
         return
     end
-    n = maqueta_nodo_en(dw_actual.pagina, mui_canvas_mouse_x(v.pagina), mui_canvas_mouse_y(v.pagina) + dw_desde)
+    n = maqueta_nodo_en(w.actual.pagina, mui_canvas_mouse_x(w.v.pagina), mui_canvas_mouse_y(w.v.pagina) + w.desde)
     if n == nil
         return
     end
     seguir = true
-    if dw_actual.js != 0
-        seguir = jsdom_clic(dw_actual.js, n)
-        if documento_al_dia(dw_actual)
-            ajustar_barra(v)
-            mui_canvas_redraw(v.pagina)
+    if w.actual.js != 0
+        seguir = jsdom_clic(w.actual.js, n)
+        if documento_al_dia(w.actual)
+            ajustar_barra(w)
+            mui_canvas_redraw(w.v.pagina)
         end
-        temporizadores(v)
-        envio_del_js(v)
+        temporizadores(w)
+        envio_del_js(w)
     end
     if not seguir
         return
@@ -266,249 +335,315 @@ func clic(v: Navegador)
     if r == FORM_FOCO
         foco = n
     end
-    if foco != dw_foco
-        dw_foco = foco
-        pintor_foco = foco
-        mui_canvas_redraw(v.pagina)
+    if foco != w.foco
+        w.foco = foco
+        mui_canvas_redraw(w.v.pagina)
     end
     if r == FORM_CAMBIO
-        mui_canvas_redraw(v.pagina)
+        mui_canvas_redraw(w.v.pagina)
     elif r == FORM_ENVIAR
-        enviar(v, n)
+        enviar(w, n)
     elif r == FORM_NADA
-        destino = documento_enlace(dw_actual, n)
+        destino = documento_enlace(w.actual, n)
         if destino != ""
-            navegar(v, destino)
+            navegar(w, destino)
         end
     end
 end
 
 # Envía el formulario de desde (un botón, el campo donde se pulsó Return o el form de form.submit()):
 # antes el evento submit (onsubmit puede pararlo), después GET o POST según su method
-func enviar(v: Navegador, desde: Nodo)
+func enviar(w: Ventana, desde: Nodo)
     form = formulario_de(desde)
     if form == nil
         return
     end
-    if dw_actual.js != 0 and not jsdom_evento(dw_actual.js, form, "submit")
+    if w.actual.js != 0 and not jsdom_evento(w.actual.js, form, "submit")
         return
     end
-    e = formulario_envio(desde, dw_actual.direccion)
+    enviar_formulario(w, desde)
+end
+
+func enviar_formulario(w: Ventana, desde: Nodo)
+    e = formulario_envio(desde, w.actual.direccion)
     if e.metodo == "POST"
-        abrir_post(v, e.direccion, e.cuerpo)
-        apuntar(v, e.direccion)
+        abrir_post(w, e.direccion, e.cuerpo)
+        apuntar(w, e.direccion)
     elif e.direccion != ""
-        navegar(v, e.direccion)
+        navegar(w, e.direccion)
     end
 end
 
 # Si el JavaScript llamó a form.submit(), se envía
-func envio_del_js(v: Navegador)
-    if dw_actual == nil or dw_actual.js == 0
+func envio_del_js(w: Ventana)
+    if w.actual == nil or w.actual.js == 0
         return
     end
-    f = jsdom_envio(dw_actual.js)
+    f = jsdom_envio(w.actual.js)
     if f != nil
-        e = formulario_envio(f, dw_actual.direccion)
-        if e.metodo == "POST"
-            abrir_post(v, e.direccion, e.cuerpo)
-            apuntar(v, e.direccion)
-        elif e.direccion != ""
-            navegar(v, e.direccion)
-        end
+        enviar_formulario(w, f)
     end
-end
-
-# POST: como abrir, pero la carga manda el cuerpo
-func abrir_post(v: Navegador, direccion: String, cuerpo: String)
-    parar_carga()
-    dw_estado(v, "Enviando a " + direccion + "...")
-    mui_set_value(v.progreso, 5)
-    mui_set_text(v.url, direccion)
-    dw_carga = http_empezar_post(direccion, cuerpo, "", 20000)
-    dw_carga_dir = direccion
-    mui_set_enabled(v.parar, true)
-    programar(v)
 end
 
 # Ir a una dirección nueva: lo que había delante en el historial se descarta. Un enlace a otra parte
 # de la misma página solo desplaza.
-func navegar(v: Navegador, destino: String)
-    if dw_actual != nil and documento_sin_fragmento(destino) == documento_sin_fragmento(dw_actual.direccion) and documento_fragmento(destino) != ""
-        y = documento_y_de(dw_actual, documento_fragmento(destino))
+func navegar(w: Ventana, destino: String)
+    if w.actual != nil and documento_sin_fragmento(destino) == documento_sin_fragmento(w.actual.direccion) and documento_fragmento(destino) != ""
+        y = documento_y_de(w.actual, documento_fragmento(destino))
         if y >= 0
-            dw_desde = y
-            ajustar_barra(v)
-            mui_canvas_redraw(v.pagina)
+            w.desde = y
+            ajustar_barra(w)
+            mui_canvas_redraw(w.v.pagina)
         end
         return
     end
-    mui_set_text(v.url, destino)
-    abrir(v, destino)
-    apuntar(v, destino)
+    mui_set_text(w.v.url, destino)
+    abrir(w, destino)
+    apuntar(w, destino)
 end
 
 # Una entrada nueva en el historial (lo que había delante se descarta)
-func apuntar(v: Navegador, destino: String)
-    while mui_list_count(v.historial) > dw_visto + 1
-        mui_list_remove(v.historial, mui_list_count(v.historial) - 1)
+func apuntar(w: Ventana, destino: String)
+    while mui_list_count(w.v.historial) > w.visto + 1
+        mui_list_remove(w.v.historial, mui_list_count(w.v.historial) - 1)
     end
-    mui_list_add(v.historial, destino)      # la pedida: la página aún está llegando
-    dw_visto = mui_list_count(v.historial) - 1
-    botones(v)
+    mui_list_add(w.v.historial, destino)      # la pedida: la página aún está llegando
+    w.visto = mui_list_count(w.v.historial) - 1
+    botones(w)
 end
 
-func botones(v: Navegador)
-    mui_set_enabled(v.atras, dw_visto > 0)
-    mui_set_enabled(v.adelante, dw_visto < mui_list_count(v.historial) - 1)
+func botones(w: Ventana)
+    mui_set_enabled(w.v.atras, w.visto > 0)
+    mui_set_enabled(w.v.adelante, w.visto < mui_list_count(w.v.historial) - 1)
 end
 
 # Desplaza la página n píxeles (la barra avisa con ID_SCROLL y se repinta)
-func desplazar(v: Navegador, n: Int)
-    mui_set_value(v.barra, mui_get_value(v.barra) + n)
+func desplazar(w: Ventana, n: Int)
+    mui_set_value(w.v.barra, mui_get_value(w.v.barra) + n)
+end
+
+# Corre la ventana (las del mismo .dashui salen en el mismo sitio)
+@native func mover_ventana(win: Int, dx: Int, dy: Int)
+"""
+    struct Window *w = NULL;
+    GetAttr(MUIA_Window_Window, (Object *)win, (ULONG *)&w);
+    if (w) MoveWindow(w, dx, dy);
+"""
+end
+
+# Una ventana nueva con esa dirección ("" = la página de inicio); nil si ya hay MAX_VENTANAS
+func nueva_ventana(direccion: String) -> Ventana
+    var nada: Ventana = nil
+    k = dw_ventanas.length
+    if k >= MAX_VENTANAS
+        return nada
+    end
+    v = Navegador_create()
+    w = Ventana(v, k)
+    dw_ventanas.push(w)
+    if k == 0
+        mui_canvas_on_draw(v.pagina, pinta0)
+    elif k == 1
+        mui_canvas_on_draw(v.pagina, pinta1)
+    elif k == 2
+        mui_canvas_on_draw(v.pagina, pinta2)
+    else
+        mui_canvas_on_draw(v.pagina, pinta3)
+    end
+    mui_canvas_on_input(v.pagina, ID_PAGINA)
+    mui_on_close(v.window, ID_CERRADA + k)
+    mui_window_open(v.window)
+    if k > 0
+        mover_ventana(v.window, k * 24, k * 16)
+    end
+    if direccion != ""
+        navegar(w, direccion)
+    else
+        abrir(w, "")
+    end
+    return w
+end
+
+func cerrar_ventana(w: Ventana)
+    parar_carga(w)
+    if w.actual != nil
+        documento_liberar(w.actual)
+        var ninguno: Documento = nil
+        w.actual = ninguno
+    end
+    w.abierta = false
+    mui_window_close(w.v.window)
+end
+
+func abiertas() -> Int
+    n = 0
+    for w in dw_ventanas
+        if w.abierta
+            n = n + 1
+        end
+    end
+    return n
+end
+
+# La ventana que está usando el usuario (la activa); si no hay, la primera abierta
+func activa() -> Ventana
+    var primera: Ventana = nil
+    for w in dw_ventanas
+        if w.abierta
+            if mui_window_active(w.v.window)
+                return w
+            end
+            if primera == nil
+                primera = w
+            end
+        end
+    end
+    return primera
+end
+
+func pagina_inicio() -> String
+    inicio = preferencia(FICHERO_PREFERENCIAS, "inicio")
+    if inicio == ""
+        inicio = "dashweb:inicio"
+    end
+    return inicio
 end
 
 Main
     if mui_app_begin("dashweb", "DASHWEB") == 0
         Print "dashweb necesita MUI (3.8 o 5) y un 68020"
     else
-        v = Navegador_create()
         a = Acerca_create()
-        mui_canvas_on_draw(v.pagina, pinta)
-        mui_canvas_on_input(v.pagina, ID_PAGINA)
-        mui_window_open(v.window)
-        primera = ""
-        if arg_count() > 0
-            primera = arg(0)
+        # cada argumento en su ventana (hasta 4); sin argumentos, la página de inicio
+        if arg_count() == 0
+            nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
-        if primera == ""
-            primera = preferencia(FICHERO_PREFERENCIAS, "inicio")
-        end
-        if primera != ""
-            navegar(v, primera)
-        else
-            abrir(v, "")
+        for i in (0..arg_count() - 1)
+            nueva_ventana(arg(i))
         end
         acerca_abierta = false
-        while true
+        while abiertas() > 0
             ev = mui_wait_event()
             if ev == -1 or ev == ID_SALIR
                 break
             end
+            if ev == ID_TIC or ev == ID_RANGO
+                # mui_timer es uno solo: sirve a todas las ventanas
+                for t in dw_ventanas
+                    if t.abierta
+                        if ev == ID_RANGO
+                            ajustar_barra(t)
+                        else
+                            tic(t)
+                        end
+                    end
+                end
+                programar()
+                continue
+            end
+            if ev >= ID_CERRADA and ev < ID_CERRADA + MAX_VENTANAS
+                cerrar_ventana(dw_ventanas[ev - ID_CERRADA])
+                continue
+            end
+            w = activa()
+            if w == nil
+                break
+            end
             if ev == ID_IR
-                direccion = str_trim(mui_get_text(v.url))
+                direccion = str_trim(mui_get_text(w.v.url))
                 if direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
                     direccion = "http://" + direccion
                 end
                 if direccion == ""
-                    abrir(v, "")
+                    abrir(w, "")
                 else
-                    navegar(v, direccion)
+                    navegar(w, direccion)
                 end
             end
-            if ev == ID_RECARGAR and dw_actual != nil
-                if dw_visto >= 0
-                    abrir(v, mui_list_get(v.historial, dw_visto))
+            if ev == ID_RECARGAR and w.actual != nil
+                if w.visto >= 0
+                    abrir(w, mui_list_get(w.v.historial, w.visto))
                 else
-                    abrir(v, "")
+                    abrir(w, "")
                 end
             end
             if ev == ID_ATRAS or ev == ID_ADELANTE or ev == ID_HISTORIAL
-                if ev == ID_ATRAS and dw_visto > 0
-                    dw_visto = dw_visto - 1
+                if ev == ID_ATRAS and w.visto > 0
+                    w.visto = w.visto - 1
                 end
-                if ev == ID_ADELANTE and dw_visto < mui_list_count(v.historial) - 1
-                    dw_visto = dw_visto + 1
+                if ev == ID_ADELANTE and w.visto < mui_list_count(w.v.historial) - 1
+                    w.visto = w.visto + 1
                 end
-                if ev == ID_HISTORIAL and mui_get_value(v.historial) >= 0
-                    dw_visto = mui_get_value(v.historial)
+                if ev == ID_HISTORIAL and mui_get_value(w.v.historial) >= 0
+                    w.visto = mui_get_value(w.v.historial)
                 end
-                if dw_visto >= 0
-                    direccion = mui_list_get(v.historial, dw_visto)
-                    mui_set_text(v.url, direccion)
-                    abrir(v, direccion)
+                if w.visto >= 0
+                    direccion = mui_list_get(w.v.historial, w.visto)
+                    mui_set_text(w.v.url, direccion)
+                    abrir(w, direccion)
                 end
-                botones(v)
+                botones(w)
             end
             if ev == ID_SCROLL
-                dw_desde = mui_get_value(v.barra)
-                mui_canvas_redraw(v.pagina)
+                w.desde = mui_get_value(w.v.barra)
+                mui_canvas_redraw(w.v.pagina)
             end
-            if ev == ID_RANGO
-                # mui_timer es uno solo: el de pinta cancela el de la carga y el del JavaScript
-                ajustar_barra(v)
-                programar(v)
-            end
-            if ev == ID_TIC
-                avanzar_carga(v)
-                avanzar_preparacion(v)
-                if dw_actual != nil and documento_imagenes(dw_actual)
-                    ajustar_barra(v)
-                    mui_canvas_redraw(v.pagina)
-                end
-                if dw_actual != nil and dw_carga == nil and imagenes_pendientes(dw_actual.im) > 0
-                    dw_estado(v, "Imágenes: faltan " + imagenes_pendientes(dw_actual.im))
-                elif dw_actual != nil and dw_carga == nil and str_starts(mui_get_text(v.estado), "Imágenes")
-                    dw_estado(v, "Listo")
-                end
-                if dw_js_cuando >= 0 and time_ms() >= dw_js_cuando
-                    temporizadores(v)
-                else
-                    programar(v)
-                end
-            end
-            if ev == ID_PARAR and (dw_carga != nil or dw_preparando != nil)
-                parar_carga()
-                mui_set_enabled(v.parar, false)
-                mui_set_value(v.progreso, 0)
-                dw_estado(v, "Parado")
-                programar(v)
+            if ev == ID_PARAR and (w.carga != nil or w.preparando != nil)
+                parar_carga(w)
+                mui_set_enabled(w.v.parar, false)
+                mui_set_value(w.v.progreso, 0)
+                dw_estado(w, "Parado")
+                programar()
             end
             if ev == ID_PAGINA
-                rueda = mui_canvas_wheel(v.pagina)
-                tecla = mui_canvas_key(v.pagina)
+                rueda = mui_canvas_wheel(w.v.pagina)
+                tecla = mui_canvas_key(w.v.pagina)
                 if rueda != 0
-                    desplazar(v, 0 - rueda * 30)
-                elif tecla >= 0 and dw_foco != nil
-                    r = formulario_tecla(dw_foco, mui_canvas_char(v.pagina), tecla)
+                    desplazar(w, 0 - rueda * 30)
+                elif tecla >= 0 and w.foco != nil
+                    r = formulario_tecla(w.foco, mui_canvas_char(w.v.pagina), tecla)
                     if r == FORM_CAMBIO
-                        mui_canvas_redraw(v.pagina)
+                        mui_canvas_redraw(w.v.pagina)
                     elif r == FORM_ENVIAR
-                        enviar(v, dw_foco)
+                        enviar(w, w.foco)
                     end
                 elif tecla == 0x4D
-                    desplazar(v, 20)
+                    desplazar(w, 20)
                 elif tecla == 0x4C
-                    desplazar(v, -20)
+                    desplazar(w, -20)
                 elif tecla == 0x40
-                    desplazar(v, mui_height(v.pagina) - 20)
+                    desplazar(w, mui_height(w.v.pagina) - 20)
                 elif tecla == 0x41
-                    desplazar(v, 20 - mui_height(v.pagina))
-                elif mui_canvas_button(v.pagina) == 1
-                    clic(v)
+                    desplazar(w, 20 - mui_height(w.v.pagina))
+                elif mui_canvas_button(w.v.pagina) == 1
+                    clic(w)
                 end
             end
             if ev == ID_MARCADORES
-                navegar(v, "dashweb:marcadores")
+                navegar(w, "dashweb:marcadores")
             end
-            if ev == ID_ANADIR and dw_actual != nil
-                if marcadores_agregar(FICHERO_MARCADORES, dw_actual.direccion, dw_actual.titulo)
-                    dw_estado(v, "Marcador: " + dw_actual.titulo)
+            if ev == ID_ANADIR and w.actual != nil
+                if marcadores_agregar(FICHERO_MARCADORES, w.actual.direccion, w.actual.titulo)
+                    dw_estado(w, "Marcador: " + w.actual.titulo)
                 else
-                    dw_estado(v, "No se pudo guardar el marcador")
+                    dw_estado(w, "No se pudo guardar el marcador")
                 end
             end
-            if ev == ID_USAR_INICIO and dw_actual != nil
-                if preferencia_poner(FICHERO_PREFERENCIAS, "inicio", dw_actual.direccion)
-                    dw_estado(v, "Página de inicio: " + dw_actual.direccion)
+            if ev == ID_USAR_INICIO and w.actual != nil
+                if preferencia_poner(FICHERO_PREFERENCIAS, "inicio", w.actual.direccion)
+                    dw_estado(w, "Página de inicio: " + w.actual.direccion)
                 end
             end
             if ev == ID_INICIO
-                inicio = preferencia(FICHERO_PREFERENCIAS, "inicio")
-                if inicio == ""
-                    inicio = "dashweb:inicio"
+                navegar(w, pagina_inicio())
+            end
+            if ev == ID_NUEVA
+                if nueva_ventana(pagina_inicio()) == nil
+                    dw_estado(w, "Como mucho " + MAX_VENTANAS + " ventanas")
                 end
-                navegar(v, inicio)
+            end
+            if ev == ID_CERRAR
+                cerrar_ventana(w)
             end
             if ev == ID_ACERCA
                 if acerca_abierta
@@ -519,9 +654,11 @@ Main
                 acerca_abierta = not acerca_abierta
             end
         end
-        parar_carga()
-        if dw_actual != nil
-            documento_liberar(dw_actual)
+        for w in dw_ventanas
+            parar_carga(w)
+            if w.actual != nil
+                documento_liberar(w.actual)
+            end
         end
         mui_app_end()
     end

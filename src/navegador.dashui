@@ -10,6 +10,19 @@
           "title": "Proyecto",
           "items": [
             {
+              "label": "Nueva ventana",
+              "key": "N",
+              "event": 18
+            },
+            {
+              "label": "Cerrar ventana",
+              "key": "K",
+              "event": 19
+            },
+            {
+              "separator": true
+            },
+            {
               "label": "Página de inicio",
               "key": "H",
               "event": 17

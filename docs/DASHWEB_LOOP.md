@@ -165,6 +165,7 @@ tarea, con el estilo de Dash.
       `DoMethod` (chocaba con las cabeceras de MUI).
 - [x] D29. **Programas en segundo plano en `emu_run`.** Para las pruebas de interfaz del navegador (tarea 19).
 - [x] D31. **Teclas como texto en la zona de dibujo de MUI.** `mui_canvas_char` (lo pidió la 21a).
+- [x] D32. **Ventana activa en MUI.** `mui_window_active` (lo pidió la 22b).
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -256,7 +257,7 @@ tarea, con el estilo de Dash.
       `.value`/`.checked` y `submit`/`onsubmit` en JavaScript.
 - [x] 22a. **Marcadores y página de inicio.** Menú Proyecto: Página de inicio, Marcadores (una página con los
       enlaces), Añadir marcador, Usar como página de inicio.
-- [ ] 22b. **Varias ventanas.** Cada una con su página, historial y carga (hoy el estado del navegador es global).
+- [x] 22b. **Varias ventanas.** Cada una con su página, historial y carga (hoy el estado del navegador es global).
 - [ ] 22c. **Atajos de menú en el emulador.** Inyectar Amiga derecha + tecla con `input.device` en un programa MUI
       cuelga el sistema con 68040+JIT (también un programa MUI mínimo con un menú) y en el A1200 sin JIT el atajo
       no llega. Averiguar si es la inyección, MUI o FS-UAE; probar el menú con el ratón (botón derecho).
@@ -904,4 +905,22 @@ Formato:
 - No probado en el emulador: los elementos del menú. `tools/amiga/clicar.dash` aprendió `a COD` (tecla con Amiga
   derecha), pero un atajo de menú inyectado cuelga el emulador con 68040+JIT, también en un programa MUI mínimo
   con un solo menú (Amiga+Q), y en el A1200 sin JIT no llega al programa. No es de dashweb; queda como 22c.
+
+### 2026-10-16 — Tarea 22b (varias ventanas) y D32
+- D32 (Dash, 71dc1df): `mui_window_active(win)`: las ventanas hechas con el mismo `.dashui` comparten los números
+  de evento y la activa dice de cuál viene. Test en A1200 y 3.2. Cambia el C de los programas MUI (una función más
+  en el runtime, sin usar): los tests mui y dashui en las dos máquinas.
+- `src/dashweb.dash` reescrito con el estado por ventana (`struct Ventana`: documento, historial, carga, recursos,
+  temporizadores, foco); hasta 4 ventanas, cada una con su función de dibujo (`pinta0`..`pinta3`: MUI no dice qué
+  zona pinta); un `mui_timer` para todas; cada ventana con su evento de cerrar (`ID_CERRADA + k`); al cerrar la
+  última, se acaba. Menú: Nueva ventana (N), Cerrar ventana (K). Con varios argumentos, una ventana por dirección;
+  las ventanas nuevas se corren un poco (`MoveWindow`: MUI las ponía en el mismo sitio).
+- En el emulador: dos ventanas (reloj.html y enlaces.html); clic en el enlace de la segunda → navega ella sola
+  mientras el reloj de la primera sigue; cerrar la segunda con su botón → queda la primera contando; cerrar la
+  única → el programa acaba (10 s en vez de los 60 del cierre automático).
+- Intentos para 22c: la secuencia completa de teclado (Amiga derecha 0x67 y la tecla, consejo de la sesión de MUI)
+  tampoco funciona; con el ratón no se puede porque MUI 5 usa menús propios (`MenuStrip` vacío). `clicar` aprendió
+  `m MENÚ ELEMENTO` (menús de Intuition, para otros programas). Sin probar: Nueva ventana y Cerrar ventana desde
+  el menú.
+- dashweb 25/25.
 
