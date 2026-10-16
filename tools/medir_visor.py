@@ -25,6 +25,10 @@ MAQUINAS = {
     "a1200": "",
     # como una PiStorm: 68040 rápido y 128 MB (las páginas de hoy con su JavaScript no caben en 8 MB)
     "objetivo": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n",
+    # la misma con tarjeta gráfica (RTG, uaegfx de FS-UAE y Picasso96): AmigaOS 3.2 a 1024x768 en 16 bits
+    # ($DASH_KICKSTART_32; sistema ~/.cache/dash-emu/sys32rtg, ver tools/emu_sys_rtg.sh)
+    "rtg": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n"
+           "graphics_card = uaegfx\n",
 }
 
 
@@ -64,6 +68,8 @@ def main():
     # los iconos de la barra (tools/iconos.py) junto al programa: el sistema emulado es la raíz de DH0:,
     # que es PROGDIR:
     iconos = ROOT / "iconos"
+    if args.maquina == "rtg" and not args.sistema:
+        args.sistema = os.path.expanduser("~/.cache/dash-emu/sys32rtg")
     sistema = args.sistema or os.environ.get("DASH_EMU_SYS")
     if iconos.is_dir() and sistema:
         shutil.copytree(iconos, Path(sistema) / "iconos", dirs_exist_ok=True)
@@ -101,7 +107,7 @@ def main():
                 prog_args = ["DH0:p1", ""]
                 red = ""
             out = run_programs(programs, timeout=args.segundos + 60,
-                               kickstart=os.environ.get("DASH_KICKSTART"),
+                               kickstart=os.environ.get("DASH_KICKSTART_32" if args.maquina == "rtg" else "DASH_KICKSTART"),
                                extra_config=red + MAQUINAS[args.maquina],
                                screenshot=shot, system=args.sistema, keep=args.guardar,
                                background=[(str(ROOT / "tools" / "amiga" / "clicar.dash"), args.acciones)]

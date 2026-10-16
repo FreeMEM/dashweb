@@ -289,7 +289,7 @@ tarea, con el estilo de Dash.
 - [x] 25. **jQuery.** freemem.space (WordPress) usa jQuery 3.7: falta DOM (createDocumentFragment, cloneNode,
       insertBefore, hermanos, eventos en document/window, readyState), `navigator`, `location`...
 - [ ] 26. **Maqueta más rápida.** 5 s en el A1200 para la página de prueba de 9 KB; ahora es la fase más lenta.
-- [ ] 27. **Emulación RTG.** Petición del usuario (2026-10-16): "poner la emulación en RTG a una resolución más alta".
+- [x] 27. **Emulación RTG.** Petición del usuario (2026-10-16): "poner la emulación en RTG a una resolución más alta".
       Un sistema emulado con tarjeta gráfica (uaegfx de FS-UAE con Picasso96, o el RTG de AmigaOS 3.2), pantalla
       de 1024x768 o más en 16/24 bits, con MUI, AmiSSL y fuentes; `medir_visor --maquina objetivo` lo usa. Como una
       PiStorm con RTG.
@@ -1102,3 +1102,14 @@ Formato:
 - Un fallo encontrado: asignar `document.hidden`/`open`/`charset` llamaba a los setters de los elementos (atributos
   en el documento): las propiedades de document se ponen con defineProperty.
 - freemem.space: ningún error de JS (jQuery, Migrate, Google Tag Manager, el tema). Captura enviada.
+
+### 2026-10-16 — Tarea 27 (emulación RTG)
+- `tools/emu_sys_rtg.sh` hace `~/.cache/dash-emu/sys32rtg`: AmigaOS 3.2 con MUI, AmiSSL y fuentes, más Picasso96 2.0
+  (Libs/Picasso96*, Devs/Monitors/uaegfx), C:IPrefs y C:Copy sacados de AmigaOS-v3.2-WHD-RTG-AHI.hdf (partición
+  DOS7: xdftool la lee), y ScreenMode.prefs con el modo UAE 1024x768 de 16 bits (0x50051100; un programa listó los
+  125 modos que da Picasso96 con uaegfx). Arranque: el monitor uaegfx, la preferencia a ENV: e IPrefs.
+- `tools/medir_visor.py --maquina rtg`: Kickstart 3.2 ($DASH_KICKSTART_32), 68040 con JIT, 128 MB y
+  `graphics_card = uaegfx`.
+- Capturas: `tools/amiga/shot.c` de Dash (rama dashweb) lee las pantallas de más de 8 bits con p96ReadPixel.
+- dashweb se ve a 1024x768 con sus colores. Primera comparación con Chrome (tarea 28) enviada al usuario: faltan la
+  barra superior, el menú con iconos de Font Awesome y la rejilla de entradas con imágenes de fondo y texto encima.
