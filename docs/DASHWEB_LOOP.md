@@ -143,7 +143,7 @@ tarea, con el estilo de Dash.
       funciones Dash desde C (callbacks), para QuickJS.
 - [x] D11. **AmiSSL.** Conexiones TLS sobre los sockets de D8 (módulo o builtins), con verificación de
       certificado.
-- [ ] D12. **Imágenes.** Cargar PNG/GIF/JPEG por datatypes a un bitmap y pintarlo con `gfx_` (fuera de MUI).
+- [x] D12. **Imágenes.** Cargar PNG/GIF/JPEG por datatypes a un bitmap y pintarlo con `gfx_` (fuera de MUI).
       Avisar a la sesión de MUI del nombre (su tarea 9 lo usará).
 - [x] D13. **`elif`.** (lo pidió la tarea 3)
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
@@ -222,6 +222,9 @@ tarea, con el estilo de Dash.
 - [ ] 18. **Ventana del navegador.** Con la API de MUI de Dash (`docs/MUI_DISEÑO.md` del clon): barra
       de URL, atrás/adelante/recargar, barra de estado y de progreso. La zona de página es la clase de dibujo
       propia de MUI (su tarea 7) pintando con el código de la tarea 13.
+      Nota de la sesión de MUI (2026-10-16): la ventana se puede describir en un `.dashui` (formato en
+      `docs/MUI_EDITOR.md` del clon) e importarla; `Principal_create()` devuelve un struct con los objetos.
+      Ejemplo hecho: `examples/mui_navegador.dashui` + `examples/mui_navegador_editor.dash` (mui 2dd0e0a, plan MUI terminado).
 - [ ] 19. **Navegación.** Clic en enlaces, historial, recargar, scroll con ratón y teclado, título de la
       ventana, errores de red mostrados en la página.
 - [ ] 20. **Bucle de eventos.** Red y temporizadores de JS con `mui_wait_event_signals`: las páginas se
@@ -588,4 +591,22 @@ Formato:
   y 3.2, ejemplos 33/33; el C solo cambia en los programas con textos (lo previsto).
 - No probado: el desplazamiento con teclas en el emulador (no hay forma de mandar teclas); repintar por partes
   (ScrollRaster) queda para la fase B. Pendiente: la carga por HTTP tarda 3,7 s en el A1200 (9 KB en red local).
+
+### 2026-10-16 — D12 (Dash: imágenes por datatypes)
+- Rebase de `dashweb` sobre `mui` (tareas 15-22 de MUI: ReAction, varias ventanas, editor `.dashui`). Los conflictos
+  eran todos el mismo trozo (`needs_asl` en `codegen.py`, quedó la versión de MUI) y `docs/BUILTINS.md` (regenerado;
+  commit aparte "BUILTINS.md al día tras el rebase").
+- Hecho: `image_load(fichero)` (datatypes, con remap a la pantalla de la ventana actual), `image_width`,
+  `image_height`, `image_draw(img, x, y)`, `image_draw_part(img, sx, sy, x, y, w, h)`, `image_scale(img, w, h)`
+  (copia con `BitMapScale`, máscara incluida), `image_free`. `IMAGE_RUNTIME` solo si se usa; las que quedan se
+  liberan al salir. Transparencia: la máscara del datatype (`PDTA_MaskPlane`) o el canal alfa leído con
+  `PDTM_READPIXELARRAY` antes del layout, copiada a chip con las filas del bitmap (para `BltMaskBitMapRastPort`).
+- Test `test_image` (Dash): ILBM de 8x4 escrito con `file_write_byte`, entero, trozo, al doble, imagen liberada dos
+  veces, fichero que no existe; A1200, A500 y 3.2, y con `--memcheck`.
+- A mano en 3.2: GIF transparente (máscara del datatype) bien, también escalado. PNG con alfa: el `png.datatype`
+  de 3.2 da alfa 0 en todos los píxeles, sin transparencia (documentado). 3.1 solo trae ILBM.
+- Mismo C en todos los programas previos (`cmp_dash_c.sh`). Avisada la sesión de MUI de los nombres.
+- Dash (3839f52, tras el último rebase sobre `mui` 2dd0e0a: el plan de MUI está terminado y esa rama queda quieta):
+  174/174 sin emulador, 440/440 en A1200, A500 y 3.2 (antes del último rebase, que entró limpio), ejemplos 34/34.
+  dashweb 12/12.
 
