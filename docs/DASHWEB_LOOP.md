@@ -325,14 +325,14 @@ tarea, con el estilo de Dash.
       con gfx_ o rasterizado a RGB (nanosvg, zlib) al tamaño en que se ve.
 - [ ] 29c. **Decodificar sin parar la interfaz.** Hoy una imagen se decodifica entera en imagenes_avanzar (la
       ventana no responde mientras): por trozos (TJpgDec por bloques, libwebp incremental) o en otra tarea.
-- [ ] 30a. **Vídeo: miniatura con enlace.** Decisión con el usuario (2026-10-16): un `<iframe>`/enlace de YouTube (y
-      de Vimeo) se ve como la miniatura del vídeo (img.youtube.com/vi/ID/hqdefault.jpg) con su título y un botón
-      de reproducir; al pulsarlo, abre la dirección del vídeo. El reproductor de YouTube (megas de JS, H.264/VP9)
-      no es viable en un 68k.
-- [?] 30b. **Vídeo: conversión en un servidor externo.** PREGUNTA al usuario: un programa en otro ordenador baja el
-      vídeo y lo convierte a algo que el Amiga reproduce (320x180, 15 imágenes/s, MPEG-1 o CDXL), y dashweb lo
-      pone en un reproductor aparte. Necesita un ordenador encendido (la Raspberry de la PiStorm está ocupada) y
-      va contra las condiciones de YouTube. ¿Se hace?
+- [ ] 30a. **Vídeo: miniatura que abre MintVID.** Un `<iframe>`/enlace de YouTube (y de Vimeo) se ve como la miniatura
+      del vídeo (img.youtube.com/vi/ID/hqdefault.jpg) con su título y un botón de reproducir; al pulsarlo se abre
+      MintVID (github.com/boingball/MintVID, MIT; instalado aparte) con la dirección; sin MintVID, la del vídeo.
+- [ ] 30b. **Vídeo dentro de la página.** `<video>` y YouTube reproducidos en su recuadro (y a pantalla completa) con el
+      núcleo de MintVID (C99 portable: H.264 con libavc, Apache-2.0; AAC/MP3; sin libmpeg2 ni a52dec, que son GPL):
+      MintVID saca el MP4 de 360p (itag 18) o el HLS de la página de YouTube en el propio Amiga y en PiStorm/Emu68
+      con RTG reproduce 360p. Corrige lo dicho antes: no hace falta un servidor que convierta (eso solo para Amigas
+      lentos).
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -1316,3 +1316,11 @@ Formato:
 - Usuario: explicado otra vez lo de YouTube (en su recuadro o a pantalla completa solo con la conversión en
   otro ordenador). 30a/30b siguen igual.
 - Tests: test_maqueta_cajas (fondo rgba con alfa), test_maqueta_css (-webkit-linear-gradient).
+
+### 2026-10-16 — Vídeo: MintVID (corrección)
+- El usuario pasó una conversación sobre YouTube en AmigaOS. Comprobado en su repositorio: MintVID (Darren Banfi,
+  MIT; libavc Apache-2.0) reproduce H.264 y AAC en 68k acelerados y saca los vídeos de YouTube en el propio Amiga
+  (página del vídeo: MP4 itag 18 de 360p o HLS); en PiStorm/Emu68 con RTG, YouTube a 360p. Lo dicho antes
+  ("no viable en un 68k", "hace falta un servidor") era falso para la máquina objetivo. 30a ahora abre MintVID;
+  30b, el vídeo en su recuadro con el núcleo de MintVID. Otros proyectos citados: AmiTube y BoingTube
+  (conversión en un servidor, para Amigas lentos).
