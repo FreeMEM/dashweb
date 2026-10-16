@@ -149,6 +149,10 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+- [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
+      (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
+      tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
+- [x] D22. **Textos largos sin copias.** (lo pidió la tarea 13)
 - [x] D21. **Interior de una ventana.** `Win.inner_left/_top/_width/_height` (lo pidió el visor).
 - [x] D20. **Reloj.** `time_ms()` (para medir el visor).
 - [x] D19. **Argumentos del programa.** `arg_count()`, `arg(i)` (lo pidió el visor, tarea 13).
@@ -195,7 +199,7 @@ tarea, con el estilo de Dash.
 - [x] 12. **Maquetación.** (necesita D9) Cajas de bloque y en línea, cortes de línea con las medidas de la fuente
       (`TextLength`), márgenes/relleno/bordes, anchos y altos, listas. Sale una lista de cosas que dibujar.
       Tablas y `float`, más adelante (añadir tareas si hace falta).
-- [~] 13. **Dibujo y visor sin MUI.** (necesita D9) Dibujar esa lista en una ventana normal de Intuition con los
+- [x] 13. **Dibujo y visor sin MUI.** (necesita D9) Dibujar esa lista en una ventana normal de Intuition con los
       builtins `gfx_` de Dash (texto, rectángulos, bordes, colores). Programa `src/visor.dash`: abre un
       fichero HTML local, lo pinta y hace scroll con teclas. Captura de pantalla en el emulador. Medir el tiempo
       de cada fase en la configuración "objetivo" (regla 6).
@@ -552,3 +556,36 @@ Formato:
   como definición provisional para convivir con `bench_lib`). Test `test_time_ms` en las tres máquinas.
 - D21: `Win.inner_left`, `.inner_top`, `.inner_width`, `.inner_height` (bordes reales de la ventana abierta; 0
   cerrada). Test `test_window_inner` en las tres máquinas. Mismo C en los programas previos en los dos.
+
+### 2026-10-16 — Tarea 13 (pintor y visor), D21b y D22
+- Hecho: `lib/pintor.dash`: `pintar(p, desde, x, y, ancho, alto)` pinta la franja de la página en un rectángulo del
+  RastPort actual (fondo, rectángulos y bordes recortados, texto con `font_use`/`font_style` y lápices por
+  `color_pen`, imagen como marco gris; una línea de texto que no cabe entera no se pinta). `src/visor.dash`: sin
+  argumentos, página de demostración; con un fichero o una URL http(s), esa página. Teclas: abajo/arriba (20 px),
+  espacio/retroceso (una pantalla), Esc; escribe el tiempo de cada fase antes del bucle de eventos.
+- `tools/medir_visor.py`: sirve `tests/pages/` por HTTP (`tests/servers/http.py` sirve `/pages/<fichero>`), abre la
+  página en el visor dentro de FS-UAE y escribe los tiempos; `--maquina objetivo` (68040 + JIT a toda velocidad),
+  `--captura`, `--fases` (`tests/bench/fases.dash`: tokenizar, árbol, hojas, estilo, maqueta por separado),
+  `--sistema`. `tools/emu_sys_fuentes.sh`: copia un sistema emulado y le añade `Fonts/` del disco del Workbench
+  (amitools en el venv `~/.cache/dashweb/venv`); `~/.cache/dash-emu/sys31web` = sys31ssl + fuentes.
+- `tests/pages/prueba.html`: 8,8 KB (títulos, párrafos, listas, tabla, enlaces, `<style>`).
+- Medidas (prueba.html, ms): A1200 antes de D22: carga 5013, html 18290, estilo 6947, maqueta 8211, pintar 61.
+  Tokenizar eran 45 ms por token: cada `s = t.texto` copiaba los 9 KB y cada `s[a:b]` medía el texto con `strlen`.
+  Después: A1200 carga 3728, html 1627, estilo 7394, maqueta 8531, pintar 61; objetivo carga 36, html 27,
+  estilo 96, maqueta 121, pintar 19 (con fuentes de disco: maqueta 289, por abrir y escalar fuentes).
+- D22 (Dash): un campo String pasado a una función va sin copia si ningún código asigna ese campo de ese struct y
+  el dueño es una variable local o un parámetro (macro `_DASH_LEND_<Struct>_<campo>`, decidida al final de generar
+  el C); `DashString_slice` y `_dash_str_dup` usan y llenan la caché de longitudes (8 entradas, antes 4).
+  `lib/html.dash` pasa el texto como parámetro en vez de copiarlo en cada token. Test `test_text_field_lend`
+  (`--memcheck`; el campo asignado sigue copiándose). Manual y referencia rápida.
+- D21b (Dash, ya en la rama): las ventanas de Dash son GimmeZeroZero: `inner_left`/`inner_top` = 0 y el ancho es
+  el de la capa interior.
+- Encontrado y arreglado: `más</a>.` cortaba la línea entre "más" y "."; las piezas sin blanco entre ellas
+  (`Pieza.pegada`) pasan juntas a la línea siguiente. Caso nuevo en `test_maqueta`.
+- Capturas en el emulador: con topaz (sys31) y con helvetica/times (sys31web); la franja gris de la izquierda
+  era de `shot.c` (arreglado en la rama mui).
+- Tests: dashweb 12/12, también con `--memcheck`. Dash (D22, 3c7c357): 169/169 sin emulador, 427/427 en A1200, A500
+  y 3.2, ejemplos 33/33; el C solo cambia en los programas con textos (lo previsto).
+- No probado: el desplazamiento con teclas en el emulador (no hay forma de mandar teclas); repintar por partes
+  (ScrollRaster) queda para la fase B. Pendiente: la carga por HTTP tarda 3,7 s en el A1200 (9 KB en red local).
+

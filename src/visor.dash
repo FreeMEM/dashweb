@@ -1,0 +1,119 @@
+# Visor de páginas sin MUI (fase A): abre un fichero HTML o una URL, la pinta en una ventana
+# normal y la desplaza con las teclas. Sin argumentos muestra una página de demostración.
+#
+#   visor pagina.html
+#   visor http://ejemplo.org/
+#
+# Teclas: abajo/arriba (una línea), espacio/retroceso (una pantalla), Esc o el botón de cerrar.
+# Al acabar escribe cuánto tardó cada fase.
+
+import "../lib/pintor.dash"
+
+Window Visor
+    title "dashweb"
+    width 600
+    height 230
+end
+
+func demostracion() -> String
+    h = "<html><head><title>dashweb</title><style>"
+    h = h + "body { background: #fff; color: #222; font-family: sans-serif }"
+    h = h + "h1 { color: #036; } .nota { background: #ffd; border: 1px solid #cc8; padding: 4px }"
+    h = h + "a { color: #00c } code { background: #eee }</style></head><body>"
+    h = h + "<h1>dashweb</h1><p>Un navegador ligero para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
+    h = h + "<p class=nota>Esta página la ha leído <code>lib/html.dash</code>, le ha dado estilo "
+    h = h + "<code>lib/estilo.dash</code>, la ha maquetado <code>lib/maqueta.dash</code> y la pinta "
+    h = h + "<code>lib/pintor.dash</code>.</p><h2>Lo que ya hace</h2><ul><li>HTML y XHTML tolerantes"
+    h = h + "<li>CSS: cascada, herencia, atajos<li>Red: HTTP y HTTPS (AmiSSL)<li>Fuentes del Amiga</ul>"
+    h = h + "<ol><li>Leer<li>Dar estilo<li>Maquetar<li>Pintar</ol>"
+    h = h + "<p style='text-align: center'>Más en <a href=https://github.com/FreeMEM/dashweb>github.com/FreeMEM/dashweb</a></p>"
+    h = h + "<table border=1><tr><th>Fase<th>Módulo</tr><tr><td>Red<td>red.dash</tr><tr><td>HTML<td>html.dash</tr></table>"
+    h = h + "</body></html>"
+    return h
+end
+
+# El texto de la página (en Latin-1) y su URL base
+func cargar(direccion: String) -> String
+    if str_starts(direccion, "http://") or str_starts(direccion, "https://")
+        r = http_get(direccion, 20000)
+        if r.error != ""
+            return "<h1>Error</h1><p>" + r.error + "</p>"
+        end
+        return http_texto(r)
+    end
+    t = file_read_text(direccion)
+    if t == nil
+        return "<h1>Error</h1><p>No se puede leer " + direccion + "</p>"
+    end
+    return utf8_a_latin1(t)
+end
+
+Main
+    direccion = "demo"
+    texto = ""
+    t0 = time_ms()
+    if arg_count() > 0
+        direccion = arg(0)
+        texto = cargar(direccion)
+    else
+        texto = demostracion()
+    end
+    t_carga = time_ms() - t0
+    Visor.open
+    x0 = Visor.inner_left
+    y0 = Visor.inner_top
+    ancho = Visor.inner_width
+    alto = Visor.inner_height
+    t1 = time_ms()
+    doc = dom_desde_html(texto)
+    t_html = time_ms() - t1
+    t1 = time_ms()
+    estilo_aplicar(doc, estilo_hojas(doc, direccion))
+    t_estilo = time_ms() - t1
+    t1 = time_ms()
+    pagina = maquetar(doc, ancho)
+    t_maqueta = time_ms() - t1
+    t1 = time_ms()
+    desde = 0
+    pintar(pagina, desde, x0, y0, ancho, alto)
+    t_pintar = time_ms() - t1
+    Print "visor: " + direccion + " " + texto.length + " bytes, " + pagina.dibujos.length + " dibujos, alto " + pagina.alto
+    Print "tiempos ms: carga " + t_carga + ", html " + t_html + ", estilo " + t_estilo + ", maqueta " + t_maqueta + ", pintar " + t_pintar
+    paso = 0
+    EventLoop
+        On Key "DOWN"
+            paso = 20
+        end
+        On Key "UP"
+            paso = -20
+        end
+        On Key "SPACE"
+            paso = alto - 20
+        end
+        On Key "BACKSPACE"
+            paso = 20 - alto
+        end
+        On Key
+            if paso != 0
+                nuevo = desde + paso
+                if nuevo > pagina.alto - alto
+                    nuevo = pagina.alto - alto
+                end
+                if nuevo < 0
+                    nuevo = 0
+                end
+                if nuevo != desde
+                    desde = nuevo
+                    pintar(pagina, desde, x0, y0, ancho, alto)
+                end
+                paso = 0
+            end
+        end
+        On Key "ESC"
+            Stop
+        end
+        On Close
+            Stop
+        end
+    end
+end

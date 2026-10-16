@@ -1,0 +1,32 @@
+# Tiempo de cada fase sobre una página servida por HTTP (tools/medir_visor.py --fases):
+# tokenizar, árbol, estilo, maquetar. Uso: fases URL
+import "../../lib/maqueta.dash"
+import "../../lib/http.dash"
+
+Main
+    r = http_get(arg(0), 20000)
+    texto = http_texto(r)
+    t0 = time_ms()
+    t = html_tokenizador(texto)
+    n = 0
+    tok = html_siguiente(t)
+    while tok != nil
+        n = n + 1
+        tok = html_siguiente(t)
+    end
+    t_tok = time_ms() - t0
+    t0 = time_ms()
+    doc = dom_desde_html(texto)
+    t_dom = time_ms() - t0
+    t0 = time_ms()
+    hojas = estilo_hojas(doc, arg(0))
+    t_hojas = time_ms() - t0
+    t0 = time_ms()
+    estilo_aplicar(doc, hojas)
+    t_estilo = time_ms() - t0
+    t0 = time_ms()
+    p = maquetar(doc, 580)
+    t_maq = time_ms() - t0
+    Print "" + texto.length + " bytes, " + n + " tokens, " + p.dibujos.length + " dibujos"
+    Print "ms: tokens " + t_tok + ", dom " + t_dom + ", hojas " + t_hojas + ", estilo " + t_estilo + ", maqueta " + t_maq
+end

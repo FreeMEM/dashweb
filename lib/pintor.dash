@@ -1,0 +1,73 @@
+# Pinta una página maquetada (lib/maqueta.dash) con los gfx_ de Dash en el RastPort actual:
+# una ventana normal o la zona de dibujo de MUI.
+#
+#   pintar(p, desde_y, x, y, ancho, alto)   # la franja [desde_y, desde_y + alto) de la página
+#                                           # en el rectángulo (x, y, ancho, alto)
+# Los colores RGB se piden como lápices (color_pen, con caché). Las líneas de texto que no
+# caben enteras en el rectángulo no se pintan (se verán al desplazar).
+
+import "maqueta.dash"
+
+func _lapiz(rgb: Int) -> Int
+    return color_pen(rgb / 65536, (rgb / 256) % 256, rgb % 256)
+end
+
+func pintar(p: Pagina, desde: Int, x0: Int, y0: Int, ancho: Int, alto: Int)
+    if ancho <= 0 or alto <= 0
+        return
+    end
+    gfx_mode(0)
+    gfx_pen(_lapiz(p.fondo))
+    gfx_rect(x0, y0, x0 + ancho - 1, y0 + alto - 1)
+    hasta = desde + alto
+    derecha = x0 + ancho - 1
+    abajo = y0 + alto - 1
+    for d in p.dibujos
+        if d.y + d.alto <= desde or d.y >= hasta
+            continue
+        end
+        y = y0 + d.y - desde
+        x = x0 + d.x
+        if d.tipo == D_TEXTO
+            if y >= y0 and y + d.alto - 1 <= abajo and x <= derecha
+                font_use(d.fuente)
+                font_style(d.estilo)
+                gfx_pen(_lapiz(d.color))
+                gfx_text_at(x, y + font_baseline(), d.texto)
+            end
+        elif d.tipo == D_RECT or d.tipo == D_LINEA
+            _rect_recortado(x, y, d.ancho, d.alto, x0, y0, derecha, abajo, _lapiz(d.color))
+        elif d.tipo == D_IMAGEN
+            # sin imagen aún (tarea 14): su hueco con un marco gris
+            gris = _lapiz(12632256)
+            _rect_recortado(x, y, d.ancho, 1, x0, y0, derecha, abajo, gris)
+            _rect_recortado(x, y + d.alto - 1, d.ancho, 1, x0, y0, derecha, abajo, gris)
+            _rect_recortado(x, y, 1, d.alto, x0, y0, derecha, abajo, gris)
+            _rect_recortado(x + d.ancho - 1, y, 1, d.alto, x0, y0, derecha, abajo, gris)
+        end
+    end
+    font_style(0)
+end
+
+func _rect_recortado(x: Int, y: Int, ancho: Int, alto: Int, x0: Int, y0: Int, x1: Int, y1: Int, lapiz: Int)
+    a = x
+    b = y
+    c = x + ancho - 1
+    e = y + alto - 1
+    if a < x0
+        a = x0
+    end
+    if b < y0
+        b = y0
+    end
+    if c > x1
+        c = x1
+    end
+    if e > y1
+        e = y1
+    end
+    if a <= c and b <= e
+        gfx_pen(lapiz)
+        gfx_rect(a, b, c, e)
+    end
+end

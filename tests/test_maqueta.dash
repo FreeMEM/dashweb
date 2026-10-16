@@ -1,6 +1,7 @@
 # Test: lib/maqueta.dash con la topaz 8 de la ROM (el sistema de pruebas no tiene más fuentes:
 # todas las letras miden 8x8): bloques, márgenes que se funden, cortes de línea, alineación,
-# negrita/enlace en la misma línea, br, listas, tabla, fondo, borde, pre, imagen.
+# negrita/enlace en la misma línea, br, listas, tabla, fondo, borde, pre, imagen, sin
+# corte entre piezas pegadas.
 # memcheck
 # expect-out: T 4,11 [uno dos tres cuatro] c=0 e=0
 # expect-out: T 4,21 [cinco seis siete] c=0 e=0
@@ -26,7 +27,10 @@
 # expect-out: T 4,183 [a  b] c=0 e=0
 # expect-out: T 4,193 [c] c=0 e=0
 # expect-out: I 4,216 10x12 f.png
-# expect-out: alto 233 fondo ffffff
+# expect-out: T 4,236 [aaaa bbbb cccc ] c=0 e=0
+# expect-out: T 4,246 [dddd] c=ee e=1 ->y.html
+# expect-out: T 36,246 [.] c=0 e=0
+# expect-out: alto 265 fondo ffffff
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -59,6 +63,8 @@ Main
     h = h + "<p>a <b>bb</b> <a href=x.html>enlace</a><br>fin</p>"
     h = h + "<ul><li>x<li>y</ul><ol><li>p</ol>"
     h = h + "<table><tr><td>c1<td>c2</table><div class=caja>k</div><pre>a  b\nc</pre><img src=f.png width=10 height=12>"
+    # "dddd" y "." van pegados: si no caben los dos, pasan juntos a la línea siguiente
+    h = h + "<p>aaaa bbbb cccc <a href=y.html>dddd</a>.</p>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "file:///"))
     p = maquetar(doc, 160)

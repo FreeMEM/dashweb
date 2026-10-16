@@ -65,14 +65,18 @@ end
 
 # El siguiente token, o nil al final del texto
 func html_siguiente(t: Tokenizador) -> HtmlToken
-    s = t.texto
+    return _siguiente(t, t.texto)
+end
+
+# s es t.texto: como parámetro se presta, una variable local lo copiaría en cada token
+func _siguiente(t: Tokenizador, s: String) -> HtmlToken
     n = s.length
     if t.pos >= n
         var fin: HtmlToken = nil
         return fin
     end
     if t.crudo != ""
-        return _texto_crudo(t)
+        return _texto_crudo(t, s)
     end
     if str_code(s, t.pos) != 60
         # texto hasta el siguiente "<"
@@ -86,7 +90,7 @@ func html_siguiente(t: Tokenizador) -> HtmlToken
     end
     c = str_code(s, t.pos + 1)
     if c == 33
-        return _marca(t)
+        return _marca(t, s)
     elif c == 63
         # <?xml ...?>: se toma como comentario
         fin = str_find_from(s, ">", t.pos)
@@ -97,9 +101,9 @@ func html_siguiente(t: Tokenizador) -> HtmlToken
         t.pos = fin + 1
         return _token(HT_COMENTARIO, "", texto)
     elif c == 47 and _letra(str_code(s, t.pos + 2))
-        return _etiqueta(t, true)
+        return _etiqueta(t, s, true)
     elif _letra(c)
-        return _etiqueta(t, false)
+        return _etiqueta(t, s, false)
     end
     # un "<" suelto es texto
     t.pos = t.pos + 1
@@ -107,8 +111,7 @@ func html_siguiente(t: Tokenizador) -> HtmlToken
 end
 
 # <!-- comentario -->, <!DOCTYPE ...>, <![CDATA[ ... ]]>
-func _marca(t: Tokenizador) -> HtmlToken
-    s = t.texto
+func _marca(t: Tokenizador, s: String) -> HtmlToken
     n = s.length
     if str_starts(s[t.pos:t.pos + 4], "<!--")
         fin = str_find_from(s, "-->", t.pos + 4)
@@ -144,8 +147,7 @@ func _marca(t: Tokenizador) -> HtmlToken
 end
 
 # <nombre atr="valor" ...> o </nombre>
-func _etiqueta(t: Tokenizador, cierre: Bool) -> HtmlToken
-    s = t.texto
+func _etiqueta(t: Tokenizador, s: String, cierre: Bool) -> HtmlToken
     n = s.length
     i = t.pos + 1
     if cierre
@@ -224,8 +226,7 @@ func _tiene_atributo(tok: HtmlToken, nombre: String) -> Bool
 end
 
 # Texto hasta "</nombre" (sin mirar mayúsculas) del elemento crudo abierto
-func _texto_crudo(t: Tokenizador) -> HtmlToken
-    s = t.texto
+func _texto_crudo(t: Tokenizador, s: String) -> HtmlToken
     n = s.length
     buscado = "</" + t.crudo
     largo = buscado.length

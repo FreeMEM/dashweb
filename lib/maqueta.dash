@@ -58,6 +58,7 @@ struct Pieza
     espacio: Int
     salto: Bool
     imagen: Bool
+    pegada: Bool = false     # sin blanco con la anterior: no se puede cortar la línea entre las dos
 end
 
 struct Maquetador
@@ -359,7 +360,12 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
             if hubo_blanco and not (piezas.length > 0 and _termina_en_blanco(piezas))
                 espacio = espacio_ancho
             end
-            piezas.push(Pieza(palabra, font_text_width(palabra), alto, base, f, estilo, color, tachado, enlace, espacio, false, false))
+            pz = Pieza(palabra, font_text_width(palabra), alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
+            if not hubo_blanco and piezas.length > 0
+                anterior = piezas[piezas.length - 1]
+                pz.pegada = not anterior.salto and not anterior.imagen and not str_ends(anterior.texto, " ")
+            end
+            piezas.push(pz)
             hubo_blanco = false
             i = j
         end
@@ -396,10 +402,34 @@ func _lineas(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {Str
             hueco = 0
         end
         if linea.length > 0 and ocupado + hueco + p.ancho > ancho
-            cy = cy + _poner_linea(m, linea, x, cy, ancho, e, 0)
-            linea.clear()
-            ocupado = 0
-            hueco = 0
+            # se corta antes de la última pieza no pegada: las pegadas pasan juntas a la siguiente
+            k = linea.length
+            if p.pegada
+                k = linea.length - 1
+                while k > 0 and linea[k].pegada
+                    k = k - 1
+                end
+            end
+            if k > 0
+                var resto: [Pieza] = []
+                while linea.length > k
+                    resto.insert(0, linea.pop())
+                end
+                cy = cy + _poner_linea(m, linea, x, cy, ancho, e, 0)
+                linea.clear()
+                ocupado = 0
+                for r in resto
+                    if linea.length == 0
+                        r.espacio = 0
+                    end
+                    linea.push(r)
+                    ocupado = ocupado + r.espacio + r.ancho
+                end
+                hueco = p.espacio
+                if linea.length == 0
+                    hueco = 0
+                end
+            end
         end
         p.espacio = hueco
         linea.push(p)

@@ -39,6 +39,14 @@ class Handler(socketserver.StreamRequestHandler):
         if path == "/cerrar":       # no length: the body ends when the connection closes
             self.wfile.write(b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n" + b"z" * 5000)
             return
+        if path.startswith("/pages/"):     # files of tests/pages
+            import os
+            f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages", os.path.basename(path))
+            if os.path.isfile(f):
+                data = open(f, "rb").read()
+                kind = "text/css" if f.endswith(".css") else "text/html; charset=utf-8"
+                self.wfile.write(reply("200 OK", [("Content-Type", kind), ("Content-Length", str(len(data)))], data))
+                return
         if path.split("?")[0] == "/eco":   # what the client sent, to check the request
             self.wfile.write(reply("200 OK", [("Content-Length", str(len(line)))], line.encode("latin-1")))
             return
