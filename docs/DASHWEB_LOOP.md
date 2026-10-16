@@ -956,3 +956,15 @@ Formato:
 - Tamaño, memoria y tiempos: en el README (tabla de la tarea 17 rehecha sin el freno del modo de pruebas).
 - Quedan `[?]` 20d y 22c (preguntas al usuario).
 
+
+### 2026-10-16 — Resumen final (regla 9)
+- Rama `dashweb` de Dash rebasada sobre `main` (9ee00c3): D32 (50f577c), D4c (6e9f50f), D23 (3df25fa), D34
+  (305e84c). Mismo árbol que el probado: run_tests 189/189, compile_all 34/34, `--emu --emu-a500 --emu-32`
+  489/489, `--emu --memcheck` 292/292. Una primera pasada falló al arrancar ("Address already in use" en el
+  servidor de eco de `# emu-net`): las dos sesiones probaban red a la vez; repetida, bien. La sesión de MUI
+  hará la fusión a `main`.
+- dashweb: tareas 1-23 hechas. Navegador MUI con pestañas de carga sin bloquear, CSS, imágenes, JavaScript
+  (QuickJS), formularios GET/POST, marcadores, varias ventanas y paquete `build/dashweb.lha`.
+- Pendientes con pregunta al usuario: 20d (conectar/DNS/TLS sin bloquear) y 22c (atajos de menú: ¿probar en
+  hardware real?).
+- Mejora apuntada: agrupar las reglas CSS por el último selector (el estilo es lo más lento: 5,5 s en A1200).
