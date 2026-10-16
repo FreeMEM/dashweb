@@ -9,7 +9,8 @@
 #   decl = css_declaraciones("color: red; margin: 0 !important")   # atributo style
 #
 # Selectores: tipo, *, #id, .clase, [atr], [atr=v] (y ~= |= ^= $= *=), :pseudo, ::pseudo y
-# los combinadores descendiente, >, + y ~. @media se evalúa como una pantalla de 640x480 px;
+# los combinadores descendiente, >, + y ~. @media se mira al aplicar el estilo, con el ancho de la página
+# (css_vista);
 # @import se guarda en hoja.importes; el resto de reglas @ se salta.
 
 const CSS_DESCENDIENTE = 1
@@ -54,6 +55,7 @@ struct Regla
     selectores: [Selector]
     declaraciones: [Declaracion]
     orden: Int
+    medios: [String] = nil      # las condiciones de los @media que la rodean (nil: vale siempre)
 end
 
 struct HojaCSS
@@ -333,11 +335,14 @@ func css_leer(texto: String, orden: Int) -> HojaCSS
     var reglas: [Regla] = []
     var importes: [String] = []
     hoja = HojaCSS(reglas, importes)
-    _css_bloque(hoja, css_sin_comentarios(texto), orden)
+    var ninguno: [String] = nil
+    _css_bloque(hoja, css_sin_comentarios(texto), orden, ninguno)
     return hoja
 end
 
-func _css_bloque(hoja: HojaCSS, s: String, orden: Int) -> Int
+# medios: las condiciones de los @media de fuera (se miran al aplicar el estilo, con el ancho de la
+# página de entonces: css_vista)
+func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
     n = s.length
     i = 0
     while i < n
@@ -363,8 +368,15 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int) -> Int
             else
                 cierre = _css_cierre(s, llave)
                 cabeza = str_lower(str_trim(s[i:llave]))
-                if str_starts(cabeza, "@media") and _css_media_pantalla(cabeza[6:])
-                    orden = _css_bloque(hoja, s[llave + 1:cierre], orden)
+                if str_starts(cabeza, "@media") and _css_media_posible(cabeza[6:])
+                    var dentro: [String] = []
+                    if medios != nil
+                        for m in medios
+                            dentro.push(m)
+                        end
+                    end
+                    dentro.push(cabeza[6:])
+                    orden = _css_bloque(hoja, s[llave + 1:cierre], orden, dentro)
                 end
                 i = cierre + 1
             end
@@ -381,7 +393,9 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int) -> Int
                 end
             end
             if selectores.length > 0
-                hoja.reglas.push(Regla(selectores, css_declaraciones(s[llave + 1:cierre]), orden))
+                r = Regla(selectores, css_declaraciones(s[llave + 1:cierre]), orden)
+                r.medios = medios
+                hoja.reglas.push(r)
                 orden = orden + 1
             end
             i = cierre + 1
@@ -390,11 +404,61 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int) -> Int
     return orden
 end
 
-# ¿Vale esta lista de medios para la pantalla? Se mira como una pantalla de CSS_ANCHO x CSS_ALTO px
-# en color, apaisada y sin preferencias: screen/all, min-/max-width y -height, orientation,
-# prefers-color-scheme: light; print, lo negado con "not" y lo que no se conoce, no.
-const CSS_ANCHO = 640
-const CSS_ALTO = 480
+# ¿Vale esta lista de medios para la pantalla? Se mira como la página de ahora (css_vista: ancho y alto
+# en px, de la zona de dibujo; 640x480 si nadie lo dice) en color, apaisada y sin preferencias:
+# screen/all, min-/max-width y -height, orientation, prefers-color-scheme: light; print, lo negado
+# con "not" y lo que no se conoce, no.
+var css_ancho: Int = 640
+var css_alto: Int = 480
+
+func css_vista(ancho: Int, alto: Int)
+    css_ancho = ancho
+    css_alto = alto
+end
+
+func css_vista_ancho() -> Int
+    return css_ancho
+end
+
+func css_alto_vista() -> Int
+    return css_alto
+end
+
+# ¿Vale la regla con el ancho de ahora? (todos sus @media)
+func css_regla_vale(r: Regla) -> Bool
+    if r.medios == nil
+        return true
+    end
+    for m in r.medios
+        if not _css_media_pantalla(m)
+            return false
+        end
+    end
+    return true
+end
+
+# Lo mismo con otro ancho (para saber si cambiar el ancho cambia el estilo)
+func css_regla_vale_con(r: Regla, ancho: Int) -> Bool
+    antes = css_ancho
+    css_ancho = ancho
+    v = css_regla_vale(r)
+    css_ancho = antes
+    return v
+end
+
+# ¿Puede valer con algún ancho? (print, no: esas reglas ni se guardan)
+func _css_media_posible(medios: String) -> Bool
+    antes = css_ancho
+    for ancho in [320, 640, 1024, 1920]
+        css_ancho = ancho
+        if _css_media_pantalla(medios)
+            css_ancho = antes
+            return true
+        end
+    end
+    css_ancho = antes
+    return false
+end
 
 # Lo mismo para quien lo use desde fuera (matchMedia de lib/jsdom.dash)
 func css_media_vale(medios: String) -> Bool
@@ -468,15 +532,15 @@ func _css_media_rasgo(c: String) -> Bool
     rasgo = str_trim(dentro[:dos])
     valor = str_trim(dentro[dos + 1:])
     if rasgo == "min-width" or rasgo == "min-device-width"
-        return CSS_ANCHO >= _css_media_px(valor)
+        return css_ancho >= _css_media_px(valor)
     elif rasgo == "max-width" or rasgo == "max-device-width"
-        return CSS_ANCHO <= _css_media_px(valor)
+        return css_ancho <= _css_media_px(valor)
     elif rasgo == "min-height" or rasgo == "min-device-height"
-        return CSS_ALTO >= _css_media_px(valor)
+        return css_alto >= _css_media_px(valor)
     elif rasgo == "max-height" or rasgo == "max-device-height"
-        return CSS_ALTO <= _css_media_px(valor)
+        return css_alto <= _css_media_px(valor)
     elif rasgo == "orientation"
-        return valor == "landscape"
+        return (valor == "landscape") == (css_ancho >= css_alto)
     elif rasgo == "prefers-color-scheme"
         return valor == "light"
     elif rasgo == "prefers-reduced-motion"

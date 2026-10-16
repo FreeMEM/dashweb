@@ -297,6 +297,14 @@ tarea, con el estilo de Dash.
       esta máquina, shiva) y en dashweb con RTG, al mismo ancho, y "tratar de alcanzar que se vea igual de bien".
       Capturas lado a lado; cada vuelta, la diferencia más visible (columnas con float/flex, position, márgenes,
       fuentes, imágenes, menús...) hasta que se parezcan. Partir en subtareas según lo que salga.
+- [x] 28a. **@media con el ancho de la página.** Se evalúan como 640 px: con RTG (unos 940) salen las reglas de
+      móvil (la barra superior de freemem.space se esconde). El ancho real de la zona de dibujo; volver a leer las
+      hojas si cambia de lado de un corte.
+- [ ] 28b. **float.** left/right y clear en la maqueta (la fecha, el logotipo, las cinco entradas destacadas).
+- [ ] 28c. **Imágenes de fondo y position.** background-image (cover, center, no-repeat) en bloques;
+      position relative/absolute (el título encima de la imagen), top/left/bottom.
+- [ ] 28d. **Tipografía.** text-transform, letter-spacing, fuentes web (Lato...) a las del Amiga, tamaños.
+- [ ] 28e. **Iconos.** Los de Font Awesome más comunes (menú, lupa, calendario, comentario) dibujados.
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -1113,3 +1121,10 @@ Formato:
 - Capturas: `tools/amiga/shot.c` de Dash (rama dashweb) lee las pantallas de más de 8 bits con p96ReadPixel.
 - dashweb se ve a 1024x768 con sus colores. Primera comparación con Chrome (tarea 28) enviada al usuario: faltan la
   barra superior, el menú con iconos de Font Awesome y la rejilla de entradas con imágenes de fondo y texto encima.
+
+### 2026-10-16 — Tarea 28a (@media con el ancho de la página)
+- Las reglas de dentro de un @media guardan sus condiciones (`Regla.medios`) y se miran al indexar con
+  `css_vista(ancho, alto)`: dashweb la pone con la zona de dibujo (+16 de la barra, que en un navegador cuenta) antes
+  de leer cada página; `documento_maquetar` la cambia con el ancho y, si algún corte cambia de lado
+  (`estilo_cambia_con`), vuelve a calcular el estilo. Las de print ni se guardan. matchMedia mira lo mismo.
+- freemem.space en RTG: aparecen la barra azul con la fecha y el título a su tamaño (la página ya no es "de móvil").

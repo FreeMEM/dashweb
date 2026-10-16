@@ -203,6 +203,14 @@ func ajustar_barra(w: Ventana)
     mui_set_value(w.v.barra, w.desde)
 end
 
+# Los @media de CSS y matchMedia miran el tamaño de la zona de dibujo de la ventana (con la barra)
+func vista(w: Ventana)
+    ancho = mui_width(w.v.pagina)
+    if ancho > 0
+        css_vista(ancho + DOC_BARRA, mui_height(w.v.pagina))
+    end
+end
+
 # Abre la dirección en la ventana (direccion "" = la página de inicio). Por http(s) empieza la carga y
 # vuelve: la página llega en los tics (la ventana sigue respondiendo y se puede parar).
 func abrir(w: Ventana, direccion: String)
@@ -218,6 +226,7 @@ func abrir(w: Ventana, direccion: String)
         return
     end
     dw_estado(w, "Abriendo " + direccion + "...")
+    vista(w)
     var d: Documento = nil
     if direccion == "" or direccion == "dashweb:inicio"
         d = documento_html("dashweb:inicio", dw_inicio())
@@ -272,6 +281,7 @@ func avanzar_carga(w: Ventana)
         w.carga = nada
         mui_set_value(w.v.progreso, 90)
         dw_estado(w, "Trayendo hojas de estilo y scripts...")
+        vista(w)
         w.preparando = documento_empezar(w.carga_dir, c.respuesta)
     end
     if w.preparando == nil

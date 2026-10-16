@@ -157,8 +157,19 @@ func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
     return d
 end
 
+# La barra de desplazamiento, que en un navegador cuenta en el ancho de los @media
+const DOC_BARRA = 16
+
 func documento_maquetar(d: Documento, ancho: Int)
     t0 = time_ms()
+    # los @media miran el ancho de la página: si alguno cambia de lado, el estilo otra vez
+    if d.hojas != nil and css_vista_ancho() != ancho + DOC_BARRA
+        cambia = estilo_cambia_con(d.hojas, ancho + DOC_BARRA)
+        css_vista(ancho + DOC_BARRA, css_alto_vista())
+        if cambia
+            estilo_aplicar(d.doc, d.hojas)
+        end
+    end
     d.pagina = maquetar(d.doc, ancho)
     d.ancho = ancho
     d.ms = d.ms + time_ms() - t0

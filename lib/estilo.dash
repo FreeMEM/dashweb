@@ -28,6 +28,7 @@ struct Hojas
     # los selectores por su parte de la derecha: "#id", ".clase" o la etiqueta; los demás en universales
     indice: {String: [Entrada]} = nil
     universales: [Entrada] = nil
+    indice_ancho: Int = -1             # el ancho de la página con que se hizo (por los @media)
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -451,6 +452,9 @@ func _estilo_indexar(h: Hojas)
     var universales: [Entrada] = []
     for k in (0..h.lista.length - 1)
         for regla in h.lista[k].reglas
+            if not css_regla_vale(regla)
+                continue
+            end
             for sel in regla.selectores
                 if estilo_puede_cumplirse(sel)
                     e = Entrada(sel, regla, h.autor[k])
@@ -469,6 +473,19 @@ func _estilo_indexar(h: Hojas)
     end
     h.indice = indice
     h.universales = universales
+    h.indice_ancho = css_vista_ancho()
+end
+
+# ¿Cambia el estilo si la página pasa a medir ancho? (algún @media cambia de lado)
+func estilo_cambia_con(h: Hojas, ancho: Int) -> Bool
+    for hoja in h.lista
+        for regla in hoja.reglas
+            if regla.medios != nil and css_regla_vale(regla) != css_regla_vale_con(regla, ancho)
+                return true
+            end
+        end
+    end
+    return false
 end
 
 # Las clases de un elemento (class="a  b\tc")
@@ -672,7 +689,7 @@ end
 
 # Calcula el estilo de todo el árbol
 func estilo_aplicar(doc: Nodo, hojas: Hojas)
-    if hojas.indice == nil
+    if hojas.indice == nil or hojas.indice_ancho != css_vista_ancho()
         _estilo_indexar(hojas)
     end
     var raiz: {String: String} = {"color": "black", "font-family": "sans-serif", "font-size": "" + ESTILO_MEDIUM + "px", "font-weight": "normal", "font-style": "normal", "text-align": "left", "white-space": "normal", "list-style-type": "disc", "visibility": "visible", "display": "block"}

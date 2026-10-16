@@ -14,6 +14,7 @@
 # expect-out: head: none
 # expect-out: indice: b a-1 c
 # expect-out: media: 600 640 no-print no-ancho
+# expect-out: media 1000: 1 0 640 1
 # expect-out: oculto: none inline
 # expect-out: importes: a.css b.css
 # expect-out: px: 16 24 50 4 -3 10 0
@@ -70,6 +71,14 @@ Main
         color = p.estilo["color"]
     end
     Print "media: " + p.estilo["margin-left"][:3] + " " + p.estilo["margin-right"][:3] + " " + color
+    # con la página a 1000 px: max-width 767 deja de valer (el estilo cambia) y min-width 1024 sigue sin valer
+    hojas = estilo_hojas(doc, "http://x/")
+    cambia = estilo_cambia_con(hojas, 1000)
+    css_vista(1000, 700)
+    estilo_aplicar(doc, hojas)
+    p = dom_buscar(doc, "p")
+    Print "media 1000: " + cambia + " " + p.estilo["margin-left"][:1] + " " + p.estilo["margin-right"][:3] + " " + estilo_cambia_con(hojas, 1100)
+    css_vista(640, 480)
     h = "<style>.sr { position: absolute; clip: rect(1px, 1px, 1px, 1px); width: 1px } .ab { position: absolute; width: auto; height: auto }</style>"
     h = h + "<a class=sr href=#c>Saltar</a><span class=ab>v</span>"
     doc = dom_desde_html(h)
