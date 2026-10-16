@@ -1,0 +1,588 @@
+# Maquetación: del árbol con estilo (lib/estilo.dash) a una lista de dibujo con posiciones.
+#
+#   p = maquetar(doc, 600)          # ancho disponible en píxeles
+#   for d in p.dibujos              # D_RECT, D_TEXTO, D_LINEA, D_IMAGEN
+#       ...
+#   end
+#   Print p.alto                    # alto total de la página
+#
+# Mide el texto con las fuentes del Amiga (font_ de Dash), así que necesita un RastPort
+# (una ventana abierta, o la zona de dibujo de MUI). Flujo normal: cajas de bloque (márgenes
+# que se funden entre hermanos, bordes, relleno, width/height, fondos) y líneas de texto
+# (cortes, espacios colapsados o pre, text-align); listas con su marca; tablas sencillas
+# (celdas del mismo ancho); imágenes como un hueco de su tamaño. float y position, más adelante.
+
+import "estilo.dash"
+import "colores.dash"
+
+const D_RECT = 1
+const D_TEXTO = 2
+const D_LINEA = 3
+const D_IMAGEN = 4
+
+const EST_SUBRAYADO = 1
+const EST_NEGRITA = 2
+const EST_CURSIVA = 4
+
+struct Dibujo
+    tipo: Int
+    x: Int
+    y: Int
+    ancho: Int
+    alto: Int
+    color: Int
+    texto: String
+    fuente: Int
+    estilo: Int
+    enlace: String
+end
+
+struct Pagina
+    dibujos: [Dibujo]
+    ancho: Int
+    alto: Int
+    fondo: Int
+end
+
+# Un trozo de una línea: una palabra (o una imagen, o un salto de línea forzado)
+struct Pieza
+    texto: String
+    ancho: Int
+    alto: Int
+    base: Int
+    fuente: Int
+    estilo: Int
+    color: Int
+    tachado: Bool
+    enlace: String
+    espacio: Int
+    salto: Bool
+    imagen: Bool
+end
+
+struct Maquetador
+    pagina: Pagina
+    fuentes: {String: Int}
+    topaz: Int
+end
+
+func _dibujo(tipo: Int, x: Int, y: Int, ancho: Int, alto: Int, color: Int) -> Dibujo
+    return Dibujo(tipo, x, y, ancho, alto, color, "", 0, 0, "")
+end
+
+# === Fuentes ===
+
+# Fuente del Amiga para una familia CSS y un tamaño; la topaz de la ROM si no hay otra
+func _fuente(m: Maquetador, familia: String, tam: Int) -> Int
+    f = str_lower(familia)
+    nombre = "helvetica.font"
+    if str_find(f, "mono") >= 0 or str_find(f, "courier") >= 0
+        nombre = "courier.font"
+    elif str_find(f, "serif") >= 0 and str_find(f, "sans") < 0
+        nombre = "times.font"
+    elif str_find(f, "times") >= 0 or str_find(f, "georgia") >= 0
+        nombre = "times.font"
+    end
+    clave = nombre + "/" + tam
+    if m.fuentes.has(clave)
+        return m.fuentes[clave]
+    end
+    h = font_open(nombre, tam)
+    if h == 0
+        h = m.topaz
+    end
+    m.fuentes[clave] = h
+    return h
+end
+
+func _estilo_texto(e: {String: String}) -> Int
+    r = 0
+    w = e["font-weight"]
+    if w == "bold" or w == "bolder" or w == "700" or w == "800" or w == "900" or w == "600"
+        r = r + EST_NEGRITA
+    end
+    if e["font-style"] == "italic" or e["font-style"] == "oblique"
+        r = r + EST_CURSIVA
+    end
+    return r
+end
+
+func _px(e: {String: String}, prop: String, cien: Int) -> Int
+    if not e.has(prop)
+        return 0
+    end
+    return estilo_px(e[prop], estilo_px(e["font-size"], 0, 0), cien)
+end
+
+func _borde(e: {String: String}, lado: String) -> Int
+    tipo = "none"
+    if e.has("border-" + lado + "-style")
+        tipo = e["border-" + lado + "-style"]
+    end
+    if tipo == "none" or tipo == "hidden"
+        return 0
+    end
+    a = "medium"
+    if e.has("border-" + lado + "-width")
+        a = e["border-" + lado + "-width"]
+    end
+    if a == "thin"
+        return 1
+    elif a == "medium"
+        return 3
+    elif a == "thick"
+        return 5
+    end
+    return estilo_px(a, estilo_px(e["font-size"], 0, 0), 0)
+end
+
+func _es_bloque(n: Nodo) -> Bool
+    if n.tipo != DOM_ELEMENTO
+        return false
+    end
+    d = n.estilo["display"]
+    return d == "block" or d == "list-item" or d == "table" or d == "table-row" or d == "table-row-group" or d == "table-cell" or d == "flex" or d == "grid"
+end
+
+func _oculto(n: Nodo) -> Bool
+    return n.tipo == DOM_ELEMENTO and n.estilo["display"] == "none"
+end
+
+# === Página ===
+
+func maquetar(doc: Nodo, ancho: Int) -> Pagina
+    var dibujos: [Dibujo] = []
+    p = Pagina(dibujos, ancho, 0, 16777215)
+    var fuentes: {String: Int} = {}
+    m = Maquetador(p, fuentes, font_open("topaz.font", 8))
+    html = dom_buscar(doc, "html")
+    if html == nil
+        return p
+    end
+    cuerpo = dom_buscar(html, "body")
+    for raiz in [html, cuerpo]
+        if raiz != nil and raiz.estilo.has("background-color") and css_color(raiz.estilo["background-color"]) >= 0
+            p.fondo = css_color(raiz.estilo["background-color"])
+        end
+    end
+    p.alto = _bloque(m, html, 0, 0, ancho)
+    return p
+end
+
+# Coloca un elemento de bloque en (x, y) con ese ancho; devuelve el alto que ocupa, márgenes incluidos
+func _bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
+    e = n.estilo
+    mt = _px(e, "margin-top", ancho)
+    mb = _px(e, "margin-bottom", ancho)
+    ml = _px(e, "margin-left", ancho)
+    mr = _px(e, "margin-right", ancho)
+    bt = _borde(e, "top")
+    bb = _borde(e, "bottom")
+    bl = _borde(e, "left")
+    br = _borde(e, "right")
+    pt = _px(e, "padding-top", ancho)
+    pb = _px(e, "padding-bottom", ancho)
+    pl = _px(e, "padding-left", ancho)
+    pr = _px(e, "padding-right", ancho)
+    interior = ancho - ml - mr - bl - br - pl - pr
+    if e.has("width") and e["width"] != "auto"
+        w = _px(e, "width", ancho)
+        if w > 0 and w < interior
+            # margin: auto a los dos lados centra
+            if e.has("margin-left") and e.has("margin-right") and e["margin-left"] == "auto" and e["margin-right"] == "auto"
+                ml = (ancho - w - bl - br - pl - pr) / 2
+            end
+            interior = w
+        end
+    end
+    if interior < 1
+        interior = 1
+    end
+    # el fondo va antes que el contenido: se pone ahora y se mide al final
+    fondo = -1
+    if e.has("background-color")
+        fondo = css_color(e["background-color"])
+    end
+    var caja_fondo: Dibujo = nil
+    if fondo >= 0
+        caja_fondo = _dibujo(D_RECT, x + ml, y + mt, interior + bl + br + pl + pr, 0, fondo)
+        m.pagina.dibujos.push(caja_fondo)
+    end
+    cx = x + ml + bl + pl
+    cy = y + mt + bt + pt
+    alto = 0
+    if e["display"] == "table"
+        alto = _tabla(m, n, cx, cy, interior)
+    else
+        alto = _contenido(m, n, cx, cy, interior)
+    end
+    if e["display"] == "list-item"
+        _marca(m, n, cx, cy)
+    end
+    if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
+        alto = _px(e, "height", 0)
+    end
+    alto_caja = bt + pt + alto + pb + bb
+    if caja_fondo != nil
+        caja_fondo.alto = alto_caja
+    end
+    _bordes(m, e, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, bt, br, bb, bl)
+    return mt + alto_caja + mb
+end
+
+# El contenido de un bloque: hijos de bloque uno debajo de otro y lo de en medio, en líneas
+func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
+    cy = y
+    var piezas: [Pieza] = []
+    margen_previo = 0
+    for h in n.hijos
+        if _oculto(h)
+            continue
+        end
+        if _es_bloque(h)
+            if piezas.length > 0
+                cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
+                piezas.clear()
+                margen_previo = 0
+            end
+            # márgenes de hermanos seguidos: cuenta el mayor, no la suma
+            mt = _px(h.estilo, "margin-top", ancho)
+            solape = margen_previo
+            if mt < solape
+                solape = mt
+            end
+            if solape < 0
+                solape = 0
+            end
+            cy = cy - solape + _bloque(m, h, x, cy - solape, ancho)
+            margen_previo = _px(h.estilo, "margin-bottom", ancho)
+        else
+            _piezas(m, h, n.estilo, piezas, "")
+        end
+    end
+    if piezas.length > 0
+        cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
+    end
+    return cy - y
+end
+
+# Las piezas en línea de un nodo (texto, elementos en línea, br, img)
+func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza], enlace: String)
+    if n.tipo == DOM_TEXTO
+        _palabras(m, n.texto, e_padre, piezas, enlace)
+        return
+    end
+    if n.tipo != DOM_ELEMENTO or _oculto(n)
+        return
+    end
+    e = n.estilo
+    if n.nombre == "br"
+        piezas.push(Pieza("", 0, 0, 0, 0, 0, 0, false, enlace, 0, true, false))
+        return
+    end
+    if n.nombre == "img"
+        w = Int(dom_atributo(n, "width"))
+        h = Int(dom_atributo(n, "height"))
+        if w <= 0
+            w = 16
+        end
+        if h <= 0
+            h = 16
+        end
+        piezas.push(Pieza(dom_atributo(n, "src"), w, h, h, 0, 0, 0, false, enlace, 0, false, true))
+        return
+    end
+    destino = enlace
+    if n.nombre == "a" and dom_tiene_atributo(n, "href")
+        destino = dom_atributo(n, "href")
+    end
+    for h in n.hijos
+        _piezas(m, h, e, piezas, destino)
+    end
+end
+
+# Palabras de un texto con el estilo de su elemento
+func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza], enlace: String)
+    tam = estilo_px(e["font-size"], 0, 0)
+    f = _fuente(m, e["font-family"], tam)
+    estilo = _estilo_texto(e)
+    deco = ""
+    if e.has("text-decoration")
+        deco = e["text-decoration"]
+    end
+    if str_find(deco, "underline") >= 0
+        estilo = estilo + EST_SUBRAYADO
+    end
+    tachado = str_find(deco, "line-through") >= 0
+    color = css_color(e["color"])
+    if color < 0
+        color = 0
+    end
+    font_use(f)
+    font_style(estilo)
+    alto = font_height()
+    base = font_baseline()
+    espacio_ancho = font_text_width(" ")
+    if e["white-space"] == "pre" or e["white-space"] == "pre-wrap"
+        # cada línea tal cual; los saltos de línea cortan
+        inicio = 0
+        p = str_find(texto, "\n")
+        while p >= 0
+            linea = str_replace(texto[inicio:p], "\t", "        ")
+            piezas.push(Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false))
+            piezas.push(Pieza("", 0, alto, base, f, estilo, color, false, enlace, 0, true, false))
+            inicio = p + 1
+            p = str_find_from(texto, "\n", inicio)
+        end
+        linea = str_replace(texto[inicio:], "\t", "        ")
+        if linea != ""
+            piezas.push(Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false))
+        end
+        return
+    end
+    n = texto.length
+    i = 0
+    hubo_blanco = false
+    while i < n
+        c = str_code(texto, i)
+        if c == 32 or c == 9 or c == 10 or c == 13 or c == 12
+            hubo_blanco = true
+            i = i + 1
+        else
+            j = i
+            while j < n and str_code(texto, j) != 32 and str_code(texto, j) != 9 and str_code(texto, j) != 10 and str_code(texto, j) != 13 and str_code(texto, j) != 12
+                j = j + 1
+            end
+            palabra = texto[i:j]
+            # un blanco antes cuenta una vez: si la pieza anterior ya acaba en espacio, no otro
+            espacio = 0
+            if hubo_blanco and not (piezas.length > 0 and _termina_en_blanco(piezas))
+                espacio = espacio_ancho
+            end
+            piezas.push(Pieza(palabra, font_text_width(palabra), alto, base, f, estilo, color, tachado, enlace, espacio, false, false))
+            hubo_blanco = false
+            i = j
+        end
+    end
+    if hubo_blanco and piezas.length > 0
+        # el blanco final se nota en la siguiente palabra (de otro elemento)
+        ultima = piezas[piezas.length - 1]
+        if not ultima.salto
+            ultima.texto = ultima.texto + " "
+            ultima.ancho = ultima.ancho + espacio_ancho
+        end
+    end
+end
+
+func _termina_en_blanco(piezas: [Pieza]) -> Bool
+    u = piezas[piezas.length - 1]
+    return str_ends(u.texto, " ")
+end
+
+# Reparte las piezas en líneas de ese ancho; devuelve el alto
+func _lineas(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}) -> Int
+    cy = y
+    var linea: [Pieza] = []
+    ocupado = 0
+    for p in piezas
+        if p.salto
+            cy = cy + _poner_linea(m, linea, x, cy, ancho, e, p.alto)
+            linea.clear()
+            ocupado = 0
+            continue
+        end
+        hueco = p.espacio
+        if linea.length == 0
+            hueco = 0
+        end
+        if linea.length > 0 and ocupado + hueco + p.ancho > ancho
+            cy = cy + _poner_linea(m, linea, x, cy, ancho, e, 0)
+            linea.clear()
+            ocupado = 0
+            hueco = 0
+        end
+        p.espacio = hueco
+        linea.push(p)
+        ocupado = ocupado + hueco + p.ancho
+    end
+    if linea.length > 0
+        cy = cy + _poner_linea(m, linea, x, cy, ancho, e, 0)
+    end
+    return cy - y
+end
+
+# Una línea: alto y línea base de lo más alto, alineación, y las palabras seguidas con el mismo
+# aspecto juntas en un solo texto (pintar texto es lo que más cuesta)
+func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}, alto_vacia: Int) -> Int
+    if linea.length == 0
+        return alto_vacia
+    end
+    alto = 0
+    base = 0
+    total = 0
+    for p in linea
+        if p.base > base
+            base = p.base
+        end
+        total = total + p.espacio + p.ancho
+    end
+    for p in linea
+        if base - p.base + p.alto > alto
+            alto = base - p.base + p.alto
+        end
+    end
+    alto = alto + 2
+    desplaza = 0
+    alinea = e["text-align"]
+    if alinea == "center"
+        desplaza = (ancho - total) / 2
+    elif alinea == "right"
+        desplaza = ancho - total
+    end
+    if desplaza < 0
+        desplaza = 0
+    end
+    cx = x + desplaza
+    var actual: Dibujo = nil
+    for p in linea
+        cx = cx + p.espacio
+        if p.imagen
+            img = _dibujo(D_IMAGEN, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
+            img.texto = p.texto
+            img.enlace = p.enlace
+            m.pagina.dibujos.push(img)
+            actual = nil
+        elif actual != nil and actual.fuente == p.fuente and actual.estilo == p.estilo and actual.color == p.color and actual.enlace == p.enlace
+            actual.texto = actual.texto + _espacios(p.espacio, actual) + p.texto
+            actual.ancho = cx + p.ancho - actual.x
+        else
+            actual = _dibujo(D_TEXTO, cx, y + base - p.base + 1, p.ancho, p.alto, p.color)
+            actual.texto = p.texto
+            actual.fuente = p.fuente
+            actual.estilo = p.estilo
+            actual.enlace = p.enlace
+            m.pagina.dibujos.push(actual)
+        end
+        if p.tachado
+            m.pagina.dibujos.push(_dibujo(D_LINEA, cx, y + base - p.base + 1 + p.alto / 2, p.ancho, 1, p.color))
+        end
+        cx = cx + p.ancho
+    end
+    return alto
+end
+
+# El hueco entre dos palabras dentro de un mismo texto: un espacio (si no lo trae ya)
+func _espacios(hueco: Int, d: Dibujo) -> String
+    if hueco > 0 and not str_ends(d.texto, " ")
+        return " "
+    end
+    return ""
+end
+
+# La marca de un elemento de lista, a la izquierda de su primera línea
+func _marca(m: Maquetador, n: Nodo, x: Int, y: Int)
+    tipo = n.estilo["list-style-type"]
+    if tipo == "none"
+        return
+    end
+    tam = estilo_px(n.estilo["font-size"], 0, 0)
+    color = css_color(n.estilo["color"])
+    if color < 0
+        color = 0
+    end
+    if tipo == "decimal"
+        numero = 1
+        if n.padre != nil
+            for h in n.padre.hijos
+                if h == n
+                    break
+                end
+                if h.tipo == DOM_ELEMENTO and h.estilo["display"] == "list-item"
+                    numero = numero + 1
+                end
+            end
+        end
+        f = _fuente(m, n.estilo["font-family"], tam)
+        font_use(f)
+        font_style(0)
+        texto = "" + numero + "."
+        d = _dibujo(D_TEXTO, x - font_text_width(texto) - 4, y + 1, font_text_width(texto), font_height(), color)
+        d.texto = texto
+        d.fuente = f
+        m.pagina.dibujos.push(d)
+    else
+        lado = tam / 3
+        if lado < 3
+            lado = 3
+        end
+        m.pagina.dibujos.push(_dibujo(D_RECT, x - lado - 6, y + tam / 2 - lado / 2 + 1, lado, lado, color))
+    end
+end
+
+# Bordes como rectángulos llenos
+func _bordes(m: Maquetador, e: {String: String}, x: Int, y: Int, ancho: Int, alto: Int, bt: Int, br: Int, bb: Int, bl: Int)
+    if bt > 0
+        m.pagina.dibujos.push(_dibujo(D_RECT, x, y, ancho, bt, _color_borde(e, "top")))
+    end
+    if bb > 0
+        m.pagina.dibujos.push(_dibujo(D_RECT, x, y + alto - bb, ancho, bb, _color_borde(e, "bottom")))
+    end
+    if bl > 0
+        m.pagina.dibujos.push(_dibujo(D_RECT, x, y, bl, alto, _color_borde(e, "left")))
+    end
+    if br > 0
+        m.pagina.dibujos.push(_dibujo(D_RECT, x + ancho - br, y, br, alto, _color_borde(e, "right")))
+    end
+end
+
+func _color_borde(e: {String: String}, lado: String) -> Int
+    c = -1
+    if e.has("border-" + lado + "-color")
+        c = css_color(e["border-" + lado + "-color"])
+    end
+    if c < 0
+        c = css_color(e["color"])
+    end
+    if c < 0
+        c = 0
+    end
+    return c
+end
+
+# Tabla sencilla: filas una debajo de otra, celdas del mismo ancho
+func _tabla(m: Maquetador, t: Nodo, x: Int, y: Int, ancho: Int) -> Int
+    var filas: [Nodo] = []
+    _filas(t, filas)
+    cy = y
+    for fila in filas
+        var celdas: [Nodo] = []
+        for c in fila.hijos
+            if c.tipo == DOM_ELEMENTO and (c.nombre == "td" or c.nombre == "th") and not _oculto(c)
+                celdas.push(c)
+            end
+        end
+        if celdas.length == 0
+            continue
+        end
+        ancho_celda = ancho / celdas.length
+        alto_fila = 0
+        for i in (0..celdas.length - 1)
+            h = _bloque(m, celdas[i], x + i * ancho_celda, cy, ancho_celda)
+            if h > alto_fila
+                alto_fila = h
+            end
+        end
+        cy = cy + alto_fila
+    end
+    return cy - y
+end
+
+func _filas(n: Nodo, filas: [Nodo])
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO and h.nombre == "tr"
+            filas.push(h)
+        elif h.tipo == DOM_ELEMENTO and (h.nombre == "thead" or h.nombre == "tbody" or h.nombre == "tfoot")
+            _filas(h, filas)
+        end
+    end
+end

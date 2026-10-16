@@ -1,0 +1,138 @@
+# Colores CSS a RGB (0xRRGGBB): nombres, #rgb, #rrggbb, rgb(r, g, b) y rgba(...).
+# -1: transparente o desconocido.
+
+func css_color(valor: String) -> Int
+    v = str_lower(str_trim(valor))
+    if str_starts(v, "#")
+        h = v[1:]
+        if h.length == 3
+            r = str_to_int(h[0:1], 16)
+            g = str_to_int(h[1:2], 16)
+            b = str_to_int(h[2:3], 16)
+            return (r * 17) * 65536 + (g * 17) * 256 + b * 17
+        elif h.length >= 6
+            return str_to_int(h[0:6], 16)
+        end
+        return -1
+    end
+    if str_starts(v, "rgb")
+        a = str_find(v, "(")
+        z = str_find(v, ")")
+        if a < 0 or z < a
+            return -1
+        end
+        partes = str_replace(v[a + 1:z], " ", "")
+        c1 = str_find(partes, ",")
+        c2 = str_find_from(partes, ",", c1 + 1)
+        if c1 < 0 or c2 < 0
+            return -1
+        end
+        r = _canal(partes[:c1])
+        g = _canal(partes[c1 + 1:c2])
+        resto = partes[c2 + 1:]
+        c3 = str_find(resto, ",")
+        if c3 >= 0
+            resto = resto[:c3]
+        end
+        b = _canal(resto)
+        return r * 65536 + g * 256 + b
+    end
+    if v == "transparent" or v == "" or v == "inherit" or v == "currentcolor"
+        return -1
+    end
+    return _color_nombre(v)
+end
+
+# "128" o "50%" a 0-255
+func _canal(t: String) -> Int
+    if str_ends(t, "%")
+        return Int(t[:t.length - 1]) * 255 / 100
+    end
+    n = Int(t)
+    if n > 255
+        return 255
+    end
+    if n < 0
+        return 0
+    end
+    return n
+end
+
+func _color_nombre(v: String) -> Int
+    if v == "black"
+        return 0
+    elif v == "white"
+        return 16777215
+    elif v == "red"
+        return 16711680
+    elif v == "green"
+        return 32768
+    elif v == "blue"
+        return 255
+    elif v == "yellow"
+        return 16776960
+    elif v == "gray" or v == "grey"
+        return 8421504
+    elif v == "silver"
+        return 12632256
+    elif v == "maroon"
+        return 8388608
+    elif v == "purple"
+        return 8388736
+    elif v == "fuchsia" or v == "magenta"
+        return 16711935
+    elif v == "lime"
+        return 65280
+    elif v == "olive"
+        return 8421376
+    elif v == "navy"
+        return 128
+    elif v == "teal"
+        return 32896
+    elif v == "aqua" or v == "cyan"
+        return 65535
+    elif v == "orange"
+        return 16753920
+    elif v == "darkgray" or v == "darkgrey"
+        return 11119017
+    elif v == "lightgray" or v == "lightgrey"
+        return 13882323
+    elif v == "darkblue"
+        return 139
+    elif v == "darkred"
+        return 9109504
+    elif v == "darkgreen"
+        return 25600
+    elif v == "brown"
+        return 10824234
+    elif v == "pink"
+        return 16761035
+    elif v == "gold"
+        return 16766720
+    elif v == "beige"
+        return 16119260
+    elif v == "whitesmoke"
+        return 16119285
+    elif v == "gainsboro"
+        return 14474460
+    elif v == "lightblue"
+        return 11393254
+    elif v == "lightyellow"
+        return 16777184
+    elif v == "lightgreen"
+        return 9498256
+    elif v == "dimgray" or v == "dimgrey"
+        return 6908265
+    elif v == "steelblue"
+        return 4620980
+    elif v == "royalblue"
+        return 4286945
+    elif v == "crimson"
+        return 14423100
+    elif v == "indigo"
+        return 4915330
+    elif v == "violet"
+        return 15631086
+    end
+    return -1
+end

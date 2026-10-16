@@ -149,6 +149,7 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+- [x] D18. **Funciones privadas por módulo.** Dos módulos con `_fuente` chocaban (lo pidió la tarea 12).
 - [x] D17. **Texto prestado adoptado.** `s = t` con `t` un parámetro temporal del que llama lo liberaba al volver
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
@@ -188,7 +189,7 @@ tarea, con el estilo de Dash.
       (HTTP o fichero) y sus `@import` (la tarea 10 solo los lee). Selección de elementos, cascada (origen, especificidad, orden), herencia,
       hoja por defecto del navegador, atributo `style`. Estilo calculado por nodo para las propiedades que
       se vayan a usar (display, colores, fuente, márgenes, relleno, bordes, ancho/alto, alineación, listas).
-- [ ] 12. **Maquetación.** (necesita D9) Cajas de bloque y en línea, cortes de línea con las medidas de la fuente
+- [x] 12. **Maquetación.** (necesita D9) Cajas de bloque y en línea, cortes de línea con las medidas de la fuente
       (`TextLength`), márgenes/relleno/bordes, anchos y altos, listas. Sale una lista de cosas que dibujar.
       Tablas y `float`, más adelante (añadir tareas si hace falta).
 - [ ] 13. **Dibujo y visor sin MUI.** (necesita D9) Dibujar esa lista en una ventana normal de Intuition con los
@@ -517,3 +518,22 @@ Formato:
   en los programas previos.
 - Pendiente: el sistema emulado de los tests no tiene `FONTS:` (solo topaz de la ROM): para la maquetación y el visor
   hará falta uno con las fuentes del Workbench (amitools en un venv en `~/.cache/dashweb`).
+
+### 2026-10-16 — Tarea 12 (maquetación) y D18
+- Hecho: `lib/maqueta.dash`: `maquetar(doc, ancho)` → `Pagina` (lista de `Dibujo`: D_RECT, D_TEXTO, D_LINEA, D_IMAGEN;
+  alto; fondo de html/body). Bloques con márgenes (los de hermanos seguidos se funden), bordes (anchos thin/medium/
+  thick o px; color o el del texto), relleno, `width` (y centrado con `margin: auto`), `height`, fondo puesto antes del
+  contenido y medido al final. Texto en línea: palabras medidas con las fuentes del Amiga (`font_` de D9: familia
+  serif → times, sans → helvetica, mono → courier; la topaz de la ROM si no hay), espacios colapsados (o `pre`),
+  cortes, `text-align`, negrita/cursiva/subrayado, tachado, enlaces (el `href` va en el dibujo), `br`, `img` como
+  hueco de `width`x`height`. Las palabras seguidas con el mismo aspecto van en un solo texto (pintar texto cuesta).
+  Listas con marca (cuadrado o número). Tablas sencillas: celdas del mismo ancho. `lib/colores.dash`: `css_color`
+  (nombres, #rgb, #rrggbb, rgb()/rgba()).
+- D18 (Dash, 535f94f): las funciones `_x` de cada módulo se renombran (`_x_m<n>_<fichero>`) con sus llamadas: dos
+  módulos pueden tener su `_fuente`. Llamar a la privada de otro módulo sigue dando "is private to module". Test
+  `test_private_per_module`; `test_import_nested` actualizado al nombre nuevo. 161/161 y 247/247 en el A1200.
+- Encontrado y arreglado: doble espacio cuando un texto acababa en blanco y el siguiente elemento empezaba palabra.
+- Tests: `test_maqueta` (`--memcheck`, 26 líneas comprobadas a mano con la topaz 8: márgenes, centrado, sangrías,
+  marcas, celdas, caja con borde y relleno, pre). 12/12, también con `--memcheck`.
+- Pendiente: `float`, `position`, anchos de tabla según contenido, `line-height`, `vertical-align`; fuentes reales en
+  las pruebas (sistema con `FONTS:`).

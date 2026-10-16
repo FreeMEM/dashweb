@@ -1,0 +1,70 @@
+# Test: lib/maqueta.dash con la topaz 8 de la ROM (el sistema de pruebas no tiene más fuentes:
+# todas las letras miden 8x8): bloques, márgenes que se funden, cortes de línea, alineación,
+# negrita/enlace en la misma línea, br, listas, tabla, fondo, borde, pre, imagen.
+# memcheck
+# expect-out: T 4,11 [uno dos tres cuatro] c=0 e=0
+# expect-out: T 4,21 [cinco seis siete] c=0 e=0
+# expect-out: T 60,37 [medio] c=0 e=0
+# expect-out: T 4,53 [a ] c=0 e=0
+# expect-out: T 20,53 [bb ] c=0 e=2
+# expect-out: T 44,53 [enlace] c=ee e=1 ->x.html
+# expect-out: T 4,63 [fin] c=0 e=0
+# expect-out: T 44,86 [x] c=0 e=0
+# expect-out: R 34,90 4x4 c=0
+# expect-out: T 44,96 [y] c=0 e=0
+# expect-out: R 34,100 4x4 c=0
+# expect-out: T 44,119 [p] c=0 e=0
+# expect-out: T 24,119 [1.] c=0 e=0
+# expect-out: T 5,143 [c1] c=0 e=0
+# expect-out: T 81,143 [c2] c=0 e=0
+# expect-out: R 4,153 152x16 c=ffff00
+# expect-out: T 7,157 [k] c=0 e=0
+# expect-out: R 4,153 152x1 c=ff
+# expect-out: R 4,168 152x1 c=ff
+# expect-out: R 4,153 1x16 c=ff
+# expect-out: R 155,153 1x16 c=ff
+# expect-out: T 4,183 [a  b] c=0 e=0
+# expect-out: T 4,193 [c] c=0 e=0
+# expect-out: I 4,216 10x12 f.png
+# expect-out: alto 233 fondo ffffff
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+Window W
+    title "Maqueta"
+    width 300
+    height 100
+end
+
+func muestra(d: Dibujo) -> String
+    if d.tipo == D_TEXTO
+        r = "T " + d.x + "," + d.y + " [" + d.texto + "] c=" + str_from_int(d.color, 16) + " e=" + d.estilo
+        if d.enlace != ""
+            r = r + " ->" + d.enlace
+        end
+        return r
+    elif d.tipo == D_RECT
+        return "R " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " c=" + str_from_int(d.color, 16)
+    elif d.tipo == D_IMAGEN
+        return "I " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " " + d.texto
+    end
+    return "L " + d.x + "," + d.y + " " + d.ancho
+end
+
+Main
+    W.open
+    h = "<style>body { margin: 4px } p { margin: 6px 0 } .c { text-align: center } .caja { background: #ff0; border: 1px solid blue; padding: 2px }</style>"
+    h = h + "<p>uno dos tres cuatro cinco seis siete</p><p class=c>medio</p>"
+    h = h + "<p>a <b>bb</b> <a href=x.html>enlace</a><br>fin</p>"
+    h = h + "<ul><li>x<li>y</ul><ol><li>p</ol>"
+    h = h + "<table><tr><td>c1<td>c2</table><div class=caja>k</div><pre>a  b\nc</pre><img src=f.png width=10 height=12>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "file:///"))
+    p = maquetar(doc, 160)
+    for d in p.dibujos
+        Print muestra(d)
+    end
+    Print "alto " + p.alto + " fondo " + str_from_int(p.fondo, 16)
+    W.close
+end
