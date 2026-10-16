@@ -5,7 +5,8 @@
 #   dashweb http://ejemplo.org/   # esa página
 #
 # Barra de URL (Return para ir), atrás, adelante, recargar, historial, barra de estado y de
-# progreso. La rueda y la barra desplazan; un clic llega al JavaScript de la página.
+# progreso. La rueda, la barra y las teclas (arriba, abajo, espacio, retroceso) desplazan; un clic
+# llega al JavaScript de la página y, si no lo para, sigue el enlace (#ancla: dentro de la página).
 # Necesita MUI 3.8 o 5 y un 68020.
 
 import "navegador.dashui"
@@ -27,6 +28,7 @@ const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el anch
 
 var dw_actual: Documento = nil
 var dw_desde: Int = 0
+var dw_visto: Int = -1       # la línea del historial que se ve
 
 func dw_inicio() -> String
     h = "<html><head><title>dashweb</title><style>body { font-family: sans-serif; margin: 12px }"
@@ -86,6 +88,10 @@ func abrir(v: Navegador, direccion: String)
     ancho = mui_width(v.pagina)
     if ancho > 0
         documento_maquetar(dw_actual, ancho)
+        y = documento_y_de(dw_actual, documento_fragmento(direccion))
+        if y > 0
+            dw_desde = y
+        end
     end
     mui_set_text(v.window, "dashweb: " + dw_actual.titulo)
     ajustar_barra(v)
@@ -118,19 +124,60 @@ func temporizadores(v: Navegador)
 end
 
 func clic(v: Navegador)
-    if dw_actual == nil or dw_actual.pagina == nil or dw_actual.js == 0
+    if dw_actual == nil or dw_actual.pagina == nil
         return
     end
     n = maqueta_nodo_en(dw_actual.pagina, mui_canvas_mouse_x(v.pagina), mui_canvas_mouse_y(v.pagina) + dw_desde)
     if n == nil
         return
     end
-    jsdom_clic(dw_actual.js, n)
-    if documento_al_dia(dw_actual)
-        ajustar_barra(v)
-        mui_canvas_redraw(v.pagina)
+    seguir = true
+    if dw_actual.js != 0
+        seguir = jsdom_clic(dw_actual.js, n)
+        if documento_al_dia(dw_actual)
+            ajustar_barra(v)
+            mui_canvas_redraw(v.pagina)
+        end
+        temporizadores(v)
     end
-    temporizadores(v)
+    if seguir
+        destino = documento_enlace(dw_actual, n)
+        if destino != ""
+            navegar(v, destino)
+        end
+    end
+end
+
+# Ir a una dirección nueva: lo que había delante en el historial se descarta. Un enlace a otra parte
+# de la misma página solo desplaza.
+func navegar(v: Navegador, destino: String)
+    if dw_actual != nil and documento_sin_fragmento(destino) == documento_sin_fragmento(dw_actual.direccion) and documento_fragmento(destino) != ""
+        y = documento_y_de(dw_actual, documento_fragmento(destino))
+        if y >= 0
+            dw_desde = y
+            ajustar_barra(v)
+            mui_canvas_redraw(v.pagina)
+        end
+        return
+    end
+    mui_set_text(v.url, destino)
+    abrir(v, destino)
+    while mui_list_count(v.historial) > dw_visto + 1
+        mui_list_remove(v.historial, mui_list_count(v.historial) - 1)
+    end
+    mui_list_add(v.historial, dw_actual.direccion)
+    dw_visto = mui_list_count(v.historial) - 1
+    botones(v)
+end
+
+func botones(v: Navegador)
+    mui_set_enabled(v.atras, dw_visto > 0)
+    mui_set_enabled(v.adelante, dw_visto < mui_list_count(v.historial) - 1)
+end
+
+# Desplaza la página n píxeles (la barra avisa con ID_SCROLL y se repinta)
+func desplazar(v: Navegador, n: Int)
+    mui_set_value(v.barra, mui_get_value(v.barra) + n)
 end
 
 Main
@@ -146,47 +193,51 @@ Main
         if arg_count() > 0
             primera = arg(0)
         end
-        abrir(v, primera)
         if primera != ""
-            mui_list_add(v.historial, primera)
+            navegar(v, primera)
+        else
+            abrir(v, "")
         end
-        visto = mui_list_count(v.historial) - 1    # la línea del historial que se ve
         acerca_abierta = false
         while true
             ev = mui_wait_event()
             if ev == -1 or ev == ID_SALIR
                 break
             end
-            if ev == ID_IR or ev == ID_RECARGAR
-                direccion = mui_get_text(v.url)
-                if ev == ID_IR and direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
+            if ev == ID_IR
+                direccion = str_trim(mui_get_text(v.url))
+                if direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
                     direccion = "http://" + direccion
                 end
-                abrir(v, direccion)
-                if ev == ID_IR and direccion != "" and (visto < 0 or mui_list_get(v.historial, visto) != dw_actual.direccion)
-                    mui_list_add(v.historial, dw_actual.direccion)
-                    visto = mui_list_count(v.historial) - 1
+                if direccion == ""
+                    abrir(v, "")
+                else
+                    navegar(v, direccion)
                 end
-                mui_set_enabled(v.atras, visto > 0)
-                mui_set_enabled(v.adelante, visto < mui_list_count(v.historial) - 1)
+            end
+            if ev == ID_RECARGAR and dw_actual != nil
+                if dw_visto >= 0
+                    abrir(v, mui_list_get(v.historial, dw_visto))
+                else
+                    abrir(v, "")
+                end
             end
             if ev == ID_ATRAS or ev == ID_ADELANTE or ev == ID_HISTORIAL
-                if ev == ID_ATRAS and visto > 0
-                    visto = visto - 1
+                if ev == ID_ATRAS and dw_visto > 0
+                    dw_visto = dw_visto - 1
                 end
-                if ev == ID_ADELANTE and visto < mui_list_count(v.historial) - 1
-                    visto = visto + 1
+                if ev == ID_ADELANTE and dw_visto < mui_list_count(v.historial) - 1
+                    dw_visto = dw_visto + 1
                 end
-                if ev == ID_HISTORIAL
-                    visto = mui_get_value(v.historial)
+                if ev == ID_HISTORIAL and mui_get_value(v.historial) >= 0
+                    dw_visto = mui_get_value(v.historial)
                 end
-                if visto >= 0
-                    direccion = mui_list_get(v.historial, visto)
+                if dw_visto >= 0
+                    direccion = mui_list_get(v.historial, dw_visto)
                     mui_set_text(v.url, direccion)
                     abrir(v, direccion)
                 end
-                mui_set_enabled(v.atras, visto > 0)
-                mui_set_enabled(v.adelante, visto < mui_list_count(v.historial) - 1)
+                botones(v)
             end
             if ev == ID_SCROLL
                 dw_desde = mui_get_value(v.barra)
@@ -202,8 +253,17 @@ Main
             end
             if ev == ID_PAGINA
                 rueda = mui_canvas_wheel(v.pagina)
+                tecla = mui_canvas_key(v.pagina)
                 if rueda != 0
-                    mui_set_value(v.barra, mui_get_value(v.barra) - rueda * 30)
+                    desplazar(v, 0 - rueda * 30)
+                elif tecla == 0x4D
+                    desplazar(v, 20)
+                elif tecla == 0x4C
+                    desplazar(v, -20)
+                elif tecla == 0x40
+                    desplazar(v, mui_height(v.pagina) - 20)
+                elif tecla == 0x41
+                    desplazar(v, 20 - mui_height(v.pagina))
                 elif mui_canvas_button(v.pagina) == 1
                     clic(v)
                 end

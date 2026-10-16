@@ -240,7 +240,7 @@ tarea, con el estilo de Dash.
       Nota de la sesión de MUI (2026-10-16): la ventana se puede describir en un `.dashui` (formato en
       `docs/MUI_EDITOR.md` del clon) e importarla; `Principal_create()` devuelve un struct con los objetos.
       Ejemplo hecho: `examples/mui_navegador.dashui` + `examples/mui_navegador_editor.dash` (mui 2dd0e0a, plan MUI terminado).
-- [ ] 19. **Navegación.** Clic en enlaces, historial, recargar, scroll con ratón y teclado, título de la
+- [x] 19. **Navegación.** Clic en enlaces, historial, recargar, scroll con ratón y teclado, título de la
       ventana, errores de red mostrados en la página.
 - [ ] 20. **Bucle de eventos.** Red y temporizadores de JS con `mui_wait_event_signals`: las páginas se
       cargan sin congelar la interfaz y se pueden cancelar. Falta en Dash: señal de los sockets (FIOASYNC +
@@ -763,4 +763,18 @@ Formato:
   estado. dashweb 18/18 (16 tests y los 2 programas), también con `--memcheck`.
 - No probado en el emulador: botones, historial, barra y rueda (no hay forma de mandarles eventos desde
   `medir_visor`). Pendiente: los nombres que chocan entre programa y módulos (D14).
+
+### 2026-10-16 — Tarea 19 (navegación)
+- `src/dashweb.dash`: un clic va primero al JavaScript (`jsdom_clic`) y, si no lo para, sigue el `<a href>` que
+  contiene al nodo (`javascript:` no). Navegar descarta lo que había delante en el historial; atrás, adelante,
+  la lista y recargar abren la entrada que toca. Un enlace `#ancla` de la misma página solo desplaza; al abrir
+  una dirección con fragmento, la página empieza en él (`id` o `<a name>`). Teclas en la zona de la página:
+  abajo/arriba 20 px, espacio/retroceso una pantalla (las da `mui_canvas_key` con el ratón encima); la rueda,
+  30 px. El título de la página va al de la ventana y los errores de red salen como página ("No se pudo
+  cargar").
+- `lib/documento.dash`: `documento_enlace`, `documento_y_de`, `documento_sin_fragmento`/`documento_fragmento`.
+- Test `test_navegacion` (sin ventana, gracias a D28; `--memcheck`). dashweb 19/19 compila.
+- No probado en el emulador: los clics y teclas dentro del navegador MUI (emu_run ejecuta los programas uno
+  tras otro y no hay con qué mandarle eventos mientras corre; haría falta un "Run" en segundo plano en
+  `tools/emu_run.py` de Dash).
 

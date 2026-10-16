@@ -114,3 +114,83 @@ func documento_liberar(d: Documento)
         d.js = 0
     end
 end
+
+# La dirección (absoluta) del enlace <a href> que contiene a n, o ""
+func documento_enlace(d: Documento, n: Nodo) -> String
+    p = n
+    while p != nil
+        if p.tipo == DOM_ELEMENTO and p.nombre == "a" and dom_tiene_atributo(p, "href")
+            href = str_trim(dom_atributo(p, "href"))
+            if str_starts(str_lower(href), "javascript:")
+                return ""
+            end
+            return url_text(url_resolve(url_parse(d.direccion), href))
+        end
+        p = p.padre
+    end
+    return ""
+end
+
+# Dónde empieza en la página maquetada el elemento con ese id (o <a name>): lo más alto que pintó él o
+# algo de dentro; -1 si no está o no se ve
+func documento_y_de(d: Documento, id: String) -> Int
+    if d.pagina == nil or id == ""
+        return -1
+    end
+    objetivo = dom_por_id(d.doc, id)
+    if objetivo == nil
+        objetivo = _documento_por_nombre(d.doc, id)
+    end
+    if objetivo == nil
+        return -1
+    end
+    y = -1
+    for dib in d.pagina.dibujos
+        if dib.nodo != nil and (y < 0 or dib.y < y) and _documento_dentro(dib.nodo, objetivo)
+            y = dib.y
+        end
+    end
+    return y
+end
+
+func _documento_dentro(n: Nodo, contenedor: Nodo) -> Bool
+    p = n
+    while p != nil
+        if p == contenedor
+            return true
+        end
+        p = p.padre
+    end
+    return false
+end
+
+func _documento_por_nombre(n: Nodo, nombre: String) -> Nodo
+    if n.tipo == DOM_ELEMENTO and n.nombre == "a" and dom_atributo(n, "name") == nombre
+        return n
+    end
+    for h in n.hijos
+        r = _documento_por_nombre(h, nombre)
+        if r != nil
+            return r
+        end
+    end
+    var nada: Nodo = nil
+    return nada
+end
+
+# "http://x/a.html#b" -> "http://x/a.html" y "b"
+func documento_sin_fragmento(direccion: String) -> String
+    p = str_find(direccion, "#")
+    if p < 0
+        return direccion
+    end
+    return direccion[:p]
+end
+
+func documento_fragmento(direccion: String) -> String
+    p = str_find(direccion, "#")
+    if p < 0
+        return ""
+    end
+    return direccion[p + 1:]
+end

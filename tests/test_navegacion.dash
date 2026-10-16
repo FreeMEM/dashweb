@@ -1,0 +1,36 @@
+# Test: lo que usa la navegación del navegador (lib/documento.dash): el enlace que contiene a un
+# nodo (resuelto contra la dirección de la página; javascript: no cuenta), dónde empieza un id o un
+# <a name> en la página maquetada, y quitar o sacar el fragmento de una dirección. Sin ventana:
+# la maqueta mide con el RastPort propio de Dash (D28).
+# memcheck
+# expect-out: enlace: http://ejemplo.org/docs/otra.html?x=1
+# expect-out: enlace: http://ejemplo.org/docs/pagina.html#abajo
+# expect-out: enlace: []
+# expect-out: enlace: []
+# expect-out: abajo: 1 nombre: 1 nada: -1
+# expect-out: http://a/b.html abajo
+# expect-out: http://a/b.html []
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+Main
+    h = "<body><p><a id=e1 href='otra.html?x=1'><b id=dentro>otra</b></a> <a id=e2 href=#abajo>abajo</a>"
+    h = h + " <a id=e3 href='javascript:void(0)'>js</a> <span id=suelto>nada</span></p>"
+    for i in (1..30)
+        h = h + "<p>relleno " + i + "</p>"
+    end
+    h = h + "<h2 id=abajo>Abajo</h2><a name=ancla>ancla</a></body>"
+    d = documento_html("http://ejemplo.org/docs/pagina.html", h)
+    documento_maquetar(d, 300)
+    Print "enlace: " + documento_enlace(d, dom_por_id(d.doc, "dentro"))
+    Print "enlace: " + documento_enlace(d, dom_por_id(d.doc, "e2"))
+    Print "enlace: [" + documento_enlace(d, dom_por_id(d.doc, "e3")) + "]"
+    Print "enlace: [" + documento_enlace(d, dom_por_id(d.doc, "suelto")) + "]"
+    y = documento_y_de(d, "abajo")
+    yn = documento_y_de(d, "ancla")
+    Print "abajo: " + (y > 300) + " nombre: " + (yn > y) + " nada: " + documento_y_de(d, "no_hay")
+    Print documento_sin_fragmento("http://a/b.html#abajo") + " " + documento_fragmento("http://a/b.html#abajo")
+    Print documento_sin_fragmento("http://a/b.html") + " [" + documento_fragmento("http://a/b.html") + "]"
+    documento_liberar(d)
+end
