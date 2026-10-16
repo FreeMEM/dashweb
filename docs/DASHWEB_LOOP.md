@@ -223,7 +223,7 @@ tarea, con el estilo de Dash.
       los `<script>` de la página (en línea y `src`). Tests en JS dentro de páginas.
 - [x] 16b. **Eventos y temporizadores.** `addEventListener` (clic), `setTimeout`/`setInterval` (cola de
       temporizadores), volver a dar estilo y maquetar tras los cambios (`jsdom_cambios`).
-- [ ] 17. **Repaso de la fase A.** Tamaño del ejecutable, memoria (`--memcheck`), tiempos por fase en la
+- [x] 17. **Repaso de la fase A.** Tamaño del ejecutable, memoria (`--memcheck`), tiempos por fase en la
       configuración objetivo y en el A1200, páginas de prueba. Resumen en la bitácora y en el README.
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
@@ -694,7 +694,7 @@ Formato:
   en orden, en línea y `src` (http(s) o fichero); un error se escribe en una línea y se sigue. `jsdom_cambios`.
 - El visor ejecuta los scripts antes del estilo (si la página tiene alguno). `tests/pages/js.html`: lista hecha
   por un script, captura en el emulador; js 12 ms en el objetivo.
-- D26 (Dash, b0962f1): `@native(borrow)`: los argumentos se prestan durante la llamada como a una función Dash,
+- D26 (Dash, 4c63280 tras el rebase sobre main): `@native(borrow)`: los argumentos se prestan durante la llamada como a una función Dash,
   en vez de retenerse hasta salir. `--memcheck` daba 131 objetos y 86 textos vivos en `test_jsdom`; ahora 0.
   Cabecera de `tools/emu_sys_amissl.sh` corregida (`DASH_EMU_SYS_SSL`, lo vio la sesión de MUI).
 - Tests: `test_jsdom` (página con 5 scripts: búsquedas, selectores, mismo objeto, `src` por HTTP, un error
@@ -726,4 +726,16 @@ Formato:
   nodo bajo un punto; `--memcheck`). dashweb 16/16, también con `--memcheck`.
 - No probado: el clic dentro del visor en el emulador (sí `jsdom_clic` y `maqueta_nodo_en` por separado).
   Pendiente: seguir enlaces (tarea 19), volver a maquetar solo lo que cambió.
+
+### 2026-10-16 — Tarea 17 (repaso de la fase A)
+- Medidas con el visor (`tools/medir_visor.py`, fuentes del Workbench en `sys31web`), en ms, objetivo / A1200:
+  prueba.html (8,8 KB): carga 40/3770, html 28/1626, estilo 102/7363, maqueta 295/9463, pintar 21/90.
+  imagenes.html: estilo 33/2501, imágenes 6/316, maqueta 157/769. js.html: js 29/1633 (crear el motor y
+  ejecutar), estilo 34/2589, maqueta 157/793. Memoria (libre antes - después): 357, 173 y 333 KB. El visor
+  ocupa 1.040.908 bytes (QuickJS casi todo). El visor escribe ahora la memoria gastada.
+- Lo que más pesa en un A1200: el estilo tiene un coste fijo de unos 2,5 s aunque la página sea mínima (la hoja
+  del navegador se lee y se aplica cada vez) y la maqueta de una página de 9 KB son 9,5 s; la carga por HTTP de
+  9 KB, 3,8 s. En el objetivo todo va en menos de medio segundo. Para el A1200 hace falta el perfilador (D23).
+- `--memcheck`: los 16 tests de dashweb con 0 vivos. README con el estado, las medidas y cómo probar.
+- Fase A terminada. Siguiente: fase B (tarea 18, ventana del navegador con MUI).
 

@@ -61,6 +61,7 @@ end
 Main
     direccion = "demo"
     texto = ""
+    libre0 = mem_total()
     t0 = time_ms()
     if arg_count() > 0
         direccion = arg(0)
@@ -101,7 +102,7 @@ Main
     desde = 0
     pintar(pagina, im, desde, x0, y0, ancho, alto)
     t_pintar = time_ms() - t1
-    Print "visor: " + direccion + " " + texto.length + " bytes, " + pagina.dibujos.length + " dibujos, alto " + pagina.alto
+    Print "visor: " + direccion + " " + texto.length + " bytes, " + pagina.dibujos.length + " dibujos, alto " + pagina.alto + ", " + (libre0 - mem_total()) / 1024 + " KB de memoria"
     Print "tiempos ms: carga " + t_carga + ", html " + t_html + ", js " + t_js + ", estilo " + t_estilo + ", imagenes " + t_imagenes + ", maqueta " + t_maqueta + ", pintar " + t_pintar
     paso = 0
     cambios = 0
