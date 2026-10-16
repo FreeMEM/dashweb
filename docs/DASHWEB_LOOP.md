@@ -147,7 +147,7 @@ tarea, con el estilo de Dash.
 - [x] D12. **Imágenes.** Cargar PNG/GIF/JPEG por datatypes a un bitmap y pintarlo con `gfx_` (fuera de MUI).
       Avisar a la sesión de MUI del nombre (su tarea 9 lo usará).
 - [x] D13. **`elif`.** (lo pidió la tarea 3)
-- [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
+- [x] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
       Visto también en la tarea 18: una global del programa (`var actual`) es la misma variable que las
@@ -861,4 +861,11 @@ Formato:
 - Tests: `test_formularios` (sin ventana; `--memcheck`). En el emulador con `clicar`: clic en el campo, "hola",
   Return → el navegador pide `GET /eco?q=hola&todo=on&orden=fecha` y muestra la respuesta. dashweb 23/23,
   también con `--memcheck`.
+
+### 2026-10-16 — D14 (Dash: nombres del programa y de sus módulos)
+- Dash (e952095): las funciones de un módulo no ven las globales del programa principal (`actual = 0` en un módulo
+  es su local aunque el programa tenga `var actual`; analizador y codegen), y asignar un nombre que es una
+  función crea una variable nueva en vez de dar error. Test `test_module_scope` (también multifichero). Mismo C
+  en los programas previos; 185/185, ejemplos 34/34. Los nombres `dw_*` de `src/dashweb.dash` se quedan (no
+  hacen daño).
 
