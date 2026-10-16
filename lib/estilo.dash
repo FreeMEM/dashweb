@@ -12,11 +12,22 @@ import "css.dash"
 import "http.dash"
 
 const ESTILO_MEDIUM = 13
+const ESTILO_ORDEN_HOJA = 100000     # orden de la primera regla de cada hoja (una hoja puede tener miles)
+
+# Un selector de una regla, en el índice de las hojas
+struct Entrada
+    sel: Selector
+    regla: Regla
+    autor: Bool
+end
 
 struct Hojas
     lista: [HojaCSS]
     autor: [Bool]
     traidas: {String: String} = nil    # textos de hojas ya traídos (lib/recursos.dash): no se piden otra vez
+    # los selectores por su parte de la derecha: "#id", ".clase" o la etiqueta; los demás en universales
+    indice: {String: [Entrada]} = nil
+    universales: [Entrada] = nil
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -75,7 +86,7 @@ end
 
 func _estilo_recoger(h: Hojas, n: Nodo, base: Url)
     if n.tipo == DOM_ELEMENTO and n.nombre == "style"
-        _estilo_agregar(h, css_leer(dom_texto(n), h.lista.length * 1000), base, 0)
+        _estilo_agregar(h, css_leer(dom_texto(n), h.lista.length * ESTILO_ORDEN_HOJA), base, 0)
     elif n.tipo == DOM_ELEMENTO and n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0
         _estilo_cargar(h, url_text(url_resolve(base, dom_atributo(n, "href"))), 0)
     end
@@ -99,7 +110,7 @@ func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
     u = url_parse(direccion)
     texto = ""
     if h.traidas != nil and h.traidas.has(direccion)
-        _estilo_agregar(h, css_leer(h.traidas[direccion], h.lista.length * 1000), u, nivel)
+        _estilo_agregar(h, css_leer(h.traidas[direccion], h.lista.length * ESTILO_ORDEN_HOJA), u, nivel)
         return
     end
     if u.esquema == "http" or u.esquema == "https"
@@ -122,7 +133,7 @@ func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
         end
         texto = utf8_a_latin1(leido)
     end
-    _estilo_agregar(h, css_leer(texto, h.lista.length * 1000), u, nivel)
+    _estilo_agregar(h, css_leer(texto, h.lista.length * ESTILO_ORDEN_HOJA), u, nivel)
 end
 
 # === Selectores ===
@@ -166,9 +177,18 @@ func _es_ultimo(n: Nodo) -> Bool
     return true
 end
 
+# Sin crear textos: busca la clase en el atributo y mira que esté entre blancos (o en un borde)
 func _tiene_clase(n: Nodo, clase: String) -> Bool
-    clases = " " + str_replace(str_replace(dom_atributo(n, "class"), "\t", " "), "\n", " ") + " "
-    return str_find(clases, " " + clase + " ") >= 0
+    t = dom_atributo(n, "class")
+    largo = clase.length
+    p = str_find(t, clase)
+    while p >= 0
+        if (p == 0 or str_code(t, p - 1) <= 32) and (p + largo == t.length or str_code(t, p + largo) <= 32)
+            return true
+        end
+        p = str_find_from(t, clase, p + 1)
+    end
+    return false
 end
 
 func _cumple_atributo(n: Nodo, a: SelAtributo) -> Bool
@@ -279,6 +299,89 @@ end
 
 func estilo_cumple(n: Nodo, sel: Selector) -> Bool
     return _cumple_desde(n, sel, sel.partes.length - 1)
+end
+
+# === Índice ===
+# Cada elemento solo prueba los selectores que pueden cumplirse con él: los de su etiqueta, su id,
+# sus clases y los universales (como los navegadores). Los que nunca se cumplen (::before, :hover...)
+# no entran.
+
+func _puede_cumplirse(sel: Selector) -> Bool
+    for parte in sel.partes
+        if parte.simple.pseudo_elemento != ""
+            return false
+        end
+        for p in parte.simple.pseudo
+            if p != "first-child" and p != "last-child" and p != "only-child" and p != "link" and p != "any-link" and p != "root" and p != "empty"
+                return false
+            end
+        end
+    end
+    return true
+end
+
+func _clave(s: SelSimple) -> String
+    if s.id != ""
+        return "#" + s.id
+    elif s.clases.length > 0
+        return "." + s.clases[0]
+    end
+    return s.etiqueta
+end
+
+func _estilo_indexar(h: Hojas)
+    var indice: {String: [Entrada]} = {}
+    var universales: [Entrada] = []
+    for k in (0..h.lista.length - 1)
+        for regla in h.lista[k].reglas
+            for sel in regla.selectores
+                if _puede_cumplirse(sel)
+                    e = Entrada(sel, regla, h.autor[k])
+                    clave = _clave(sel.partes[sel.partes.length - 1].simple)
+                    if clave == ""
+                        universales.push(e)
+                    elif indice.has(clave)
+                        indice[clave].push(e)
+                    else
+                        var lista: [Entrada] = [e]
+                        indice[clave] = lista
+                    end
+                end
+            end
+        end
+    end
+    h.indice = indice
+    h.universales = universales
+end
+
+# Las clases de un elemento (class="a  b\tc")
+func _clases_de(n: Nodo) -> [String]
+    var r: [String] = []
+    t = dom_atributo(n, "class")
+    i = 0
+    while i < t.length
+        while i < t.length and str_code(t, i) <= 32
+            i = i + 1
+        end
+        inicio = i
+        while i < t.length and str_code(t, i) > 32
+            i = i + 1
+        end
+        if i > inicio
+            r.push(t[inicio:i])
+        end
+    end
+    return r
+end
+
+func _probar(n: Nodo, entradas: [Entrada], ganadoras: {String: Candidata})
+    for e in entradas
+        if estilo_cumple(n, e.sel)
+            for d in e.regla.declaraciones
+                _declarar(ganadoras, d, e.autor, e.sel.especificidad, e.regla.orden)
+            end
+        end
+    end
 end
 
 # === Cascada ===
@@ -452,6 +555,9 @@ end
 
 # Calcula el estilo de todo el árbol
 func estilo_aplicar(doc: Nodo, hojas: Hojas)
+    if hojas.indice == nil
+        _estilo_indexar(hojas)
+    end
     var raiz: {String: String} = {"color": "black", "font-family": "sans-serif", "font-size": "" + ESTILO_MEDIUM + "px", "font-weight": "normal", "font-style": "normal", "text-align": "left", "white-space": "normal", "list-style-type": "disc", "visibility": "visible", "display": "block"}
     for h in doc.hijos
         _estilo_nodo(h, hojas, raiz)
@@ -463,21 +569,19 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
         return
     end
     var ganadoras: {String: Candidata} = {}
-    for k in (0..hojas.lista.length - 1)
-        hoja = hojas.lista[k]
-        autor = hojas.autor[k]
-        for regla in hoja.reglas
-            mejor = -1
-            for sel in regla.selectores
-                if sel.especificidad > mejor and estilo_cumple(n, sel)
-                    mejor = sel.especificidad
-                end
-            end
-            if mejor >= 0
-                for d in regla.declaraciones
-                    _declarar(ganadoras, d, autor, mejor, regla.orden)
-                end
-            end
+    # una regla con varios selectores que se cumplen se declara una vez por cada uno: gana la
+    # especificidad más alta, como si se tomara la mejor
+    _probar(n, hojas.universales, ganadoras)
+    if hojas.indice.has(n.nombre)
+        _probar(n, hojas.indice[n.nombre], ganadoras)
+    end
+    id = dom_atributo(n, "id")
+    if id != "" and hojas.indice.has("#" + id)
+        _probar(n, hojas.indice["#" + id], ganadoras)
+    end
+    for c in _clases_de(n)
+        if hojas.indice.has("." + c)
+            _probar(n, hojas.indice["." + c], ganadoras)
         end
     end
     if dom_tiene_atributo(n, "style")
@@ -506,10 +610,37 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
     if ganadoras.has("font-size")
         e["font-size"] = "" + estilo_tamano(ganadoras["font-size"].valor, estilo_px(padre["font-size"], 0, 0)) + "px"
     end
+    if _oculto_a_la_vista(e)
+        e["display"] = "none"
+    end
     n.estilo = e
     for h in n.hijos
         _estilo_nodo(h, hojas, e)
     end
+end
+
+# El texto solo para lectores de pantalla ("Saltar al contenido", .screen-reader-text): fuera del
+# flujo y recortado a nada. Sin position ni clip saldría en medio de la página.
+func _oculto_a_la_vista(e: {String: String}) -> Bool
+    if not e.has("position") or str_lower(e["position"]) != "absolute"
+        return false
+    end
+    if e.has("clip") and str_starts(str_lower(e["clip"]), "rect(")
+        return true
+    end
+    if e.has("clip-path") and str_starts(str_lower(e["clip-path"]), "inset(")
+        return true
+    end
+    return _px_diminuto(e, "width") and _px_diminuto(e, "height")
+end
+
+# 0px o 1px dichos así (auto o un tanto por ciento no cuentan)
+func _px_diminuto(e: {String: String}, p: String) -> Bool
+    if not e.has(p)
+        return false
+    end
+    v = str_lower(str_trim(e[p]))
+    return v == "0" or v == "0px" or v == "1px"
 end
 
 # font-size en píxeles, según el del padre

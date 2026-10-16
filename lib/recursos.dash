@@ -80,8 +80,7 @@ func _recursos_en(r: Recursos, n: Nodo, base: Url)
             recursos_pedir(r, url_text(url_resolve(base, dom_atributo(n, "src"))), false, 0)
         elif n.nombre == "style"
             # los @import de un <style> también
-            hoja = css_leer(dom_texto(n), 0)
-            for imp in hoja.importes
+            for imp in css_importes(dom_texto(n))
                 recursos_pedir(r, url_text(url_resolve(base, imp)), true, 1)
             end
         end
@@ -94,9 +93,8 @@ end
 func _recursos_llego(r: Recursos, direccion: String, texto: String, es_css: Bool, nivel: Int)
     r.traidos[direccion] = texto
     if es_css and nivel < 4 and str_find(texto, "@import") >= 0
-        hoja = css_leer(texto, 0)
         u = url_parse(direccion)
-        for imp in hoja.importes
+        for imp in css_importes(texto)
             recursos_pedir(r, url_text(url_resolve(u, imp)), true, nivel + 1)
         end
     end

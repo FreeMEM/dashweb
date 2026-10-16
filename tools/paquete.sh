@@ -1,5 +1,5 @@
 #!/bin/sh
-# El paquete de dashweb para el Amiga: build/dashweb.lha con el navegador (MUI), el visor,
+# El paquete de dashweb para el Amiga: build/dashweb.lha con el navegador (MUI) y sus iconos, el visor,
 # paquete/LEEME y las licencias (LHA sin comprimir: tools/lha_lh0.py). Necesita el toolchain y Dash (DASH, por
 # defecto ~/Projects/FreeMEMLang-dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
 #
@@ -14,6 +14,8 @@ mkdir -p "$B/dashweb/Licencias"
 cd "$DASH"
 PYTHONPATH=$DASH ./dash "$R/src/dashweb.dash" -o "$B/dashweb/dashweb"
 PYTHONPATH=$DASH ./dash "$R/src/visor.dash" -o "$B/dashweb/visor"
+python3 "$R/tools/iconos.py" >/dev/null
+cp -r "$R/iconos" "$B/dashweb/iconos"   # la barra de herramientas (PROGDIR:iconos/)
 cp "$R/paquete/LEEME" "$B/dashweb/LEEME"
 cp "$R/LICENSE" "$B/dashweb/Licencias/dashweb"
 cp "$R/third_party/quickjs/LICENSE" "$B/dashweb/Licencias/QuickJS"

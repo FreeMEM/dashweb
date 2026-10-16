@@ -1,6 +1,7 @@
 # Test: lib/estilo.dash: hoja del navegador, <style>, atributo style, especificidad, orden,
 # !important, herencia, inherit, atajos (margin, border, font, background), font-size en px,
-# selectores con combinadores y pseudo-clases, estilo_px.
+# selectores con combinadores y pseudo-clases, estilo_px; el índice de selectores (clase, id, etiqueta,
+# universal; ::before y :hover fuera), @media por ancho, el texto solo para lectores y css_importes.
 # memcheck
 # expect-out: h1: block bold 26px rojo
 # expect-out: p.nota: block 10px green italic
@@ -11,6 +12,10 @@
 # expect-out: a: #0000ee underline
 # expect-out: div#caja: 2px 4px 2px 4px fondo=#eee familia=Courier,monospace 9px
 # expect-out: head: none
+# expect-out: indice: b a-1 c
+# expect-out: media: 600 640 no-print no-ancho
+# expect-out: oculto: none inline
+# expect-out: importes: a.css b.css
 # expect-out: px: 16 24 50 4 -3 10 0
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
@@ -44,5 +49,37 @@ Main
     n = dom_por_id(doc, "caja")
     Print "div#caja: " + n.estilo["padding-top"] + " " + n.estilo["padding-right"] + " " + n.estilo["padding-bottom"] + " " + n.estilo["padding-left"] + " fondo=" + n.estilo["background-color"] + " familia=" + str_replace(n.estilo["font-family"], " ", "") + " " + n.estilo["font-size"]
     Print "head: " + dom_buscar(doc, "head").estilo["display"]
+    # el índice: varias clases, id, universal, la mejor especificidad; ::before y :hover no cuentan
+    h = "<style>* { margin-left: 3px } .x { color: a } .y.x { color: b } #i { margin-left: 1px } p.z { color: c }"
+    h = h + " .x::before { color: no } .x:hover { color: no } div .z { margin-left: 2px }</style>"
+    h = h + "<div class='x  y' id=i>a</div><div><p class=z>b</p></div>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    a = dom_por_id(doc, "i")
+    b = dom_buscar(doc, "p")
+    Print "indice: " + a.estilo["color"] + " a-" + a.estilo["margin-left"][:1] + " " + b.estilo["color"]
+    # @media como una pantalla de 640 px
+    h = "<style>p { margin-left: 0 } @media (max-width: 767px) { p { margin-left: 600px } }"
+    h = h + " @media screen and (min-width: 37.5em) { p { margin-right: 640px } } @media print { p { color: x } }"
+    h = h + " @media (min-width: 1024px) { p { color: ancho } }</style><p>m</p>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = dom_buscar(doc, "p")
+    color = "no-print no-ancho"
+    if p.estilo.has("color") and p.estilo["color"] != "black"
+        color = p.estilo["color"]
+    end
+    Print "media: " + p.estilo["margin-left"][:3] + " " + p.estilo["margin-right"][:3] + " " + color
+    h = "<style>.sr { position: absolute; clip: rect(1px, 1px, 1px, 1px); width: 1px } .ab { position: absolute; width: auto; height: auto }</style>"
+    h = h + "<a class=sr href=#c>Saltar</a><span class=ab>v</span>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    Print "oculto: " + dom_buscar(doc, "a").estilo["display"] + " " + dom_buscar(doc, "span").estilo["display"]
+    importes = css_importes("@charset \"utf-8\"; /* x */ @import url(a.css); @import \"b.css\" screen; p { } @import url(c.css);")
+    r = ""
+    for i in importes
+        r = r + " " + i
+    end
+    Print "importes:" + r
     Print "px: " + estilo_px("1em", 16, 0) + " " + estilo_px("1.5em", 16, 0) + " " + estilo_px("50%", 0, 100) + " " + estilo_px("3pt", 0, 0) + " " + estilo_px("-3px", 0, 0) + " " + estilo_px("10", 0, 0) + " " + estilo_px("auto", 0, 0)
 end

@@ -11,6 +11,7 @@ Needs $DASH_KICKSTART and $DASH_EMU_SYS, like tests/run.py; Dash is $DASH (defau
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -22,13 +23,14 @@ DASH = Path(os.environ.get("DASH", Path.home() / "Projects" / "FreeMEMLang-dashw
 PORT = 40861
 MAQUINAS = {
     "a1200": "",
-    "objetivo": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\n",
+    # como una PiStorm: 68040 rápido y 128 MB (las páginas de hoy con su JavaScript no caben en 8 MB)
+    "objetivo": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n",
 }
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--pagina", default="prueba.html", help="file of tests/pages/ (or /route of tests/servers/http.py); several, with commas")
+    ap.add_argument("--pagina", default="prueba.html", help="file of tests/pages/ (or /route of tests/servers/http.py, or a whole address); several, with commas")
     ap.add_argument("--maquina", choices=sorted(MAQUINAS), default="a1200")
     ap.add_argument("--captura", metavar="FILE.png", help="screen picture after the first paint")
     ap.add_argument("--fases", action="store_true", help="run tests/bench/fases.dash instead (no window)")
@@ -59,6 +61,13 @@ def main():
     # emu_run compiles .dash (clicar.dash) with "python3 -m compiler.main": Dash's compiler
     os.environ["PYTHONPATH"] = str(DASH) + os.pathsep + os.environ.get("PYTHONPATH", "")
 
+    # los iconos de la barra (tools/iconos.py) junto al programa: el sistema emulado es la raíz de DH0:,
+    # que es PROGDIR:
+    iconos = ROOT / "iconos"
+    sistema = args.sistema or os.environ.get("DASH_EMU_SYS")
+    if iconos.is_dir() and sistema:
+        shutil.copytree(iconos, Path(sistema) / "iconos", dirs_exist_ok=True)
+
     with tempfile.TemporaryDirectory(prefix="visor_") as tmp:
         exe = Path(tmp) / "visor"
         env = dict(os.environ, DASH_TEST_AUTOCLOSE=str(args.segundos))
@@ -83,7 +92,7 @@ def main():
             shot = (args.captura_en or args.segundos - 5, args.captura) if args.captura else None
             esquema = "https" if modo else "http"
             programs = [str(exe)]
-            prog_args = [" ".join(f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")
+            prog_args = [" ".join(p if "://" in p else f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")
                                   else f"{esquema}://{args.host}:{PORT}/pages/{p}" for p in args.pagina.split(","))]
             red = "bsdsocket_library = 1\n"
             if args.local:

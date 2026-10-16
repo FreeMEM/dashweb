@@ -67,37 +67,40 @@
             "type": "hgroup",
             "children": [
               {
-                "type": "button",
+                "type": "image_button",
                 "name": "atras",
-                "label": "<",
+                "file": "PROGDIR:iconos/atras_apagado.iff",
                 "event": 1,
-                "disabled": true
+                "help": "Atrás"
               },
               {
-                "type": "button",
+                "type": "image_button",
                 "name": "adelante",
-                "label": ">",
+                "file": "PROGDIR:iconos/adelante_apagado.iff",
                 "event": 2,
-                "disabled": true
+                "help": "Adelante"
               },
               {
-                "type": "button",
+                "type": "image_button",
                 "name": "recargar",
-                "label": "_Recargar",
-                "event": 3
+                "file": "PROGDIR:iconos/recargar.iff",
+                "event": 3,
+                "help": "Recargar la página"
               },
               {
-                "type": "button",
+                "type": "image_button",
                 "name": "parar",
-                "label": "_Parar",
+                "file": "PROGDIR:iconos/parar.iff",
                 "event": 13,
-                "disabled": true
+                "help": "Parar la carga",
+                "hidden": true
               },
               {
-                "type": "button",
-                "name": "ver_historial",
-                "label": "Historial",
-                "event": 20
+                "type": "image_button",
+                "name": "inicio",
+                "file": "PROGDIR:iconos/inicio.iff",
+                "event": 17,
+                "help": "Página de inicio"
               },
               {
                 "type": "string",
@@ -105,7 +108,8 @@
                 "text": "",
                 "max": 1024,
                 "ack": 4,
-                "weight": 400
+                "weight": 400,
+                "help": "Dirección: escríbela y pulsa Return"
               },
               {
                 "type": "canvas",
@@ -113,6 +117,13 @@
                 "min_width": 16,
                 "min_height": 16,
                 "weight": 0
+              },
+              {
+                "type": "image_button",
+                "name": "ver_historial",
+                "file": "PROGDIR:iconos/historial.iff",
+                "event": 20,
+                "help": "Historial (mostrar u ocultar)"
               }
             ]
           },
@@ -157,12 +168,17 @@
                 "type": "gauge",
                 "name": "progreso",
                 "max": 100,
-                "weight": 30
+                "weight": 30,
+                "hidden": true
               }
             ]
           }
         ]
-      }
+      },
+      "size": [
+        96,
+        90
+      ]
     },
     {
       "name": "Acerca",

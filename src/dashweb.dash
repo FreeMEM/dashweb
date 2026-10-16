@@ -58,6 +58,9 @@ struct Ventana
     foco: Nodo = nil         # el campo de formulario donde se escribe
     con_historial: Bool = false   # la lista del historial desplegada (empieza oculta)
     giro: Int = -1           # el indicador de actividad: el punto que va delante (0-7), -1 parado
+    cargando: Bool = false   # la barra en modo carga: "parar" en vez de "recargar" y el progreso a la vista
+    con_atras: Bool = false     # los iconos de atrás y adelante, encendidos o apagados
+    con_adelante: Bool = false
 end
 
 # Los ocho puntos del indicador de actividad, alrededor de su centro
@@ -74,6 +77,17 @@ func dw_inicio() -> String
     h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
     h = h + "<p class=nota>Fase B: ventanas con MUI 5.</p></body></html>"
     return h
+end
+
+# Mientras la página llega, el botón de recargar se cambia por el de parar y se ve el progreso
+func modo_carga(w: Ventana, cargando: Bool)
+    if cargando == w.cargando
+        return
+    end
+    w.cargando = cargando
+    mui_set_visible(w.v.recargar, not cargando)
+    mui_set_visible(w.v.parar, cargando)
+    mui_set_visible(w.v.progreso, cargando)
 end
 
 # La barra de estado: un texto largo ensancharía la ventana entera (MUI le da el ancho de su texto)
@@ -198,7 +212,7 @@ func abrir(w: Ventana, direccion: String)
         mui_set_value(w.v.progreso, 5)
         w.carga = http_empezar(direccion, 20000)
         w.carga_dir = direccion
-        mui_set_enabled(w.v.parar, true)
+        modo_carga(w, true)
         actualizar_giro(w)
         programar()
         return
@@ -223,7 +237,7 @@ func abrir_post(w: Ventana, direccion: String, cuerpo: String)
     mui_set_text(w.v.url, direccion)
     w.carga = http_empezar_post(direccion, cuerpo, "", 20000)
     w.carga_dir = direccion
-    mui_set_enabled(w.v.parar, true)
+    modo_carga(w, true)
     actualizar_giro(w)
     programar()
 end
@@ -270,7 +284,7 @@ func avanzar_carga(w: Ventana)
     d = w.preparando
     var ninguno: Documento = nil
     w.preparando = ninguno
-    mui_set_enabled(w.v.parar, false)
+    modo_carga(w, false)
     mostrar(w, d, w.carga_dir)
 end
 
@@ -309,7 +323,11 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     end
     var nadie: Nodo = nil
     w.foco = nadie
-    mui_set_text(w.v.window, "dashweb: " + w.actual.titulo)
+    if w.actual.titulo != ""
+        mui_set_text(w.v.window, w.actual.titulo + " - dashweb")
+    else
+        mui_set_text(w.v.window, "dashweb")
+    end
     ajustar_barra(w)
     if w.actual.error != ""
         dw_estado(w, "Error: " + w.actual.error)
@@ -317,6 +335,7 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
         dw_estado(w, "Listo: " + w.actual.bytes + " bytes en " + w.actual.ms + " ms")
     end
     mui_set_value(w.v.progreso, 0)
+    modo_carga(w, false)
     mui_canvas_redraw(w.v.pagina)
     temporizadores(w)
     actualizar_giro(w)
@@ -488,9 +507,26 @@ func apuntar(w: Ventana, destino: String)
     botones(w)
 end
 
+# Atrás y adelante: con su flecha azul si llevan a algún sitio y solo el contorno si no (un botón
+# desactivado de MUI sale tapado por una trama); pulsar uno apagado no hace nada
 func botones(w: Ventana)
-    mui_set_enabled(w.v.atras, w.visto > 0)
-    mui_set_enabled(w.v.adelante, w.visto < mui_list_count(w.v.historial) - 1)
+    atras = w.visto > 0
+    adelante = w.visto < mui_list_count(w.v.historial) - 1
+    if atras != w.con_atras
+        w.con_atras = atras
+        mui_set_text(w.v.atras, icono("atras", atras))
+    end
+    if adelante != w.con_adelante
+        w.con_adelante = adelante
+        mui_set_text(w.v.adelante, icono("adelante", adelante))
+    end
+end
+
+func icono(nombre: String, encendido: Bool) -> String
+    if encendido
+        return "PROGDIR:iconos/" + nombre + ".iff"
+    end
+    return "PROGDIR:iconos/" + nombre + "_apagado.iff"
 end
 
 # Desplaza la página n píxeles (la barra avisa con ID_SCROLL y se repinta)
@@ -676,7 +712,7 @@ Main
             end
             if ev == ID_PARAR and (w.carga != nil or w.preparando != nil)
                 parar_carga(w)
-                mui_set_enabled(w.v.parar, false)
+                modo_carga(w, false)
                 mui_set_value(w.v.progreso, 0)
                 dw_estado(w, "Parado")
                 actualizar_giro(w)

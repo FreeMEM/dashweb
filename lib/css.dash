@@ -9,7 +9,7 @@
 #   decl = css_declaraciones("color: red; margin: 0 !important")   # atributo style
 #
 # Selectores: tipo, *, #id, .clase, [atr], [atr=v] (y ~= |= ^= $= *=), :pseudo, ::pseudo y
-# los combinadores descendiente, >, + y ~. @media solo se tiene en cuenta para screen/all;
+# los combinadores descendiente, >, + y ~. @media se evalúa como una pantalla de 640x480 px;
 # @import se guarda en hoja.importes; el resto de reglas @ se salta.
 
 const CSS_DESCENDIENTE = 1
@@ -390,19 +390,159 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int) -> Int
     return orden
 end
 
-# ¿Vale esta lista de medios para la pantalla? (screen, all o nada; "not"/"print" no)
+# ¿Vale esta lista de medios para la pantalla? Se mira como una pantalla de CSS_ANCHO x CSS_ALTO px
+# en color, apaisada y sin preferencias: screen/all, min-/max-width y -height, orientation,
+# prefers-color-scheme: light; print, lo negado con "not" y lo que no se conoce, no.
+const CSS_ANCHO = 640
+const CSS_ALTO = 480
+
 func _css_media_pantalla(medios: String) -> Bool
-    m = str_trim(medios)
+    m = str_lower(str_trim(medios))
     if m == ""
         return true
     end
     for parte in css_partir(m, 44)
-        p = str_trim(parte)
-        if str_starts(p, "screen") or str_starts(p, "all") or str_starts(p, "(") or str_starts(p, "only screen")
+        if _css_media_una(str_trim(parte))
             return true
         end
     end
     return false
+end
+
+func _css_media_una(q: String) -> Bool
+    negada = false
+    if str_starts(q, "not ")
+        negada = true
+        q = str_trim(q[4:])
+    elif str_starts(q, "only ")
+        q = str_trim(q[5:])
+    end
+    vale = true
+    for trozo in _css_partir_and(q)
+        c = str_trim(trozo)
+        if str_starts(c, "(")
+            if not _css_media_rasgo(c)
+                vale = false
+            end
+        elif c != "screen" and c != "all"
+            vale = false
+        end
+    end
+    return vale != negada
+end
+
+# "screen and (min-width: 600px)" -> ["screen", "(min-width: 600px)"]
+func _css_partir_and(q: String) -> [String]
+    var r: [String] = []
+    i = 0
+    inicio = 0
+    while i < q.length
+        if i + 5 <= q.length and q[i:i + 5] == " and "
+            r.push(q[inicio:i])
+            i = i + 5
+            inicio = i
+        else
+            i = i + 1
+        end
+    end
+    r.push(q[inicio:])
+    return r
+end
+
+# (rasgo: valor)
+func _css_media_rasgo(c: String) -> Bool
+    fin = str_find(c, ")")
+    if fin < 0
+        fin = c.length
+    end
+    dentro = c[1:fin]
+    dos = str_find(dentro, ":")
+    if dos < 0
+        return dentro == "color"
+    end
+    rasgo = str_trim(dentro[:dos])
+    valor = str_trim(dentro[dos + 1:])
+    if rasgo == "min-width" or rasgo == "min-device-width"
+        return CSS_ANCHO >= _css_media_px(valor)
+    elif rasgo == "max-width" or rasgo == "max-device-width"
+        return CSS_ANCHO <= _css_media_px(valor)
+    elif rasgo == "min-height" or rasgo == "min-device-height"
+        return CSS_ALTO >= _css_media_px(valor)
+    elif rasgo == "max-height" or rasgo == "max-device-height"
+        return CSS_ALTO <= _css_media_px(valor)
+    elif rasgo == "orientation"
+        return valor == "landscape"
+    elif rasgo == "prefers-color-scheme"
+        return valor == "light"
+    elif rasgo == "prefers-reduced-motion"
+        return valor == "no-preference"
+    end
+    return false
+end
+
+# 600px, 37.5em, 30rem -> px (16 px por em)
+func _css_media_px(v: String) -> Int
+    if str_ends(v, "px")
+        return Int(str_trim(v[:v.length - 2]))
+    elif str_ends(v, "rem")
+        return _css_decimal_por(str_trim(v[:v.length - 3]), 16)
+    elif str_ends(v, "em")
+        return _css_decimal_por(str_trim(v[:v.length - 2]), 16)
+    end
+    return Int(v)
+end
+
+# "37.5" * 16 sin coma flotante
+func _css_decimal_por(v: String, k: Int) -> Int
+    punto = str_find(v, ".")
+    if punto < 0
+        return Int(v) * k
+    end
+    decimales = v[punto + 1:]
+    if decimales.length > 3
+        decimales = decimales[:3]
+    end
+    escala = 1
+    i = 0
+    while i < decimales.length
+        escala = escala * 10
+        i = i + 1
+    end
+    return Int(v[:punto]) * k + Int(decimales) * k / escala
+end
+
+# Los @import de una hoja sin leerla entera: solo valen al principio (tras @charset y comentarios)
+func css_importes(texto: String) -> [String]
+    var r: [String] = []
+    i = 0
+    n = texto.length
+    while i < n
+        c = str_code(texto, i)
+        if c == 32 or c == 9 or c == 10 or c == 13 or c == 59
+            i = i + 1
+        elif c == 47 and i + 1 < n and str_code(texto, i + 1) == 42
+            fin = str_find_from(texto, "*/", i + 2)
+            if fin < 0
+                return r
+            end
+            i = fin + 2
+        elif c == 64
+            fin = _css_buscar(texto, 59, i)
+            if fin < 0
+                fin = n
+            end
+            cabeza = str_trim(texto[i:fin])
+            if str_starts(str_lower(cabeza), "@import")
+                r.push(_css_url(str_trim(cabeza[7:])))
+            elif not str_starts(str_lower(cabeza), "@charset")
+                return r
+            end
+            i = fin + 1
+        else
+            return r
+        end
+    end
+    return r
 end
 
 # url("x"), url(x), "x" -> x

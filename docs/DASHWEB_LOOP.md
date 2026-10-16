@@ -165,6 +165,10 @@ tarea, con el estilo de Dash.
       `DoMethod` (chocaba con las cabeceras de MUI).
 - [x] D29. **Programas en segundo plano en `emu_run`.** Para las pruebas de interfaz del navegador (tarea 19).
 - [x] D31. **Teclas como texto en la zona de dibujo de MUI.** `mui_canvas_char` (lo pidió la 21a).
+- [x] D37. **Métodos de elementos.** `d["k"].push(x)`, `l[0].mover(1)` como sentencia, y el tipo de los elementos de
+      `{String: [T]}` y `[[T]]` (lo pidió el índice de CSS).
+- [x] D38. **Barra de herramientas.** `mui_image_button`, `mui_help`, `mui_window_size` (y en `.dashui`
+      `image_button`, `help`, `size`) para una interfaz de navegador actual.
 - [x] D36. **Conectar sin esperar.** `net_connect_start`/`_poll`/`_stage` (el nombre se busca en otro proceso,
       la conexión sin bloquear) y `tls_connect_start`/`_poll` (lo pidió la 20d).
 - [x] D35. **Atajos de menú de MUI.** Amiga+tecla colgaba el programa (barra de menús puesta con `SetAttrs`
@@ -278,6 +282,11 @@ tarea, con el estilo de Dash.
       modernos). Hoy `http_empezar` espera a que conecte. Si una pila TCP/IP real da `SIGIO`, usarlo con
       `mui_wait_event_signals` (FS-UAE no lo da). Probarlo con un retraso artificial (servidor que tarda en
       aceptar o en responder al TLS).
+- [x] 24. **Interfaz actual y la web real.** Petición del usuario (2026-10-16): "la interfaz debería asemejarse a un
+      browser sencillo pero actual y con un buen UX", y cargar https://freemem.space.
+- [ ] 25. **jQuery.** freemem.space (WordPress) usa jQuery 3.7: falta DOM (createDocumentFragment, cloneNode,
+      insertBefore, hermanos, eventos en document/window, readyState), `navigator`, `location`...
+- [ ] 26. **Maqueta más rápida.** 5 s en el A1200 para la página de prueba de 9 KB; ahora es la fase más lenta.
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -1039,3 +1048,25 @@ Formato:
   "Conectando con..." y a los 20 s "tiempo agotado al conectar". `test_http_carga` con `http_fase` y cancelar
   mientras se busca. dashweb 25/25, también con `--memcheck`. Dash con D36: 192/192, 34/34,
   `--emu --emu-a500 --emu-32` 499/499, `--emu --memcheck` 298/298.
+
+### 2026-10-16 — Tarea 24 (interfaz actual; freemem.space)
+- https://freemem.space no acababa de cargar: 90 KB de HTML, 330 KB de CSS (Font Awesome 100 KB) y 600 KB de JS. El
+  perfil (400 s): `_tiene_clase` 56 %, probar selectores 72 %. Cada elemento probaba todos los selectores.
+- Índice de selectores en `lib/estilo.dash`: por la parte de la derecha (#id, .clase, etiqueta o universal); cada
+  elemento prueba solo los suyos. Fuera los que nunca se cumplen (::before, :hover...). `_tiene_clase` sin crear
+  textos. El orden de las reglas era de 1000 en 1000 por hoja (una hoja de más de 1000 reglas pisaba a la
+  siguiente): ahora de 100000. Con todo, el estilo de freemem.space es el 2 % del tiempo; la página de prueba en el
+  A1200 pasa de 5566 a 3802 ms. Necesitó D37 de Dash (`indice[clave].push(e)`).
+- `@media` se evalúa como una pantalla de 640x480 (min-/max-width y -height, orientation, prefers-color-scheme;
+  print no); antes valía cualquiera con paréntesis. `css_importes` busca los @import sin leer la hoja entera
+  (`lib/recursos.dash` leía cada hoja dos veces). El texto solo para lectores ("Saltar al contenido": position
+  absolute con clip) no se pinta.
+- Dash: D37 y D38 en 875f97d (rama dashweb, sobre main 7582230).
+- La máquina "objetivo" de `medir_visor` tiene 128 MB (Zorro III), como una PiStorm: con 8 MB jQuery se quedaba
+  sin memoria. `--pagina` admite una dirección entera.
+- Interfaz: barra de iconos (atrás, adelante, recargar que pasa a parar mientras carga, inicio; historial a la
+  derecha) con ayuda en globo; la dirección ocupa el resto; el indicador de actividad; la ventana abre al 96x90 %
+  de la pantalla; título "Página - dashweb"; la barra de progreso solo mientras carga. Atrás y adelante sin uso
+  llevan un icono apagado (un botón desactivado de MUI sale tapado por una trama). Iconos ILBM de 16x14 en los 4
+  colores del Workbench: `tools/iconos.py` → `iconos/`, en el paquete y copiados al disco emulado. D38 de Dash.
+- freemem.space carga y se ve con su título (jQuery falla: tarea 25). Capturas enviadas al usuario.
