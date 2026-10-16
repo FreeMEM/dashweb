@@ -406,3 +406,132 @@ func dom_esquema(n: Nodo) -> String
     end
     return r + ")"
 end
+
+# === Imágenes con srcset ===
+
+# El ancho al que se supone que se ve una imagen sin width: fijo, para que la elección no cambie al cambiar
+# el ancho de la ventana (la imagen ya pedida es la que se pinta)
+const DOM_IMG_ANCHO = 1024
+
+# La dirección que se usa de un <img>: de su srcset (o del de un <source> de su <picture> con un tipo que
+# se sabe leer), la más pequeña que no se quede corta para el ancho al que se va a ver (su width o
+# DOM_IMG_ANCHO); con descriptores x, la de 1x. Si no hay srcset, su src.
+func dom_img_src(n: Nodo) -> String
+    objetivo = Int(dom_atributo(n, "width"))
+    if objetivo <= 0
+        objetivo = DOM_IMG_ANCHO
+    end
+    p = n.padre
+    if p != nil and p.tipo == DOM_ELEMENTO and p.nombre == "picture"
+        for s in p.hijos
+            if s == n
+                break
+            end
+            if s.tipo == DOM_ELEMENTO and s.nombre == "source" and dom_tiene_atributo(s, "srcset") and not dom_tiene_atributo(s, "media")
+                tipo = str_lower(dom_atributo(s, "type"))
+                if tipo == "" or tipo == "image/jpeg" or tipo == "image/png" or tipo == "image/gif" or tipo == "image/bmp"
+                    elegida = _srcset_elegir(dom_atributo(s, "srcset"), objetivo)
+                    if elegida != ""
+                        return elegida
+                    end
+                end
+            end
+        end
+    end
+    if dom_tiene_atributo(n, "srcset")
+        elegida = _srcset_elegir(dom_atributo(n, "srcset"), objetivo)
+        if elegida != ""
+            return elegida
+        end
+    end
+    return dom_atributo(n, "src")
+end
+
+func _srcset_elegir(srcset: String, objetivo: Int) -> String
+    mejor = ""
+    mejor_w = 0
+    mayor = ""
+    mayor_w = 0
+    una_x = ""
+    primera = ""
+    for candidato in _srcset_partir(srcset)
+        c = str_trim(candidato)
+        if c == ""
+            continue
+        end
+        b = str_find(c, " ")
+        dir = c
+        desc = ""
+        if b > 0
+            dir = c[:b]
+            desc = str_lower(str_trim(c[b + 1:]))
+        end
+        if _formato_raro(dir)
+            continue
+        end
+        if primera == ""
+            primera = dir
+        end
+        if str_ends(desc, "w")
+            w = Int(desc[:desc.length - 1])
+            if w >= objetivo and (mejor == "" or w < mejor_w)
+                mejor = dir
+                mejor_w = w
+            end
+            if w > mayor_w
+                mayor = dir
+                mayor_w = w
+            end
+        elif desc == "" or desc == "1x" or desc == "1.0x"
+            una_x = dir
+        end
+    end
+    if mejor != ""
+        return mejor
+    end
+    if mayor != ""
+        return mayor
+    end
+    if una_x != ""
+        return una_x
+    end
+    return primera
+end
+
+# Las candidatas de un srcset: una coma separa si va seguida de blanco o si ya pasó la dirección (tras un
+# blanco: "a.jpg 300w,b.jpg 600w"); dentro de la dirección puede haber comas
+func _srcset_partir(s: String) -> [String]
+    var r: [String] = []
+    desde = 0
+    i = 0
+    en_dir = false
+    tras_dir = false
+    while i < s.length
+        c = str_code(s, i)
+        if c == 32 or c == 10 or c == 9
+            if en_dir
+                en_dir = false
+                tras_dir = true
+            end
+        elif c == 44 and (tras_dir or i + 1 >= s.length or str_code(s, i + 1) == 32 or str_code(s, i + 1) == 10 or str_code(s, i + 1) == 9)
+            r.push(s[desde:i])
+            desde = i + 1
+            tras_dir = false
+        elif not tras_dir
+            en_dir = true
+        end
+        i = i + 1
+    end
+    r.push(s[desde:])
+    return r
+end
+
+# Formatos que dashweb aún no sabe leer
+func _formato_raro(dir: String) -> Bool
+    d = str_lower(dir)
+    q = str_find(d, "?")
+    if q >= 0
+        d = d[:q]
+    end
+    return str_ends(d, ".webp") or str_ends(d, ".avif") or str_ends(d, ".jxl")
+end

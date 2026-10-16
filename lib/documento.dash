@@ -172,7 +172,17 @@ func documento_maquetar(d: Documento, ancho: Int)
     end
     d.pagina = maquetar(d.doc, ancho)
     d.ancho = ancho
+    _documento_vistas(d)
     d.ms = d.ms + time_ms() - t0
+end
+
+# A qué tamaño se ve cada imagen (las que aún no han llegado se decodificarán a ese tamaño)
+func _documento_vistas(d: Documento)
+    for dib in d.pagina.dibujos
+        if dib.tipo == D_IMAGEN or dib.tipo == D_FONDO
+            imagenes_vista(d.im, dib.texto, dib.ancho, dib.alto)
+        end
+    end
 end
 
 # Si el JavaScript cambió el documento desde la última maqueta: estilo, imágenes y maqueta otra vez
@@ -186,6 +196,7 @@ func documento_al_dia(d: Documento) -> Bool
     imagenes_pedir(d.im, d.doc, d.direccion)
     if d.ancho > 0
         d.pagina = maquetar(d.doc, d.ancho)
+        _documento_vistas(d)
     end
     return true
 end
@@ -200,6 +211,7 @@ func documento_imagenes(d: Documento) -> Bool
     end
     if d.ancho > 0
         d.pagina = maquetar(d.doc, d.ancho)
+        _documento_vistas(d)
     end
     return true
 end

@@ -1253,3 +1253,19 @@ Formato:
   (negro de 0,5 a 0) necesita mezclar con la imagen: D42 encargada a la otra sesión (tarea 6).
 - Comparación con Chrome (rtg_fm18): lo que más se nota ya es esa sombra bajo los títulos.
 - Tests: test_estilo_vars y test_maqueta_css ampliados.
+
+### 2026-10-16 — Tarea 29 (parte): srcset e imágenes al tamaño en que se ven
+- `dom_img_src` (lib/dom.dash): de srcset (descriptores w o x, comas dentro de la dirección) y de los
+  `<source>` de `<picture>` con un tipo que se lee, la imagen más pequeña que no se queda corta para el width
+  del `<img>` (o 1024 sin width: fijo, para que no cambie con la ventana); webp/avif fuera. Lo usan la
+  maqueta y lib/imagenes.dash.
+- Cada imagen se decodifica al tamaño mayor al que se ve en la última maqueta (`imagenes_vista`, lo llama
+  documento_maquetar): las `<img>` con width y height y los fondos con cover/contain (su tamaño en la página no
+  depende de la imagen). freemem.space en la máquina RTG a los 55 s: antes faltaban 12 imágenes, ahora todo
+  cargado (captura enviada al usuario).
+- Pregunta del usuario: "¿estamos construyendo un renderizador de XHTML y CSS?". Sí: lib/html, css, estilo,
+  maqueta y pintor, todo en Dash (su decisión).
+- Test nuevo `test_srcset` (memcheck). dashweb 31/31 normal y con memcheck.
+- Otra sesión: tareas 4 (diccionarios de diccionarios), 5 (operadores de bits) y 6 (gfx_blend_rect,
+  gfx_gradient_rect, gfx_pixel_rgb) hechas en ramas encadenadas `dicts`, `bits`, `blend`; se fusionan cuando
+  acabe su batería. Acordado: no lanzar tests de red de dashweb a la vez que los suyos (chocan los puertos).

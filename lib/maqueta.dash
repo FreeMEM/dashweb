@@ -951,7 +951,7 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         if h <= 0
             h = 16
         end
-        img = Pieza(dom_atributo(n, "src"), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true)
+        img = Pieza(dom_img_src(n), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true)
         img.nodo = n
         piezas.push(img)
         m.blanco = 0

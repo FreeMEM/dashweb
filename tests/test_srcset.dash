@@ -1,0 +1,53 @@
+# Test: dom_img_src (lib/dom.dash): la imagen de un srcset con descriptores w para el ancho del <img> (o
+# DOM_IMG_ANCHO), la mayor si todas se quedan cortas, la de 1x con descriptores x, sin las de formatos que no se
+# leen (webp, avif), una dirección con comas, un <source> de <picture> con un tipo que se lee y sin srcset el src;
+# imagenes_vista (lib/imagenes.dash), el tamaño al que se ve cada imagen para decodificarla a ese tamaño.
+# memcheck
+# expect-out: a.jpg-300.jpg
+# expect-out: a.jpg-1200.jpg
+# expect-out: grande.png
+# expect-out: uno.png
+# expect-out: x,1.png
+# expect-out: de-source.jpg
+# expect-out: solo.gif
+# expect-out: vista a 225x220 b 0
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/imagenes.dash"
+
+Main
+    h = "<img width=250 src=a.jpg srcset='a.jpg-100.jpg 100w, a.jpg-300.jpg 300w, a.jpg-768.jpg 768w'>"
+    h = h + "<img src=a.jpg srcset='a.jpg-300.jpg 300w,a.jpg-1200.jpg 1200w, a.jpg-2000.jpg 2000w'>"
+    h = h + "<img width=900 srcset='peq.png 200w, grande.png 400w, otra.webp 1000w'>"
+    h = h + "<img srcset='uno.png, dos.png 2x'>"
+    h = h + "<img srcset='x,1.png 1x, x,2.png 2x'>"
+    h = h + "<picture><source type=image/webp srcset=a.webp><source type=image/jpeg srcset=de-source.jpg><img src=b.jpg></picture>"
+    h = h + "<img src=solo.gif>"
+    doc = dom_desde_html(h)
+    for n in _imgs(doc)
+        Print dom_img_src(n)
+    end
+    # imagenes_vista: el mayor tamaño al que se ve cada imagen
+    im = imagenes_nuevas()
+    imagenes_vista(im, "a", 225, 100)
+    imagenes_vista(im, "a", 200, 220)
+    imagenes_vista(im, "b", 0, 50)
+    v = im.vistas["a"]
+    Print "vista a " + (v / 65536) + "x" + (v % 65536) + " b " + im.vistas.has("b")
+    imagenes_liberar(im)
+end
+
+func _imgs(n: Nodo) -> [Nodo]
+    var r: [Nodo] = []
+    _imgs_en(n, r)
+    return r
+end
+
+func _imgs_en(n: Nodo, r: [Nodo])
+    if n.tipo == DOM_ELEMENTO and n.nombre == "img"
+        r.push(n)
+    end
+    for h in n.hijos
+        _imgs_en(h, r)
+    end
+end
