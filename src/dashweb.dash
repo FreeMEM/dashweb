@@ -32,6 +32,7 @@ var dw_desde: Int = 0
 var dw_visto: Int = -1       # la línea del historial que se ve
 var dw_carga: Carga = nil    # la página que está llegando (sin congelar la ventana)
 var dw_carga_dir: String = ""
+var dw_preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
 var dw_js_cuando: Int = -1   # time_ms del siguiente temporizador del JavaScript, -1 si no hay
 
 func dw_inicio() -> String
@@ -77,10 +78,7 @@ end
 # Abre la dirección en la ventana (direccion "" = la página de inicio). Por http(s) empieza la carga y
 # vuelve: la página llega en los tics (la ventana sigue respondiendo y se puede parar).
 func abrir(v: Navegador, direccion: String)
-    if dw_carga != nil
-        http_cancelar(dw_carga)
-        dw_carga = nil
-    end
+    parar_carga()
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
         mui_set_text(v.estado, "Conectando con " + direccion + "...")
         mui_set_value(v.progreso, 5)
@@ -117,10 +115,37 @@ func avanzar_carga(v: Navegador)
     end
     c = dw_carga
     dw_carga = nil
-    mui_set_enabled(v.parar, false)
     mui_set_value(v.progreso, 90)
-    mui_set_text(v.estado, "Preparando la página...")
-    mostrar(v, documento_desde_respuesta(dw_carga_dir, c.respuesta), dw_carga_dir)
+    mui_set_text(v.estado, "Trayendo hojas de estilo y scripts...")
+    dw_preparando = documento_empezar(dw_carga_dir, c.respuesta)
+    avanzar_preparacion(v)
+end
+
+# Las hojas y los scripts de la página que llegó; cuando están todos, la página
+func avanzar_preparacion(v: Navegador)
+    if dw_preparando == nil
+        return
+    end
+    if not documento_avanzar(dw_preparando)
+        mui_set_text(v.estado, "Trayendo hojas de estilo y scripts: faltan " + recursos_pendientes(dw_preparando.recursos))
+        return
+    end
+    d = dw_preparando
+    dw_preparando = nil
+    mui_set_enabled(v.parar, false)
+    mostrar(v, d, dw_carga_dir)
+end
+
+# Para lo que esté llegando (la página o sus recursos)
+func parar_carga()
+    if dw_carga != nil
+        http_cancelar(dw_carga)
+        dw_carga = nil
+    end
+    if dw_preparando != nil
+        documento_liberar(dw_preparando)
+        dw_preparando = nil
+    end
 end
 
 # Pone el documento nuevo en la ventana
@@ -163,7 +188,7 @@ func programar(v: Navegador)
             espera = 1
         end
     end
-    trayendo = dw_carga != nil or (dw_actual != nil and imagenes_pendientes(dw_actual.im) > 0)
+    trayendo = dw_carga != nil or dw_preparando != nil or (dw_actual != nil and imagenes_pendientes(dw_actual.im) > 0)
     if trayendo and (espera < 0 or espera > 50)
         espera = 50
     end
@@ -315,6 +340,7 @@ Main
             end
             if ev == ID_TIC
                 avanzar_carga(v)
+                avanzar_preparacion(v)
                 if dw_actual != nil and documento_imagenes(dw_actual)
                     ajustar_barra(v)
                     mui_canvas_redraw(v.pagina)
@@ -330,9 +356,8 @@ Main
                     programar(v)
                 end
             end
-            if ev == ID_PARAR and dw_carga != nil
-                http_cancelar(dw_carga)
-                dw_carga = nil
+            if ev == ID_PARAR and (dw_carga != nil or dw_preparando != nil)
+                parar_carga()
                 mui_set_enabled(v.parar, false)
                 mui_set_value(v.progreso, 0)
                 mui_set_text(v.estado, "Parado")
@@ -364,6 +389,7 @@ Main
                 acerca_abierta = not acerca_abierta
             end
         end
+        parar_carga()
         if dw_actual != nil
             documento_liberar(dw_actual)
         end

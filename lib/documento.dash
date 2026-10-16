@@ -14,6 +14,7 @@
 
 import "pintor.dash"
 import "jsdom.dash"
+import "recursos.dash"
 
 struct Documento
     direccion: String
@@ -28,6 +29,7 @@ struct Documento
     ancho: Int
     error: String
     ms: Int              # lo que tardó en abrirse y maquetarse
+    recursos: Recursos = nil   # documento_empezar: las hojas y scripts que están llegando
 end
 
 # El texto de la página (Latin-1): http(s) o un fichero; si falla, una página que lo dice
@@ -71,6 +73,59 @@ func documento_desde_respuesta(direccion: String, r: Respuesta) -> Documento
     end
     d.direccion = r.url
     return documento_desde_html(d, http_texto(r), t0)
+end
+
+# Sin esperar: el árbol de la respuesta y los recursos (CSS, <script src>) pedidos; documento_avanzar en
+# cada vuelta hasta que dé true (entonces scripts, estilo e imágenes, y listo para maquetar)
+func documento_empezar(direccion: String, r: Respuesta) -> Documento
+    t0 = time_ms()
+    var nadie: Nodo = nil
+    var sin_hojas: Hojas = nil
+    var sin_pagina: Pagina = nil
+    d = Documento(direccion, "", 0, nadie, sin_hojas, imagenes_nuevas(), 0, 0, sin_pagina, 0, "", 0)
+    texto = ""
+    if r.error != ""
+        d.error = r.error
+        texto = "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>"
+    else
+        d.direccion = r.url
+        texto = http_texto(r)
+    end
+    d.bytes = texto.length
+    d.doc = dom_desde_html(texto)
+    d.recursos = recursos_nuevos()
+    recursos_del_documento(d.recursos, d.doc, d.direccion)
+    d.ms = time_ms() - t0
+    return d
+end
+
+func documento_avanzar(d: Documento) -> Bool
+    if d.recursos == nil
+        return true
+    end
+    recursos_avanzar(d.recursos)
+    if recursos_pendientes(d.recursos) > 0
+        return false
+    end
+    t0 = time_ms()
+    traidos = d.recursos.traidos
+    if dom_buscar(d.doc, "script") != nil
+        d.js = js_nuevo()
+        jsdom_preparar(d.js, d.doc)
+        jsdom_ejecutar_scripts_con(d.js, d.doc, d.direccion, traidos)
+        d.cambios = jsdom_cambios(d.js)
+    end
+    d.titulo = jsdom_titulo(d.doc)
+    if d.titulo == ""
+        d.titulo = d.direccion
+    end
+    d.hojas = estilo_hojas_con(d.doc, d.direccion, traidos)
+    estilo_aplicar(d.doc, d.hojas)
+    imagenes_pedir(d.im, d.doc, d.direccion)
+    var nada: Recursos = nil
+    d.recursos = nada
+    d.ms = d.ms + time_ms() - t0
+    return true
 end
 
 # Lo mismo con el HTML ya en la mano (una página de inicio, una de error)
@@ -139,6 +194,9 @@ func documento_imagenes(d: Documento) -> Bool
 end
 
 func documento_liberar(d: Documento)
+    if d.recursos != nil
+        recursos_cancelar(d.recursos)
+    end
     imagenes_liberar(d.im)
     if d.js != 0
         js_liberar(d.js)

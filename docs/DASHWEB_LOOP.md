@@ -247,9 +247,11 @@ tarea, con el estilo de Dash.
       con `mui_timer`, junto con los temporizadores del JS) y se puede parar.
 - [x] 20b. **Bucle de eventos: imágenes.** Las imágenes llegan sin esperar (4 a la vez) y la página se vuelve a
       maquetar al llegar cada una.
-- [ ] 20c. **Bucle de eventos: el resto.** CSS y `<script src>` sin esperar (hoy se traen al montar la página;
-      los scripts tienen que ejecutarse en orden); conectar, DNS y la negociación TLS sin bloquear. Si una pila
-      TCP/IP real da `SIGIO`, usarlo con `mui_wait_event_signals` (FS-UAE no lo da).
+- [x] 20c. **Bucle de eventos: hojas y scripts.** CSS (con sus `@import`) y `<script src>` llegan a la vez y sin
+      esperar; la página se monta cuando están todos, en el orden del documento.
+- [ ] 20d. **Bucle de eventos: conectar.** DNS, `connect` y la negociación TLS sin bloquear (hoy
+      `http_empezar` espera a que conecte). Si una pila TCP/IP real da `SIGIO`, usarlo con
+      `mui_wait_event_signals` (FS-UAE no lo da).
 - [ ] 21. **Formularios.** `input`, `button`, `select`, `textarea`, `checkbox`; envío GET y POST.
 - [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
 - [ ] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
@@ -819,4 +821,18 @@ Formato:
 - Test `test_imagenes_carga` (mismo `src` dos veces, uno con `width`, uno que no existe; `--memcheck`). En el
   emulador: imagenes.html en el navegador, las imágenes salen tras la página. dashweb 21/21, también con
   `--memcheck`.
+
+### 2026-10-16 — Tarea 20c (hojas y scripts sin esperar)
+- `lib/recursos.dash`: `recursos_del_documento` pide los `<link rel=stylesheet>`, los `<script src>` y los
+  `@import` de los `<style>`; `recursos_avanzar` (4 a la vez; los `@import` de una hoja que llega se piden; las
+  de disco se leen ya); `recursos_pendientes`, `recursos_cancelar`; `r.traidos` (dirección → texto, "" si
+  falló). `lib/estilo.dash`: `estilo_hojas_con(doc, base, traidos)`; la hoja del navegador se lee una vez por
+  programa (global `estilo_ua_leida`; antes, en cada página). `lib/jsdom.dash`: `jsdom_ejecutar_scripts_con`.
+- `lib/documento.dash`: `documento_empezar` (árbol y recursos pedidos) y `documento_avanzar` (cuando están
+  todos: scripts en orden, estilo, imágenes pedidas). `src/dashweb.dash`: tras la página, "Trayendo hojas de
+  estilo y scripts: faltan N"; "Parar" también corta eso (`parar_carga`).
+- Tarea 20 partida otra vez: lo que falta (conectar, DNS y TLS sin bloquear) es 20d.
+- Tests: `test_recursos` (hoja con `@import` descubierto al llegar, script, uno que no existe; estilo y script
+  con lo traído; `--memcheck`). En el emulador: `tests/pages/externos.html` en el navegador (colores de la hoja
+  y de su `@import`, el script de fuera usado por uno de dentro). dashweb 22/22, también con `--memcheck`.
 

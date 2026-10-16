@@ -244,6 +244,12 @@ end
 # relativo a base). Solo JavaScript (sin type, o type text/javascript, module no). Un error se
 # escribe en la salida y se sigue con el siguiente. Cuántos se ejecutaron.
 func jsdom_ejecutar_scripts(js: Int, doc: Nodo, base: String) -> Int
+    var traidos: {String: String} = {}
+    return jsdom_ejecutar_scripts_con(js, doc, base, traidos)
+end
+
+# Lo mismo con los src ya traídos (dirección -> texto; lib/recursos.dash); los que falten se piden
+func jsdom_ejecutar_scripts_con(js: Int, doc: Nodo, base: String, traidos: {String: String}) -> Int
     var scripts: [Nodo] = []
     _jsdom_scripts(doc, scripts)
     hechos = 0
@@ -255,7 +261,11 @@ func jsdom_ejecutar_scripts(js: Int, doc: Nodo, base: String) -> Int
             nombre = base
             if dom_tiene_atributo(s, "src")
                 nombre = url_text(url_resolve(u, dom_atributo(s, "src")))
-                codigo = _jsdom_traer(nombre)
+                if traidos.has(nombre)
+                    codigo = traidos[nombre]
+                else
+                    codigo = _jsdom_traer(nombre)
+                end
             end
             js_evaluar(js, codigo, nombre)
             if js_error(js) != ""

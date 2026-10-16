@@ -16,10 +16,21 @@ const ESTILO_MEDIUM = 13
 struct Hojas
     lista: [HojaCSS]
     autor: [Bool]
+    traidas: {String: String} = nil    # textos de hojas ya traídos (lib/recursos.dash): no se piden otra vez
 end
+
+# La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
+var estilo_ua_leida: HojaCSS = nil
 
 # Hoja por defecto del navegador (orden negativo: va antes que todo lo del autor)
 func estilo_hoja_navegador() -> HojaCSS
+    if estilo_ua_leida == nil
+        estilo_ua_leida = _estilo_leer_navegador()
+    end
+    return estilo_ua_leida
+end
+
+func _estilo_leer_navegador() -> HojaCSS
     c = "html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, li, dl, dt, dd, pre, blockquote, form, "
     c = c + "table, center, address, hr, header, footer, nav, section, article, aside, main, figure, "
     c = c + "fieldset, legend, details, summary, menu, dir, noscript { display: block } "
@@ -48,9 +59,16 @@ end
 # Las hojas del documento, en orden: la del navegador, luego <style> y <link rel=stylesheet>
 # como aparecen (con sus @import delante). base: URL de la página, para las relativas.
 func estilo_hojas(doc: Nodo, base: String) -> Hojas
+    var traidas: {String: String} = {}
+    return estilo_hojas_con(doc, base, traidas)
+end
+
+# Lo mismo con las hojas externas ya traídas (dirección -> texto en Latin-1); las que falten se piden
+func estilo_hojas_con(doc: Nodo, base: String, traidas: {String: String}) -> Hojas
     var lista: [HojaCSS] = [estilo_hoja_navegador()]
     var autor: [Bool] = [false]
     h = Hojas(lista, autor)
+    h.traidas = traidas
     _estilo_recoger(h, doc, url_parse(base))
     return h
 end
@@ -80,6 +98,10 @@ end
 func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
     u = url_parse(direccion)
     texto = ""
+    if h.traidas != nil and h.traidas.has(direccion)
+        _estilo_agregar(h, css_leer(h.traidas[direccion], h.lista.length * 1000), u, nivel)
+        return
+    end
     if u.esquema == "http" or u.esquema == "https"
         r = http_get(direccion, 15000)
         if r.error != "" or r.estado != 200

@@ -1,0 +1,141 @@
+# Los recursos de texto de una página (hojas CSS, con sus @import, y <script src>) traídos a la vez y
+# sin esperar, para montar la página cuando estén todos (en el orden del documento, con los textos ya
+# en la mano: estilo_hojas_con, jsdom_ejecutar_scripts_con).
+#
+#   r = recursos_nuevos()
+#   recursos_del_documento(r, doc, base)       # pide los <link rel=stylesheet> y <script src>
+#   while recursos_pendientes(r) > 0
+#       recursos_avanzar(r)                    # sin esperar; los @import de las hojas que llegan se piden
+#       ... la interfaz
+#   end
+#   r.traidos["http://.../a.css"]              # el texto (Latin-1); "" si no se pudo traer
+#   recursos_cancelar(r)
+
+import "estilo.dash"
+
+const RECURSOS_A_LA_VEZ = 4
+
+struct Pedido
+    direccion: String
+    es_css: Bool
+    nivel: Int                 # profundidad de @import (como mucho 4)
+    carga: Carga               # nil hasta que le toca
+end
+
+struct Recursos
+    traidos: {String: String}
+    cola: [Pedido]
+end
+
+func recursos_nuevos() -> Recursos
+    var traidos: {String: String} = {}
+    var cola: [Pedido] = []
+    return Recursos(traidos, cola)
+end
+
+func recursos_pendientes(r: Recursos) -> Int
+    return r.cola.length
+end
+
+# Pide una dirección (si no está ya traída o pedida); las de disco se leen ya
+func recursos_pedir(r: Recursos, direccion: String, es_css: Bool, nivel: Int)
+    if r.traidos.has(direccion)
+        return
+    end
+    for p in r.cola
+        if p.direccion == direccion
+            return
+        end
+    end
+    u = url_parse(direccion)
+    if u.esquema == "http" or u.esquema == "https"
+        var sin: Carga = nil
+        r.cola.push(Pedido(direccion, es_css, nivel, sin))
+        return
+    end
+    ruta = direccion
+    if u.esquema == "file"
+        ruta = u.ruta
+        if str_starts(ruta, "/")
+            ruta = ruta[1:]
+        end
+    end
+    t = file_read_text(ruta)
+    if t == nil
+        r.traidos[direccion] = ""
+    else
+        _recursos_llego(r, direccion, utf8_a_latin1(t), es_css, nivel)
+    end
+end
+
+func recursos_del_documento(r: Recursos, doc: Nodo, base: String)
+    _recursos_en(r, doc, url_parse(base))
+end
+
+func _recursos_en(r: Recursos, n: Nodo, base: Url)
+    if n.tipo == DOM_ELEMENTO
+        if n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0 and dom_atributo(n, "href") != ""
+            recursos_pedir(r, url_text(url_resolve(base, dom_atributo(n, "href"))), true, 0)
+        elif n.nombre == "script" and dom_atributo(n, "src") != ""
+            recursos_pedir(r, url_text(url_resolve(base, dom_atributo(n, "src"))), false, 0)
+        elif n.nombre == "style"
+            # los @import de un <style> también
+            hoja = css_leer(dom_texto(n), 0)
+            for imp in hoja.importes
+                recursos_pedir(r, url_text(url_resolve(base, imp)), true, 1)
+            end
+        end
+    end
+    for h in n.hijos
+        _recursos_en(r, h, base)
+    end
+end
+
+func _recursos_llego(r: Recursos, direccion: String, texto: String, es_css: Bool, nivel: Int)
+    r.traidos[direccion] = texto
+    if es_css and nivel < 4 and str_find(texto, "@import") >= 0
+        hoja = css_leer(texto, 0)
+        u = url_parse(direccion)
+        for imp in hoja.importes
+            recursos_pedir(r, url_text(url_resolve(u, imp)), true, nivel + 1)
+        end
+    end
+end
+
+# Avanza las descargas sin esperar; cuántas acabaron ahora
+func recursos_avanzar(r: Recursos) -> Int
+    hechas = 0
+    activas = 0
+    i = 0
+    while i < r.cola.length
+        p = r.cola[i]
+        if p.carga == nil and activas < RECURSOS_A_LA_VEZ
+            p.carga = http_empezar(p.direccion, 15000)
+        end
+        if p.carga != nil
+            if http_avanzar(p.carga)
+                resp = p.carga.respuesta
+                texto = ""
+                if resp.error == "" and resp.estado == 200
+                    texto = http_texto(resp)
+                end
+                r.cola.remove(i)
+                _recursos_llego(r, p.direccion, texto, p.es_css, p.nivel)
+                hechas = hechas + 1
+                continue
+            end
+            activas = activas + 1
+        end
+        i = i + 1
+    end
+    return hechas
+end
+
+func recursos_cancelar(r: Recursos)
+    for p in r.cola
+        if p.carga != nil
+            http_cancelar(p.carga)
+        end
+    end
+    r.cola.clear()
+end
