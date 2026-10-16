@@ -88,6 +88,9 @@ def main():
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
 
+    # lib/jsdom_preludio.dash sale de lib/jsdom_preludio.js (tools/preludio.py)
+    if subprocess.run([sys.executable, str(ROOT / "tools" / "preludio.py"), "--check"]).returncode != 0:
+        return 2
     if not (DASH / "dash").exists():
         print(f"Dash not found in {DASH} (set $DASH; see docs/DASHWEB_LOOP.md, rule 3)", file=sys.stderr)
         return 2

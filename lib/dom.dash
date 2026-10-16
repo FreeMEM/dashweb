@@ -15,6 +15,7 @@ const DOM_ELEMENTO = 1
 const DOM_TEXTO = 3
 const DOM_COMENTARIO = 8
 const DOM_DOCUMENTO = 9
+const DOM_FRAGMENTO = 11       # document.createDocumentFragment(): al añadirlo pasan sus hijos
 
 struct Nodo
     tipo: Int

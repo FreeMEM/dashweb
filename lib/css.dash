@@ -396,6 +396,11 @@ end
 const CSS_ANCHO = 640
 const CSS_ALTO = 480
 
+# Lo mismo para quien lo use desde fuera (matchMedia de lib/jsdom.dash)
+func css_media_vale(medios: String) -> Bool
+    return _css_media_pantalla(medios)
+end
+
 func _css_media_pantalla(medios: String) -> Bool
     m = str_lower(str_trim(medios))
     if m == ""

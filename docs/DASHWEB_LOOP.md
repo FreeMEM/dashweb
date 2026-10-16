@@ -67,6 +67,8 @@ Dos fases:
    FS-UAE con `cpu = 68040`, `fpu = 68040`, `jit_compiler = 1`, `uae_cpu_speed = max`.
 7. **Verificar.** Repite el paso 4. Nada que antes funcionaba puede romperse. Si algo se rompe y no lo
    arreglas en esta iteración, revierte.
+7b. **Capturas.** El usuario quiere ver cómo evoluciona (2026-10-16): cuando una tarea cambie lo que se ve, una
+   captura del emulador enviada con SendUserFile (sin esperar al final).
 8. **Cerrar.** Marca `[x]`, añade una entrada a la bitácora y haz commit local `<tarea> - <resumen>`.
 9. **Fin.** Si no quedan tareas `[ ]` en ninguna fase, escribe el resumen final, para el loop y avisa
    con PushNotification.
@@ -284,9 +286,17 @@ tarea, con el estilo de Dash.
       aceptar o en responder al TLS).
 - [x] 24. **Interfaz actual y la web real.** Petición del usuario (2026-10-16): "la interfaz debería asemejarse a un
       browser sencillo pero actual y con un buen UX", y cargar https://freemem.space.
-- [ ] 25. **jQuery.** freemem.space (WordPress) usa jQuery 3.7: falta DOM (createDocumentFragment, cloneNode,
+- [x] 25. **jQuery.** freemem.space (WordPress) usa jQuery 3.7: falta DOM (createDocumentFragment, cloneNode,
       insertBefore, hermanos, eventos en document/window, readyState), `navigator`, `location`...
 - [ ] 26. **Maqueta más rápida.** 5 s en el A1200 para la página de prueba de 9 KB; ahora es la fase más lenta.
+- [ ] 27. **Emulación RTG.** Petición del usuario (2026-10-16): "poner la emulación en RTG a una resolución más alta".
+      Un sistema emulado con tarjeta gráfica (uaegfx de FS-UAE con Picasso96, o el RTG de AmigaOS 3.2), pantalla
+      de 1024x768 o más en 16/24 bits, con MUI, AmiSSL y fuentes; `medir_visor --maquina objetivo` lo usa. Como una
+      PiStorm con RTG.
+- [ ] 28. **Igual de bien que Chrome.** Petición del usuario (2026-10-16): comparar https://freemem.space en Chrome (en
+      esta máquina, shiva) y en dashweb con RTG, al mismo ancho, y "tratar de alcanzar que se vea igual de bien".
+      Capturas lado a lado; cada vuelta, la diferencia más visible (columnas con float/flex, position, márgenes,
+      fuentes, imágenes, menús...) hasta que se parezcan. Partir en subtareas según lo que salga.
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -1070,3 +1080,25 @@ Formato:
   llevan un icono apagado (un botón desactivado de MUI sale tapado por una trama). Iconos ILBM de 16x14 en los 4
   colores del Workbench: `tools/iconos.py` → `iconos/`, en el paquete y copiados al disco emulado. D38 de Dash.
 - freemem.space carga y se ve con su título (jQuery falla: tarea 25). Capturas enviadas al usuario.
+
+### 2026-10-16 — Tarea 25 (jQuery)
+- jQuery 3.7.1 (`tests/pages/jquery-3.7.1.min.js`, MIT) funciona: `test_jquery` prueba selectores (también los
+  suyos, :first, :eq, :contains), clases, attr/data, css, html, eventos y delegados, recorrido, hide/show,
+  val/prop, remove/wrap/empty, utilidades, Deferred, serialize, ready y load (memcheck).
+- DOM nuevo en C (`lib/jsdom.dash`): hermanos, insertBefore, replaceChild, cloneNode, contains,
+  compareDocumentPosition, matches, getElementsByClassName, ownerDocument, outerHTML, nodeValue/data,
+  defaultValue, offsetWidth/Height (0 si no se ve: display none, sin maqueta), attributes, createComment,
+  createDocumentFragment (tipo 11: al añadirlo pasan sus hijos), head, createHTMLDocument, getComputedStyle (lo de
+  lib/estilo.dash) y matchMedia (`css_media_vale`). querySelector y matches dan SyntaxError con lo que no
+  entienden (así jQuery usa su buscador). lib/estilo.dash: :checked, :disabled, :enabled, :not(), :nth-child(),
+  :nth-last-child(), :nth-of-type(), :first/last/only-of-type.
+- El entorno de navegador en JS pasa a `lib/jsdom_preludio.js` (JS normal; `tools/preludio.py` lo convierte en
+  `lib/jsdom_preludio.dash`; `tests/run.py` comprueba que esté al día): eventos con captura y subida hasta window,
+  Event/CustomEvent/MouseEvent..., once, handleEvent; style (Proxy sobre el atributo), classList, dataset,
+  atributos como propiedades, insertAdjacentHTML, append/prepend/before/after/remove, closest; navigator,
+  location, history, localStorage/sessionStorage, document.cookie, matchMedia, performance, CSS.escape, btoa/atob,
+  requestAnimationFrame, observadores vacíos, Image/Option; DOMContentLoaded y load al acabar los scripts.
+- QuickJS no ejecutaba los Promise.then (`JS_ExecutePendingJob`): ahora tras cada evaluación, evento y temporizador.
+- Un fallo encontrado: asignar `document.hidden`/`open`/`charset` llamaba a los setters de los elementos (atributos
+  en el documento): las propiedades de document se ponen con defineProperty.
+- freemem.space: ningún error de JS (jQuery, Migrate, Google Tag Manager, el tema). Captura enviada.

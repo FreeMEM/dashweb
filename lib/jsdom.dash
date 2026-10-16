@@ -16,6 +16,7 @@
 import "js.dash"
 import "estilo.dash"
 import "formularios.dash"
+import "jsdom_preludio.dash"
 
 # === La parte en Dash (la llaman las funciones de C de abajo) ===
 
@@ -137,19 +138,10 @@ func jsdom_crear_texto(t: String) -> Nodo
 end
 
 # hijo pasa al final de padre (si estaba en otro sitio, sale de allí); false si hijo contiene a padre
+# (un fragmento mete sus hijos)
 func jsdom_agregar(padre: Nodo, hijo: Nodo) -> Bool
-    p = padre
-    while p != nil
-        if p == hijo
-            return false
-        end
-        p = p.padre
-    end
-    if hijo.padre != nil
-        jsdom_quitar(hijo.padre, hijo)
-    end
-    dom_agregar(padre, hijo)
-    return true
+    var nadie: Nodo = nil
+    return jsdom_insertar_antes(padre, hijo, nadie)
 end
 
 func jsdom_quitar(padre: Nodo, hijo: Nodo) -> Bool
@@ -233,6 +225,251 @@ func jsdom_poner_html(n: Nodo, html: String)
     end
 end
 
+# === Más DOM (tarea 25: lo que necesita jQuery) ===
+
+# El hermano de al lado (después o antes; solo elementos o cualquier nodo); nil si no hay
+func jsdom_hermano(n: Nodo, despues: Bool, solo_elementos: Bool) -> Nodo
+    var nada: Nodo = nil
+    p = n.padre
+    if p == nil
+        return nada
+    end
+    k = p.hijos.length
+    i = 0
+    while i < k and p.hijos[i] != n
+        i = i + 1
+    end
+    paso = -1
+    if despues
+        paso = 1
+    end
+    j = i + paso
+    while j >= 0 and j < k
+        h = p.hijos[j]
+        if not solo_elementos or h.tipo == DOM_ELEMENTO
+            return h
+        end
+        j = j + paso
+    end
+    return nada
+end
+
+# nuevo entra en padre antes de ref (al final si ref es nil); un fragmento mete sus hijos. false si
+# ref no es hijo de padre o nuevo contiene a padre.
+func jsdom_insertar_antes(padre: Nodo, nuevo: Nodo, ref: Nodo) -> Bool
+    if nuevo.tipo == DOM_FRAGMENTO
+        for h in jsdom_hijos(nuevo, false)
+            if not jsdom_insertar_antes(padre, h, ref)
+                return false
+            end
+        end
+        return true
+    end
+    p = padre
+    while p != nil
+        if p == nuevo
+            return false
+        end
+        p = p.padre
+    end
+    if ref == nuevo
+        return true
+    end
+    if nuevo.padre != nil
+        jsdom_quitar(nuevo.padre, nuevo)
+    end
+    if ref == nil
+        dom_agregar(padre, nuevo)
+        return true
+    end
+    i = 0
+    while i < padre.hijos.length
+        if padre.hijos[i] == ref
+            padre.hijos.insert(i, nuevo)
+            nuevo.padre = padre
+            return true
+        end
+        i = i + 1
+    end
+    return false
+end
+
+# Una copia de n (con sus hijos si profundo), sin padre
+func jsdom_clonar(n: Nodo, profundo: Bool) -> Nodo
+    c = dom_nodo(n.tipo, n.nombre, n.texto)
+    for a in n.atributos
+        c.atributos.push(Atributo(a.nombre, a.valor))
+    end
+    if profundo
+        for h in n.hijos
+            dom_agregar(c, jsdom_clonar(h, true))
+        end
+    end
+    return c
+end
+
+# ¿b está dentro de a (o es a)?
+func jsdom_contiene(a: Nodo, b: Nodo) -> Bool
+    p = b
+    while p != nil
+        if p == a
+            return true
+        end
+        p = p.padre
+    end
+    return false
+end
+
+# compareDocumentPosition: 1 sin relación, 2 b va antes, 4 b va después, 8 b contiene a a,
+# 16 a contiene a b
+func jsdom_posicion(a: Nodo, b: Nodo) -> Int
+    if a == b
+        return 0
+    end
+    if jsdom_contiene(b, a)
+        return 8 + 2
+    end
+    if jsdom_contiene(a, b)
+        return 16 + 4
+    end
+    ra = _jsdom_raiz_de(a)
+    if ra != _jsdom_raiz_de(b)
+        return 1 + 32 + 4
+    end
+    # el primer antepasado común y cuál de sus hijos va antes
+    var camino: [Nodo] = []
+    p = a
+    while p != nil
+        camino.push(p)
+        p = p.padre
+    end
+    hb = b
+    q = b.padre
+    while q != nil
+        i = 0
+        while i < camino.length and camino[i] != q
+            i = i + 1
+        end
+        if i < camino.length
+            ha = camino[i - 1]
+            for h in q.hijos
+                if h == ha
+                    return 4
+                end
+                if h == hb
+                    return 2
+                end
+            end
+            return 1
+        end
+        hb = q
+        q = q.padre
+    end
+    return 1
+end
+
+func _jsdom_raiz_de(n: Nodo) -> Nodo
+    p = n
+    while p.padre != nil
+        p = p.padre
+    end
+    return p
+end
+
+# ¿Se entiende el selector? (si no, querySelector y matches dan un SyntaxError, como en los
+# navegadores, y jQuery usa su propio buscador)
+func jsdom_selector_valido(texto: String) -> Bool
+    hay = false
+    for t in css_partir(texto, 44)
+        if str_trim(t) == ""
+            return false
+        end
+        sel = css_selector(str_trim(t))
+        if sel == nil or not estilo_puede_cumplirse(sel)
+            return false
+        end
+        hay = true
+    end
+    return hay
+end
+
+# matches(): ¿n cumple alguno de los selectores?
+func jsdom_cumple(n: Nodo, texto: String) -> Bool
+    for t in css_partir(texto, 44)
+        sel = css_selector(str_trim(t))
+        if sel != nil and estilo_cumple(n, sel)
+            return true
+        end
+    end
+    return false
+end
+
+func jsdom_crear_comentario(t: String) -> Nodo
+    return dom_nodo(DOM_COMENTARIO, "", t)
+end
+
+func jsdom_crear_fragmento() -> Nodo
+    return dom_nodo(DOM_FRAGMENTO, "", "")
+end
+
+# document.implementation.createHTMLDocument(): un documento aparte, vacío
+func jsdom_documento_nuevo(titulo: String) -> Nodo
+    return dom_desde_html("<html><head><title>" + titulo + "</title></head><body></body></html>")
+end
+
+# outerHTML
+func jsdom_html_fuera(n: Nodo) -> String
+    return _jsdom_html_nodo(n)
+end
+
+func jsdom_cabeza(doc: Nodo) -> Nodo
+    return dom_buscar(doc, "head")
+end
+
+# getComputedStyle: lo calculado por lib/estilo.dash; si el elemento es nuevo (sin estilo aún),
+# display según la etiqueta
+func jsdom_estilo_calculado(n: Nodo, propiedad: String) -> String
+    if n.estilo.has(propiedad)
+        return n.estilo[propiedad]
+    end
+    if propiedad == "display" and n.tipo == DOM_ELEMENTO
+        if jsdom_cumple(n, "html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, dl, pre, blockquote, form, table, header, footer, nav, section, article, aside, main, figure, fieldset, address, hr")
+            return "block"
+        elif n.nombre == "li"
+            return "list-item"
+        elif jsdom_cumple(n, "head, script, style, title, meta, link, template")
+            return "none"
+        end
+        return "inline"
+    end
+    return ""
+end
+
+# ¿Se ve? (offsetWidth/offsetHeight: sin posiciones de la maqueta, 0 si él o un antepasado tiene
+# display: none, en su estilo o en el atributo style; 1 si no; 0 fuera del documento)
+func jsdom_visible(n: Nodo) -> Bool
+    p = n
+    while p != nil and p.tipo == DOM_ELEMENTO
+        # el atributo style manda sobre lo calculado (puede haberlo cambiado el JS después)
+        s = str_replace(str_lower(dom_atributo(p, "style")), " ", "")
+        k = str_find(s, "display:")
+        if k >= 0
+            v = s[k + 8:]
+            fin = str_find(v, ";")
+            if fin >= 0
+                v = v[:fin]
+            end
+            if v == "none"
+                return false
+            end
+        elif p.estilo.has("display") and p.estilo["display"] == "none"
+            return false
+        end
+        p = p.padre
+    end
+    return p != nil and p.tipo == DOM_DOCUMENTO
+end
+
 func jsdom_cuerpo(doc: Nodo) -> Nodo
     return dom_buscar(doc, "body")
 end
@@ -263,6 +500,7 @@ func jsdom_ejecutar_scripts_con(js: Int, doc: Nodo, base: String, traidos: {Stri
     _jsdom_scripts(doc, scripts)
     hechos = 0
     u = url_parse(base)
+    js_evaluar(js, "__dashweb_lugar('" + str_replace(str_replace(base, "\\", "\\\\"), "'", "\\'") + "')", "dashweb")
     for s in scripts
         tipo = str_lower(str_trim(dom_atributo(s, "type")))
         if tipo == "" or tipo == "text/javascript" or tipo == "application/javascript"
@@ -282,6 +520,11 @@ func jsdom_ejecutar_scripts_con(js: Int, doc: Nodo, base: String, traidos: {Stri
             end
             hechos = hechos + 1
         end
+    end
+    # DOMContentLoaded y load, como un navegador al acabar la página
+    js_evaluar(js, "__dashweb_cargado()", "dashweb")
+    if js_error(js) != ""
+        Print "JS: " + str_replace(js_error(js), "\n    ", " | ")
     end
     return hechos
 end
@@ -428,7 +671,9 @@ static JSValue _jsdom_tagName(JSContext *ctx, JSValueConst this_val) {
     char *t;
     JSValue v;
     _JSDOM_ESTE;
-    if (n->tipo != DOM_ELEMENTO) return n->tipo == DOM_TEXTO ? JS_NewString(ctx, "#text") : JS_NewString(ctx, "#document");
+    if (n->tipo != DOM_ELEMENTO)
+        return JS_NewString(ctx, n->tipo == DOM_TEXTO ? "#text" : n->tipo == DOM_COMENTARIO ? "#comment"
+                                 : n->tipo == DOM_FRAGMENTO ? "#document-fragment" : "#document");
     t = strdup((const char *)n->nombre);
     if (!t) return JS_EXCEPTION;
     { char *p; for (p = t; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32; }
@@ -609,13 +854,209 @@ static JSValue _jsdom_selector(JSContext *ctx, JSValueConst this_val, int argc, 
     _JSDOM_ESTE;
     s = _jsdom_arg(ctx, argc, argv, 0);
     if (!s) return JS_EXCEPTION;
+    if (magic != 2 && !jsdom_selector_valido((STRPTR)s)) {
+        JSValue e = JS_ThrowSyntaxError(ctx, "'%s' is not a valid selector", s);
+        free(s);
+        return e;
+    }
     l = jsdom_selector(n, (STRPTR)s, magic != 0);
     free(s);
     if (magic) return _jsdom_lista(ctx, l);
     return l && DashArray_length(l) ? _jsdom_objeto(ctx, (_Dash_Nodo *)DashArray_get(l, 0)) : JS_NULL;
 }
 
+/* Tarea 25: lo que necesita jQuery */
+
+/* magic 0: nextSibling, 1: previousSibling, 2: nextElementSibling, 3: previousElementSibling */
+static JSValue _jsdom_hermano(JSContext *ctx, JSValueConst this_val, int magic) {
+    _JSDOM_ESTE;
+    return _jsdom_objeto(ctx, jsdom_hermano(n, !(magic & 1), magic >= 2));
+}
+
+static JSValue _jsdom_insertBefore(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *h, *ref;
+    _JSDOM_ESTE;
+    h = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    ref = argc > 1 ? _jsdom_nodo(ctx, argv[1]) : NULL;
+    if (!h) return JS_ThrowTypeError(ctx, "insertBefore: not a node");
+    if (argc > 1 && !ref && !JS_IsNull(argv[1]) && !JS_IsUndefined(argv[1]))
+        return JS_ThrowTypeError(ctx, "insertBefore: the reference is not a node");
+    if (!jsdom_insertar_antes(n, h, ref)) return JS_ThrowRangeError(ctx, "insertBefore: cannot insert there");
+    _jsdom_de(ctx)->cambios++;
+    return JS_DupValue(ctx, argv[0]);
+}
+
+static JSValue _jsdom_replaceChild(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *h, *viejo;
+    _JSDOM_ESTE;
+    h = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    viejo = argc > 1 ? _jsdom_nodo(ctx, argv[1]) : NULL;
+    if (!h || !viejo || jsdom_padre(viejo) != n) return JS_ThrowRangeError(ctx, "replaceChild: not a child of this node");
+    if (h != viejo) {
+        if (!jsdom_insertar_antes(n, h, viejo)) return JS_ThrowRangeError(ctx, "replaceChild: cannot insert there");
+        jsdom_quitar(n, viejo);
+    }
+    _jsdom_de(ctx)->cambios++;
+    return JS_DupValue(ctx, argv[1]);
+}
+
+static JSValue _jsdom_cloneNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _JSDOM_ESTE;
+    return _jsdom_objeto(ctx, jsdom_clonar(n, argc > 0 && JS_ToBool(ctx, argv[0])));
+}
+
+static JSValue _jsdom_contains(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *b;
+    _JSDOM_ESTE;
+    b = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    return JS_NewBool(ctx, b && jsdom_contiene(n, b));
+}
+
+static JSValue _jsdom_compareDocumentPosition(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *b;
+    _JSDOM_ESTE;
+    b = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    if (!b) return JS_ThrowTypeError(ctx, "compareDocumentPosition: not a node");
+    return JS_NewInt32(ctx, jsdom_posicion(n, b));
+}
+
+static JSValue _jsdom_matches(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *s;
+    BOOL r;
+    _JSDOM_ESTE;
+    s = _jsdom_arg(ctx, argc, argv, 0);
+    if (!s) return JS_EXCEPTION;
+    if (!jsdom_selector_valido((STRPTR)s)) {
+        JSValue e = JS_ThrowSyntaxError(ctx, "'%s' is not a valid selector", s);
+        free(s);
+        return e;
+    }
+    r = n->tipo == DOM_ELEMENTO && jsdom_cumple(n, (STRPTR)s);
+    free(s);
+    return JS_NewBool(ctx, r);
+}
+
+static JSValue _jsdom_getElementsByClassName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *s, *sel, *p, *q;
+    DashArrayLong *l;
+    _JSDOM_ESTE;
+    s = _jsdom_arg(ctx, argc, argv, 0);
+    if (!s) return JS_EXCEPTION;
+    sel = (char *)malloc(strlen(s) * 2 + 2);
+    if (!sel) { free(s); return JS_EXCEPTION; }
+    /* "a b" -> ".a.b" */
+    for (p = s, q = sel; *p; ) {
+        while (*p && (unsigned char)*p <= 32) p++;
+        if (!*p) break;
+        *q++ = '.';
+        while (*p && (unsigned char)*p > 32) *q++ = *p++;
+    }
+    *q = 0;
+    l = sel[0] ? jsdom_selector(n, (STRPTR)sel, TRUE) : NULL;
+    free(s);
+    free(sel);
+    return _jsdom_lista(ctx, l);
+}
+
+static JSValue _jsdom_ownerDocument(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    if (n->tipo == DOM_DOCUMENTO) return JS_NULL;
+    return _jsdom_objeto(ctx, _jsdom_de(ctx)->doc);
+}
+
+static JSValue _jsdom_outerHTML(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    return _jsdom_cadena(ctx, jsdom_html_fuera(n));
+}
+
+/* nodeValue / data: the text of a text or comment node (null for the others) */
+static JSValue _jsdom_nodeValue(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    if (n->tipo != DOM_TEXTO && n->tipo != DOM_COMENTARIO) return JS_NULL;
+    return _jsdom_cadena(ctx, n->texto);
+}
+
+static JSValue _jsdom_set_nodeValue(JSContext *ctx, JSValueConst this_val, JSValueConst v) {
+    _JSDOM_ESTE;
+    if (n->tipo != DOM_TEXTO && n->tipo != DOM_COMENTARIO) return JS_UNDEFINED;
+    return _jsdom_set_textContent(ctx, this_val, v);
+}
+
+/* defaultValue: the value attribute (the text of a textarea) */
+static JSValue _jsdom_defaultValue(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    if (n->tipo == DOM_ELEMENTO && !strcmp((const char *)n->nombre, "textarea")) return _jsdom_cadena(ctx, jsdom_texto(n));
+    return _jsdom_cadena(ctx, jsdom_atributo(n, (STRPTR)"value"));
+}
+
+/* offsetWidth/offsetHeight... without the layout's positions: 0 if not shown (display: none
+   here or above, or out of the document); otherwise a nominal size (magic 0: width, 1: height) */
+static JSValue _jsdom_tamano(JSContext *ctx, JSValueConst this_val, int magic) {
+    _JSDOM_ESTE;
+    if (n->tipo != DOM_ELEMENTO || !jsdom_visible(n)) return JS_NewInt32(ctx, 0);
+    return JS_NewInt32(ctx, magic ? 16 : 100);
+}
+
+/* attributes: [{name, value}] (a copy: changing it does not change the element) */
+static JSValue _jsdom_attributes(JSContext *ctx, JSValueConst this_val) {
+    JSValue a;
+    LONG i, k;
+    _JSDOM_ESTE;
+    a = JS_NewArray(ctx);
+    k = n->atributos ? DashArray_length(n->atributos) : 0;
+    for (i = 0; i < k; i++) {
+        _Dash_Atributo *at = (_Dash_Atributo *)DashArray_get(n->atributos, i);
+        JSValue o = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, o, "name", _jsdom_cadena(ctx, at->nombre));
+        JS_SetPropertyStr(ctx, o, "nodeName", _jsdom_cadena(ctx, at->nombre));
+        JS_SetPropertyStr(ctx, o, "value", _jsdom_cadena(ctx, at->valor));
+        JS_SetPropertyStr(ctx, o, "nodeValue", _jsdom_cadena(ctx, at->valor));
+        JS_SetPropertyStr(ctx, o, "specified", JS_TRUE);
+        JS_SetPropertyUint32(ctx, a, i, o);
+    }
+    return a;
+}
+
+/* __dashweb_media("(max-width: 600px)"): matchMedia, como lib/css.dash los @media */
+static JSValue _jsdom_media(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *q = _jsdom_arg(ctx, argc, argv, 0);
+    BOOL r;
+    if (!q) return JS_EXCEPTION;
+    r = css_media_vale((STRPTR)q);
+    free(q);
+    return JS_NewBool(ctx, r);
+}
+
+static JSValue _jsdom_localName(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    if (n->tipo != DOM_ELEMENTO) return JS_NULL;
+    return _jsdom_cadena(ctx, n->nombre);
+}
+
 static const JSCFunctionListEntry _jsdom_metodos[] = {
+    JS_CGETSET_MAGIC_DEF("nextSibling", _jsdom_hermano, NULL, 0),
+    JS_CGETSET_MAGIC_DEF("previousSibling", _jsdom_hermano, NULL, 1),
+    JS_CGETSET_MAGIC_DEF("nextElementSibling", _jsdom_hermano, NULL, 2),
+    JS_CGETSET_MAGIC_DEF("previousElementSibling", _jsdom_hermano, NULL, 3),
+    JS_CFUNC_DEF("insertBefore", 2, _jsdom_insertBefore),
+    JS_CFUNC_DEF("replaceChild", 2, _jsdom_replaceChild),
+    JS_CFUNC_DEF("cloneNode", 1, _jsdom_cloneNode),
+    JS_CFUNC_DEF("contains", 1, _jsdom_contains),
+    JS_CFUNC_DEF("compareDocumentPosition", 1, _jsdom_compareDocumentPosition),
+    JS_CFUNC_DEF("matches", 1, _jsdom_matches),
+    JS_CFUNC_DEF("webkitMatchesSelector", 1, _jsdom_matches),
+    JS_CFUNC_DEF("getElementsByClassName", 1, _jsdom_getElementsByClassName),
+    JS_CGETSET_DEF("ownerDocument", _jsdom_ownerDocument, NULL),
+    JS_CGETSET_DEF("outerHTML", _jsdom_outerHTML, NULL),
+    JS_CGETSET_DEF("nodeValue", _jsdom_nodeValue, _jsdom_set_nodeValue),
+    JS_CGETSET_DEF("data", _jsdom_nodeValue, _jsdom_set_nodeValue),
+    JS_CGETSET_DEF("defaultValue", _jsdom_defaultValue, NULL),
+    JS_CGETSET_MAGIC_DEF("offsetWidth", _jsdom_tamano, NULL, 0),
+    JS_CGETSET_MAGIC_DEF("offsetHeight", _jsdom_tamano, NULL, 1),
+    JS_CGETSET_MAGIC_DEF("clientWidth", _jsdom_tamano, NULL, 0),
+    JS_CGETSET_MAGIC_DEF("clientHeight", _jsdom_tamano, NULL, 1),
+    JS_CGETSET_DEF("localName", _jsdom_localName, NULL),
+    JS_CGETSET_DEF("attributes", _jsdom_attributes, NULL),
     JS_CGETSET_DEF("tagName", _jsdom_tagName, NULL),
     JS_CGETSET_DEF("nodeName", _jsdom_tagName, NULL),
     JS_CGETSET_DEF("nodeType", _jsdom_nodeType, NULL),
@@ -652,20 +1093,49 @@ static JSValue _jsdom_getElementById(JSContext *ctx, JSValueConst this_val, int 
     return v;
 }
 
-/* magic 0: createElement, 1: createTextNode */
+/* magic 0: createElement, 1: createTextNode, 2: createComment */
 static JSValue _jsdom_crear(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic) {
     char *t = _jsdom_arg(ctx, argc, argv, 0);
     JSValue v;
     if (!t) return JS_EXCEPTION;
-    v = _jsdom_objeto(ctx, magic ? jsdom_crear_texto((STRPTR)t) : jsdom_crear((STRPTR)t));
+    v = _jsdom_objeto(ctx, magic == 2 ? jsdom_crear_comentario((STRPTR)t)
+                           : magic ? jsdom_crear_texto((STRPTR)t) : jsdom_crear((STRPTR)t));
     free(t);
     return v;
 }
 
-/* magic 0: body, 1: documentElement */
+static JSValue _jsdom_createDocumentFragment(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    return _jsdom_objeto(ctx, jsdom_crear_fragmento());
+}
+
+/* document.implementation.createHTMLDocument(title) */
+static JSValue _jsdom_documento_nuevo(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *t = argc > 0 && !JS_IsUndefined(argv[0]) ? _js_texto(ctx, argv[0]) : strdup("");
+    JSValue v;
+    if (!t) return JS_EXCEPTION;
+    v = _jsdom_objeto(ctx, jsdom_documento_nuevo((STRPTR)t));
+    free(t);
+    return v;
+}
+
+/* __dashweb_calculado(el, "color"): lo calculado por lib/estilo.dash (getComputedStyle) */
+static JSValue _jsdom_calculado(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *n = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    char *p;
+    JSValue v;
+    if (!n) return JS_NewString(ctx, "");
+    p = _jsdom_arg(ctx, argc, argv, 1);
+    if (!p) return JS_EXCEPTION;
+    v = _jsdom_cadena(ctx, jsdom_estilo_calculado(n, (STRPTR)p));
+    free(p);
+    return v;
+}
+
+/* magic 0: body, 1: documentElement, 2: head (of this document: also those of createHTMLDocument) */
 static JSValue _jsdom_parte(JSContext *ctx, JSValueConst this_val, int magic) {
-    _Dash_Nodo *doc = _jsdom_de(ctx)->doc;
-    return _jsdom_objeto(ctx, magic ? jsdom_raiz(doc) : jsdom_cuerpo(doc));
+    _Dash_Nodo *doc = _jsdom_nodo(ctx, this_val);
+    if (!doc) doc = _jsdom_de(ctx)->doc;
+    return _jsdom_objeto(ctx, magic == 2 ? jsdom_cabeza(doc) : magic ? jsdom_raiz(doc) : jsdom_cuerpo(doc));
 }
 
 static JSValue _jsdom_title(JSContext *ctx, JSValueConst this_val) {
@@ -684,6 +1154,7 @@ static JSValue _jsdom_llamar(JSContext *ctx, const char *name, int argc, JSValue
     r = JS_Call(ctx, f, global, argc, argv);
     JS_FreeValue(ctx, f);
     JS_FreeValue(ctx, global);
+    _js_trabajos(JS_GetRuntime(ctx));
     if (JS_IsException(r)) {
         char *e = _js_excepcion(ctx), *p;
         for (p = e; p && *p; p++) if (*p == '\n') *p = ' ';
@@ -700,8 +1171,11 @@ static const JSCFunctionListEntry _jsdom_documento[] = {
     JS_CFUNC_DEF("getElementById", 1, _jsdom_getElementById),
     JS_CFUNC_MAGIC_DEF("createElement", 1, _jsdom_crear, 0),
     JS_CFUNC_MAGIC_DEF("createTextNode", 1, _jsdom_crear, 1),
+    JS_CFUNC_MAGIC_DEF("createComment", 1, _jsdom_crear, 2),
+    JS_CFUNC_DEF("createDocumentFragment", 0, _jsdom_createDocumentFragment),
     JS_CGETSET_MAGIC_DEF("body", _jsdom_parte, NULL, 0),
     JS_CGETSET_MAGIC_DEF("documentElement", _jsdom_parte, NULL, 1),
+    JS_CGETSET_MAGIC_DEF("head", _jsdom_parte, NULL, 2),
     JS_CGETSET_DEF("title", _jsdom_title, NULL),
 };
 """
@@ -733,6 +1207,9 @@ end
     JS_SetPropertyStr(m->ctx, global, "document", documento);
     JS_SetPropertyStr(m->ctx, global, "window", JS_DupValue(m->ctx, global));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_reloj", JS_NewCFunction(m->ctx, _jsdom_reloj, "__dashweb_reloj", 0));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_calculado", JS_NewCFunction(m->ctx, _jsdom_calculado, "__dashweb_calculado", 2));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_media", JS_NewCFunction(m->ctx, _jsdom_media, "__dashweb_media", 1));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_documento_nuevo", JS_NewCFunction(m->ctx, _jsdom_documento_nuevo, "__dashweb_documento_nuevo", 1));
     JS_FreeValue(m->ctx, global);
 """
 end
@@ -745,45 +1222,10 @@ end
 """
 end
 
-# Eventos (addEventListener, onclick, el atributo onclick; suben hasta document; preventDefault,
-# stopPropagation) y temporizadores (setTimeout, setInterval, clear*), en JavaScript
-func _jsdom_preludio() -> String
-    j = "(function (g) {"
-    j = j + "var N = Object.getPrototypeOf(document);"
-    j = j + "N.addEventListener = function (t, f) { if (typeof f != 'function') return; var e = this.__ev || (this.__ev = {}); (e[t] || (e[t] = [])).push(f); };"
-    j = j + "N.removeEventListener = function (t, f) { var l = this.__ev && this.__ev[t]; if (l && l.indexOf(f) >= 0) l.splice(l.indexOf(f), 1); };"
-    j = j + "function llamar(f, n, ev) { try { return f.call(n, ev); } catch (e) { console.log('JS: ' + e); } }"
-    j = j + "function despachar(nodo, ev) { var parar = false; ev.target = nodo; ev.defaultPrevented = false;"
-    j = j + " ev.preventDefault = function () { ev.defaultPrevented = true; }; ev.stopPropagation = function () { parar = true; };"
-    j = j + " for (var n = nodo; n && !parar; n = n.parentNode) { ev.currentTarget = n; var h = n['on' + ev.type];"
-    j = j + "  if (typeof h != 'function' && n.nodeType == 1 && n.hasAttribute('on' + ev.type)) { try { h = new Function('event', n.getAttribute('on' + ev.type)); } catch (e) { console.log('JS: ' + e); } }"
-    j = j + "  if (typeof h == 'function' && llamar(h, n, ev) === false) ev.defaultPrevented = true;"
-    j = j + "  var l = n.__ev && n.__ev[ev.type]; if (l) l.slice().forEach(function (f) { llamar(f, n, ev); }); }"
-    j = j + " return !ev.defaultPrevented; }"
-    j = j + "N.dispatchEvent = function (ev) { return despachar(this, ev); };"
-    j = j + "N.click = function () { return despachar(this, {type: 'click'}); };"
-    j = j + "N.submit = function () { g.__dashweb_envio = this; };"
-    j = j + "g.__dashweb_despachar = function (n, t) { return despachar(n, {type: t}); };"
-    j = j + "var cola = [], sig = 1;"
-    j = j + "function poner(f, ms, args, rep) { if (typeof f == 'string') { var c = f; f = function () { (0, eval)(c); }; }"
-    j = j + " ms = +ms || 0; if (ms < 0) ms = 0; var id = sig++; cola.push({id: id, f: f, ms: ms, cuando: __dashweb_reloj() + ms, args: args, rep: rep}); return id; }"
-    j = j + "g.setTimeout = function (f, ms) { return poner(f, ms, [].slice.call(arguments, 2), false); };"
-    j = j + "g.setInterval = function (f, ms) { return poner(f, ms, [].slice.call(arguments, 2), true); };"
-    j = j + "g.clearTimeout = g.clearInterval = function (id) { for (var i = 0; i < cola.length; i++) if (cola[i].id === id) { cola.splice(i, 1); return; } };"
-    j = j + "g.__dashweb_tick = function () { var ahora = __dashweb_reloj();"
-    j = j + " cola.filter(function (t) { return t.cuando <= ahora; }).sort(function (a, b) { return a.cuando - b.cuando || a.id - b.id; }).forEach(function (t) {"
-    j = j + "  var i = cola.indexOf(t); if (i < 0) return; if (t.rep) t.cuando = ahora + Math.max(t.ms, 10); else cola.splice(i, 1);"
-    j = j + "  try { t.f.apply(g, t.args); } catch (e) { console.log('JS: ' + e); } });"
-    j = j + " if (!cola.length) return -1; var p = Infinity; cola.forEach(function (t) { if (t.cuando < p) p = t.cuando; });"
-    j = j + " return Math.max(0, p - __dashweb_reloj()); };"
-    j = j + "})(globalThis);"
-    return j
-end
-
 # document = doc en el motor js, con eventos y temporizadores (una sola vez por motor)
 func jsdom_preparar(js: Int, doc: Nodo)
     jsdom_motor_dom(js, doc)
-    js_evaluar(js, _jsdom_preludio(), "dashweb")
+    js_evaluar(js, jsdom_preludio_js(), "dashweb")
     if js_error(js) != ""
         Print "JS: " + js_error(js)
     end

@@ -228,8 +228,124 @@ func _cumple_pseudo(n: Nodo, p: String) -> Bool
         return n.padre != nil and n.padre.tipo == DOM_DOCUMENTO
     elif p == "empty"
         return n.hijos.length == 0
+    elif p == "checked"
+        return (n.nombre == "input" and dom_tiene_atributo(n, "checked")) or (n.nombre == "option" and dom_tiene_atributo(n, "selected"))
+    elif p == "disabled"
+        return _se_desactiva(n.nombre) and dom_tiene_atributo(n, "disabled")
+    elif p == "enabled"
+        return _se_desactiva(n.nombre) and not dom_tiene_atributo(n, "disabled")
+    elif p == "first-of-type"
+        return _posicion(n, true, false) == 1
+    elif p == "last-of-type"
+        return _posicion(n, true, true) == 1
+    elif p == "only-of-type"
+        return _posicion(n, true, false) == 1 and _posicion(n, true, true) == 1
+    elif str_starts(p, "nth-child(")
+        return _nth(p[10:p.length - 1], _posicion(n, false, false))
+    elif str_starts(p, "nth-last-child(")
+        return _nth(p[15:p.length - 1], _posicion(n, false, true))
+    elif str_starts(p, "nth-of-type(")
+        return _nth(p[12:p.length - 1], _posicion(n, true, false))
+    elif str_starts(p, "not(")
+        for parte in css_partir(p[4:p.length - 1], 44)
+            sel = css_selector(parte)
+            if sel != nil and estilo_cumple(n, sel)
+                return false
+            end
+        end
+        return true
     end
     return false
+end
+
+# Las pseudo-clases que se saben sin interacción (las demás, :hover, :focus..., nunca se cumplen;
+# querySelector da un error con ellas, como los navegadores con las que no conocen)
+func css_pseudo_conocida(p: String) -> Bool
+    if p == "first-child" or p == "last-child" or p == "only-child" or p == "link" or p == "any-link" or p == "root" or p == "empty"
+        return true
+    end
+    if p == "checked" or p == "disabled" or p == "enabled" or p == "first-of-type" or p == "last-of-type" or p == "only-of-type"
+        return true
+    end
+    if str_starts(p, "nth-child(") or str_starts(p, "nth-last-child(") or str_starts(p, "nth-of-type(")
+        return true
+    end
+    if str_starts(p, "not(")
+        for parte in css_partir(p[4:p.length - 1], 44)
+            sel = css_selector(parte)
+            if sel == nil or not estilo_puede_cumplirse(sel)
+                return false
+            end
+        end
+        return true
+    end
+    return false
+end
+
+func _se_desactiva(nombre: String) -> Bool
+    return nombre == "input" or nombre == "button" or nombre == "select" or nombre == "textarea" or nombre == "option" or nombre == "fieldset" or nombre == "optgroup"
+end
+
+# El puesto de n entre los elementos hermanos (desde 1; desde el final si al_reves; solo los de su
+# etiqueta si del_tipo)
+func _posicion(n: Nodo, del_tipo: Bool, al_reves: Bool) -> Int
+    p = n.padre
+    if p == nil
+        return 1
+    end
+    k = 0
+    puesto = 0
+    for h in p.hijos
+        if h.tipo == DOM_ELEMENTO and (not del_tipo or h.nombre == n.nombre)
+            k = k + 1
+            if h == n
+                puesto = k
+            end
+        end
+    end
+    if al_reves
+        return k - puesto + 1
+    end
+    return puesto
+end
+
+# an+b (odd, even, 3, 2n+1, -n+3) contra el puesto
+func _nth(expr: String, puesto: Int) -> Bool
+    e = str_replace(str_lower(str_trim(expr)), " ", "")
+    a = 0
+    b = 0
+    if e == "odd"
+        a = 2
+        b = 1
+    elif e == "even"
+        a = 2
+    else
+        pn = str_find(e, "n")
+        if pn < 0
+            b = Int(e)
+        else
+            delante = e[:pn]
+            if delante == "" or delante == "+"
+                a = 1
+            elif delante == "-"
+                a = -1
+            else
+                a = Int(delante)
+            end
+            detras = e[pn + 1:]
+            if str_starts(detras, "+")
+                detras = detras[1:]
+            end
+            if detras != ""
+                b = Int(detras)
+            end
+        end
+    end
+    if a == 0
+        return puesto == b
+    end
+    d = puesto - b
+    return d / a >= 0 and d % a == 0
 end
 
 func _cumple_simple(n: Nodo, s: SelSimple) -> Bool
@@ -306,13 +422,14 @@ end
 # sus clases y los universales (como los navegadores). Los que nunca se cumplen (::before, :hover...)
 # no entran.
 
-func _puede_cumplirse(sel: Selector) -> Bool
+# ¿Puede cumplirse alguna vez? (no si lleva ::before o una pseudo-clase de interacción)
+func estilo_puede_cumplirse(sel: Selector) -> Bool
     for parte in sel.partes
         if parte.simple.pseudo_elemento != ""
             return false
         end
         for p in parte.simple.pseudo
-            if p != "first-child" and p != "last-child" and p != "only-child" and p != "link" and p != "any-link" and p != "root" and p != "empty"
+            if not css_pseudo_conocida(p)
                 return false
             end
         end
@@ -335,7 +452,7 @@ func _estilo_indexar(h: Hojas)
     for k in (0..h.lista.length - 1)
         for regla in h.lista[k].reglas
             for sel in regla.selectores
-                if _puede_cumplirse(sel)
+                if estilo_puede_cumplirse(sel)
                     e = Entrada(sel, regla, h.autor[k])
                     clave = _clave(sel.partes[sel.partes.length - 1].simple)
                     if clave == ""

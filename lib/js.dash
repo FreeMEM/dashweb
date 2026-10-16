@@ -26,6 +26,13 @@ typedef struct _JsMotorS {
     void (*liberar_extra)(struct _JsMotorS *m);   /* called before the context is freed */
 } _JsMotor;
 
+/* The jobs waiting (Promise.then, async functions): run them all, up to a limit */
+static void _js_trabajos(JSRuntime *rt) {
+    JSContext *c;
+    int i;
+    for (i = 0; i < 10000 && JS_ExecutePendingJob(rt, &c) > 0; i++) ;
+}
+
 /* Latin-1 -> UTF-8 (malloc; free it) */
 static char *_js_utf8(const char *s) {
     const unsigned char *p;
@@ -143,6 +150,7 @@ end
     if (!fuente) { m->error = strdup("sin memoria"); return (STRPTR)""; }
     v = JS_Eval(m->ctx, fuente, strlen(fuente), nombre ? (const char *)nombre : "<js>", JS_EVAL_TYPE_GLOBAL);
     free(fuente);
+    _js_trabajos(m->rt);
     if (JS_IsException(v)) {
         m->error = _js_excepcion(m->ctx);
         if (!m->error) m->error = strdup("error");

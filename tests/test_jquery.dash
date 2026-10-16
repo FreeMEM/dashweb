@@ -1,0 +1,68 @@
+# Test: jQuery 3.7.1 (tests/pages/jquery-3.7.1.min.js, licencia MIT) sobre lib/jsdom.dash. La página
+# carga jQuery por HTTP y tests/pages/jquery_prueba.js, que escribe lo que da cada llamada típica:
+# selectores (también los de jQuery, :first, :eq), clases, atributos, css, html, eventos (también
+# delegados), recorrido, hide/show, val/prop, remove/wrap/empty, utilidades, Deferred, ready y load.
+# emu-server: http.py 40859
+# memcheck
+# expect-out: jquery: 3.7.1 function true
+# expect-out: texto: Hola
+# expect-out: h1: Cambiado
+# expect-out: li: 3 1 uno tres dos
+# expect-out: nuevo: 4 cuatro
+# expect-out: clases: 4 true par item
+# expect-out: par: 0
+# expect-out: toggle: true false
+# expect-out: attr: 7 7 red red
+# expect-out: html: <b>negrita</b> y <i>más</i> 1 2
+# expect-out: clic click boton true
+# expect-out: clic click boton true
+# expect-out: clic click boton true
+# expect-out: click: 3
+# expect-out: delegado: uno
+# expect-out: off: 3
+# expect-out: each: uno,dos,tres,cuatro
+# expect-out: find: 4 lista UL dos tres 3
+# expect-out: filtros: uno cuatro dos 2 3 1 dos
+# expect-out: hide: none true false
+# expect-out: show: [] true
+# expect-out: val: viejo nuevo b
+# expect-out: prop: true true 1
+# expect-out: remove: 3
+# expect-out: wrap: envoltorio
+# expect-out: before: p p
+# expect-out: empty: 0[]
+# expect-out: util: 2 x true true 1 1
+# expect-out: deferred: hecho
+# expect-out: deferred: resolved
+# expect-out: serialize: campo=nuevo&c=on&s=b
+# expect-out: css: 100px color: red; width: 100px; margin-left: 5px
+# expect-out: fin del script
+# expect-out: listo: interactive 3
+# expect-out: load
+# expect-out: temporizador
+# expect-out: fin
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+
+Main
+    h = "<html><head><title>jQuery</title></head><body><h1 id=t>Hola</h1>"
+    h = h + "<ul id=lista><li>uno<li class=par>dos<li>tres</ul><p id=p>texto</p><button id=boton>B</button>"
+    h = h + "<form id=formulario><input id=campo name=campo value=viejo><input type=checkbox id=casilla name=c checked>"
+    h = h + "<select id=sel name=s><option value=a>A<option value=b selected>B</select></form>"
+    h = h + "<script src=jquery-3.7.1.min.js></script><script src=jquery_prueba.js></script></body></html>"
+    doc = dom_desde_html(h)
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    jsdom_ejecutar_scripts(js, doc, "http://127.0.0.1:40859/pages/jquery.html")
+    # los temporizadores (ready de jQuery, setTimeout) hasta que no quede ninguno
+    vueltas = 0
+    espera = jsdom_temporizadores(js)
+    while espera >= 0 and vueltas < 200
+        time_delay(1)
+        espera = jsdom_temporizadores(js)
+        vueltas = vueltas + 1
+    end
+    js_liberar(js)
+    Print "fin"
+end
