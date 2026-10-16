@@ -1,0 +1,361 @@
+# Árbol DOM a partir del HTML (lib/html.dash), con las reglas tolerantes de los navegadores:
+# html, head y body implícitos, cierres implícitos (p, li, dt/dd, option, filas y celdas de
+# tablas), elementos vacíos (br, img, input...) y etiquetas de cierre sueltas que se ignoran.
+#
+#   doc = dom_desde_html(texto)        # el nodo documento; doc.hijos[0] es <html>
+#   cuerpo = dom_buscar(doc, "body")
+#   Print dom_texto(cuerpo)
+#
+# Los hijos van en una lista; el padre es un campo weak (el árbol se libera entero cuando
+# nadie retiene el documento).
+
+import "html.dash"
+
+const DOM_ELEMENTO = 1
+const DOM_TEXTO = 3
+const DOM_COMENTARIO = 8
+const DOM_DOCUMENTO = 9
+
+struct Nodo
+    tipo: Int
+    nombre: String
+    texto: String
+    atributos: [Atributo]
+    hijos: [Nodo]
+    weak padre: Nodo
+end
+
+func dom_nodo(tipo: Int, nombre: String, texto: String) -> Nodo
+    var atributos: [Atributo] = []
+    var hijos: [Nodo] = []
+    var nadie: Nodo = nil
+    return Nodo(tipo, nombre, texto, atributos, hijos, nadie)
+end
+
+func dom_agregar(padre: Nodo, hijo: Nodo)
+    hijo.padre = padre
+    padre.hijos.push(hijo)
+end
+
+# Valor de un atributo, o "" si no lo tiene
+func dom_atributo(n: Nodo, nombre: String) -> String
+    for a in n.atributos
+        if a.nombre == nombre
+            return a.valor
+        end
+    end
+    return ""
+end
+
+func dom_tiene_atributo(n: Nodo, nombre: String) -> Bool
+    for a in n.atributos
+        if a.nombre == nombre
+            return true
+        end
+    end
+    return false
+end
+
+# Elementos sin contenido ni cierre
+func dom_es_vacio(nombre: String) -> Bool
+    return nombre == "br" or nombre == "img" or nombre == "input" or nombre == "hr" or nombre == "meta" or nombre == "link" or nombre == "area" or nombre == "base" or nombre == "col" or nombre == "embed" or nombre == "param" or nombre == "source" or nombre == "track" or nombre == "wbr"
+end
+
+# Lo que va en head mientras no ha empezado el cuerpo
+func _de_head(nombre: String) -> Bool
+    return nombre == "title" or nombre == "meta" or nombre == "link" or nombre == "style" or nombre == "script" or nombre == "base" or nombre == "noscript"
+end
+
+# Elementos de bloque que cierran un <p> abierto
+func _cierra_p(nombre: String) -> Bool
+    return nombre == "p" or nombre == "div" or nombre == "ul" or nombre == "ol" or nombre == "dl" or nombre == "li" or nombre == "table" or nombre == "pre" or nombre == "blockquote" or nombre == "form" or nombre == "hr" or nombre == "h1" or nombre == "h2" or nombre == "h3" or nombre == "h4" or nombre == "h5" or nombre == "h6" or nombre == "section" or nombre == "article" or nombre == "aside" or nombre == "header" or nombre == "footer" or nombre == "nav" or nombre == "address" or nombre == "fieldset" or nombre == "figure" or nombre == "main" or nombre == "menu" or nombre == "details" or nombre == "dd" or nombre == "dt"
+end
+
+# Solo espacios, tabuladores y saltos de línea
+func _solo_blancos(s: String) -> Bool
+    for i in (0..s.length - 1)
+        c = str_code(s, i)
+        if c != 32 and c != 9 and c != 10 and c != 13 and c != 12
+            return false
+        end
+    end
+    return true
+end
+
+struct Constructor
+    doc: Nodo
+    html: Nodo
+    head: Nodo
+    body: Nodo
+    abiertos: [Nodo]
+end
+
+func _actual(c: Constructor) -> Nodo
+    return c.abiertos[c.abiertos.length - 1]
+end
+
+# El elemento abierto más interior con ese nombre (su posición en la pila), o -1. Se para
+# en los límites de tabla y lista cuando hace falta (para no cerrar lo de fuera).
+func _abierto(c: Constructor, nombre: String, limites: [String]) -> Int
+    i = c.abiertos.length - 1
+    while i >= 0
+        n = c.abiertos[i]
+        if n.nombre == nombre
+            return i
+        end
+        for l in limites
+            if n.nombre == l
+                return -1
+            end
+        end
+        i = i - 1
+    end
+    return -1
+end
+
+# Cierra todo hasta el elemento de la posición i (incluido)
+func _cerrar_hasta(c: Constructor, i: Int)
+    while c.abiertos.length > i and c.abiertos.length > 3
+        c.abiertos.pop()
+    end
+end
+
+func _cerrar(c: Constructor, nombre: String, limites: [String])
+    i = _abierto(c, nombre, limites)
+    if i >= 3
+        _cerrar_hasta(c, i)
+    end
+end
+
+# Hace que haya body (al llegar contenido)
+func _empezar_body(c: Constructor)
+    if c.body == nil
+        c.body = dom_nodo(DOM_ELEMENTO, "body", "")
+        dom_agregar(c.html, c.body)
+    end
+    if c.abiertos.length < 3 or c.abiertos[2] != c.body
+        while c.abiertos.length > 2
+            c.abiertos.pop()
+        end
+        c.abiertos.push(c.body)
+    end
+end
+
+func _texto(c: Constructor, texto: String)
+    padre = _actual(c)
+    ultimo = padre.hijos.length - 1
+    if ultimo >= 0 and padre.hijos[ultimo].tipo == DOM_TEXTO
+        t = padre.hijos[ultimo]
+        t.texto = t.texto + texto
+    else
+        dom_agregar(padre, dom_nodo(DOM_TEXTO, "", texto))
+    end
+end
+
+func _inicio(c: Constructor, tok: HtmlToken)
+    nombre = tok.nombre
+    if nombre == "html"
+        for a in tok.atributos
+            if not dom_tiene_atributo(c.html, a.nombre)
+                c.html.atributos.push(a)
+            end
+        end
+        return
+    end
+    if nombre == "head"
+        return
+    end
+    if nombre == "body"
+        _empezar_body(c)
+        for a in tok.atributos
+            if not dom_tiene_atributo(c.body, a.nombre)
+                c.body.atributos.push(a)
+            end
+        end
+        return
+    end
+    destino = c.head
+    if c.body == nil and _de_head(nombre)
+        destino = c.head
+    else
+        _empezar_body(c)
+        # cierres implícitos
+        if _cierra_p(nombre)
+            _cerrar(c, "p", ["button", "table", "td", "th"])
+        end
+        if nombre == "li"
+            _cerrar(c, "li", ["ul", "ol"])
+        elif nombre == "dt" or nombre == "dd"
+            _cerrar(c, "dt", ["dl"])
+            _cerrar(c, "dd", ["dl"])
+        elif nombre == "option"
+            _cerrar(c, "option", ["select"])
+        elif nombre == "tr"
+            _cerrar(c, "tr", ["table"])
+        elif nombre == "td" or nombre == "th"
+            _cerrar(c, "td", ["tr", "table"])
+            _cerrar(c, "th", ["tr", "table"])
+        elif nombre == "thead" or nombre == "tbody" or nombre == "tfoot"
+            _cerrar(c, "thead", ["table"])
+            _cerrar(c, "tbody", ["table"])
+            _cerrar(c, "tfoot", ["table"])
+        end
+        destino = _actual(c)
+    end
+    n = dom_nodo(DOM_ELEMENTO, nombre, "")
+    for a in tok.atributos
+        n.atributos.push(a)
+    end
+    dom_agregar(destino, n)
+    if not dom_es_vacio(nombre) and not tok.autocierre
+        if destino == c.head
+            # el contenido de title, style y script llega como texto crudo justo después
+            c.abiertos.push(c.head)
+        end
+        c.abiertos.push(n)
+    end
+end
+
+func _fin(c: Constructor, nombre: String)
+    if nombre == "html" or nombre == "body"
+        return
+    end
+    if nombre == "head"
+        return
+    end
+    if nombre == "br"
+        _empezar_body(c)
+        dom_agregar(_actual(c), dom_nodo(DOM_ELEMENTO, "br", ""))
+        return
+    end
+    i = c.abiertos.length - 1
+    while i >= 2
+        if c.abiertos[i].nombre == nombre
+            while c.abiertos.length > i
+                c.abiertos.pop()
+            end
+            # lo de head vuelve al nivel de html
+            if c.abiertos.length > 0 and _actual(c) == c.head and c.body == nil
+                c.abiertos.pop()
+            end
+            return
+        end
+        i = i - 1
+    end
+end
+
+# El árbol de un texto HTML (ya en Latin-1)
+func dom_desde_html(texto: String) -> Nodo
+    doc = dom_nodo(DOM_DOCUMENTO, "#document", "")
+    html = dom_nodo(DOM_ELEMENTO, "html", "")
+    head = dom_nodo(DOM_ELEMENTO, "head", "")
+    dom_agregar(doc, html)
+    dom_agregar(html, head)
+    var nadie: Nodo = nil
+    c = Constructor(doc, html, head, nadie, [doc, html])
+    t = html_tokenizador(texto)
+    tok = html_siguiente(t)
+    while tok != nil
+        if tok.tipo == HT_TEXTO
+            if c.body == nil and _solo_blancos(tok.texto)
+                if _actual(c) != c.html
+                    _texto(c, tok.texto)
+                end
+            else
+                if c.body == nil and _actual(c) == c.html
+                    _empezar_body(c)
+                end
+                _texto(c, tok.texto)
+            end
+        elif tok.tipo == HT_INICIO
+            _inicio(c, tok)
+        elif tok.tipo == HT_FIN
+            _fin(c, tok.nombre)
+        elif tok.tipo == HT_COMENTARIO
+            dom_agregar(_actual(c), dom_nodo(DOM_COMENTARIO, "", tok.texto))
+        elif tok.tipo == HT_DOCTYPE
+            doc.texto = tok.texto
+        end
+        tok = html_siguiente(t)
+    end
+    if c.body == nil
+        _empezar_body(c)
+    end
+    return doc
+end
+
+# El primer elemento con ese nombre (en orden de documento), o nil
+func dom_buscar(n: Nodo, nombre: String) -> Nodo
+    if n.tipo == DOM_ELEMENTO and n.nombre == nombre
+        return n
+    end
+    for h in n.hijos
+        r = dom_buscar(h, nombre)
+        if r != nil
+            return r
+        end
+    end
+    var nada: Nodo = nil
+    return nada
+end
+
+# El elemento con ese id, o nil
+func dom_por_id(n: Nodo, id: String) -> Nodo
+    if n.tipo == DOM_ELEMENTO and dom_atributo(n, "id") == id
+        return n
+    end
+    for h in n.hijos
+        r = dom_por_id(h, id)
+        if r != nil
+            return r
+        end
+    end
+    var nada: Nodo = nil
+    return nada
+end
+
+# Todo el texto de dentro, seguido
+func dom_texto(n: Nodo) -> String
+    if n.tipo == DOM_TEXTO
+        return n.texto
+    end
+    r = ""
+    for h in n.hijos
+        if h.tipo == DOM_TEXTO
+            r = r + h.texto
+        elif h.tipo == DOM_ELEMENTO
+            r = r + dom_texto(h)
+        end
+    end
+    return r
+end
+
+# Esquema del árbol en una línea, para pruebas: html(head(title("x")),body(p("a"),br))
+func dom_esquema(n: Nodo) -> String
+    if n.tipo == DOM_TEXTO
+        return "\"" + str_replace(n.texto, "\n", "\\n") + "\""
+    elif n.tipo == DOM_COMENTARIO
+        return "<!--" + n.texto + "-->"
+    end
+    r = n.nombre
+    if n.tipo == DOM_DOCUMENTO
+        r = "#doc"
+    end
+    id = dom_atributo(n, "id")
+    if id != ""
+        r = r + "#" + id
+    end
+    if n.hijos.length == 0
+        return r
+    end
+    r = r + "("
+    primero = true
+    for h in n.hijos
+        if not primero
+            r = r + ","
+        end
+        r = r + dom_esquema(h)
+        primero = false
+    end
+    return r + ")"
+end

@@ -104,6 +104,8 @@ Acordado el 2026-10-15 por mensaje entre sesiones (escribirle con SendMessage si
 - **Coste de pintar (medido por ellos, A1200 3.1):** zona de 320x200, 20 ms el fondo y ~4,7 ms por línea de 50
   caracteres con `gfx_text_at` (página llena ~115 ms): el pintor (tarea 13) debe repintar por partes
   (solo lo que cambia) y usar `ScrollRaster` al desplazar.
+- **Procesos:** cada sesión para solo sus procesos por PID (nada de `pkill fs-uae` ni `pkill -f run_tests`):
+  el 2026-10-16 un `pkill` de la otra sesión tumbó una batería nuestra.
 - **Zona de dibujo (en commit eec3247):** la API de `docs/MUI_DISEÑO.md` (`mui_canvas_on_draw(c, f)` con `f(x, y, ancho, alto)`
   pintando con `gfx_`). Nos avisará antes de cambiarla.
 
@@ -147,6 +149,7 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+- [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
 
 ### Fase A: sin MUI
@@ -173,7 +176,7 @@ tarea, con el estilo de Dash.
       propia. Si hace falta decidir algo de licencias o versiones, `[?]`.
 - [x] 8. **Tokenizador HTML.** (necesita D2, D3, D4) Etiquetas, atributos (con y sin comillas), texto, comentarios, `DOCTYPE`,
       entidades, `<script>`/`<style>` como texto crudo. Tolerante con HTML mal formado; XHTML también.
-- [ ] 9. **Árbol DOM.** (necesita D4, D6) Nodos (elemento, texto, comentario), etiquetas implícitas (`html`, `head`, `body`),
+- [x] 9. **Árbol DOM.** (necesita D4, D6) Nodos (elemento, texto, comentario), etiquetas implícitas (`html`, `head`, `body`),
       cierres implícitos (`p`, `li`, `td`...), elementos vacíos (`br`, `img`...). Tests con páginas reales
       pequeñas guardadas en `tests/pages/`.
 - [ ] 10. **CSS: lectura.** (necesita D2, D4) Tokenizador y analizador: reglas, selectores (tipo, clase, id, descendiente,
@@ -447,3 +450,18 @@ Formato:
   al salir; con `weak`, 0.
 - Tests (Dash): `test_weak`, `test_weak_dangling` (los dos con `--memcheck`) en A1200, A500 y 3.2;
   `errors/weak_int`. 154/154 sin emulador, ejemplos 33/33. Mismo C en los programas previos.
+
+### 2026-10-16 — Tarea 9 (árbol DOM) y D16
+- Hecho: `lib/dom.dash`: `struct Nodo` (tipo, nombre, texto, `[Atributo]`, `hijos: [Nodo]`, `weak padre`),
+  `dom_desde_html(texto)` con pila de elementos abiertos: html/head/body implícitos (lo de head mientras no empieza
+  el cuerpo), cierres implícitos (`p` ante bloques, `li`, `dt`/`dd`, `option`, `tr`, `td`/`th`, `thead`/`tbody`/
+  `tfoot`, con límites de tabla y lista), elementos vacíos, autocierre XHTML, cierres sueltos ignorados (`</br>`
+  = `<br>`), textos seguidos unidos, DOCTYPE en el documento. `dom_buscar`, `dom_por_id`, `dom_texto`,
+  `dom_atributo`, `dom_esquema` (para pruebas).
+- D16 (Dash, 2d13636 tras rebase sobre la 13b de MUI): un `for` sobre una lista prestada (temporal del que llama)
+  la liberaba al acabar: un bucle que la recorría dos veces leía memoria liberada (6 → 2). Ahora `_dash_hold`.
+  Test `test_for_lent_list`. Batería: 380/380 con `--emu --emu-a500 --emu-32` y 233/233 con `--emu --memcheck`
+  (la primera pasada la tumbó un `pkill fs-uae` de la otra sesión). Tras el rebase: 157/157 y 237/237 en el A1200.
+- Tests: `test_dom` (`--memcheck`, 0 vivos). 8/8.
+- Pendiente: las páginas de prueba como ficheros en `tests/pages/` (el runner aún no copia ficheros al emulador):
+  para el visor (tarea 13).

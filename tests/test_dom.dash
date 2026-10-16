@@ -1,0 +1,25 @@
+# Test: lib/dom.dash: html/head/body implícitos, cierres implícitos, vacíos, tablas, listas,
+# cierres sueltos, texto seguido, búsquedas; el árbol se libera entero (padres weak).
+# memcheck
+# expect-out: #doc(html(head(title("Hola")),body(p("uno"),p("dos",br,img),ul(li("a"),li("b",b("c")))," fin")))
+# expect-out: #doc(html(head,body(table(tr(td("1"),td("2")),tr(td("3"))),div#x("caja"))))
+# expect-out: #doc(html(head(meta,style("p{}")),body#cuerpo(<!-- c -->,h1("T"),p("antes"),div("despu",<!---->,"és"))))
+# expect-out: #doc(html(head,body("solo texto")))
+# expect-out: div caja
+# expect-out: unodosabc fin
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/dom.dash"
+
+Main
+    doc = dom_desde_html("<title>Hola</title><p>uno<p>dos<br><img src=x></span><ul><li>a<li>b<b>c</ul> fin")
+    Print dom_esquema(doc)
+    t = dom_desde_html("<table><tr><td>1<td>2<tr><td>3</table><div id=x>caja</div>")
+    Print dom_esquema(t)
+    d = dom_desde_html("<!DOCTYPE html><html><head><meta charset=utf-8>\n<style>p{}</style></head>\n<body id=cuerpo><!-- c --><h1>T</h1><p>antes<div>despu<!---->és</div></body></html>")
+    Print dom_esquema(d)
+    Print dom_esquema(dom_desde_html("solo texto"))
+    x = dom_por_id(t, "x")
+    Print x.nombre + " " + dom_texto(x)
+    Print str_replace(dom_texto(dom_buscar(doc, "body")), "\n", " ")
+end
