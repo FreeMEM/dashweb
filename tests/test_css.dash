@@ -1,0 +1,58 @@
+# Test: lib/css.dash: reglas, listas de selectores, especificidad, combinadores, atributos,
+# pseudo, !important, comentarios, @media, @import, @font-face saltado, atributo style.
+# memcheck
+# expect-out: 0 body [1] color=#333 margin=0
+# expect-out: 1 h1 [1] font-size=2em
+# expect-out: 1 h2.titulo [101] font-size=2em
+# expect-out: 2 h2.titulo [101] font-size=1.5em
+# expect-out: 3 div#menu > ul li a:hover [10104] color=red!
+# expect-out: 4 a[href^=http] [101] background=url("a;b.png") no-repeat
+# expect-out: 5 p + p [2] margin-top=0
+# expect-out: 5 p ~ span::before [3] margin-top=0
+# expect-out: 6 * [0] box-sizing=border-box
+# expect-out: 7 .solo-pantalla [100] display=block
+# expect-out: importes: base.css otra.css
+# expect-out: style: color=blue font-weight=bold!
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/css.dash"
+
+Main
+    css = "@charset \"utf-8\"; @import url(\"base.css\") screen; @import 'otra.css';\n"
+    css = css + "/* comentario { } */ body { color: #333; margin: 0 }\n"
+    css = css + "h1, h2.titulo { font-size: 2em; }\n"
+    css = css + "h2.titulo { font-size: 1.5em }\n"
+    css = css + "div#menu > ul li a:hover { color: red !important; }\n"
+    css = css + "a[href^=\"http\"] { background: url(\"a;b.png\") no-repeat; }\n"
+    css = css + "p + p, p ~ span:before { margin-top: 0 }\n"
+    css = css + "@font-face { font-family: X; src: url(x.woff) }\n"
+    css = css + "* { box-sizing: border-box }\n"
+    css = css + "@media print { body { color: black } }\n"
+    css = css + "@media screen and (min-width: 100px) { .solo-pantalla { display: block } }\n"
+    hoja = css_leer(css, 0)
+    for r in hoja.reglas
+        for s in r.selectores
+            linea = "" + r.orden + " " + css_selector_texto(s) + " [" + s.especificidad + "]"
+            for d in r.declaraciones
+                linea = linea + " " + d.propiedad + "=" + d.valor
+                if d.importante
+                    linea = linea + "!"
+                end
+            end
+            Print linea
+        end
+    end
+    imp = "importes:"
+    for u in hoja.importes
+        imp = imp + " " + u
+    end
+    Print imp
+    st = "style:"
+    for d in css_declaraciones("color: blue; ; font-weight : bold !important;")
+        st = st + " " + d.propiedad + "=" + d.valor
+        if d.importante
+            st = st + "!"
+        end
+    end
+    Print st
+end

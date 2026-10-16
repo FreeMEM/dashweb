@@ -179,10 +179,11 @@ tarea, con el estilo de Dash.
 - [x] 9. **Árbol DOM.** (necesita D4, D6) Nodos (elemento, texto, comentario), etiquetas implícitas (`html`, `head`, `body`),
       cierres implícitos (`p`, `li`, `td`...), elementos vacíos (`br`, `img`...). Tests con páginas reales
       pequeñas guardadas en `tests/pages/`.
-- [ ] 10. **CSS: lectura.** (necesita D2, D4) Tokenizador y analizador: reglas, selectores (tipo, clase, id, descendiente,
+- [x] 10. **CSS: lectura.** (necesita D2, D4) Tokenizador y analizador: reglas, selectores (tipo, clase, id, descendiente,
       hijo, atributo, `:hover` ignorado), declaraciones, `!important`, `@media` (solo `screen`/`all`),
       hojas `<style>` y `<link rel=stylesheet>` (vía HTTP).
-- [ ] 11. **CSS: estilo.** (necesita D4, D5) Selección de elementos, cascada (origen, especificidad, orden), herencia,
+- [ ] 11. **CSS: estilo.** (necesita D4, D5) Incluye reunir las hojas del documento: `<style>`, `<link rel=stylesheet>`
+      (HTTP o fichero) y sus `@import` (la tarea 10 solo los lee). Selección de elementos, cascada (origen, especificidad, orden), herencia,
       hoja por defecto del navegador, atributo `style`. Estilo calculado por nodo para las propiedades que
       se vayan a usar (display, colores, fuente, márgenes, relleno, bordes, ancho/alto, alineación, listas).
 - [ ] 12. **Maquetación.** (necesita D9) Cajas de bloque y en línea, cortes de línea con las medidas de la fuente
@@ -465,3 +466,13 @@ Formato:
 - Tests: `test_dom` (`--memcheck`, 0 vivos). 8/8.
 - Pendiente: las páginas de prueba como ficheros en `tests/pages/` (el runner aún no copia ficheros al emulador):
   para el visor (tarea 13).
+
+### 2026-10-16 — Tarea 10 (CSS: lectura)
+- Hecho: `lib/css.dash`: `css_leer(texto, orden)` → `HojaCSS` (reglas con su número de orden e `importes`);
+  `css_declaraciones` (bloques y atributo `style`, `!important`); `css_selector` (tipo, `*`, `#id`, `.clase`,
+  `[atr]` con `= ~= |= ^= $= *=`, `:pseudo(...)`, `::pseudo` y los de CSS2 con un `:`, combinadores descendiente,
+  `>`, `+`, `~`; especificidad como ids*10000 + clases*100 + tipos); `css_selector_texto` para pruebas. Comentarios
+  fuera; `;` dentro de comillas o paréntesis (`url("a;b")`) respetados; `@media` solo screen/all/consultas; `@import`
+  a `importes`; `@charset`, `@font-face` y demás reglas `@` saltadas; selectores que no se entienden, descartados.
+- Tests: `test_css` (`--memcheck`). 9/9.
+- Pendiente: reunir `<style>`/`<link>`/`@import` del documento → tarea 11.

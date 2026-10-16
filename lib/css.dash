@@ -1,0 +1,465 @@
+# Lectura de CSS: reglas, selectores (con su especificidad) y declaraciones.
+#
+#   hoja = css_leer(texto, 0)              # 0: número de orden de la primera regla
+#   for r in hoja.reglas
+#       for s in r.selectores
+#           Print css_selector_texto(s)    # para pruebas
+#       end
+#   end
+#   decl = css_declaraciones("color: red; margin: 0 !important")   # atributo style
+#
+# Selectores: tipo, *, #id, .clase, [atr], [atr=v] (y ~= |= ^= $= *=), :pseudo, ::pseudo y
+# los combinadores descendiente, >, + y ~. @media solo se tiene en cuenta para screen/all;
+# @import se guarda en hoja.importes; el resto de reglas @ se salta.
+
+const CSS_DESCENDIENTE = 1
+const CSS_HIJO = 2
+const CSS_ADYACENTE = 3
+const CSS_HERMANO = 4
+
+struct SelAtributo
+    nombre: String
+    op: String
+    valor: String
+end
+
+# Un selector simple compuesto: div#a.b[c]:hover
+struct SelSimple
+    etiqueta: String
+    id: String
+    clases: [String]
+    atributos: [SelAtributo]
+    pseudo: [String]
+    pseudo_elemento: String
+end
+
+# Una parte de un selector y cómo se une a la anterior (0 en la primera)
+struct SelParte
+    simple: SelSimple
+    combinador: Int
+end
+
+struct Selector
+    partes: [SelParte]
+    especificidad: Int
+end
+
+struct Declaracion
+    propiedad: String
+    valor: String
+    importante: Bool
+end
+
+struct Regla
+    selectores: [Selector]
+    declaraciones: [Declaracion]
+    orden: Int
+end
+
+struct HojaCSS
+    reglas: [Regla]
+    importes: [String]
+end
+
+# Sin comentarios /* ... */
+func css_sin_comentarios(s: String) -> String
+    p = str_find(s, "/*")
+    if p < 0
+        return s
+    end
+    r = ""
+    desde = 0
+    while p >= 0
+        r = r + s[desde:p]
+        fin = str_find_from(s, "*/", p + 2)
+        if fin < 0
+            return r
+        end
+        desde = fin + 2
+        p = str_find_from(s, "/*", desde)
+    end
+    return r + s[desde:]
+end
+
+# Posición del carácter c (código) en s desde i, fuera de comillas, paréntesis y corchetes; -1 si no está
+func _css_buscar(s: String, c: Int, desde: Int) -> Int
+    n = s.length
+    i = desde
+    nivel = 0
+    comilla = 0
+    while i < n
+        x = str_code(s, i)
+        if comilla != 0
+            if x == 92
+                i = i + 1
+            elif x == comilla
+                comilla = 0
+            end
+        elif x == 34 or x == 39
+            comilla = x
+        elif x == c and nivel == 0
+            return i
+        elif x == 40 or x == 91
+            nivel = nivel + 1
+        elif x == 41 or x == 93
+            if nivel > 0
+                nivel = nivel - 1
+            end
+        end
+        i = i + 1
+    end
+    return -1
+end
+
+# La "}" que cierra la "{" de la posición i (bloques anidados); el final si no hay
+func _css_cierre(s: String, i: Int) -> Int
+    n = s.length
+    nivel = 0
+    comilla = 0
+    j = i
+    while j < n
+        x = str_code(s, j)
+        if comilla != 0
+            if x == 92
+                j = j + 1
+            elif x == comilla
+                comilla = 0
+            end
+        elif x == 34 or x == 39
+            comilla = x
+        elif x == 123
+            nivel = nivel + 1
+        elif x == 125
+            nivel = nivel - 1
+            if nivel == 0
+                return j
+            end
+        end
+        j = j + 1
+    end
+    return n
+end
+
+# Trozos de s separados por el carácter c fuera de comillas y paréntesis
+func _css_partir(s: String, c: Int) -> [String]
+    var r: [String] = []
+    desde = 0
+    p = _css_buscar(s, c, 0)
+    while p >= 0
+        r.push(s[desde:p])
+        desde = p + 1
+        p = _css_buscar(s, c, desde)
+    end
+    r.push(s[desde:])
+    return r
+end
+
+# Las declaraciones de un bloque (o del atributo style)
+func css_declaraciones(texto: String) -> [Declaracion]
+    var r: [Declaracion] = []
+    for trozo in _css_partir(texto, 59)
+        p = str_find(trozo, ":")
+        if p > 0
+            propiedad = str_lower(str_trim(trozo[:p]))
+            valor = str_trim(trozo[p + 1:])
+            importante = false
+            q = str_find(str_lower(valor), "!important")
+            if q >= 0
+                importante = true
+                valor = str_trim(valor[:q])
+            end
+            if propiedad != "" and valor != ""
+                r.push(Declaracion(propiedad, valor, importante))
+            end
+        end
+    end
+    return r
+end
+
+func _sel_simple_vacio() -> SelSimple
+    var clases: [String] = []
+    var atributos: [SelAtributo] = []
+    var pseudo: [String] = []
+    return SelSimple("", "", clases, atributos, pseudo, "")
+end
+
+# Letras, cifras, "-", "_" y bytes Latin-1 altos: lo que forma un nombre
+func _css_nombre(c: Int) -> Bool
+    return (c >= 97 and c <= 122) or (c >= 65 and c <= 90) or (c >= 48 and c <= 57) or c == 45 or c == 95 or c >= 160 or c == 92
+end
+
+# Un selector completo (sin comas); nil si no se entiende
+func css_selector(texto: String) -> Selector
+    s = str_trim(texto)
+    n = s.length
+    var partes: [SelParte] = []
+    actual = _sel_simple_vacio()
+    vacio = true
+    combinador = 0
+    pendiente = 0
+    ids = 0
+    clases = 0
+    tipos = 0
+    i = 0
+    while i < n
+        c = str_code(s, i)
+        if c == 32 or c == 9 or c == 10 or c == 13 or c == 62 or c == 43 or c == 126
+            # fin de una parte: espacios y quizá un combinador
+            if not vacio
+                partes.push(SelParte(actual, combinador))
+                actual = _sel_simple_vacio()
+                vacio = true
+                pendiente = CSS_DESCENDIENTE
+            end
+            if c == 62
+                pendiente = CSS_HIJO
+            elif c == 43
+                pendiente = CSS_ADYACENTE
+            elif c == 126
+                pendiente = CSS_HERMANO
+            end
+            combinador = pendiente
+            i = i + 1
+        elif c == 42
+            vacio = false
+            i = i + 1
+        elif c == 35 or c == 46
+            j = i + 1
+            while j < n and _css_nombre(str_code(s, j))
+                j = j + 1
+            end
+            nombre = s[i + 1:j]
+            if c == 35
+                actual.id = nombre
+                ids = ids + 1
+            else
+                actual.clases.push(nombre)
+                clases = clases + 1
+            end
+            vacio = false
+            i = j
+        elif c == 91
+            fin = _css_buscar(s, 93, i + 1)
+            if fin < 0
+                var nada: Selector = nil
+                return nada
+            end
+            actual.atributos.push(_css_sel_atributo(s[i + 1:fin]))
+            clases = clases + 1
+            vacio = false
+            i = fin + 1
+        elif c == 58
+            j = i + 1
+            doble = j < n and str_code(s, j) == 58
+            if doble
+                j = j + 1
+            end
+            inicio = j
+            while j < n and _css_nombre(str_code(s, j))
+                j = j + 1
+            end
+            nombre = str_lower(s[inicio:j])
+            if j < n and str_code(s, j) == 40
+                fin = _css_buscar(s, 41, j + 1)
+                if fin < 0
+                    fin = n - 1
+                end
+                nombre = nombre + s[j:fin + 1]
+                j = fin + 1
+            end
+            # los pseudo-elementos de CSS2 se escriben también con un solo ":"
+            if doble or nombre == "before" or nombre == "after" or nombre == "first-line" or nombre == "first-letter"
+                actual.pseudo_elemento = nombre
+                tipos = tipos + 1
+            else
+                actual.pseudo.push(nombre)
+                clases = clases + 1
+            end
+            vacio = false
+            i = j
+        elif _css_nombre(c)
+            j = i
+            while j < n and _css_nombre(str_code(s, j))
+                j = j + 1
+            end
+            actual.etiqueta = str_lower(s[i:j])
+            tipos = tipos + 1
+            vacio = false
+            i = j
+        else
+            var nada: Selector = nil
+            return nada
+        end
+    end
+    if not vacio
+        partes.push(SelParte(actual, combinador))
+    end
+    if partes.length == 0
+        var nada2: Selector = nil
+        return nada2
+    end
+    return Selector(partes, ids * 10000 + clases * 100 + tipos)
+end
+
+# [nombre], [nombre=valor], [nombre~=valor]...
+func _css_sel_atributo(t: String) -> SelAtributo
+    p = 0
+    n = t.length
+    while p < n and _css_nombre(str_code(t, p))
+        p = p + 1
+    end
+    nombre = str_lower(str_trim(t[:p]))
+    resto = str_trim(t[p:])
+    if resto == ""
+        return SelAtributo(nombre, "", "")
+    end
+    op = "="
+    valor = ""
+    if str_starts(resto, "=")
+        valor = resto[1:]
+    else
+        op = resto[:2]
+        valor = resto[2:]
+    end
+    valor = str_trim(valor)
+    if valor.length >= 2 and (str_starts(valor, "\"") or str_starts(valor, "'"))
+        valor = valor[1:valor.length - 1]
+    end
+    return SelAtributo(nombre, op, valor)
+end
+
+# Hoja de estilo de un texto CSS; orden: número de la primera regla (para la cascada)
+func css_leer(texto: String, orden: Int) -> HojaCSS
+    var reglas: [Regla] = []
+    var importes: [String] = []
+    hoja = HojaCSS(reglas, importes)
+    _css_bloque(hoja, css_sin_comentarios(texto), orden)
+    return hoja
+end
+
+func _css_bloque(hoja: HojaCSS, s: String, orden: Int) -> Int
+    n = s.length
+    i = 0
+    while i < n
+        while i < n and (str_code(s, i) == 32 or str_code(s, i) == 9 or str_code(s, i) == 10 or str_code(s, i) == 13 or str_code(s, i) == 59)
+            i = i + 1
+        end
+        if i >= n
+            break
+        end
+        llave = _css_buscar(s, 123, i)
+        if str_code(s, i) == 64
+            # regla @: con bloque o hasta ";"
+            punto_coma = _css_buscar(s, 59, i)
+            if llave < 0 or (punto_coma >= 0 and punto_coma < llave)
+                if punto_coma < 0
+                    punto_coma = n
+                end
+                cabeza = str_trim(s[i:punto_coma])
+                if str_starts(str_lower(cabeza), "@import")
+                    hoja.importes.push(_css_url(str_trim(cabeza[7:])))
+                end
+                i = punto_coma + 1
+            else
+                cierre = _css_cierre(s, llave)
+                cabeza = str_lower(str_trim(s[i:llave]))
+                if str_starts(cabeza, "@media") and _css_media_pantalla(cabeza[6:])
+                    orden = _css_bloque(hoja, s[llave + 1:cierre], orden)
+                end
+                i = cierre + 1
+            end
+        else
+            if llave < 0
+                break
+            end
+            cierre = _css_cierre(s, llave)
+            var selectores: [Selector] = []
+            for parte in _css_partir(s[i:llave], 44)
+                sel = css_selector(parte)
+                if sel != nil
+                    selectores.push(sel)
+                end
+            end
+            if selectores.length > 0
+                hoja.reglas.push(Regla(selectores, css_declaraciones(s[llave + 1:cierre]), orden))
+                orden = orden + 1
+            end
+            i = cierre + 1
+        end
+    end
+    return orden
+end
+
+# ¿Vale esta lista de medios para la pantalla? (screen, all o nada; "not"/"print" no)
+func _css_media_pantalla(medios: String) -> Bool
+    m = str_trim(medios)
+    if m == ""
+        return true
+    end
+    for parte in _css_partir(m, 44)
+        p = str_trim(parte)
+        if str_starts(p, "screen") or str_starts(p, "all") or str_starts(p, "(") or str_starts(p, "only screen")
+            return true
+        end
+    end
+    return false
+end
+
+# url("x"), url(x), "x" -> x
+func _css_url(t: String) -> String
+    v = str_trim(t)
+    if str_starts(str_lower(v), "url(")
+        fin = str_find(v, ")")
+        if fin < 0
+            fin = v.length
+        end
+        v = str_trim(v[4:fin])
+    else
+        sp = _css_buscar(v, 32, 0)
+        if sp > 0
+            v = v[:sp]
+        end
+    end
+    if v.length >= 2 and (str_starts(v, "\"") or str_starts(v, "'"))
+        v = v[1:v.length - 1]
+    end
+    return v
+end
+
+# El selector como texto, para pruebas: "div#a.b > p:hover"
+func css_selector_texto(sel: Selector) -> String
+    r = ""
+    for p in sel.partes
+        if p.combinador == CSS_DESCENDIENTE
+            r = r + " "
+        elif p.combinador == CSS_HIJO
+            r = r + " > "
+        elif p.combinador == CSS_ADYACENTE
+            r = r + " + "
+        elif p.combinador == CSS_HERMANO
+            r = r + " ~ "
+        end
+        s = p.simple
+        t = s.etiqueta
+        if t == "" and s.id == "" and s.clases.length == 0 and s.atributos.length == 0 and s.pseudo.length == 0
+            t = "*"
+        end
+        r = r + t
+        if s.id != ""
+            r = r + "#" + s.id
+        end
+        for c in s.clases
+            r = r + "." + c
+        end
+        for a in s.atributos
+            r = r + "[" + a.nombre + a.op + a.valor + "]"
+        end
+        for ps in s.pseudo
+            r = r + ":" + ps
+        end
+        if s.pseudo_elemento != ""
+            r = r + "::" + s.pseudo_elemento
+        end
+    end
+    return r
+end
