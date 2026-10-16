@@ -19,6 +19,7 @@ const D_RECT = 1
 const D_TEXTO = 2
 const D_LINEA = 3
 const D_IMAGEN = 4
+const D_CONTROL = 5      # un control de formulario (input, select, button): lo pinta el pintor según su nodo
 
 const EST_SUBRAYADO = 1
 const EST_NEGRITA = 2
@@ -61,6 +62,7 @@ struct Pieza
     imagen: Bool
     pegada: Bool = false     # sin blanco con la anterior: no se puede cortar la línea entre las dos
     nodo: Nodo = nil         # el elemento de la palabra o la imagen
+    control: Bool = false    # un control de formulario (nodo: el input, select o button)
 end
 
 struct Maquetador
@@ -301,6 +303,10 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
+    if n.nombre == "input" or n.nombre == "select" or n.nombre == "button"
+        _control(m, n, e, piezas, enlace)
+        return
+    end
     destino = enlace
     if n.nombre == "a" and dom_tiene_atributo(n, "href")
         destino = dom_atributo(n, "href")
@@ -308,6 +314,86 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
     for h in n.hijos
         _piezas(m, h, e, piezas, destino)
     end
+end
+
+# Un control de formulario: una pieza de su tamaño (lo dibuja el pintor con lo que tenga el nodo)
+func _control(m: Maquetador, n: Nodo, e: {String: String}, piezas: [Pieza], enlace: String)
+    tipo = str_lower(dom_atributo(n, "type"))
+    if n.nombre == "input" and tipo == "hidden"
+        return
+    end
+    f = _fuente(m, e["font-family"], estilo_px(e["font-size"], 0, 0))
+    font_use(f)
+    font_style(0)
+    alto_texto = font_height()
+    base = font_baseline()
+    w = 0
+    h = alto_texto + 6
+    b = 3 + base
+    if n.nombre == "select"
+        for o in n.hijos
+            if o.tipo == DOM_ELEMENTO and o.nombre == "option" and font_text_width(str_trim(dom_texto(o))) > w
+                w = font_text_width(str_trim(dom_texto(o)))
+            end
+        end
+        w = w + 24
+    elif n.nombre == "button" or tipo == "submit" or tipo == "reset" or tipo == "button"
+        w = font_text_width(formulario_etiqueta(n)) + 16
+        h = alto_texto + 8
+        b = 4 + base
+    elif tipo == "checkbox" or tipo == "radio"
+        w = alto_texto
+        if w < 11
+            w = 11
+        end
+        h = w
+        b = w - 1
+    else
+        cols = Int(dom_atributo(n, "size"))
+        if cols <= 0
+            cols = 20
+        end
+        w = cols * font_text_width("n") + 6
+    end
+    pz = Pieza("", w, h, b, f, 0, 0, false, enlace, m.blanco, false, false)
+    pz.control = true
+    pz.nodo = n
+    piezas.push(pz)
+    m.blanco = 0
+end
+
+# El texto de un botón: el del <button> o el value; si no, el de siempre
+func formulario_etiqueta(n: Nodo) -> String
+    if n.nombre == "button"
+        t = str_trim(dom_texto(n))
+        if t != ""
+            return t
+        end
+        return "Enviar"
+    end
+    if dom_tiene_atributo(n, "value")
+        return dom_atributo(n, "value")
+    end
+    if str_lower(dom_atributo(n, "type")) == "reset"
+        return "Borrar"
+    end
+    return "Enviar"
+end
+
+# La opción elegida de un <select> (la que tiene selected, si no la primera); nil si no tiene
+func formulario_opcion(n: Nodo) -> Nodo
+    var primera: Nodo = nil
+    for o in n.hijos
+        if o.tipo == DOM_ELEMENTO and o.nombre == "option"
+            if dom_tiene_atributo(o, "selected")
+                return o
+            end
+            if primera == nil
+                primera = o
+            end
+        end
+    end
+    return primera
 end
 
 # Palabras de un texto con el estilo de su elemento
@@ -377,7 +463,7 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
             pz.nodo = elemento
             if not hubo_blanco and piezas.length > 0
                 anterior = piezas[piezas.length - 1]
-                pz.pegada = not anterior.salto and not anterior.imagen and not str_ends(anterior.texto, " ")
+                pz.pegada = not anterior.salto and not anterior.imagen and not anterior.control and not str_ends(anterior.texto, " ")
             end
             piezas.push(pz)
             hubo_blanco = false
@@ -387,7 +473,7 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
     if hubo_blanco and piezas.length > 0
         # el blanco final se nota en la siguiente palabra (de otro elemento)
         ultima = piezas[piezas.length - 1]
-        if ultima.imagen
+        if ultima.imagen or ultima.control
             m.blanco = espacio_ancho
         elif not ultima.salto
             ultima.texto = ultima.texto + " "
@@ -492,7 +578,14 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     var actual: Dibujo = nil
     for p in linea
         cx = cx + p.espacio
-        if p.imagen
+        if p.control
+            ctl = _dibujo(D_CONTROL, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
+            ctl.fuente = p.fuente
+            ctl.nodo = p.nodo
+            ctl.enlace = p.enlace
+            m.pagina.dibujos.push(ctl)
+            actual = nil
+        elif p.imagen
             img = _dibujo(D_IMAGEN, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
             img.texto = p.texto
             img.enlace = p.enlace

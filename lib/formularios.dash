@@ -1,0 +1,243 @@
+# Formularios: lo que hace un clic en un control (marcar, elegir, dar el foco, enviar), una tecla en
+# un campo de texto, y los datos de un formulario para enviarlo por GET. Los valores viven en los
+# atributos del nodo (value, checked, selected), como los ve el JavaScript con getAttribute.
+#
+#   r = formulario_clic(n)                     # FORM_NADA, FORM_CAMBIO (repintar), FORM_FOCO, FORM_ENVIAR
+#   r = formulario_tecla(campo, caracter, raw) # FORM_CAMBIO o FORM_ENVIAR (Return)
+#   destino = formulario_destino(n, base)      # la dirección del envío por GET ("" si no hay <form>)
+
+import "maqueta.dash"
+
+const FORM_NADA = 0
+const FORM_CAMBIO = 1
+const FORM_FOCO = 2
+const FORM_ENVIAR = 3
+
+func formulario_de(n: Nodo) -> Nodo
+    p = n
+    while p != nil
+        if p.tipo == DOM_ELEMENTO and p.nombre == "form"
+            return p
+        end
+        p = p.padre
+    end
+    var nada: Nodo = nil
+    return nada
+end
+
+# Un campo donde se escribe (input de texto, password, email...)
+func formulario_es_texto(n: Nodo) -> Bool
+    if n == nil or n.nombre != "input"
+        return false
+    end
+    t = str_lower(dom_atributo(n, "type"))
+    return t == "" or t == "text" or t == "password" or t == "email" or t == "search" or t == "url" or t == "tel" or t == "number"
+end
+
+func _form_es_boton_envio(n: Nodo) -> Bool
+    t = str_lower(dom_atributo(n, "type"))
+    if n.nombre == "button"
+        return t == "" or t == "submit"
+    end
+    return n.nombre == "input" and (t == "submit" or t == "image")
+end
+
+func _form_poner(n: Nodo, nombre: String, valor: String)
+    for a in n.atributos
+        if a.nombre == nombre
+            a.valor = valor
+            return
+        end
+    end
+    n.atributos.push(Atributo(nombre, valor))
+end
+
+func _form_quitar(n: Nodo, nombre: String)
+    i = 0
+    while i < n.atributos.length
+        a = n.atributos[i]
+        if a.nombre == nombre
+            n.atributos.remove(i)
+            return
+        end
+        i = i + 1
+    end
+end
+
+func formulario_clic(n: Nodo) -> Int
+    if n == nil or n.tipo != DOM_ELEMENTO or dom_tiene_atributo(n, "disabled")
+        return FORM_NADA
+    end
+    t = str_lower(dom_atributo(n, "type"))
+    if formulario_es_texto(n)
+        return FORM_FOCO
+    end
+    if n.nombre == "input" and t == "checkbox"
+        if dom_tiene_atributo(n, "checked")
+            _form_quitar(n, "checked")
+        else
+            _form_poner(n, "checked", "")
+        end
+        return FORM_CAMBIO
+    end
+    if n.nombre == "input" and t == "radio"
+        nombre = dom_atributo(n, "name")
+        raiz = formulario_de(n)
+        if raiz != nil and nombre != ""
+            _form_desmarcar(raiz, nombre)
+        end
+        _form_poner(n, "checked", "")
+        return FORM_CAMBIO
+    end
+    if n.nombre == "select"
+        # cada clic pasa a la opción siguiente (y de la última a la primera)
+        var opciones: [Nodo] = []
+        for o in n.hijos
+            if o.tipo == DOM_ELEMENTO and o.nombre == "option"
+                opciones.push(o)
+            end
+        end
+        if opciones.length == 0
+            return FORM_NADA
+        end
+        actual = formulario_opcion(n)
+        siguiente = 0
+        for i in (0..opciones.length - 1)
+            if opciones[i] == actual
+                siguiente = (i + 1) % opciones.length
+            end
+            _form_quitar(opciones[i], "selected")
+        end
+        _form_poner(opciones[siguiente], "selected", "")
+        return FORM_CAMBIO
+    end
+    if _form_es_boton_envio(n)
+        return FORM_ENVIAR
+    end
+    return FORM_NADA
+end
+
+func _form_desmarcar(n: Nodo, nombre: String)
+    if n.tipo == DOM_ELEMENTO and n.nombre == "input" and str_lower(dom_atributo(n, "type")) == "radio" and dom_atributo(n, "name") == nombre
+        _form_quitar(n, "checked")
+    end
+    for h in n.hijos
+        _form_desmarcar(h, nombre)
+    end
+end
+
+# Una tecla en un campo de texto: caracter (mui_canvas_char) y su código raw
+func formulario_tecla(campo: Nodo, caracter: String, raw: Int) -> Int
+    if raw == 0x44 or raw == 0x43
+        return FORM_ENVIAR
+    end
+    valor = dom_atributo(campo, "value")
+    if raw == 0x41
+        if valor == ""
+            return FORM_NADA
+        end
+        _form_poner(campo, "value", valor[:valor.length - 1])
+        return FORM_CAMBIO
+    end
+    if caracter.length == 1 and str_code(caracter, 0) >= 32 and str_code(caracter, 0) != 127
+        maximo = Int(dom_atributo(campo, "maxlength"))
+        if maximo > 0 and valor.length >= maximo
+            return FORM_NADA
+        end
+        _form_poner(campo, "value", valor + caracter)
+        return FORM_CAMBIO
+    end
+    return FORM_NADA
+end
+
+# Los datos del formulario (nombre=valor&...) como application/x-www-form-urlencoded; el botón que lo
+# envía cuenta si tiene nombre
+func formulario_datos(form: Nodo, enviado_por: Nodo) -> String
+    var partes: [String] = []
+    _form_recoger(form, enviado_por, partes)
+    r = ""
+    for p in partes
+        if r != ""
+            r = r + "&"
+        end
+        r = r + p
+    end
+    return r
+end
+
+func _form_recoger(n: Nodo, enviado_por: Nodo, partes: [String])
+    if n.tipo != DOM_ELEMENTO
+        return
+    end
+    nombre = dom_atributo(n, "name")
+    if nombre != "" and not dom_tiene_atributo(n, "disabled")
+        t = str_lower(dom_atributo(n, "type"))
+        if n.nombre == "input"
+            if t == "checkbox" or t == "radio"
+                if dom_tiene_atributo(n, "checked")
+                    v = "on"
+                    if dom_tiene_atributo(n, "value")
+                        v = dom_atributo(n, "value")
+                    end
+                    partes.push(url_codificar(nombre) + "=" + url_codificar(v))
+                end
+            elif t == "submit" or t == "image" or t == "button" or t == "reset"
+                if n == enviado_por
+                    partes.push(url_codificar(nombre) + "=" + url_codificar(formulario_etiqueta(n)))
+                end
+            else
+                partes.push(url_codificar(nombre) + "=" + url_codificar(dom_atributo(n, "value")))
+            end
+        elif n.nombre == "button"
+            if n == enviado_por
+                partes.push(url_codificar(nombre) + "=" + url_codificar(dom_atributo(n, "value")))
+            end
+        elif n.nombre == "select"
+            o = formulario_opcion(n)
+            if o != nil
+                v = str_trim(dom_texto(o))
+                if dom_tiene_atributo(o, "value")
+                    v = dom_atributo(o, "value")
+                end
+                partes.push(url_codificar(nombre) + "=" + url_codificar(v))
+            end
+        elif n.nombre == "textarea"
+            partes.push(url_codificar(nombre) + "=" + url_codificar(dom_texto(n)))
+        end
+    end
+    if n.nombre == "select"
+        return
+    end
+    for h in n.hijos
+        _form_recoger(h, enviado_por, partes)
+    end
+end
+
+# La dirección a la que se envía por GET el formulario de desde (un botón o un campo): su action (o la
+# página) con los datos como consulta; "" si desde no está en un <form>
+func formulario_destino(desde: Nodo, base: String) -> String
+    form = formulario_de(desde)
+    if form == nil
+        return ""
+    end
+    accion = str_trim(dom_atributo(form, "action"))
+    u = url_parse(base)
+    if accion != ""
+        u = url_resolve(u, accion)
+    end
+    destino = url_text(u)
+    p = str_find(destino, "#")
+    if p >= 0
+        destino = destino[:p]
+    end
+    p = str_find(destino, "?")
+    if p >= 0
+        destino = destino[:p]
+    end
+    enviado_por = desde
+    if formulario_es_texto(desde)
+        var nadie: Nodo = nil
+        enviado_por = nadie
+    end
+    return destino + "?" + formulario_datos(form, enviado_por)
+end

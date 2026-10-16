@@ -273,3 +273,27 @@ func _drop_last_segment(s: String) -> String
     end
     return s[:p]
 end
+
+# Un texto (Latin-1) para una URL o un formulario: UTF-8 con %XX salvo letras, cifras y - _ . ~;
+# el espacio como "+" (application/x-www-form-urlencoded)
+func url_codificar(t: String) -> String
+    hex = "0123456789ABCDEF"
+    r = ""
+    n = t.length
+    for i in (0..n - 1)
+        c = str_code(t, i)
+        if (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == 45 or c == 95 or c == 46 or c == 126
+            r = r + str_char(c)
+        elif c == 32
+            r = r + "+"
+        elif c < 128
+            r = r + "%" + hex[c / 16] + hex[c % 16]
+        else
+            # Latin-1 a UTF-8: dos bytes
+            b1 = 192 + c / 64
+            b2 = 128 + c % 64
+            r = r + "%" + hex[b1 / 16] + hex[b1 % 16] + "%" + hex[b2 / 16] + hex[b2 % 16]
+        end
+    end
+    return r
+end

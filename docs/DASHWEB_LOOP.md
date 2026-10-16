@@ -164,6 +164,7 @@ tarea, con el estilo de Dash.
       con MUI la página se maqueta fuera de la zona de dibujo). D12b: `IMAGE_RUNTIME` con el prototipo de
       `DoMethod` (chocaba con las cabeceras de MUI).
 - [x] D29. **Programas en segundo plano en `emu_run`.** Para las pruebas de interfaz del navegador (tarea 19).
+- [x] D31. **Teclas como texto en la zona de dibujo de MUI.** `mui_canvas_char` (lo pidió la 21a).
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -249,11 +250,15 @@ tarea, con el estilo de Dash.
       maquetar al llegar cada una.
 - [x] 20c. **Bucle de eventos: hojas y scripts.** CSS (con sus `@import`) y `<script src>` llegan a la vez y sin
       esperar; la página se monta cuando están todos, en el orden del documento.
-- [ ] 20d. **Bucle de eventos: conectar.** DNS, `connect` y la negociación TLS sin bloquear (hoy
+- [x] 21a. **Formularios: controles y GET.** `input` (texto, password, checkbox, radio, submit, hidden), `button`,
+      `select` dibujados en la página; clic y teclado (foco, escribir, marcar, elegir); enviar por GET.
+- [ ] 21b. **Formularios: textarea, POST y JS.** `textarea`; envío POST (`application/x-www-form-urlencoded`);
+      `.value`/`.checked` y `submit`/`onsubmit` en JavaScript.
+- [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
+- [ ] 20d. **Bucle de eventos: conectar.** (movida aquí el 2026-10-16: en el emulador conectar es instantáneo y
+      no hay cómo probarla; lo que aún bloquea es corto salvo la negociación TLS) DNS, `connect` y la negociación TLS sin bloquear (hoy
       `http_empezar` espera a que conecte). Si una pila TCP/IP real da `SIGIO`, usarlo con
       `mui_wait_event_signals` (FS-UAE no lo da).
-- [ ] 21. **Formularios.** `input`, `button`, `select`, `textarea`, `checkbox`; envío GET y POST.
-- [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
 - [ ] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -835,4 +840,25 @@ Formato:
 - Tests: `test_recursos` (hoja con `@import` descubierto al llegar, script, uno que no existe; estilo y script
   con lo traído; `--memcheck`). En el emulador: `tests/pages/externos.html` en el navegador (colores de la hoja
   y de su `@import`, el script de fuera usado por uno de dentro). dashweb 22/22, también con `--memcheck`.
+
+### 2026-10-16 — Tarea 21a (formularios: controles y GET) y D31
+- 20d (conectar sin bloquear) movida al final de la fase B: en el emulador conectar es instantáneo.
+- D31 (Dash, 637977b): `mui_canvas_char(zona)`: el carácter de la última tecla con mayúsculas y keymap (la zona
+  guarda cualificadores y tecla muerta; `_dash_map_key`). Test con un proceso que teclea por `input.device`, en
+  A1200 y 3.2, también con `--memcheck` (lo preguntó la sesión de MUI).
+- `lib/maqueta.dash`: `input`, `select` y `button` son piezas de control (`D_CONTROL`, del tamaño de su fuente:
+  `size` caracteres, el texto del botón, la opción más ancha); `hidden` no ocupa. `formulario_etiqueta`,
+  `formulario_opcion`. `lib/pintor.dash`: botones en relieve, casillas y radios con su marca, campos y
+  desplegables con su valor (password con asteriscos, lo último escrito si no cabe), borde azul y cursor en el
+  campo con el foco (`pintor_foco`). `lib/url.dash`: `url_codificar` (UTF-8, `+` para el espacio).
+- `lib/formularios.dash`: `formulario_clic` (foco, casilla, radios del mismo nombre, desplegable a la opción
+  siguiente, enviar), `formulario_tecla` (escribir, retroceso, `maxlength`, Return envía),
+  `formulario_datos`/`formulario_destino` (GET a `action` con los datos; el botón con nombre cuenta).
+- `src/dashweb.dash`: clic → JS → formulario → enlace; las teclas van al campo con el foco. Encontrado: un texto
+  largo en la barra de estado ensanchaba el mínimo de la ventana más que la pantalla y MUI la desordenaba (barras
+  de desplazamiento): `dw_estado` corta a 48 caracteres. Otra vez D14 (`func estado` chocaba con variables
+  `estado` de los módulos).
+- Tests: `test_formularios` (sin ventana; `--memcheck`). En el emulador con `clicar`: clic en el campo, "hola",
+  Return → el navegador pide `GET /eco?q=hola&todo=on&orden=fecha` y muestra la respuesta. dashweb 23/23,
+  también con `--memcheck`.
 

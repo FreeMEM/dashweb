@@ -1,0 +1,74 @@
+# Test: lib/formularios.dash y los controles en la maqueta. Clic en un campo (foco), teclas (con ñ y
+# retroceso), casilla, radios del mismo nombre, desplegable (pasa a la siguiente opción), campo
+# oculto, y la dirección del envío por GET con los datos codificados (UTF-8, espacio como +).
+# memcheck
+# expect-out: controles: 8, oculto sin dibujo: 1
+# expect-out: clic en q: 2
+# expect-out: q = [Hola ñ] tras retroceso [Hola ]
+# expect-out: return: 3
+# expect-out: casilla: 1 [] radio: 1 [] [x]
+# expect-out: select: 1 [b]
+# expect-out: http://ej.org/buscar?q=Hola+&clave=s%C3%AD&r=dos&s=b&oculto=1&ir=Buscar
+# expect-out: desde el campo: http://ej.org/buscar?q=Hola+&clave=s%C3%AD&r=dos&s=b&oculto=1
+# expect-out: fuera de un form: []
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/formularios.dash"
+import "../lib/estilo.dash"
+
+func marcado(n: Nodo) -> String
+    if dom_tiene_atributo(n, "checked")
+        return "[x]"
+    end
+    return "[]"
+end
+
+Main
+    h = "<body><form action=buscar?viejo=1><input name=q size=10> <input type=password name=clave value=sí>"
+    h = h + " <input type=checkbox name=c checked> <input type=radio name=r value=uno checked id=r1> <input type=radio name=r value=dos id=r2>"
+    h = h + " <select name=s><option value=a>A<option value=b>B</select><input type=hidden name=oculto value=1>"
+    h = h + " <input type=submit name=ir value=Buscar> <button type=reset>Borrar</button></form><p id=suelto>fuera</p></body>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://ej.org/x.html"))
+    p = maquetar(doc, 400)
+    controles = 0
+    for d in p.dibujos
+        if d.tipo == D_CONTROL
+            controles = controles + 1
+        end
+    end
+    oculto = dom_buscar(doc, "input")
+    sin = 1
+    for d in p.dibujos
+        if d.nodo != nil and dom_atributo(d.nodo, "type") == "hidden"
+            sin = 0
+        end
+    end
+    Print "controles: " + controles + ", oculto sin dibujo: " + sin
+    q = dom_buscar(doc, "input")
+    Print "clic en q: " + formulario_clic(q)
+    for c in ["H", "o", "l", "a", " ", "ñ"]
+        formulario_tecla(q, c, 0)
+    end
+    antes = dom_atributo(q, "value")
+    formulario_tecla(q, "", 0x41)
+    Print "q = [" + antes + "] tras retroceso [" + dom_atributo(q, "value") + "]"
+    Print "return: " + formulario_tecla(q, "", 0x44)
+    form = formulario_de(q)
+    var inputs: [Nodo] = []
+    for n in form.hijos
+        if n.nombre == "input"
+            inputs.push(n)
+        end
+    end
+    casilla = inputs[2]
+    Print "casilla: " + formulario_clic(casilla) + " " + marcado(casilla) + " radio: " + formulario_clic(dom_por_id(doc, "r2")) + " " + marcado(dom_por_id(doc, "r1")) + " " + marcado(dom_por_id(doc, "r2"))
+    sel = dom_buscar(doc, "select")
+    r = formulario_clic(sel)
+    o = formulario_opcion(sel)
+    Print "select: " + r + " [" + dom_atributo(o, "value") + "]"
+    boton = inputs[inputs.length - 1]
+    Print formulario_destino(boton, "http://ej.org/x.html")
+    Print "desde el campo: " + formulario_destino(q, "http://ej.org/x.html")
+    Print "fuera de un form: [" + formulario_destino(dom_por_id(doc, "suelto"), "http://ej.org/x.html") + "]"
+end

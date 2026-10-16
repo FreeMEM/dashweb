@@ -11,6 +11,7 @@
 
 import "navegador.dashui"
 import "../lib/documento.dash"
+import "../lib/formularios.dash"
 
 # Los números de evento del .dashui
 const ID_ATRAS = 1
@@ -34,6 +35,7 @@ var dw_carga: Carga = nil    # la página que está llegando (sin congelar la ve
 var dw_carga_dir: String = ""
 var dw_preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
 var dw_js_cuando: Int = -1   # time_ms del siguiente temporizador del JavaScript, -1 si no hay
+var dw_foco: Nodo = nil      # el campo de formulario donde se escribe
 
 func dw_inicio() -> String
     h = "<html><head><title>dashweb</title><style>body { font-family: sans-serif; margin: 12px }"
@@ -43,6 +45,15 @@ func dw_inicio() -> String
     h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
     h = h + "<p class=nota>Fase B: ventana con MUI 5.</p></body></html>"
     return h
+end
+
+# La barra de estado: un texto largo ensancharía la ventana entera (MUI le da el ancho de su texto)
+func dw_estado(v: Navegador, texto: String)
+    t = texto
+    if t.length > 48
+        t = t[:45] + "..."
+    end
+    mui_set_text(v.estado, t)
 end
 
 # La zona de dibujo de MUI: la página dw_desde "dw_desde"; si el ancho cambió, se maqueta otra vez
@@ -80,7 +91,7 @@ end
 func abrir(v: Navegador, direccion: String)
     parar_carga()
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
-        mui_set_text(v.estado, "Conectando con " + direccion + "...")
+        dw_estado(v, "Conectando con " + direccion + "...")
         mui_set_value(v.progreso, 5)
         dw_carga = http_empezar(direccion, 20000)
         dw_carga_dir = direccion
@@ -88,7 +99,7 @@ func abrir(v: Navegador, direccion: String)
         programar(v)
         return
     end
-    mui_set_text(v.estado, "Abriendo " + direccion + "...")
+    dw_estado(v, "Abriendo " + direccion + "...")
     var d: Documento = nil
     if direccion == ""
         d = documento_html("dashweb:inicio", dw_inicio())
@@ -110,13 +121,13 @@ func avanzar_carga(v: Navegador)
         else
             mui_set_value(v.progreso, 10 + (http_recibidos(dw_carga) / 1024) % 80)
         end
-        mui_set_text(v.estado, "Recibiendo " + dw_carga_dir + ": " + http_recibidos(dw_carga) / 1024 + " KB")
+        dw_estado(v, "Recibiendo " + dw_carga_dir + ": " + http_recibidos(dw_carga) / 1024 + " KB")
         return
     end
     c = dw_carga
     dw_carga = nil
     mui_set_value(v.progreso, 90)
-    mui_set_text(v.estado, "Trayendo hojas de estilo y scripts...")
+    dw_estado(v, "Trayendo hojas de estilo y scripts...")
     dw_preparando = documento_empezar(dw_carga_dir, c.respuesta)
     avanzar_preparacion(v)
 end
@@ -127,7 +138,7 @@ func avanzar_preparacion(v: Navegador)
         return
     end
     if not documento_avanzar(dw_preparando)
-        mui_set_text(v.estado, "Trayendo hojas de estilo y scripts: faltan " + recursos_pendientes(dw_preparando.recursos))
+        dw_estado(v, "Trayendo hojas de estilo y scripts: faltan " + recursos_pendientes(dw_preparando.recursos))
         return
     end
     d = dw_preparando
@@ -167,12 +178,15 @@ func mostrar(v: Navegador, d: Documento, direccion: String)
             dw_desde = y
         end
     end
+    var nadie: Nodo = nil
+    dw_foco = nadie
+    pintor_foco = nadie
     mui_set_text(v.window, "dashweb: " + dw_actual.titulo)
     ajustar_barra(v)
     if dw_actual.error != ""
-        mui_set_text(v.estado, "Error: " + dw_actual.error)
+        dw_estado(v, "Error: " + dw_actual.error)
     else
-        mui_set_text(v.estado, "Listo: " + dw_actual.bytes + " bytes en " + dw_actual.ms + " ms")
+        dw_estado(v, "Listo: " + dw_actual.bytes + " bytes en " + dw_actual.ms + " ms")
     end
     mui_set_value(v.progreso, 0)
     mui_canvas_redraw(v.pagina)
@@ -230,11 +244,38 @@ func clic(v: Navegador)
         end
         temporizadores(v)
     end
-    if seguir
+    if not seguir
+        return
+    end
+    # el formulario: foco, marcar, elegir, enviar
+    r = formulario_clic(n)
+    var nadie: Nodo = nil
+    foco = nadie
+    if r == FORM_FOCO
+        foco = n
+    end
+    if foco != dw_foco
+        dw_foco = foco
+        pintor_foco = foco
+        mui_canvas_redraw(v.pagina)
+    end
+    if r == FORM_CAMBIO
+        mui_canvas_redraw(v.pagina)
+    elif r == FORM_ENVIAR
+        enviar(v, n)
+    elif r == FORM_NADA
         destino = documento_enlace(dw_actual, n)
         if destino != ""
             navegar(v, destino)
         end
+    end
+end
+
+# Envía el formulario de desde (un botón o el campo donde se pulsó Return)
+func enviar(v: Navegador, desde: Nodo)
+    destino = formulario_destino(desde, dw_actual.direccion)
+    if destino != ""
+        navegar(v, destino)
     end
 end
 
@@ -346,9 +387,9 @@ Main
                     mui_canvas_redraw(v.pagina)
                 end
                 if dw_actual != nil and dw_carga == nil and imagenes_pendientes(dw_actual.im) > 0
-                    mui_set_text(v.estado, "Imágenes: faltan " + imagenes_pendientes(dw_actual.im))
+                    dw_estado(v, "Imágenes: faltan " + imagenes_pendientes(dw_actual.im))
                 elif dw_actual != nil and dw_carga == nil and str_starts(mui_get_text(v.estado), "Imágenes")
-                    mui_set_text(v.estado, "Listo")
+                    dw_estado(v, "Listo")
                 end
                 if dw_js_cuando >= 0 and time_ms() >= dw_js_cuando
                     temporizadores(v)
@@ -360,7 +401,7 @@ Main
                 parar_carga()
                 mui_set_enabled(v.parar, false)
                 mui_set_value(v.progreso, 0)
-                mui_set_text(v.estado, "Parado")
+                dw_estado(v, "Parado")
                 programar(v)
             end
             if ev == ID_PAGINA
@@ -368,6 +409,13 @@ Main
                 tecla = mui_canvas_key(v.pagina)
                 if rueda != 0
                     desplazar(v, 0 - rueda * 30)
+                elif tecla >= 0 and dw_foco != nil
+                    r = formulario_tecla(dw_foco, mui_canvas_char(v.pagina), tecla)
+                    if r == FORM_CAMBIO
+                        mui_canvas_redraw(v.pagina)
+                    elif r == FORM_ENVIAR
+                        enviar(v, dw_foco)
+                    end
                 elif tecla == 0x4D
                     desplazar(v, 20)
                 elif tecla == 0x4C
