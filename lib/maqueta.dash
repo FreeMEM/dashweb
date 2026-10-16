@@ -25,6 +25,8 @@ const D_ICONO = 7        # un icono de una fuente de iconos (Font Awesome): text
 const D_FONDO = 6        # la imagen de fondo de una caja (texto: su dirección); background-size, -position y
                          # -repeat los mira el pintor en el estilo del nodo
 const D_ELIPSE = 8       # una caja redonda (border-radius: 50 %): estilo, el grosor del borde (0: rellena)
+const D_DEGRADADO = 10   # un linear-gradient de fondo: color/estilo, el primer color y su alfa (0-255);
+                         # fuente/espaciado, el último; texto "v" (de arriba abajo) o "h" (de izquierda a derecha)
 const D_TRAZO = 9        # una barra girada 45 grados (transform: rotate): estilo 0 de arriba a la izquierda
                          # abajo a la derecha, 1 de abajo a la izquierda arriba a la derecha; fuente, su grosor
 
@@ -345,6 +347,14 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         caja_fondo.nodo = n
         m.pagina.dibujos.push(caja_fondo)
     end
+    var degradado: Dibujo = nil
+    if e.has("background-image") and str_starts(str_lower(e["background-image"]), "linear-gradient(")
+        degradado = _degradado(e["background-image"], x + ml, y + mt, interior + bl + br + pl + pr)
+        if degradado != nil
+            degradado.nodo = n
+            m.pagina.dibujos.push(degradado)
+        end
+    end
     var imagen_fondo: Dibujo = nil
     if e.has("background-image") and css_url(e["background-image"]) != ""
         imagen_fondo = _dibujo(D_FONDO, x + ml + bl, y + mt + bt, interior + pl + pr, 0, 0)
@@ -399,6 +409,9 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if imagen_fondo != nil
         imagen_fondo.alto = pt + alto + pb
     end
+    if degradado != nil
+        degradado.alto = alto_caja
+    end
     if redonda and bt > 0 and bt == br and bt == bb and bt == bl
         borde = _dibujo(D_ELIPSE, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, _color_borde(e, "top"))
         borde.estilo = bt
@@ -408,6 +421,76 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         _bordes(m, e, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, bt, br, bb, bl)
     end
     return mt + alto_caja + mb
+end
+
+# Un linear-gradient: la dirección (to top/bottom/left/right o un ángulo) y su primer y último color
+# (sin las posiciones de cada parada); nil si no se entiende
+func _degradado(v: String, x: Int, y: Int, ancho: Int) -> Dibujo
+    var nada: Dibujo = nil
+    a = str_find(v, "(")
+    z = str_find_from(v, ")", a)
+    k = v.length - 1
+    while k > a and str_code(v, k) != 41
+        k = k - 1
+    end
+    if a < 0 or k <= a
+        return nada
+    end
+    partes = css_partir(v[a + 1:k], 44)
+    vertical = true
+    al_reves = false
+    primera = 0
+    d = str_lower(str_trim(partes[0]))
+    if str_starts(d, "to ") or str_ends(d, "deg") or str_ends(d, "turn")
+        primera = 1
+        if d == "to top"
+            al_reves = true
+        elif d == "to right"
+            vertical = false
+        elif d == "to left"
+            vertical = false
+            al_reves = true
+        elif str_ends(d, "deg")
+            g = ((Int(d[:d.length - 3]) % 360) + 360) % 360
+            if g < 45 or g >= 315
+                al_reves = true
+            elif g < 135
+                vertical = false
+            elif g >= 225
+                vertical = false
+                al_reves = true
+            end
+        end
+    end
+    if partes.length - primera < 2
+        return nada
+    end
+    c1 = _parada(partes[primera])
+    c2 = _parada(partes[partes.length - 1])
+    if al_reves
+        t = c1
+        c1 = c2
+        c2 = t
+    end
+    r = _dibujo(D_DEGRADADO, x, y, ancho, 0, css_color_opaco(c1))
+    r.estilo = css_alfa(c1)
+    r.fuente = css_color_opaco(c2)
+    r.espaciado = css_alfa(c2)
+    r.texto = "v"
+    if not vertical
+        r.texto = "h"
+    end
+    if r.color < 0 or r.fuente < 0 or (r.estilo == 0 and r.espaciado == 0)
+        return nada
+    end
+    return r
+end
+
+# El color de una parada ("rgba(0,0,0,.5) 0px", "red 40%"): lo de antes del primer blanco fuera de paréntesis
+func _parada(p: String) -> String
+    s = str_trim(p)
+    b = css_partir(s, 32)
+    return b[0]
 end
 
 # border-radius de la mitad (o más) del lado menor en una caja casi cuadrada: un círculo o una elipse

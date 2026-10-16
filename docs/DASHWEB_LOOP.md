@@ -309,6 +309,9 @@ tarea, con el estilo de Dash.
       position relative/absolute (el título encima de la imagen), top/left/bottom.
 - [x] 28d. **Tipografía.** text-transform, letter-spacing, fuentes web (Lato...) a las del Amiga, tamaños.
 - [x] 28e. **Iconos.** Los de Font Awesome más comunes (menú, lupa, calendario, comentario) dibujados.
+- [~] 28f. **Degradados.** linear-gradient (los títulos de las entradas destacadas sobre una sombra) leído y en la
+      maqueta (`D_DEGRADADO`); pintarlo mezclado con lo de debajo necesita D42 (tarea 6 de la otra sesión:
+      `gfx_blend_rect`, `gfx_gradient_rect`). Mientras, solo los tramos casi opacos.
 - [ ] 29. **Imágenes con decodificadores propios.** Pregunta del usuario (2026-10-16): ¿son óptimos los datatypes? No:
       decodifican a tamaño completo (una foto de freemem.space no acabó en 5 min en la máquina RTG), sin límites de
       memoria ni tiempo, sin WebP/SVG y distintos en cada sistema. Decodificar en C (third_party: stb_image para
@@ -1240,3 +1243,13 @@ Formato:
   --profile), TRAZA_TIEMPO, TRAZA_CAPTURA; `traza_maqueta` mide aparte el estilo de la página ya cargada.
 - Test nuevo `test_estilo_vars` (memcheck). Trabajo hecho en un worktree (`~/Projects/dashweb-w`, rama dev2)
   para no mover el árbol que usan las baterías de la otra sesión.
+
+### 2026-10-16 — Tarea 28: atajos con var() y degradados (28f, a medias)
+- Un atajo con var() (`padding: var(--x) 1px`, también en el atributo style) se guarda entero y se parte en
+  `_calcular` tras sustituir la variable (antes se partía el texto "var(--x," como si fuera una medida).
+- linear-gradient en background y background-image: dirección (to top/right/left, grados) y el primer y
+  último color con su opacidad (`css_alfa`, `css_color_opaco` en lib/colores.dash, también `rgb(r g b / a)`
+  y `#rrggbbaa`) en un `D_DEGRADADO`. El pintor pinta los tramos casi opacos; la sombra de freemem.space
+  (negro de 0,5 a 0) necesita mezclar con la imagen: D42 encargada a la otra sesión (tarea 6).
+- Comparación con Chrome (rtg_fm18): lo que más se nota ya es esa sombra bajo los títulos.
+- Tests: test_estilo_vars y test_maqueta_css ampliados.

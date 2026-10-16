@@ -1,13 +1,14 @@
 # Test: lib/estilo.dash más rápido (tarea 26): las propiedades --x van aparte y un hijo comparte las de su
 # padre mientras no cambien (un *{--x} que repite el mismo valor no copia nada); una --x que ningún var()
 # nombra no se guarda, salvo en el atributo style; var() con respaldo, anidado y en otra --x; los atajos
-# partidos una vez por regla (margin, border) con el orden de las declaraciones; un ::before solo si su
+# partidos una vez por regla (margin, border) con el orden de las declaraciones, y con var() después de
+# sustituirla (también en el atributo style); un ::before solo si su
 # regla con content se cumple; estilo_px con unidades en mayúsculas y blancos.
 # memcheck
 # expect-out: a: rgb(1,2,3) 4px
 # expect-out: b: red 4px
 # expect-out: c: blue 7px
-# expect-out: d: green 2px 9px
+# expect-out: d: green 2px 9px 1px dashed
 # expect-out: borde: 3px dashed #123
 # expect-out: before: 1 0
 # expect-out: px: 32 12 0 5
@@ -18,11 +19,11 @@ import "../lib/estilo.dash"
 Main
     h = "<style>:root { --c: rgb(1,2,3); --m: 4px; --nadie: 9px } * { --t: 0 } .b { --c: red }"
     h = h + " .c { --c: var(--azul, blue); --m: 7px } p { color: var(--c); margin-left: var(--m) }"
-    h = h + " .d { margin: 1px; margin-right: 2px; padding-top: var(--falta, 9px) } .d p { color: var(--v) }"
+    h = h + " .d { margin: 1px; margin-right: 2px; padding: var(--falta, 9px) 1px } .d p { color: var(--v) }"
     h = h + " .e { border: 1px solid; border-width: 3px; border-style: dashed; border-color: #123 }"
     h = h + " .x::before { content: 'x' } .y::before { color: red }</style>"
     h = h + "<p id=a>a</p><div class=b><p id=b>b</p></div><div class=c><p id=c>c</p></div>"
-    h = h + "<div class=d style='--v: green'><p id=d>d</p></div><div class=e>e</div>"
+    h = h + "<div class=d style='--v: green; border: var(--b, 3px dashed #123)'><p id=d>d</p></div><div class=e>e</div>"
     h = h + "<span class=x>1</span><span class=y>2</span>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
@@ -32,7 +33,7 @@ Main
     end
     d = dom_por_id(doc, "d")
     caja = d.padre
-    Print "d: " + d.estilo["color"] + " " + caja.estilo["margin-right"] + " " + caja.estilo["padding-top"]
+    Print "d: " + d.estilo["color"] + " " + caja.estilo["margin-right"] + " " + caja.estilo["padding-top"] + " " + caja.estilo["padding-left"] + " " + caja.estilo["border-top-style"]
     e = dom_buscar(doc, "div")
     for div in [dom_buscar(doc, "body")]
         for h2 in div.hijos

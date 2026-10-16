@@ -3,7 +3,7 @@
 # Awesome (content "\f002": D_ICONO), un inline-block en una línea centrada (una pieza: no flota),
 # un inline-block que no se corta entre líneas, un absoluto sin top ni left en su sitio (tras el
 # relleno), border-radius 50 % (D_ELIPSE, rellena o con borde), una barra girada 45 grados (D_TRAZO) y
-# translate en px y en %.
+# translate en px y en %; linear-gradient (D_DEGRADADO: dirección y el primer y último color con su alfa).
 # memcheck
 # expect-out: T [<] c=0 0,1 8x8
 # expect-out: T [x] c=0 8,1 8x8
@@ -20,7 +20,10 @@
 # expect-out: E g=2 10,84 16x16
 # expect-out: Z 0 g=1 23,86 7x7
 # expect-out: R c=ffff 32,86 10x4
-# expect-out: alto 100
+# expect-out: G 0/0 0/127 v 0,100 120x10
+# expect-out: G ff0000/255 ff/127 h 0,110 120x4
+# expect-out: alfa 204 128 0 255 102030
+# expect-out: alto 114
 # expect-out: fin
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
@@ -44,6 +47,8 @@ func muestra(d: Dibujo) -> String
         r = "I " + d.texto
     elif d.tipo == D_ELIPSE
         r = "E g=" + d.estilo
+    elif d.tipo == D_DEGRADADO
+        r = "G " + str_from_int(d.color, 16) + "/" + d.estilo + " " + str_from_int(d.fuente, 16) + "/" + d.espaciado + " " + d.texto
     elif d.tipo == D_TRAZO
         r = "Z " + d.estilo + " g=" + d.fuente
     end
@@ -59,18 +64,22 @@ Main
     h = h + " .o { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f00 }"
     h = h + " .ob { display: inline-block; width: 12px; height: 12px; border: 2px solid #000; border-radius: 8px }"
     h = h + " .g { display: inline-block; width: 1px; height: 10px; background-color: #333; transform: rotate(-45deg) }"
+    h = h + " .gr { height: 10px; background: rgba(0, 0, 0, 0) linear-gradient(to top, rgba(0, 0, 0, 0.5) 0px, rgba(0, 0, 0, 0) 100%) }"
+    h = h + " .gh { height: 4px; background-image: linear-gradient(90deg, #f00, rgb(0 0 255 / 50%)) }"
     h = h + " .t { display: inline-block; width: 10px; height: 4px; background-color: #0ff; transform: translate(5px, 50%) }</style>"
     h = h + "<p class=a>x</p><p class=v>rojo</p><p class=i>busca</p>"
     h = h + "<div class=c><span class=ib></span></div>"
     h = h + "<div>aaaa bbbb <span class=nc>cc dd ee ff gg</span></div>"
     h = h + "<div class=rel><div class=abs></div>z</div>"
     h = h + "<div><span class=o></span><span class=ob></span><span class=g></span><span class=t></span></div>"
+    h = h + "<div class=gr></div><div class=gh></div>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
     p = maquetar(doc, 120)
     for d in p.dibujos
         Print muestra(d)
     end
+    Print "alfa " + css_alfa("rgba(1,2,3,.8)") + " " + css_alfa("#11223380") + " " + css_alfa("transparent") + " " + css_alfa("red") + " " + str_from_int(css_color_opaco("rgba(16,32,48,0.1)"), 16)
     Print "alto " + p.alto
     W.close
     Print "fin"

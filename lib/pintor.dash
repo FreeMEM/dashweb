@@ -62,6 +62,8 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
                 _elipse_pintar(d, x, y)
             end
+        elif d.tipo == D_DEGRADADO
+            _degradado_pintar(d, x, y, x0, y0, derecha, abajo)
         elif d.tipo == D_TRAZO
             if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
                 gfx_pen(_lapiz(d.color))
@@ -574,6 +576,43 @@ func _elipse_pintar(d: Dibujo, x: Int, y: Int)
     for k in (0..d.estilo - 1)
         if rx - k > 0 and ry - k > 0
             gfx_ellipse(cx, cy, rx - k, ry - k)
+        end
+    end
+end
+
+# Un linear-gradient recortado al rectángulo. Sin mezcla con lo de debajo (Dash aún no la tiene: tarea 6 de la
+# otra sesión): franjas del color de cada tramo donde es casi opaco (alfa >= 128), nada donde no
+func _degradado_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    largo = d.alto
+    if d.texto == "h"
+        largo = d.ancho
+    end
+    if largo <= 0
+        return
+    end
+    pasos = 16
+    if largo < pasos
+        pasos = largo
+    end
+    for k in (0..pasos - 1)
+        desde = k * largo / pasos
+        hasta = (k + 1) * largo / pasos
+        medio = desde + (hasta - desde) / 2
+        alfa = d.estilo + (d.espaciado - d.estilo) * medio / largo
+        if alfa < 128
+            continue
+        end
+        r1 = d.color / 65536
+        g1 = (d.color / 256) % 256
+        b1 = d.color % 256
+        r2 = d.fuente / 65536
+        g2 = (d.fuente / 256) % 256
+        b2 = d.fuente % 256
+        rgb = (r1 + (r2 - r1) * medio / largo) * 65536 + (g1 + (g2 - g1) * medio / largo) * 256 + b1 + (b2 - b1) * medio / largo
+        if d.texto == "h"
+            _rect_recortado(x + desde, y, hasta - desde, d.alto, x0, y0, x1, y1, _lapiz(rgb))
+        else
+            _rect_recortado(x, y + desde, d.ancho, hasta - desde, x0, y0, x1, y1, _lapiz(rgb))
         end
     end
 end
