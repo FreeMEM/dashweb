@@ -429,7 +429,7 @@ func dom_img_src(n: Nodo) -> String
             end
             if s.tipo == DOM_ELEMENTO and s.nombre == "source" and dom_tiene_atributo(s, "srcset") and not dom_tiene_atributo(s, "media")
                 tipo = str_lower(dom_atributo(s, "type"))
-                if tipo == "" or tipo == "image/jpeg" or tipo == "image/png" or tipo == "image/gif" or tipo == "image/bmp"
+                if tipo == "" or tipo == "image/jpeg" or tipo == "image/png" or tipo == "image/gif" or tipo == "image/bmp" or tipo == "image/webp"
                     elegida = _srcset_elegir(dom_atributo(s, "srcset"), objetivo)
                     if elegida != ""
                         return elegida
@@ -526,12 +526,12 @@ func _srcset_partir(s: String) -> [String]
     return r
 end
 
-# Formatos que dashweb aún no sabe leer
+# Formatos que dashweb aún no sabe leer (AVIF, JPEG XL)
 func _formato_raro(dir: String) -> Bool
     d = str_lower(dir)
     q = str_find(d, "?")
     if q >= 0
         d = d[:q]
     end
-    return str_ends(d, ".webp") or str_ends(d, ".avif") or str_ends(d, ".jxl")
+    return str_ends(d, ".avif") or str_ends(d, ".jxl")
 end

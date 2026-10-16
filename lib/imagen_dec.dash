@@ -1,6 +1,7 @@
 # Imágenes decodificadas por dashweb (tarea 29), sin los datatypes: JPEG con TJpgDec (third_party/tjpgd),
-# que decodifica ya reducido a 1/2, 1/4 o 1/8; JPEG progresivo, PNG, GIF y BMP con stb_image
-# (third_party/stb), reducidos después. El resultado pasa a la pantalla con image_from_rgb de Dash
+# que decodifica ya reducido a 1/2, 1/4 o 1/8; WebP (con y sin pérdida, con alfa; no animado) con el
+# decodificador de libwebp (third_party/libwebp), que también reduce al decodificar; JPEG progresivo, PNG,
+# GIF y BMP con stb_image (third_party/stb), reducidos después. El resultado pasa a la pantalla con image_from_rgb de Dash
 # (picture.datatype V43: AmigaOS 3.5+).
 #
 #   img = imagen_decodificar("T:foto.jpg", 1280, 1024)   # 0 si no se puede: entonces image_load
@@ -10,6 +11,7 @@
 
 @link "../build/img-lib/libimg.a"
 @header "#include <tjpgd.h>"
+@header "#include <webp_inc/webp/decode.h>"
 
 @c
 """
@@ -120,6 +122,49 @@ static void _imgdec_reducir(_ImgDec *img, LONG k) {
     img->h = h;
 }
 
+/* A WebP (lossy or lossless, with alpha; not animated), decoded already scaled so that it is not much
+   bigger than maxw x maxh (the aspect ratio is kept); NULL if libwebp cannot */
+static _ImgDec *_imgdec_webp(UBYTE *datos, LONG largo, LONG maxw, LONG maxh) {
+    WebPDecoderConfig cfg;
+    _ImgDec *img;
+    LONG w, h, tw, th, c;
+    if (!WebPInitDecoderConfig(&cfg)) return NULL;
+    if (WebPGetFeatures(datos, largo, &cfg.input) != VP8_STATUS_OK || cfg.input.has_animation) return NULL;
+    w = cfg.input.width;
+    h = cfg.input.height;
+    tw = w;
+    th = h;
+    if (w > maxw && h > maxh) {
+        /* the smallest size that still covers maxw x maxh */
+        if (maxw * h > maxh * w) { tw = maxw; th = (h * maxw + w - 1) / w; }
+        else { th = maxh; tw = (w * maxh + h - 1) / h; }
+        cfg.options.use_scaling = 1;
+        cfg.options.scaled_width = tw;
+        cfg.options.scaled_height = th;
+    }
+    c = cfg.input.has_alpha ? 4 : 3;
+    img = (_ImgDec *)AllocVec(sizeof(_ImgDec), MEMF_CLEAR);
+    if (!img) return NULL;
+    img->px = (UBYTE *)AllocVec(tw * th * c, MEMF_ANY);
+    if (!img->px) { FreeVec(img); return NULL; }
+    cfg.output.colorspace = c == 4 ? MODE_RGBA : MODE_RGB;
+    cfg.output.is_external_memory = 1;
+    cfg.output.u.RGBA.rgba = img->px;
+    cfg.output.u.RGBA.stride = tw * c;
+    cfg.output.u.RGBA.size = tw * th * c;
+    if (WebPDecode(datos, largo, &cfg) != VP8_STATUS_OK) {
+        WebPFreeDecBuffer(&cfg.output);
+        FreeVec(img->px);
+        FreeVec(img);
+        return NULL;
+    }
+    WebPFreeDecBuffer(&cfg.output);
+    img->w = tw;
+    img->h = th;
+    img->alfa = c == 4;
+    return img;
+}
+
 /* PNG, GIF, BMP or a JPEG TJpgDec does not take, with stb_image; NULL if it cannot */
 static _ImgDec *_imgdec_stb(UBYTE *datos, LONG largo, LONG maxw, LONG maxh) {
     int w, h, comp, pedir;
@@ -153,6 +198,7 @@ end
     _ImgDec *img = NULL;
     if (!datos) return 0;
     if (largo > 2 && datos[0] == 0xFF && datos[1] == 0xD8) img = _imgdec_jpeg(datos, largo, maxw, maxh);
+    else if (largo > 12 && !memcmp(datos, "RIFF", 4) && !memcmp(datos + 8, "WEBP", 4)) img = _imgdec_webp(datos, largo, maxw, maxh);
     if (!img) img = _imgdec_stb(datos, largo, maxw, maxh);
     FreeVec(datos);
     return (LONG)img;

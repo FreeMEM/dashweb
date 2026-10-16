@@ -312,11 +312,15 @@ tarea, con el estilo de Dash.
 - [~] 28f. **Degradados.** linear-gradient (los títulos de las entradas destacadas sobre una sombra) leído y en la
       maqueta (`D_DEGRADADO`); pintarlo mezclado con lo de debajo necesita D42 (tarea 6 de la otra sesión:
       `gfx_blend_rect`, `gfx_gradient_rect`). Mientras, solo los tramos casi opacos.
-- [ ] 29. **Imágenes con decodificadores propios.** Pregunta del usuario (2026-10-16): ¿son óptimos los datatypes? No:
+- [x] 29. **Imágenes con decodificadores propios.** Pregunta del usuario (2026-10-16): ¿son óptimos los datatypes? No:
       decodifican a tamaño completo (una foto de freemem.space no acabó en 5 min en la máquina RTG), sin límites de
       memoria ni tiempo, sin WebP/SVG y distintos en cada sistema. Decodificar en C (third_party: stb_image para
       JPEG/PNG/GIF/BMP, libwebp para WebP) al tamaño en que se va a ver (JPEG a 1/2, 1/4, 1/8 al decodificar), sin
       esperar y con límites; datatypes solo para lo demás.
+- [ ] 29b. **SVG.** Logos e iconos en SVG (muchas webs): un subconjunto (path, rect, circle, fill/stroke) dibujado
+      con gfx_ o rasterizado a RGB (nanosvg, zlib) al tamaño en que se ve.
+- [ ] 29c. **Decodificar sin parar la interfaz.** Hoy una imagen se decodifica entera en imagenes_avanzar (la
+      ventana no responde mientras): por trozos (TJpgDec por bloques, libwebp incremental) o en otra tarea.
 - [?] 30. **Vídeo (YouTube).** PREGUNTA al usuario: el reproductor de YouTube son megas de JS y H.264/VP9 por software no
       es viable en un 68k (en PiStorm con Emu68, quizá 240p sin garantías). Lo realista: reconocer el vídeo y
       reproducir una versión de baja resolución en un reproductor aparte, convertida (MPEG-1, CDXL...) por un servicio.
@@ -1269,3 +1273,12 @@ Formato:
 - Otra sesión: tareas 4 (diccionarios de diccionarios), 5 (operadores de bits) y 6 (gfx_blend_rect,
   gfx_gradient_rect, gfx_pixel_rgb) hechas en ramas encadenadas `dicts`, `bits`, `blend`; se fusionan cuando
   acabe su batería. Acordado: no lanzar tests de red de dashweb a la vez que los suyos (chocan los puertos).
+
+### 2026-10-16 — Tarea 29 (WebP; cerrada, sigue en 29b y 29c)
+- libwebp 1.4.0 (BSD), solo el decodificador en C (sin SSE/NEON/MIPS; las cabeceras del codificador que pide
+  lossless.h) en third_party/libwebp; `tools/build_img.sh` lo mete en build/img-lib/libimg.a (230 KB) y usa ya
+  -fbbb sin la pasada s. `_imgdec_webp`: con y sin pérdida y con alfa (no animado: entonces los datatypes),
+  reducido al decodificar (use_scaling) a lo más pequeño que cubre maxw x maxh. srcset y `<source>` aceptan
+  webp; quedan fuera avif y jxl.
+- Tests: test_imagen_dec con cuatro WebP (con pérdida, sin pérdida, alfa, 640x320 reducido a 300x150).
+- Partida: 29b (SVG) y 29c (decodificar sin parar la ventana).

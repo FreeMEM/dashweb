@@ -1,6 +1,6 @@
 # Test: dom_img_src (lib/dom.dash): la imagen de un srcset con descriptores w para el ancho del <img> (o
 # DOM_IMG_ANCHO), la mayor si todas se quedan cortas, la de 1x con descriptores x, sin las de formatos que no se
-# leen (webp, avif), una dirección con comas, un <source> de <picture> con un tipo que se lee y sin srcset el src;
+# leen (avif, jxl), una dirección con comas, un <source> de <picture> con un tipo que se lee y sin srcset el src;
 # imagenes_vista (lib/imagenes.dash), el tamaño al que se ve cada imagen para decodificarla a ese tamaño.
 # memcheck
 # expect-out: a.jpg-300.jpg
@@ -18,10 +18,10 @@ import "../lib/imagenes.dash"
 Main
     h = "<img width=250 src=a.jpg srcset='a.jpg-100.jpg 100w, a.jpg-300.jpg 300w, a.jpg-768.jpg 768w'>"
     h = h + "<img src=a.jpg srcset='a.jpg-300.jpg 300w,a.jpg-1200.jpg 1200w, a.jpg-2000.jpg 2000w'>"
-    h = h + "<img width=900 srcset='peq.png 200w, grande.png 400w, otra.webp 1000w'>"
+    h = h + "<img width=900 srcset='peq.png 200w, grande.png 400w, otra.avif 1000w'>"
     h = h + "<img srcset='uno.png, dos.png 2x'>"
     h = h + "<img srcset='x,1.png 1x, x,2.png 2x'>"
-    h = h + "<picture><source type=image/webp srcset=a.webp><source type=image/jpeg srcset=de-source.jpg><img src=b.jpg></picture>"
+    h = h + "<picture><source type=image/avif srcset=a.avif><source type=image/jpeg srcset=de-source.jpg><img src=b.jpg></picture>"
     h = h + "<img src=solo.gif>"
     doc = dom_desde_html(h)
     for n in _imgs(doc)
