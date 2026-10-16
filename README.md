@@ -53,6 +53,12 @@ miraba el reloj en cada vuelta de cada `while` (arreglado en Dash, D34).
   Un A500 o un A1200 sin ampliar no son el objetivo.
 - MUI 5, AmiSSL 5 (HTTPS), una pila TCP/IP (`bsdsocket.library`).
 
+## Paquete
+
+`tools/paquete.sh` deja `build/dashweb.lha` (el navegador, el visor, `LEEME` con la instalación y las licencias).
+Requisitos en el Amiga: AmigaOS 3.x, 68020 o mejor, MUI 3.8 o 5, una pila TCP/IP (bsdsocket.library) y, para
+HTTPS, AmiSSL 5.
+
 ## Probar
 
 Necesita el toolchain de Dash (`m68k-amigaos-gcc` en `/opt/amiga`) y Dash en `~/Projects/FreeMEMLang-dashweb`

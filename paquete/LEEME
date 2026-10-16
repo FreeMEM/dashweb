@@ -1,0 +1,51 @@
+dashweb
+=======
+
+Un navegador web para AmigaOS 3.x escrito en Dash (https://github.com/FreeMEM/dash):
+HTML, CSS, imágenes, JavaScript (QuickJS) y HTTPS (AmiSSL), con ventana MUI.
+
+Contenido
+---------
+  dashweb       el navegador (MUI)
+  visor         visor sin MUI: abre una página en una ventana normal (para probar)
+  LEEME         esto
+  Licencias/    MIT (dashweb, QuickJS) y la nota de Sun de fdlibm
+
+Necesita
+--------
+  - AmigaOS 3.0 o superior y un 68020 o mejor (MUI). Con poca CPU (un A1200 sin
+    ampliar) las páginas tardan segundos; con un 68040/68060 o PiStorm, menos de un
+    segundo. Memoria: unos 2 MB libres.
+  - MUI 3.8 o MUI 5 (https://muidev.de).
+  - Una pila TCP/IP con bsdsocket.library: Roadshow, AmiTCP, Genesis o Miami.
+  - Para HTTPS: AmiSSL 5 (https://github.com/jens-maus/amissl), instalado con su
+    instalador (deja los assigns AmiSSL: y AmiSSL:Certs).
+  - Fuentes: usa helvetica, times y courier del Workbench (en FONTS:); si faltan,
+    la topaz de la ROM.
+
+Instalar
+--------
+  Copiar el cajón dashweb donde se quiera (por ejemplo Work:dashweb). Los marcadores y
+  las preferencias se guardan junto al programa (dashweb.marcadores, dashweb.prefs).
+
+Usar
+----
+  Desde el Shell:
+    dashweb                          la página de inicio
+    dashweb http://aminet.net/       esa página
+    dashweb http://a/ http://b/      una ventana para cada una (hasta 4)
+    visor pagina.html                el visor sin MUI (teclas: cursores, espacio, Esc)
+
+  En la ventana: escribir la dirección y Return; atrás, adelante, recargar, parar;
+  el historial a la izquierda (doble clic). La rueda, la barra y las teclas (arriba,
+  abajo, espacio, retroceso) desplazan. Clic en enlaces y en formularios (texto,
+  casillas, desplegables, botones; GET y POST).
+  Menú Proyecto: Nueva ventana (Amiga-N), Cerrar ventana (Amiga-K), Página de inicio
+  (Amiga-H), Marcadores (Amiga-B), Añadir marcador (Amiga-D), Usar como página de
+  inicio, Acerca de, Salir (Amiga-Q).
+
+Lo que aún no hace
+------------------
+  float y position de CSS, tablas con anchos según su contenido, PNG/GIF/JPEG con
+  transparencia por alfa en 3.1 (depende de los datatypes instalados), cookies,
+  pestañas, descargas.

@@ -268,7 +268,7 @@ tarea, con el estilo de Dash.
       no hay cómo probarla; lo que aún bloquea es corto salvo la negociación TLS) DNS, `connect` y la negociación TLS sin bloquear (hoy
       `http_empezar` espera a que conecte). Si una pila TCP/IP real da `SIGIO`, usarlo con
       `mui_wait_event_signals` (FS-UAE no lo da).
-- [ ] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
+- [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
 ## Bitácora
@@ -946,4 +946,13 @@ Formato:
   esperar a su proceso que teclea y en 3.2 se colgaban las pruebas MUI siguientes. Arreglo suyo commiteado en la
   rama `dashweb-fusion` (9ee00c3, sobre e952095), probado en un worktree aparte; `main` avanzará hasta ahí.
 - Pendientes con pregunta: 20d y 22c (`[?]`).
+
+### 2026-10-16 — Tarea 23 (repaso final y paquete)
+- `tools/paquete.sh` → `build/dashweb.lha`: `dashweb` (MUI, 1,1 MB), `visor` (1 MB), `LEEME` (requisitos: AmigaOS 3,
+  68020, MUI 3.8/5, pila TCP/IP, AmiSSL 5 para HTTPS; instalación, uso, menús, lo que falta) y `Licencias/`. Lhasa
+  (el `lha` de Linux) solo descomprime: `tools/lha_lh0.py` escribe el LHA sin comprimir (`-lh0-`, cabeceras de
+  nivel 0, CRC-16/ARC), que LhA lee; comprobado con Lhasa (lista, CRC, lo extraído igual). 2,1 MB.
+- El `dashweb` del paquete arranca en el emulador (sistema con MUI y fuentes) con su página de inicio.
+- Tamaño, memoria y tiempos: en el README (tabla de la tarea 17 rehecha sin el freno del modo de pruebas).
+- Quedan `[?]` 20d y 22c (preguntas al usuario).
 
