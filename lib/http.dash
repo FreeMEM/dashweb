@@ -10,10 +10,11 @@
 #   r = http_a_fichero("http://ejemplo.org/logo.png", "T:logo.png", 15000)
 #   Print r.bytes                   # el cuerpo va tal cual al fichero (con estado 2xx; si no, a r.cuerpo)
 #
-# Sin esperar (para una interfaz que no se congela): conectar y pedir esperan, recibir no.
+# Sin esperar (para una interfaz que no se congela): ni la consulta DNS, ni la conexión, ni la
+# negociación TLS, ni recibir.
 #   c = http_empezar("http://ejemplo.org/", 15000)
-#   while not http_avanzar(c)                  # lee lo que haya llegado; true al acabar
-#       ... la interfaz; http_recibidos(c), http_total(c) para el progreso; http_cancelar(c)
+#   while not http_avanzar(c)                  # sigue la carga; true al acabar
+#       ... la interfaz; http_fase(c), http_recibidos(c), http_total(c) para el progreso; http_cancelar(c)
 #   end
 #   r = c.respuesta
 #
@@ -104,6 +105,16 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
         var nada: Conexion = nil
         return nada
     end
+    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo))
+        r.error = c.error
+        red_cerrar(c)
+        var nada: Conexion = nil
+        return nada
+    end
+    return c
+end
+
+func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String) -> String
     ruta = u.ruta
     if ruta == ""
         ruta = "/"
@@ -120,14 +131,7 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
     if metodo == "POST"
         peticion = peticion + "\r\nContent-Type: " + tipo + "\r\nContent-Length: " + cuerpo.length
     end
-    peticion = peticion + "\r\n\r\n" + cuerpo
-    if not red_enviar(c, peticion)
-        r.error = c.error
-        red_cerrar(c)
-        var nada: Conexion = nil
-        return nada
-    end
-    return c
+    return peticion + "\r\n\r\n" + cuerpo
 end
 
 # Lee la respuesta (estado, cabeceras y cuerpo, a r.cuerpo o al fichero) y cierra la conexión
@@ -345,20 +349,56 @@ func http_empezar_post(direccion: String, cuerpo: String, tipo: String, espera_m
     return c
 end
 
+# Empieza a abrir la conexión sin esperar (http_avanzar manda la petición cuando está abierta)
 func _carga_conectar(c: Carga)
     c.respuesta = _respuesta_vacia(url_text(c.actual))
     c.total = -1
     c.ultimo = time_ms()
-    c.conexion = _http_conectar_con(c.actual, c.espera, c.respuesta, c.metodo, c.cuerpo, c.tipo)
-    if c.conexion == nil
+    u = c.actual
+    if u.esquema != "http" and u.esquema != "https"
+        c.respuesta.error = "esquema no admitido: " + u.esquema
+        var nada: Conexion = nil
+        c.conexion = nada
+        c.hecha = true
+        return
+    end
+    c.conexion = red_abrir_empezar(u.host, url_port(u), u.esquema == "https", c.espera)
+    if c.conexion.cerrada
+        c.respuesta.error = c.conexion.error
         c.hecha = true
     end
+end
+
+# Lo que hace la carga ahora: "buscando" (el nombre del servidor), "conectando", "negociando" (TLS),
+# "recibiendo"; "" si acabó
+func http_fase(c: Carga) -> String
+    if c.hecha
+        return ""
+    end
+    f = red_fase(c.conexion)
+    if f == ""
+        return "recibiendo"
+    end
+    return f
 end
 
 # Lee lo que haya llegado sin esperar; true cuando la respuesta está entera (o hubo error) en c.respuesta
 func http_avanzar(c: Carga) -> Bool
     if c.hecha
         return true
+    end
+    if c.conexion.fase != 0
+        abierta = red_abrir_avanzar(c.conexion)
+        if abierta == 0
+            return false
+        end
+        if abierta < 0 or not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo))
+            c.respuesta.error = c.conexion.error
+            red_cerrar(c.conexion)
+            c.hecha = true
+            return true
+        end
+        c.ultimo = time_ms()
     end
     n = red_recibir_ya(c.conexion)
     while n > 0
@@ -402,7 +442,7 @@ end
 
 # Bytes de la respuesta ya recibidos y lo que medirá entera (-1 si no se sabe), para el progreso
 func http_recibidos(c: Carga) -> Int
-    if c.conexion == nil
+    if c.conexion == nil or c.conexion.fase != 0
         return 0
     end
     return red_pendientes(c.conexion)
@@ -417,7 +457,7 @@ end
 
 func http_cancelar(c: Carga)
     if not c.hecha
-        red_cerrar(c.conexion)
+        red_cerrar(c.conexion)     # también si aún se estaba abriendo
         c.respuesta.error = "cancelada"
         c.hecha = true
     end

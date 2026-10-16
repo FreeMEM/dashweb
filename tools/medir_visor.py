@@ -44,6 +44,14 @@ def main():
     ap.add_argument("--perfil", action="store_true", help="build with ./dash --profile (the table goes to the output)")
     ap.add_argument("--guardar", metavar="DIR", help="keep the emulated disk there (outputs: out0.txt, bg0.txt)")
     ap.add_argument("--segundos", type=int, default=40, help="the visor closes itself after this")
+    ap.add_argument("--host", default="127.0.0.1", help="the server name in the addresses (e.g. x.lento with --dns-lento)")
+    ap.add_argument("--dns-lento", type=int, metavar="MS", help="names ending in .lento take MS ms to look up "
+                    "(tools/lento/dns_lento.c in FS-UAE with LD_PRELOAD) and give 127.0.0.1")
+    ap.add_argument("--tls-lento", action="store_true", help="HTTPS whose server waits 4 s before the handshake "
+                    "(needs a system with AmiSSL, e.g. ~/.cache/dash-emu/sys31muisslweb)")
+    ap.add_argument("--tls", action="store_true", help="HTTPS (the test CA's certificate is for localhost and 127.0.0.1)")
+    ap.add_argument("--captura-en", type=float, metavar="S", help="take --captura S seconds after boot (default: "
+                    "5 s before the end)")
     args = ap.parse_args()
 
     sys.path.insert(0, str(DASH / "tools"))
@@ -61,14 +69,22 @@ def main():
         if r.returncode != 0:
             sys.exit("compile failed:\n" + r.stdout + r.stderr)
         size = exe.stat().st_size
-        server = subprocess.Popen([sys.executable, str(ROOT / "tests" / "servers" / "http.py"), str(PORT)],
+        modo = ["tls-lento"] if args.tls_lento else ["tls"] if args.tls else []
+        server = subprocess.Popen([sys.executable, str(ROOT / "tests" / "servers" / "http.py"), str(PORT)] + modo,
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(1)
+        time.sleep(3 if modo else 1)
+        if args.dns_lento:
+            shim = Path(tmp) / "dns_lento.so"
+            subprocess.run(["gcc", "-shared", "-fPIC", "-O2", "-o", str(shim),
+                            str(ROOT / "tools" / "lento" / "dns_lento.c"), "-ldl"], check=True)
+            os.environ["LD_PRELOAD"] = str(shim)          # FS-UAE inherits it
+            os.environ["DNS_LENTO_MS"] = str(args.dns_lento)
         try:
-            shot = (args.segundos - 5, args.captura) if args.captura else None
+            shot = (args.captura_en or args.segundos - 5, args.captura) if args.captura else None
+            esquema = "https" if modo else "http"
             programs = [str(exe)]
-            prog_args = [" ".join(f"http://127.0.0.1:{PORT}{p}" if p.startswith("/") else f"http://127.0.0.1:{PORT}/pages/{p}"
-                                  for p in args.pagina.split(","))]
+            prog_args = [" ".join(f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")
+                                  else f"{esquema}://{args.host}:{PORT}/pages/{p}" for p in args.pagina.split(","))]
             red = "bsdsocket_library = 1\n"
             if args.local:
                 # the page goes to the disk as a second "program" (DH0:p1; running it just fails)

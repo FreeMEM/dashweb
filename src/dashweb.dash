@@ -4,9 +4,10 @@
 #   dashweb                       # página de inicio
 #   dashweb http://ejemplo.org/   # esa página (con varias direcciones, una ventana para cada una)
 #
-# Barra de URL (Return para ir), atrás, adelante, recargar, historial, barra de estado y de
-# progreso. La rueda, la barra y las teclas (arriba, abajo, espacio, retroceso) desplazan; un clic
-# llega al JavaScript de la página y, si no lo para, sigue el enlace (#ancla: dentro de la página).
+# Barra de URL (Return para ir), atrás, adelante, recargar, historial (oculto hasta que se despliega
+# con su botón), barra de estado y de progreso. La rueda, la barra y las teclas (arriba, abajo,
+# espacio, retroceso) desplazan; un clic llega al JavaScript de la página y, si no lo para, sigue el
+# enlace (#ancla: dentro de la página).
 # Hasta 4 ventanas (menú Proyecto: Nueva ventana, Cerrar ventana), cada una con su página.
 # Necesita MUI 3.8 o 5 y un 68020.
 
@@ -32,6 +33,7 @@ const ID_USAR_INICIO = 16
 const ID_INICIO = 17
 const ID_NUEVA = 18
 const ID_CERRAR = 19
+const ID_VER_HISTORIAL = 20
 # y los del programa
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
@@ -54,7 +56,13 @@ struct Ventana
     preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
     js_cuando: Int = -1      # time_ms del siguiente temporizador del JavaScript, -1 si no hay
     foco: Nodo = nil         # el campo de formulario donde se escribe
+    con_historial: Bool = false   # la lista del historial desplegada (empieza oculta)
+    giro: Int = -1           # el indicador de actividad: el punto que va delante (0-7), -1 parado
 end
+
+# Los ocho puntos del indicador de actividad, alrededor de su centro
+var giro_x: [Int] = [0, 4, 6, 4, 0, -4, -6, -4]
+var giro_y: [Int] = [-6, -4, 0, 4, 6, 4, 0, -4]
 
 var dw_ventanas: [Ventana] = []
 
@@ -92,6 +100,58 @@ end
 
 func pinta3(x: Int, y: Int, ancho: Int, alto: Int)
     pinta_en(3, x, y, ancho, alto)
+end
+
+# El indicador de actividad de cada ventana (como la página: una función por ventana)
+func giro0(x: Int, y: Int, ancho: Int, alto: Int)
+    giro_en(0, x, y, ancho, alto)
+end
+
+func giro1(x: Int, y: Int, ancho: Int, alto: Int)
+    giro_en(1, x, y, ancho, alto)
+end
+
+func giro2(x: Int, y: Int, ancho: Int, alto: Int)
+    giro_en(2, x, y, ancho, alto)
+end
+
+func giro3(x: Int, y: Int, ancho: Int, alto: Int)
+    giro_en(3, x, y, ancho, alto)
+end
+
+# Mientras algo llega, ocho puntos que giran: el de delante negro, los dos que lo siguen azules y el
+# resto blancos (los lápices 1, 3 y 2 de la pantalla: con 4 colores no hay grises)
+func giro_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
+    gfx_pen(0)
+    gfx_rect(x, y, x + ancho - 1, y + alto - 1)
+    if k >= dw_ventanas.length or dw_ventanas[k].giro < 0
+        return
+    end
+    cx = x + ancho / 2
+    cy = y + alto / 2
+    for i in (0..7)
+        detras = (dw_ventanas[k].giro - i + 8) % 8
+        if detras == 0
+            gfx_pen(1)
+        elif detras < 3
+            gfx_pen(3)
+        else
+            gfx_pen(2)
+        end
+        gfx_rect(cx + giro_x[i] - 1, cy + giro_y[i] - 1, cx + giro_x[i] + 1, cy + giro_y[i] + 1)
+    end
+end
+
+# Mueve el indicador si algo está llegando (página, hojas, scripts, imágenes); si no, lo para
+func actualizar_giro(w: Ventana)
+    nuevo = -1
+    if w.carga != nil or w.preparando != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
+        nuevo = (time_ms() / 100) % 8
+    end
+    if nuevo != w.giro
+        w.giro = nuevo
+        mui_canvas_redraw(w.v.actividad)
+    end
 end
 
 # La página desde "desde"; si el ancho cambió, se maqueta otra vez
@@ -139,6 +199,7 @@ func abrir(w: Ventana, direccion: String)
         w.carga = http_empezar(direccion, 20000)
         w.carga_dir = direccion
         mui_set_enabled(w.v.parar, true)
+        actualizar_giro(w)
         programar()
         return
     end
@@ -163,6 +224,7 @@ func abrir_post(w: Ventana, direccion: String, cuerpo: String)
     w.carga = http_empezar_post(direccion, cuerpo, "", 20000)
     w.carga_dir = direccion
     mui_set_enabled(w.v.parar, true)
+    actualizar_giro(w)
     programar()
 end
 
@@ -170,6 +232,18 @@ end
 func avanzar_carga(w: Ventana)
     if w.carga != nil
         if not http_avanzar(w.carga)
+            fase = http_fase(w.carga)
+            if fase != "recibiendo"
+                host = url_parse(w.carga_dir).host
+                if fase == "buscando"
+                    dw_estado(w, "Buscando " + host + "...")
+                elif fase == "conectando"
+                    dw_estado(w, "Conectando con " + host + "...")
+                else
+                    dw_estado(w, "Conexión segura con " + host + "...")
+                end
+                return
+            end
             total = http_total(w.carga)
             if total > 0
                 mui_set_value(w.v.progreso, 10 + http_recibidos(w.carga) * 80 / total)
@@ -245,6 +319,7 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     mui_set_value(w.v.progreso, 0)
     mui_canvas_redraw(w.v.pagina)
     temporizadores(w)
+    actualizar_giro(w)
 end
 
 # El único mui_timer, para todas las ventanas: cada 50 ms mientras algo llega, si no al siguiente
@@ -305,6 +380,7 @@ func tic(w: Ventana)
     if w.js_cuando >= 0 and time_ms() >= w.js_cuando
         temporizadores(w)
     end
+    actualizar_giro(w)
 end
 
 func clic(w: Ventana)
@@ -443,12 +519,16 @@ func nueva_ventana(direccion: String) -> Ventana
     dw_ventanas.push(w)
     if k == 0
         mui_canvas_on_draw(v.pagina, pinta0)
+        mui_canvas_on_draw(v.actividad, giro0)
     elif k == 1
         mui_canvas_on_draw(v.pagina, pinta1)
+        mui_canvas_on_draw(v.actividad, giro1)
     elif k == 2
         mui_canvas_on_draw(v.pagina, pinta2)
+        mui_canvas_on_draw(v.actividad, giro2)
     else
         mui_canvas_on_draw(v.pagina, pinta3)
+        mui_canvas_on_draw(v.actividad, giro3)
     end
     mui_canvas_on_input(v.pagina, ID_PAGINA)
     mui_on_close(v.window, ID_CERRADA + k)
@@ -584,6 +664,12 @@ Main
                 end
                 botones(w)
             end
+            if ev == ID_VER_HISTORIAL
+                # desplegar o esconder la lista del historial (la página se maqueta al ancho nuevo)
+                w.con_historial = not w.con_historial
+                mui_set_visible(w.v.historial, w.con_historial)
+                mui_set_visible(w.v.separador, w.con_historial)
+            end
             if ev == ID_SCROLL
                 w.desde = mui_get_value(w.v.barra)
                 mui_canvas_redraw(w.v.pagina)
@@ -593,6 +679,7 @@ Main
                 mui_set_enabled(w.v.parar, false)
                 mui_set_value(w.v.progreso, 0)
                 dw_estado(w, "Parado")
+                actualizar_giro(w)
                 programar()
             end
             if ev == ID_PAGINA

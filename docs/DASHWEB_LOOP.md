@@ -165,6 +165,11 @@ tarea, con el estilo de Dash.
       `DoMethod` (chocaba con las cabeceras de MUI).
 - [x] D29. **Programas en segundo plano en `emu_run`.** Para las pruebas de interfaz del navegador (tarea 19).
 - [x] D31. **Teclas como texto en la zona de dibujo de MUI.** `mui_canvas_char` (lo pidió la 21a).
+- [x] D36. **Conectar sin esperar.** `net_connect_start`/`_poll`/`_stage` (el nombre se busca en otro proceso,
+      la conexión sin bloquear) y `tls_connect_start`/`_poll` (lo pidió la 20d).
+- [x] D35. **Atajos de menú de MUI.** Amiga+tecla colgaba el programa (barra de menús puesta con `SetAttrs`
+      después de crear la ventana) y cada elección daba además un evento 11 falso (`MUIA_UserData` de los
+      elementos). Lo encontró la 22c.
 - [x] D34. **Modo de pruebas sin frenar los bucles.** `--autoclose` miraba el reloj en cada vuelta (lo encontró D23).
 - [x] D32. **Ventana activa en MUI.** `mui_window_active` (lo pidió la 22b).
 - [x] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
@@ -259,15 +264,20 @@ tarea, con el estilo de Dash.
 - [x] 22a. **Marcadores y página de inicio.** Menú Proyecto: Página de inicio, Marcadores (una página con los
       enlaces), Añadir marcador, Usar como página de inicio.
 - [x] 22b. **Varias ventanas.** Cada una con su página, historial y carga (hoy el estado del navegador es global).
-- [?] 22c. **Atajos de menú en el emulador.** PREGUNTA: ¿se prueba en hardware real (o en otro emulador) o se
-      deja? Intentado sin éxito: tecla con cualificador, secuencia completa y ratón (MUI 5 usa menús propios). Inyectar Amiga derecha + tecla con `input.device` en un programa MUI
-      cuelga el sistema con 68040+JIT (también un programa MUI mínimo con un menú) y en el A1200 sin JIT el atajo
-      no llega. Averiguar si es la inyección, MUI o FS-UAE; probar el menú con el ratón (botón derecho).
-- [?] 20d. **Bucle de eventos: conectar.** PREGUNTA: ¿merece la pena? Necesita una red lenta para probarse (no
-      se puede en FS-UAE en local); en PiStorm la negociación TLS es rápida. (movida aquí el 2026-10-16: en el emulador conectar es instantáneo y
-      no hay cómo probarla; lo que aún bloquea es corto salvo la negociación TLS) DNS, `connect` y la negociación TLS sin bloquear (hoy
-      `http_empezar` espera a que conecte). Si una pila TCP/IP real da `SIGIO`, usarlo con
-      `mui_wait_event_signals` (FS-UAE no lo da).
+- [x] 22c. **Atajos de menú.** Respuesta del usuario (2026-10-16): hay que hacerlos funcionar; averiguar si el
+      fallo es de Dash. Hay otro emulador en esta máquina (Amiberry). Intentado sin éxito: tecla con cualificador,
+      secuencia completa y ratón (MUI 5 usa menús propios). Inyectar Amiga derecha + tecla con `input.device` en un
+      programa MUI cuelga el sistema con 68040+JIT (también un programa MUI mínimo con un menú) y en el A1200 sin JIT
+      el atajo no llega. Averiguar si es la inyección, MUI, Dash o FS-UAE (un programa MUI mínimo en C; Amiberry).
+- [x] 22d. **Historial plegable.** Preferencia del usuario (2026-10-16, vía la sesión de MUI): la lista de historial
+      de la izquierda, oculta al abrir y accesible si se despliega. Patrón de `examples/mui_navegador.dash` de Dash:
+      botón "_Historial" en la barra; la lista y el balance llevan `"hidden": true` en el `.dashui` y el botón los
+      alterna con `mui_set_visible`.
+- [x] 20d. **Bucle de eventos: conectar.** Respuesta del usuario (2026-10-16): la consulta DNS, la conexión y la
+      negociación TLS no pueden congelar el navegador; mientras, un indicador de actividad (como los navegadores
+      modernos). Hoy `http_empezar` espera a que conecte. Si una pila TCP/IP real da `SIGIO`, usarlo con
+      `mui_wait_event_signals` (FS-UAE no lo da). Probarlo con un retraso artificial (servidor que tarda en
+      aceptar o en responder al TLS).
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -968,3 +978,64 @@ Formato:
 - Pendientes con pregunta al usuario: 20d (conectar/DNS/TLS sin bloquear) y 22c (atajos de menú: ¿probar en
   hardware real?).
 - Mejora apuntada: agrupar las reglas CSS por el último selector (el estilo es lo más lento: 5,5 s en A1200).
+
+### 2026-10-16 — Respuestas del usuario a 20d y 22c
+- 20d: la consulta DNS, la conexión y la negociación TLS no pueden congelar el navegador; un indicador de
+  actividad mientras tanto. 22c: hay que hacer funcionar los atajos; averiguar si es cosa de Dash (otro
+  emulador en esta máquina: Amiberry). Las dos vuelven a `[ ]`.
+- La sesión de MUI pasa una preferencia del usuario: el historial de la izquierda, oculto y desplegable (22d).
+
+### 2026-10-16 — Tarea 22c (atajos de menú) y D35
+- Un programa MUI mínimo en C con un menú (Amiga+P, Amiga+Q) y las mismas teclas inyectadas por `input.device`
+  funciona en el A1200 y con 68040+JIT: ni la inyección ni MUI ni FS-UAE tenían la culpa. El mismo programa en
+  Dash se colgaba. Montando el menú en C como lo monta Dash se cuelga igual: la causa es poner la barra de menús
+  con `SetAttrs(MUIA_Window_Menustrip)` después de crear la ventana (MUI 21.227 lo admite según su autodoc, pero
+  se cuelga con el primer atajo; MUI 3.8 ni lo admite). Con la barra dada al crear la ventana, aunque vacía y
+  llenada después, funciona. No hizo falta Amiberry.
+- Segundo fallo: cada elección de menú daba además un evento 11. MUI devuelve el `MUIA_UserData` del elemento
+  elegido como evento, y Dash guardaba ahí el tipo de objeto (11 = elemento de menú). En dashweb el 11 es
+  `ID_TIC` (un tic de más, sin daño); en el ejemplo de la sesión de MUI era su botón de historial.
+- D35 (Dash, 1985971): `mui_window_begin` crea la barra vacía con la ventana; los elementos de menú
+  dejan el `UserData` a 0 y se reconocen por `MUIA_Menuitem_Title`. Test `test_mui_menu_keys` (un proceso
+  teclea Amiga+P, Amiga+O sobre un elemento desactivado y Amiga+Q; `mui_press` sobre un elemento): pasa en 3.1 y
+  3.2 y se cuelga sin el arreglo. Dash: 190/190, 34/34, `--emu --emu-a500 --emu-32` 492/492.
+- `clicar` aprendió `r X Y` (pulsar el botón derecho), `p X Y` (llevarlo pulsado a un punto de la pantalla) y
+  `s` (soltarlo): los menús de MUI 5 se dibujan en la barra de la pantalla y no están en `MenuStrip`.
+- En el navegador (68040+JIT): Amiga+D añade el marcador y Amiga+B abre la página de marcadores con él;
+  Amiga+N dos veces y Amiga+K dejan dos ventanas; Amiga+Q cierra el programa. Con el ratón: botón derecho,
+  Proyecto, Marcadores → la página de marcadores.
+
+### 2026-10-16 — Tarea 22d (historial plegable)
+- Botón "Historial" (evento 20) en la barra; la lista y el balance (`separador`) llevan `"hidden": true` en
+  `navegador.dashui` y el botón los alterna con `mui_set_visible` (patrón de `examples/mui_navegador.dash`).
+  Sin subrayado en la etiqueta: una letra de atajo le quitaría esa tecla a los campos de los formularios.
+- Sin la lista la ventana salía estrecha: la página pide 500 de ancho (antes 400) y el campo de dirección tiene
+  peso 400. En el emulador: oculto al abrir; un clic lo despliega (la ventana se ensancha) y otro lo esconde (la
+  página se maqueta al ancho nuevo).
+
+### 2026-10-16 — Tarea 20d (conectar sin congelar) y D36
+- D36 (Dash, 5d99337): `net_connect_start(host, puerto, ms)` crea el socket y busca el nombre en un proceso aparte (la
+  pila no tiene consulta DNS sin espera; el proceso abre su propia `bsdsocket.library`, empieza con más
+  prioridad para recoger su trabajo y baja a la del programa); `net_connect_poll` conecta sin bloquear y dice
+  1/0/-1; `net_connect_stage` 0 buscando, 1 conectando. Los ocho últimos nombres se recuerdan. `net_close` de
+  uno que se abre lo deja (el proceso libera su trabajo al acabar); al salir, el programa espera a las consultas
+  en marcha (su código está en el programa). `tls_connect_start`/`tls_connect_poll`: la negociación con el
+  socket sin bloquear (`SSL_ERROR_WANT_READ/WRITE` = todavía no). Tests `test_net_async` y `test_tls_async`.
+  En PiStorm el cálculo de la negociación es corto; lo que esperaba era la red.
+- dashweb: `red_abrir_empezar`/`red_abrir_avanzar`/`red_fase`; la `Carga` de `http_empezar` abre así y manda la
+  petición cuando la conexión está abierta; `http_fase` (buscando, conectando, negociando, recibiendo). La barra
+  de estado lo dice ("Buscando x...", "Conectando con x...", "Conexión segura con x..."). De paso: `red_abrir` y
+  `red_abrir_tls` no liberaban el buffer al fallar.
+- Indicador de actividad: una zona de dibujo de 16x16 a la derecha de la dirección con ocho puntos que giran
+  (cada 100 ms, con el tic de 50 ms de las cargas) mientras llega la página, sus hojas, scripts o imágenes. Con
+  los lápices 1, 3 y 2 de la pantalla: los grises de `color_pen` salían azules o del color del fondo con 4 colores.
+- Para probarlo: `tools/lento/dns_lento.c` (con `LD_PRELOAD` en FS-UAE, los nombres `.lento` tardan lo que diga
+  `DNS_LENTO_MS` y dan 127.0.0.1), `tests/servers/http.py PORT tls-lento` (espera `TLS_LENTO_S` antes de la
+  negociación) y `tools/medir_visor.py --host --dns-lento --tls --tls-lento --captura-en`. Sistema con MUI,
+  AmiSSL y fuentes: `~/.cache/dash-emu/sys31muisslweb` (sys31muiweb + AmiSSL de sys31ssl y su Startup-Extra).
+- En el emulador (68040+JIT): consulta DNS de 20 s → "Buscando servidor.lento...", el indicador gira y el botón
+  Historial responde; con 8 s llega la página. Parar durante la consulta → "Parado". Negociación TLS de 20 s →
+  "Conexión segura con 127.0.0.1...", la ventana responde; con 8 s llega la página por HTTPS. 10.255.255.1 →
+  "Conectando con..." y a los 20 s "tiempo agotado al conectar". `test_http_carga` con `http_fase` y cancelar
+  mientras se busca. dashweb 25/25, también con `--memcheck`. Dash con D36: 192/192, 34/34,
+  `--emu --emu-a500 --emu-32` 499/499, `--emu --memcheck` 298/298.

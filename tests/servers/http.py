@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Test HTTP server for test_http: one route per case (length, chunked, close, UTF-8,
-redirects, loop, 404). Usage: http.py PORT [tls]  (tls: HTTPS with a certificate for
-127.0.0.1 signed by the test CA of Dash's tools/emu_sys_amissl.sh)"""
+redirects, loop, 404). Usage: http.py PORT [tls|tls-lento]  (tls: HTTPS with a certificate
+for 127.0.0.1 signed by the test CA of Dash's tools/emu_sys_amissl.sh; tls-lento: the same, waiting 4 s (or
+$TLS_LENTO_S) before the handshake)"""
 import socketserver
 import sys
 
@@ -98,17 +99,29 @@ def tls_context():
 
 
 class TLSServer(socketserver.ThreadingTCPServer):
+    # the handshake goes in the connection's thread: with "tls-lento" it waits TLS_LENTO seconds first
     def get_request(self):
         sock, addr = super().get_request()
-        return CONTEXT.wrap_socket(sock, server_side=True), addr
+        return CONTEXT.wrap_socket(sock, server_side=True, do_handshake_on_connect=False), addr
 
     def handle_error(self, request, client_address):
         pass
 
 
+class TLSHandler(Handler):
+    def setup(self):
+        if TLS_LENTO:
+            time.sleep(TLS_LENTO)
+        self.request.do_handshake()
+        super().setup()
+
+
 socketserver.ThreadingTCPServer.allow_reuse_address = True
-if len(sys.argv) > 2 and sys.argv[2] == "tls":
+if len(sys.argv) > 2 and sys.argv[2] in ("tls", "tls-lento"):
+    import time
+    import os
+    TLS_LENTO = float(os.environ.get("TLS_LENTO_S", "4")) if sys.argv[2] == "tls-lento" else 0
     CONTEXT = tls_context()
-    TLSServer(("127.0.0.1", PORT), Handler).serve_forever()
+    TLSServer(("127.0.0.1", PORT), TLSHandler).serve_forever()
 else:
     socketserver.ThreadingTCPServer(("127.0.0.1", PORT), Handler).serve_forever()

@@ -6,7 +6,8 @@
 # Acciones: "e N" espera N/50 s; "c X Y" clic en X, Y dentro de los bordes de la ventana;
 # "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...); "a COD" la misma con Amiga
 # derecha (atajos de menú: 0x22 = D); "m M E" elige con el ratón el elemento E del menú M (desde 0,
-# separadores incluidos). Escribe lo que hace.
+# separadores incluidos); "r X Y" pulsa el botón derecho en X, Y, "p X Y" lo lleva pulsado al punto X, Y
+# de la pantalla y "s" lo suelta (menús de MUI). Escribe lo que hace.
 
 @header "#include <devices/input.h>"
 @header "#include <intuition/intuitionbase.h>"
@@ -57,7 +58,24 @@ end
         io->io_Command = IND_WRITEEVENT;
         io->io_Data = &ie;
         io->io_Length = sizeof(ie);
-        if (tipo == 1) {                 /* clic */
+        if (tipo == 4 || tipo == 5) {    /* botón derecho: 4 pulsar en x, y; 5 soltar */
+            if (tipo == 4) {
+                memset(&ie, 0, sizeof(ie));
+                pp.iepp_Screen = w->WScreen;
+                pp.iepp_Position.X = w->LeftEdge + w->BorderLeft + x;
+                pp.iepp_Position.Y = w->TopEdge + w->BorderTop + y;
+                ie.ie_Class = IECLASS_NEWPOINTERPOS;
+                ie.ie_SubClass = IESUBCLASS_PIXEL;
+                ie.ie_EventAddress = (APTR)&pp;
+                DoIO((struct IORequest *)io);
+                Delay(3);
+            }
+            memset(&ie, 0, sizeof(ie));
+            ie.ie_Class = IECLASS_RAWMOUSE;
+            ie.ie_Code = tipo == 4 ? IECODE_RBUTTON : IECODE_RBUTTON | IECODE_UP_PREFIX;
+            ie.ie_Qualifier = (tipo == 4 ? IEQUALIFIER_RBUTTON : 0) | IEQUALIFIER_RELATIVEMOUSE;
+            DoIO((struct IORequest *)io);
+        } else if (tipo == 1) {          /* clic */
             memset(&ie, 0, sizeof(ie));
             pp.iepp_Screen = w->WScreen;
             pp.iepp_Position.X = w->LeftEdge + w->BorderLeft + x;
@@ -172,6 +190,36 @@ end
 """
 end
 
+# Con el botón derecho pulsado, lleva el puntero paso a paso al punto X, Y de la pantalla (menús de MUI)
+@native func mover_derecho(win: Int, tx: Int, ty: Int)
+"""
+    struct Window *w = (struct Window *)win;
+    struct Screen *scr = w->WScreen;
+    struct MsgPort *port = CreateMsgPort();
+    struct IOStdReq *io = port ? (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq)) : NULL;
+    struct InputEvent ie;
+    LONG pasos = 0;
+    if (io && OpenDevice((CONST_STRPTR)"input.device", 0, (struct IORequest *)io, 0) == 0) {
+        io->io_Command = IND_WRITEEVENT;
+        io->io_Data = &ie;
+        io->io_Length = sizeof(ie);
+        while ((scr->MouseX != tx || scr->MouseY != ty) && pasos++ < 800) {
+            memset(&ie, 0, sizeof(ie));
+            ie.ie_Class = IECLASS_RAWMOUSE;
+            ie.ie_Code = IECODE_NOBUTTON;
+            ie.ie_Qualifier = IEQUALIFIER_RBUTTON | IEQUALIFIER_RELATIVEMOUSE;
+            ie.ie_X = scr->MouseX < tx ? 1 : scr->MouseX > tx ? -1 : 0;
+            ie.ie_Y = scr->MouseY < ty ? 1 : scr->MouseY > ty ? -1 : 0;
+            DoIO((struct IORequest *)io);
+            Delay(1);
+        }
+        CloseDevice((struct IORequest *)io);
+    }
+    if (io) DeleteIORequest((struct IORequest *)io);
+    if (port) DeleteMsgPort(port);
+"""
+end
+
 @native(borrow) func esperar(ticks: Int)
 """
     Delay(ticks > 0 ? ticks : 1);
@@ -204,6 +252,18 @@ Main
                 evento(w, 1, Int(arg(i + 1)), Int(arg(i + 2)), 0)
                 Print "clicar: clic " + arg(i + 1) + "," + arg(i + 2)
                 i = i + 3
+            elif a == "r" and i + 2 < arg_count()
+                evento(w, 4, Int(arg(i + 1)), Int(arg(i + 2)), 0)
+                Print "clicar: botón derecho en " + arg(i + 1) + "," + arg(i + 2)
+                i = i + 3
+            elif a == "p" and i + 2 < arg_count()
+                mover_derecho(w, Int(arg(i + 1)), Int(arg(i + 2)))
+                Print "clicar: con el botón derecho a " + arg(i + 1) + "," + arg(i + 2)
+                i = i + 3
+            elif a == "s"
+                evento(w, 5, 0, 0, 0)
+                Print "clicar: suelta el botón derecho"
+                i = i + 1
             elif a == "m" and i + 2 < arg_count()
                 Print "clicar: menú " + arg(i + 1) + " elemento " + arg(i + 2) + ": " + menu_raton(w, Int(arg(i + 1)), Int(arg(i + 2)))
                 i = i + 3

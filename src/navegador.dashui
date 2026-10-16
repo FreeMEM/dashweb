@@ -94,11 +94,25 @@
                 "disabled": true
               },
               {
+                "type": "button",
+                "name": "ver_historial",
+                "label": "Historial",
+                "event": 20
+              },
+              {
                 "type": "string",
                 "name": "url",
                 "text": "",
                 "max": 1024,
-                "ack": 4
+                "ack": 4,
+                "weight": 400
+              },
+              {
+                "type": "canvas",
+                "name": "actividad",
+                "min_width": 16,
+                "min_height": 16,
+                "weight": 0
               }
             ]
           },
@@ -109,15 +123,18 @@
                 "type": "list",
                 "name": "historial",
                 "double": 6,
-                "weight": 25
+                "weight": 25,
+                "hidden": true
               },
               {
-                "type": "balance"
+                "type": "balance",
+                "name": "separador",
+                "hidden": true
               },
               {
                 "type": "canvas",
                 "name": "pagina",
-                "min_width": 400,
+                "min_width": 500,
                 "min_height": 100
               },
               {

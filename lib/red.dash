@@ -12,6 +12,12 @@
 #   n = red_recibir_ya(c)                       # lo que haya llegado, sin esperar (-1: cerrada)
 #   red_cerrar(c)
 #
+# Abrir sin esperar (la consulta DNS, la conexión y la negociación TLS no paran el programa):
+#   c = red_abrir_empezar("ejemplo.org", 443, true, 10000)
+#   while red_abrir_avanzar(c) == 0     # 1 abierta, -1 error (c.error)
+#       ... la interfaz; red_fase(c) dice en qué está: "buscando", "conectando", "negociando"
+#   end
+#
 # Lo recibido se guarda en bytes (un buffer): las líneas y los textos se sacan de ahí (los bytes 0
 # pasan a espacios) y red_copiar lleva los bytes sin tocar a un fichero (imágenes).
 
@@ -27,14 +33,17 @@ struct Conexion
     fin: Int
     cerrada: Bool
     error: String
+    fase: Int = 0     # abriéndose sin esperar: 1 nombre y conexión, 2 negociación TLS; 0 abierta
+    host: String = ""
+    con_tls: Bool = false
 end
 
 func red_abrir(host: String, puerto: Int, espera_ms: Int) -> Conexion
     c = Conexion(-1, -1, espera_ms, buffer_alloc(RED_TROZO * 4), RED_TROZO * 4, 0, 0, false, "")
     c.sock = net_connect(host, puerto, espera_ms)
     if c.sock < 0
-        c.cerrada = true
         c.error = net_error()
+        red_cerrar(c)
     end
     return c
 end
@@ -47,11 +56,80 @@ func red_abrir_tls(host: String, puerto: Int, espera_ms: Int) -> Conexion
     c.tls = tls_connect(c.sock, host)
     if c.tls < 0
         c.error = net_error()
-        net_close(c.sock)
-        c.sock = -1
-        c.cerrada = true
+        red_cerrar(c)
     end
     return c
+end
+
+# Empieza a abrir la conexión y vuelve en seguida (red_abrir_avanzar la sigue)
+func red_abrir_empezar(host: String, puerto: Int, con_tls: Bool, espera_ms: Int) -> Conexion
+    c = Conexion(-1, -1, espera_ms, buffer_alloc(RED_TROZO * 4), RED_TROZO * 4, 0, 0, false, "")
+    c.host = host
+    c.con_tls = con_tls
+    c.sock = net_connect_start(host, puerto, espera_ms)
+    if c.sock < 0
+        c.error = net_error()
+        red_cerrar(c)
+        return c
+    end
+    c.fase = 1
+    return c
+end
+
+# Sigue abriendo sin esperar: 1 abierta, 0 todavía no, -1 error (c.error, y la conexión queda cerrada)
+func red_abrir_avanzar(c: Conexion) -> Int
+    if c.cerrada
+        return -1
+    end
+    if c.fase == 1
+        r = net_connect_poll(c.sock)
+        if r == 0
+            return 0
+        end
+        if r < 0
+            c.error = net_error()
+            c.sock = -1          # net_connect_poll ya lo cerró
+            red_cerrar(c)
+            return -1
+        end
+        if not c.con_tls
+            c.fase = 0
+            return 1
+        end
+        c.tls = tls_connect_start(c.sock, c.host, c.espera)
+        if c.tls < 0
+            c.error = net_error()
+            red_cerrar(c)
+            return -1
+        end
+        c.fase = 2
+    end
+    if c.fase == 2
+        r = tls_connect_poll(c.tls)
+        if r == 0
+            return 0
+        end
+        if r < 0
+            c.error = net_error()
+            c.tls = -1
+            red_cerrar(c)
+            return -1
+        end
+        c.fase = 0
+    end
+    return 1
+end
+
+# En qué está una conexión que se abre: "buscando" (el nombre), "conectando", "negociando" (TLS); "" abierta
+func red_fase(c: Conexion) -> String
+    if c.fase == 1 and net_connect_stage(c.sock) == 0
+        return "buscando"
+    elif c.fase == 1
+        return "conectando"
+    elif c.fase == 2
+        return "negociando"
+    end
+    return ""
 end
 
 func red_enviar(c: Conexion, texto: String) -> Bool

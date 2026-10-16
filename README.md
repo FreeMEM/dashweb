@@ -10,8 +10,9 @@ lenguaje, sus librerías y su rendimiento.
 
 Fase A (sin MUI): `src/visor.dash` abre una página (fichero o URL http/https), la maqueta, la pinta en una
 ventana normal y ejecuta su JavaScript. Fase B (MUI 5): `src/dashweb.dash`, el navegador: barra de dirección,
-atrás/adelante, recargar, parar, historial, marcadores, página de inicio, hasta 4 ventanas; las páginas llegan
-sin congelar la ventana (imágenes, hojas y scripts a la vez); enlaces, anclas, formularios (GET y POST). Plan y bitácora en
+atrás/adelante, recargar, parar, historial desplegable, marcadores, página de inicio, hasta 4 ventanas, atajos de
+menú; las páginas llegan sin congelar la ventana (consulta DNS, conexión y negociación TLS incluidas, con un
+indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, formularios (GET y POST). Plan y bitácora en
 [docs/DASHWEB_LOOP.md](docs/DASHWEB_LOOP.md), módulos en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 - Red: TCP (`bsdsocket.library`), HTTP/1.1 (longitud, `chunked`, redirecciones) y HTTPS con AmiSSL 5.
