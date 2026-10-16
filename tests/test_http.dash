@@ -11,8 +11,33 @@
 # expect-out: [GET /eco?x=1 HTTP/1.1]
 # expect-out: esquema no admitido: ftp
 # expect-out: conexión rechazada
+# expect-out: binario 200 20000 bytes: 20000 2549392 79
+# expect-out: binario 200 20000 bytes: 20000 2549392 79
+# expect-out: 404 0 bytes [no]
 
 import "../lib/http.dash"
+
+# Cuántos bytes tiene el fichero, su suma y cuántos son 0
+func resumen(fichero: String) -> String
+    f = file_open(fichero, 1005)
+    if f == 0
+        return "sin fichero"
+    end
+    n = 0
+    suma = 0
+    ceros = 0
+    b = file_read_byte(f)
+    while b >= 0
+        n = n + 1
+        suma = suma + b
+        if b == 0
+            ceros = ceros + 1
+        end
+        b = file_read_byte(f)
+    end
+    file_close(f)
+    return "" + n + " " + suma + " " + ceros
+end
 
 Main
     base = "http://127.0.0.1:40851"
@@ -38,4 +63,11 @@ Main
     Print r.error
     r = http_get("http://127.0.0.1:1/", 3000)
     Print r.error
+    # el cuerpo tal cual a un fichero (bytes 0 incluidos), con longitud y por trozos
+    r = http_a_fichero(base + "/binario", "T:binario", 5000)
+    Print "binario " + r.estado + " " + r.bytes + " bytes: " + resumen("T:binario")
+    r = http_a_fichero(base + "/binario_chunked", "T:binario2", 5000)
+    Print "binario " + r.estado + " " + r.bytes + " bytes: " + resumen("T:binario2")
+    r = http_a_fichero(base + "/no", "T:nada", 5000)
+    Print "" + r.estado + " " + r.bytes + " bytes [" + r.cuerpo + "]"
 end

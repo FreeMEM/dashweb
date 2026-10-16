@@ -8,7 +8,11 @@
 #   red_enviar(c, "GET / HTTP/1.0\r\n\r\n")
 #   linea = red_leer_linea(c)                   # sin el salto de línea; nil al cerrarse
 #   cuerpo = red_leer_todo(c)
+#   red_copiar(c, fichero, n)                   # n bytes tal cual a un fichero abierto (-1: hasta el cierre)
 #   red_cerrar(c)
+#
+# Lo recibido se guarda en bytes (un buffer): las líneas y los textos se sacan de ahí (los bytes 0
+# pasan a espacios) y red_copiar lleva los bytes sin tocar a un fichero (imágenes).
 
 const RED_TROZO = 4096
 
@@ -16,14 +20,16 @@ struct Conexion
     sock: Int
     tls: Int
     espera: Int
-    pendiente: String
-    pos: Int
+    buf: Int          # lo recibido sin leer son los bytes [ini, fin) de buf (de cap bytes)
+    cap: Int
+    ini: Int
+    fin: Int
     cerrada: Bool
     error: String
 end
 
 func red_abrir(host: String, puerto: Int, espera_ms: Int) -> Conexion
-    c = Conexion(-1, -1, espera_ms, "", 0, false, "")
+    c = Conexion(-1, -1, espera_ms, buffer_alloc(RED_TROZO * 4), RED_TROZO * 4, 0, 0, false, "")
     c.sock = net_connect(host, puerto, espera_ms)
     if c.sock < 0
         c.cerrada = true
@@ -47,13 +53,6 @@ func red_abrir_tls(host: String, puerto: Int, espera_ms: Int) -> Conexion
     return c
 end
 
-func _red_recibir(c: Conexion) -> String
-    if c.tls >= 0
-        return tls_recv(c.tls, RED_TROZO, c.espera)
-    end
-    return net_recv(c.sock, RED_TROZO, c.espera)
-end
-
 func red_enviar(c: Conexion, texto: String) -> Bool
     if c.cerrada
         return false
@@ -71,90 +70,143 @@ func red_enviar(c: Conexion, texto: String) -> Bool
     return true
 end
 
-# Trae otro trozo a lo pendiente; false si la conexión se cerró o no llegó nada a tiempo
+# Sitio para un trozo más al final del buffer: lo no leído pasa al principio (sin solaparse)
+# o a un buffer más grande
+func _red_sitio(c: Conexion)
+    sin_leer = c.fin - c.ini
+    if c.cap - c.fin >= RED_TROZO
+        return
+    end
+    if c.ini >= sin_leer and c.cap - sin_leer >= RED_TROZO
+        buffer_copy(c.buf, 0, c.buf, c.ini, sin_leer)
+    else
+        cap = c.cap
+        while cap - sin_leer < RED_TROZO
+            cap = cap * 2
+        end
+        nuevo = buffer_alloc(cap)
+        buffer_copy(nuevo, 0, c.buf, c.ini, sin_leer)
+        buffer_free(c.buf)
+        c.buf = nuevo
+        c.cap = cap
+    end
+    c.ini = 0
+    c.fin = sin_leer
+end
+
+# Trae otro trozo; false si la conexión se cerró o no llegó nada a tiempo
 func _red_traer(c: Conexion) -> Bool
     if c.cerrada
         return false
     end
-    trozo = _red_recibir(c)
-    if trozo == nil
+    _red_sitio(c)
+    n = 0
+    if c.tls >= 0
+        n = tls_recv_buffer(c.tls, c.buf + c.fin, c.cap - c.fin, c.espera)
+    else
+        n = net_recv_buffer(c.sock, c.buf + c.fin, c.cap - c.fin, c.espera)
+    end
+    if n < 0
         c.cerrada = true
         return false
     end
-    if trozo == ""
+    if n == 0
         c.error = "tiempo agotado"
         c.cerrada = true
         return false
     end
-    # lo ya leído se descarta antes de añadir (así lo pendiente no crece sin fin)
-    if c.pos > 0
-        c.pendiente = c.pendiente[c.pos:]
-        c.pos = 0
-    end
-    c.pendiente = c.pendiente + trozo
+    c.fin = c.fin + n
     return true
+end
+
+# Los n primeros bytes sin leer como texto, y los da por leídos
+func _red_sacar(c: Conexion, n: Int) -> String
+    t = str_from_buffer(c.buf, c.ini, n)
+    c.ini = c.ini + n
+    return t
 end
 
 # Una línea sin "\r\n" ni "\n"; nil si la conexión se cerró sin dar más
 func red_leer_linea(c: Conexion) -> String
-    p = str_find_from(c.pendiente, "\n", c.pos)
-    while p < 0
+    i = c.ini
+    while true
+        while i < c.fin
+            if buffer_get_byte(c.buf, i) == 10
+                fin = i
+                if fin > c.ini and buffer_get_byte(c.buf, fin - 1) == 13
+                    fin = fin - 1
+                end
+                linea = _red_sacar(c, fin - c.ini)
+                c.ini = i + 1
+                return linea
+            end
+            i = i + 1
+        end
+        visto = i - c.ini
         if not _red_traer(c)
-            if c.pos < c.pendiente.length
-                resto = c.pendiente[c.pos:]
-                c.pos = c.pendiente.length
-                return resto
+            if c.fin > c.ini
+                return _red_sacar(c, c.fin - c.ini)
             end
             var nada: String = nil
             return nada
         end
-        p = str_find_from(c.pendiente, "\n", c.pos)
+        i = c.ini + visto
     end
-    fin = p
-    if fin > c.pos and c.pendiente[fin - 1] == "\r"
-        fin = fin - 1
-    end
-    linea = c.pendiente[c.pos:fin]
-    c.pos = p + 1
-    return linea
+    var nunca: String = nil
+    return nunca
 end
 
-# n bytes (menos si la conexión se cierra antes)
+# n bytes como texto (menos si la conexión se cierra antes); n < 0: hasta el cierre
 func red_leer(c: Conexion, n: Int) -> String
-    while c.pendiente.length - c.pos < n
-        if not _red_traer(c)
+    r = ""
+    falta = n
+    while falta != 0
+        if c.fin == c.ini and not _red_traer(c)
             break
         end
+        toma = c.fin - c.ini
+        if falta > 0 and toma > falta
+            toma = falta
+        end
+        r = r + _red_sacar(c, toma)
+        if falta > 0
+            falta = falta - toma
+        end
     end
-    fin = c.pos + n
-    if fin > c.pendiente.length
-        fin = c.pendiente.length
-    end
-    r = c.pendiente[c.pos:fin]
-    c.pos = fin
     return r
 end
 
 # Todo lo que llegue hasta que la conexión se cierre
 func red_leer_todo(c: Conexion) -> String
-    r = c.pendiente[c.pos:]
-    c.pendiente = ""
-    c.pos = 0
-    while not c.cerrada
-        trozo = _red_recibir(c)
-        if trozo == nil
-            c.cerrada = true
-        elif trozo == ""
-            c.error = "tiempo agotado"
-            c.cerrada = true
-        else
-            r = r + trozo
+    return red_leer(c, -1)
+end
+
+# n bytes tal cual al fichero abierto f (n < 0: hasta el cierre); cuántos se escribieron
+func red_copiar(c: Conexion, f: Int, n: Int) -> Int
+    hechos = 0
+    while n < 0 or hechos < n
+        if c.fin == c.ini and not _red_traer(c)
+            break
         end
+        toma = c.fin - c.ini
+        if n >= 0 and toma > n - hechos
+            toma = n - hechos
+        end
+        if file_write(f, c.buf + c.ini, toma) != toma
+            c.error = "no se puede escribir"
+            break
+        end
+        c.ini = c.ini + toma
+        hechos = hechos + toma
     end
-    return r
+    return hechos
 end
 
 func red_cerrar(c: Conexion)
+    if c.buf != 0
+        buffer_free(c.buf)
+        c.buf = 0
+    end
     if c.tls >= 0
         tls_close(c.tls)
         c.tls = -1

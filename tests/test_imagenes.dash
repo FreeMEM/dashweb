@@ -1,0 +1,74 @@
+# Test: lib/imagenes.dash y el pintor con imágenes. La página (por HTTP) tiene un ILBM de 8x4
+# (blanco y negro) a su tamaño, el mismo con width=16 (alto 8 por la proporción) y uno que no
+# existe. Se maqueta, se pinta en la ventana y se leen los lápices: blanco 2, negro 1. El blanco
+# entre imágenes es de la pieza siguiente (no ensancha la imagen).
+# emu-server: http.py 40853
+# memcheck
+# expect-out: cuadro.iff 8x4
+# expect-out: cuadro.iff 16x8
+# expect-out: no.iff sin tamaño
+# expect-out: I 4,17 8x4 cuadro.iff
+# expect-out: I 20,13 16x8 cuadro.iff
+# expect-out: I 44,5 16x16 no.iff
+# expect-out: 2 2 2 2 1 1 1 1
+# expect-out: 2 2 2 2 2 2 2 2 1 1
+# expect-out: 1 1 2 2
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/pintor.dash"
+
+Window W
+    title "Imágenes"
+    width 300
+    height 120
+end
+
+func fila(x: Int, y: Int, n: Int) -> String
+    r = ""
+    for i in (0..n - 1)
+        if i > 0
+            r = r + " "
+        end
+        r = r + gfx_pixel_read(x + i, y)
+    end
+    return r
+end
+
+func tamanos(n: Nodo)
+    if n.nombre == "img"
+        if dom_tiene_atributo(n, "width")
+            Print dom_atributo(n, "src") + " " + dom_atributo(n, "width") + "x" + dom_atributo(n, "height")
+        else
+            Print dom_atributo(n, "src") + " sin tamaño"
+        end
+    end
+    for h in n.hijos
+        tamanos(h)
+    end
+end
+
+Main
+    W.open
+    x0 = W.inner_left
+    y0 = W.inner_top
+    h = "<html><body style='margin: 4px; background: #fff'><img src=cuadro.iff> <img src=cuadro.iff width=16> <img src=no.iff></body></html>"
+    doc = dom_desde_html(h)
+    base = "http://127.0.0.1:40853/pages/prueba.html"
+    estilo_aplicar(doc, estilo_hojas(doc, base))
+    im = imagenes_nuevas()
+    imagenes_cargar(im, doc, base)
+    tamanos(doc)
+    p = maquetar(doc, 280)
+    for d in p.dibujos
+        if d.tipo == D_IMAGEN
+            Print "I " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " " + d.texto
+        end
+    end
+    pintar(p, im, 0, x0, y0, 280, 100)
+    Print fila(x0 + 4, y0 + 17, 8)
+    Print fila(x0 + 20, y0 + 13, 8) + " " + fila(x0 + 34, y0 + 13, 2)
+    # la imagen al doble, su última fila (la 4ª del original, 01010101, con cada píxel dos veces)
+    Print fila(x0 + 20, y0 + 20, 4)
+    imagenes_liberar(im)
+    W.close
+end

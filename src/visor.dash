@@ -71,14 +71,18 @@ Main
     estilo_aplicar(doc, estilo_hojas(doc, direccion))
     t_estilo = time_ms() - t1
     t1 = time_ms()
+    im = imagenes_nuevas()
+    imagenes_cargar(im, doc, direccion)
+    t_imagenes = time_ms() - t1
+    t1 = time_ms()
     pagina = maquetar(doc, ancho)
     t_maqueta = time_ms() - t1
     t1 = time_ms()
     desde = 0
-    pintar(pagina, desde, x0, y0, ancho, alto)
+    pintar(pagina, im, desde, x0, y0, ancho, alto)
     t_pintar = time_ms() - t1
     Print "visor: " + direccion + " " + texto.length + " bytes, " + pagina.dibujos.length + " dibujos, alto " + pagina.alto
-    Print "tiempos ms: carga " + t_carga + ", html " + t_html + ", estilo " + t_estilo + ", maqueta " + t_maqueta + ", pintar " + t_pintar
+    Print "tiempos ms: carga " + t_carga + ", html " + t_html + ", estilo " + t_estilo + ", imagenes " + t_imagenes + ", maqueta " + t_maqueta + ", pintar " + t_pintar
     paso = 0
     EventLoop
         On Key "DOWN"
@@ -104,7 +108,7 @@ Main
                 end
                 if nuevo != desde
                     desde = nuevo
-                    pintar(pagina, desde, x0, y0, ancho, alto)
+                    pintar(pagina, im, desde, x0, y0, ancho, alto)
                 end
                 paso = 0
             end
@@ -116,4 +120,5 @@ Main
             Stop
         end
     end
+    imagenes_liberar(im)
 end

@@ -7,6 +7,7 @@ import sys
 
 PORT = int(sys.argv[1])
 CAFE = "café".encode("utf-8")
+BINARIO = bytes(i * 7 % 256 for i in range(20000))     # every byte value, 0 included
 
 
 def reply(status, headers, body=b"", raw=None):
@@ -25,6 +26,12 @@ ROUTES = {
     "/estilo.css": reply("200 OK", [("Content-Type", "text/css"), ("Content-Length", "37")],
                          b'@import "imp.css"; p { color: teal }\n'),
     "/imp.css": reply("200 OK", [("Content-Type", "text/css"), ("Content-Length", "20")], b"em { color: olive }\n"),
+    "/binario": reply("200 OK", [("Content-Type", "application/octet-stream"),
+                                 ("Content-Length", str(len(BINARIO)))], BINARIO),
+    "/binario_chunked": reply("200 OK", [("Content-Type", "application/octet-stream"),
+                                         ("Transfer-Encoding", "chunked")],
+                              raw=b"".join(b"%X\r\n" % len(BINARIO[i:i + 3000]) + BINARIO[i:i + 3000] + b"\r\n"
+                                           for i in range(0, len(BINARIO), 3000)) + b"0\r\n\r\n"),
     "/no": reply("404 Not Found", [("Content-Type", "text/plain"), ("Content-Length", "2"),
                                    ("Set-Cookie", "a=1"), ("Set-Cookie", "b=2")], b"no"),
 }
@@ -44,7 +51,8 @@ class Handler(socketserver.StreamRequestHandler):
             f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages", os.path.basename(path))
             if os.path.isfile(f):
                 data = open(f, "rb").read()
-                kind = "text/css" if f.endswith(".css") else "text/html; charset=utf-8"
+                kinds = {".css": "text/css", ".png": "image/png", ".gif": "image/gif", ".iff": "image/x-ilbm"}
+                kind = kinds.get(os.path.splitext(f)[1], "text/html; charset=utf-8")
                 self.wfile.write(reply("200 OK", [("Content-Type", kind), ("Content-Length", str(len(data)))], data))
                 return
         if path.split("?")[0] == "/eco":   # what the client sent, to check the request

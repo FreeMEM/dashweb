@@ -65,6 +65,7 @@ struct Maquetador
     pagina: Pagina
     fuentes: {String: Int}
     topaz: Int
+    blanco: Int = 0      # un blanco detrás de una imagen: el ancho del espacio que toma la pieza siguiente
 end
 
 func _dibujo(tipo: Int, x: Int, y: Int, ancho: Int, alto: Int, color: Int) -> Dibujo
@@ -235,6 +236,7 @@ end
 func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     cy = y
     var piezas: [Pieza] = []
+    m.blanco = 0
     margen_previo = 0
     for h in n.hijos
         if _oculto(h)
@@ -290,7 +292,8 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         if h <= 0
             h = 16
         end
-        piezas.push(Pieza(dom_atributo(n, "src"), w, h, h, 0, 0, 0, false, enlace, 0, false, true))
+        piezas.push(Pieza(dom_atributo(n, "src"), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true))
+        m.blanco = 0
         return
     end
     destino = enlace
@@ -357,9 +360,10 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
             palabra = texto[i:j]
             # un blanco antes cuenta una vez: si la pieza anterior ya acaba en espacio, no otro
             espacio = 0
-            if hubo_blanco and not (piezas.length > 0 and _termina_en_blanco(piezas))
+            if (hubo_blanco or m.blanco > 0) and not (piezas.length > 0 and _termina_en_blanco(piezas))
                 espacio = espacio_ancho
             end
+            m.blanco = 0
             pz = Pieza(palabra, font_text_width(palabra), alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
             if not hubo_blanco and piezas.length > 0
                 anterior = piezas[piezas.length - 1]
@@ -373,7 +377,9 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
     if hubo_blanco and piezas.length > 0
         # el blanco final se nota en la siguiente palabra (de otro elemento)
         ultima = piezas[piezas.length - 1]
-        if not ultima.salto
+        if ultima.imagen
+            m.blanco = espacio_ancho
+        elif not ultima.salto
             ultima.texto = ultima.texto + " "
             ultima.ancho = ultima.ancho + espacio_ancho
         end

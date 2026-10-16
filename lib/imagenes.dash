@@ -1,0 +1,137 @@
+# Imágenes de una página: las <img> se traen (HTTP/HTTPS a un fichero de T:, o de disco), se
+# cargan con los datatypes del sistema (image_ de Dash) y se pintan a su tamaño en la página.
+#
+#   im = imagenes_nuevas()
+#   imagenes_cargar(im, doc, "http://ejemplo.org/")   # con la ventana ya abierta (colores)
+#   pagina = maquetar(doc, ancho)                     # width/height que faltaban ya están puestos
+#   pintar(pagina, im, desde, x, y, ancho, alto)      # lib/pintor.dash
+#   imagenes_liberar(im)
+#
+# Sin width ni height en el HTML, la imagen toma su tamaño real; con uno solo, el otro guarda la
+# proporción. Una imagen que no se puede traer o leer se queda como hueco (16x16 si no dice más).
+
+import "http.dash"
+import "dom.dash"
+
+struct Imagenes
+    por_src: {String: Int}      # src del HTML -> imagen cargada (0: no se pudo)
+    escaladas: {String: Int}    # "src ancho alto" -> copia a ese tamaño
+    ficheros: [String]          # los de T: que se descargaron
+end
+
+func imagenes_nuevas() -> Imagenes
+    var por_src: {String: Int} = {}
+    var escaladas: {String: Int} = {}
+    var ficheros: [String] = []
+    return Imagenes(por_src, escaladas, ficheros)
+end
+
+func imagenes_cargar(im: Imagenes, doc: Nodo, base: String)
+    _imagenes_recorrer(im, doc, url_parse(base))
+end
+
+func _imagenes_recorrer(im: Imagenes, n: Nodo, base: Url)
+    if n.tipo == DOM_ELEMENTO and n.nombre == "img"
+        src = dom_atributo(n, "src")
+        if src != ""
+            if not im.por_src.has(src)
+                im.por_src[src] = _imagen_traer(im, base, src)
+            end
+            _imagen_tamano(n, im.por_src[src])
+        end
+        return
+    end
+    for h in n.hijos
+        _imagenes_recorrer(im, h, base)
+    end
+end
+
+# La imagen de src (relativa a la página), o 0
+func _imagen_traer(im: Imagenes, base: Url, src: String) -> Int
+    u = url_resolve(base, src)
+    direccion = url_text(u)
+    if u.esquema == "http" or u.esquema == "https"
+        fichero = "T:dashweb_img" + im.ficheros.length
+        r = http_a_fichero(direccion, fichero, 15000)
+        if r.bytes > 0 or r.estado != 0
+            im.ficheros.push(fichero)
+        end
+        if r.error != "" or r.estado < 200 or r.estado >= 300
+            return 0
+        end
+        return image_load(fichero)
+    end
+    ruta = direccion
+    if u.esquema == "file"
+        ruta = u.ruta
+        if str_starts(ruta, "/")
+            ruta = ruta[1:]
+        end
+    end
+    return image_load(ruta)
+end
+
+# width/height que faltan, con el tamaño real de la imagen
+func _imagen_tamano(n: Nodo, img: Int)
+    if img == 0
+        return
+    end
+    w = Int(dom_atributo(n, "width"))
+    h = Int(dom_atributo(n, "height"))
+    if w > 0 and h > 0
+        return
+    end
+    rw = image_width(img)
+    rh = image_height(img)
+    if w <= 0 and h <= 0
+        w = rw
+        h = rh
+    elif w <= 0
+        w = rw * h / rh
+    else
+        h = rh * w / rw
+    end
+    _poner_atributo(n, "width", "" + w)
+    _poner_atributo(n, "height", "" + h)
+end
+
+func _poner_atributo(n: Nodo, nombre: String, valor: String)
+    for a in n.atributos
+        if a.nombre == nombre
+            a.valor = valor
+            return
+        end
+    end
+    n.atributos.push(Atributo(nombre, valor))
+end
+
+# La imagen de src a ancho x alto (la cargada o una copia escalada, que se guarda); 0 si no hay
+func imagenes_a_tamano(im: Imagenes, src: String, ancho: Int, alto: Int) -> Int
+    if not im.por_src.has(src)
+        return 0
+    end
+    img = im.por_src[src]
+    if img == 0 or (image_width(img) == ancho and image_height(img) == alto)
+        return img
+    end
+    clave = src + " " + ancho + " " + alto
+    if not im.escaladas.has(clave)
+        im.escaladas[clave] = image_scale(img, ancho, alto)
+    end
+    return im.escaladas[clave]
+end
+
+func imagenes_liberar(im: Imagenes)
+    for clave in im.escaladas.keys()
+        image_free(im.escaladas[clave])
+    end
+    im.escaladas.clear()
+    for src in im.por_src.keys()
+        image_free(im.por_src[src])
+    end
+    im.por_src.clear()
+    for f in im.ficheros
+        file_delete(f)
+    end
+    im.ficheros.clear()
+end

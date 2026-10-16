@@ -203,7 +203,7 @@ tarea, con el estilo de Dash.
       builtins `gfx_` de Dash (texto, rectángulos, bordes, colores). Programa `src/visor.dash`: abre un
       fichero HTML local, lo pinta y hace scroll con teclas. Captura de pantalla en el emulador. Medir el tiempo
       de cada fase en la configuración "objetivo" (regla 6).
-- [ ] 14. **Imágenes.** (necesita D12) Hace falta un cuerpo HTTP en buffer (`http_get` da texto: los bytes 0
+- [x] 14. **Imágenes.** (necesita D12) Hace falta un cuerpo HTTP en buffer (`http_get` da texto: los bytes 0
       pasan a espacios y una imagen se rompería). Datatypes (PNG, GIF, JPEG) a bitmap y dibujarlas en la página; `width`/`height`
       del HTML; imágenes que llegan por HTTP.
 - [ ] 15. **QuickJS enlazable.** (necesita D10) Compilar QuickJS como objetos que se enlazan con un programa Dash
@@ -609,4 +609,26 @@ Formato:
 - Dash (3839f52, tras el último rebase sobre `mui` 2dd0e0a: el plan de MUI está terminado y esa rama queda quieta):
   174/174 sin emulador, 440/440 en A1200, A500 y 3.2 (antes del último rebase, que entró limpio), ejemplos 34/34.
   dashweb 12/12.
+
+### 2026-10-16 — Tarea 14 (imágenes)
+- `lib/red.dash` recibe en un buffer de bytes (`net_recv_buffer`/`tls_recv_buffer`): las líneas y los textos salen
+  de ahí con `str_from_buffer` y `red_copiar(c, fichero, n)` lleva los bytes tal cual a un fichero (n = -1: hasta el
+  cierre). El buffer crece si una línea no cabe; se libera en `red_cerrar`.
+- `lib/http.dash`: `http_a_fichero(url, fichero, espera)`: el cuerpo de una respuesta 2xx va al fichero (con
+  longitud, por trozos o hasta el cierre; `r.bytes`); otra respuesta deja su cuerpo en `r.cuerpo`.
+- `lib/imagenes.dash`: `imagenes_cargar(im, doc, base)` trae cada `<img>` (HTTP/HTTPS a `T:dashweb_img<n>`, o de
+  disco), la carga con `image_load` (D12) y pone el `width`/`height` que falte (tamaño real, o proporción si viene
+  uno). `imagenes_a_tamano` da la copia escalada (guardada). `imagenes_liberar` libera y borra los ficheros.
+- `lib/pintor.dash`: `pintar(p, im, ...)` pinta las imágenes recortadas al rectángulo (`image_draw_part`); sin
+  imagen, el marco gris. `src/visor.dash` las carga (tiempo "imagenes").
+- Encontrado y arreglado: el blanco detrás de una imagen se sumaba a su `src` y a su ancho; ahora lo toma la pieza
+  siguiente (`Maquetador.blanco`).
+- Tests: `test_http` (20.000 bytes con todos los valores, con longitud y por trozos; un 404), `test_imagenes` (ILBM
+  por HTTP a su tamaño, con `width`, y uno que no existe; posiciones y lápices leídos de la ventana; `--memcheck`).
+  13/13, también con `--memcheck`. `tests/pages/imagenes.html` + `dibujo.iff`: captura en el emulador con la imagen
+  a su tamaño y al doble dentro del texto.
+- Medidas: objetivo, imagenes.html: imágenes 6 ms. A1200, prueba.html: carga 3771 ms (igual que antes: lo lento
+  no era la red de textos; queda para el perfilador D23).
+- Pendiente: GIF/PNG solo con los datatypes del sistema (3.1 trae ILBM); CSS `width`/`height` de las imágenes;
+  `alt` cuando no se puede cargar.
 
