@@ -152,6 +152,8 @@ tarea, con el estilo de Dash.
 - [x] D24. **Pila desde un módulo.** `@stack N` (lo pide la tarea 15: QuickJS necesita 256 KB).
 - [x] D25. **Salir con el stdio de libnix.** Dash dejaba `DOSBase` a NULL al salir y libnix lo usa después:
       un programa con QuickJS (o `printf` en una `@native`) se colgaba al terminar. (Lo encontró la tarea 15.)
+- [x] D26. **`@native(borrow)`.** La `@native` solo usa sus argumentos durante la llamada (lo pidió la 16a:
+      el documento y el código de cada evaluación quedaban retenidos hasta salir).
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -213,10 +215,11 @@ tarea, con el estilo de Dash.
       (`tools/build_qjs.sh` con modo librería), fdlibm para que `Math.*` sea exacto (ver
       `docs/quickjs_amiga.md`), y un módulo `lib/js.dash` con `@native`: crear el motor, evaluar, errores,
       `console.log`. Test.
-- [ ] 16. **DOM en JavaScript.** `document`, `getElementById`, `querySelector(All)` (con el selector
-      de CSS de la tarea 11), `textContent`, `innerHTML`, `createElement`, `appendChild`, `setAttribute`,
-      `addEventListener` (clic), `setTimeout`/`setInterval` (cola de temporizadores). Volver a maquetar
-      tras los cambios. Tests en JS dentro de páginas de `tests/pages/`.
+- [x] 16a. **DOM en JavaScript.** `document`, `getElementById`, `querySelector(All)` (con el selector
+      de CSS de la tarea 11), `textContent`, `innerHTML`, `createElement`, `appendChild`, `setAttribute`;
+      los `<script>` de la página (en línea y `src`). Tests en JS dentro de páginas.
+- [ ] 16b. **Eventos y temporizadores.** `addEventListener` (clic), `setTimeout`/`setInterval` (cola de
+      temporizadores), volver a dar estilo y maquetar tras los cambios (`jsdom_cambios`).
 - [ ] 17. **Repaso de la fase A.** Tamaño del ejecutable, memoria (`--memcheck`), tiempos por fase en la
       configuración objetivo y en el A1200, páginas de prueba. Resumen en la bitácora y en el README.
 
@@ -674,4 +677,25 @@ Formato:
   también con `--memcheck`.
 - Medidas: ejecutable mínimo 889 KB. A1200: crear el motor 429 ms, `fib(20)` 5,95 s (el lanzador de pruebas
   daba 4,3 s: pendiente), liberar 131 ms. Objetivo: 7, 59 y 2 ms.
+
+### 2026-10-16 — Tarea 16a (DOM en JavaScript) y D26
+- Tarea 16 partida en 16a (DOM y scripts) y 16b (eventos, temporizadores, volver a maquetar).
+- `lib/jsdom.dash`: la parte Dash (`jsdom_selector` con los selectores de `css.dash` y `estilo_cumple`, textos,
+  atributos, crear, agregar (mueve el nodo; no deja meter un nodo dentro de sí mismo), quitar, `innerHTML` leído
+  como HTML escapado y puesto leyendo el trozo como un `<body>`) y la de C: una clase `Node` de QuickJS con un
+  objeto por nodo (tabla por dirección: `a === b`), que retiene su `Nodo` hasta `js_liberar` (enganche
+  `liberar_extra` de `js.dash`). `tagName`, `nodeName`, `nodeType`, `textContent`, `innerHTML`, `id`, `className`,
+  `parentNode`, `children`, `childNodes`, `firstChild`, `lastChild`, `get/set/has/removeAttribute`,
+  `appendChild`, `removeChild`, `querySelector(All)`, `getElementsByTagName`; `document.getElementById`,
+  `createElement`, `createTextNode`, `body`, `documentElement`, `title`; `window`. `jsdom_ejecutar_scripts`:
+  en orden, en línea y `src` (http(s) o fichero); un error se escribe en una línea y se sigue. `jsdom_cambios`.
+- El visor ejecuta los scripts antes del estilo (si la página tiene alguno). `tests/pages/js.html`: lista hecha
+  por un script, captura en el emulador; js 12 ms en el objetivo.
+- D26 (Dash, b0962f1): `@native(borrow)`: los argumentos se prestan durante la llamada como a una función Dash,
+  en vez de retenerse hasta salir. `--memcheck` daba 131 objetos y 86 textos vivos en `test_jsdom`; ahora 0.
+  Cabecera de `tools/emu_sys_amissl.sh` corregida (`DASH_EMU_SYS_SSL`, lo vio la sesión de MUI).
+- Tests: `test_jsdom` (página con 5 scripts: búsquedas, selectores, mismo objeto, `src` por HTTP, un error
+  que no para el resto, crear/mover/quitar, `innerHTML`, atributos; el árbol visto después desde Dash;
+  `--memcheck`). dashweb 15/15, también con `--memcheck`. Dash: 180/180 sin emulador, ejemplos 34/34.
+- La sesión de MUI fusiona `dashweb` (hasta 942d2b3) en `main` y lo sube a GitHub a petición del usuario.
 

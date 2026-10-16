@@ -1,0 +1,669 @@
+# El DOM para el JavaScript de una página (QuickJS, lib/js.dash): document, getElementById,
+# querySelector(All) con los selectores de lib/css.dash, textContent, innerHTML, atributos,
+# createElement, appendChild, removeChild... sobre el árbol de lib/dom.dash.
+#
+#   js = js_nuevo()
+#   jsdom_preparar(js, doc)                     # document = doc
+#   jsdom_ejecutar_scripts(js, doc, base)       # los <script> en orden (en línea y src)
+#   if jsdom_cambios(js) > 0 ...                # cuántas veces lo cambió el JS (para volver a maquetar)
+#   js_liberar(js)                              # suelta también los nodos que tenía el JS
+#
+# Cada nodo tiene un solo objeto JS (a === b funciona); el objeto sujeta su Nodo hasta js_liberar.
+# Los textos van en Latin-1 hacia Dash y en UTF-8 hacia el JS, como en lib/js.dash.
+
+import "js.dash"
+import "estilo.dash"
+
+# === La parte en Dash (la llaman las funciones de C de abajo) ===
+
+func jsdom_por_id(doc: Nodo, id: String) -> Nodo
+    return dom_por_id(doc, id)
+end
+
+# Los elementos de dentro de raiz (sin ella) que cumplen el selector (con comas); el primero solo
+# si no son todos. Un selector que no se entiende no da ninguno.
+func jsdom_selector(raiz: Nodo, texto: String, todos: Bool) -> [Nodo]
+    var r: [Nodo] = []
+    var sels: [Selector] = []
+    for t in css_partir(texto, 44)
+        if str_trim(t) != ""
+            sels.push(css_selector(str_trim(t)))
+        end
+    end
+    for h in raiz.hijos
+        if _jsdom_buscar(h, sels, todos, r)
+            return r
+        end
+    end
+    return r
+end
+
+# true cuando ya no hace falta seguir (encontró uno y no se buscan todos)
+func _jsdom_buscar(n: Nodo, sels: [Selector], todos: Bool, r: [Nodo]) -> Bool
+    if n.tipo != DOM_ELEMENTO
+        return false
+    end
+    for s in sels
+        if estilo_cumple(n, s)
+            r.push(n)
+            if not todos
+                return true
+            end
+            break
+        end
+    end
+    for h in n.hijos
+        if _jsdom_buscar(h, sels, todos, r)
+            return true
+        end
+    end
+    return false
+end
+
+func jsdom_texto(n: Nodo) -> String
+    return dom_texto(n)
+end
+
+# textContent = t: los hijos se cambian por un texto
+func jsdom_poner_texto(n: Nodo, t: String)
+    if n.tipo == DOM_TEXTO or n.tipo == DOM_COMENTARIO
+        n.texto = t
+        return
+    end
+    _jsdom_vaciar(n)
+    if t != ""
+        dom_agregar(n, dom_nodo(DOM_TEXTO, "", t))
+    end
+end
+
+# Sin hijos (los que quedan vivos, por ejemplo en el JS, ya no tienen padre)
+func _jsdom_vaciar(n: Nodo)
+    var nadie: Nodo = nil
+    for h in n.hijos
+        h.padre = nadie
+    end
+    n.hijos.clear()
+end
+
+func jsdom_atributo(n: Nodo, nombre: String) -> String
+    return dom_atributo(n, str_lower(nombre))
+end
+
+func jsdom_tiene_atributo(n: Nodo, nombre: String) -> Bool
+    return dom_tiene_atributo(n, str_lower(nombre))
+end
+
+func jsdom_poner_atributo(n: Nodo, nombre: String, valor: String)
+    clave = str_lower(nombre)
+    for a in n.atributos
+        if a.nombre == clave
+            a.valor = valor
+            return
+        end
+    end
+    n.atributos.push(Atributo(clave, valor))
+end
+
+func jsdom_quitar_atributo(n: Nodo, nombre: String)
+    clave = str_lower(nombre)
+    i = 0
+    while i < n.atributos.length
+        a = n.atributos[i]
+        if a.nombre == clave
+            n.atributos.remove(i)
+            return
+        end
+        i = i + 1
+    end
+end
+
+func jsdom_crear(nombre: String) -> Nodo
+    return dom_nodo(DOM_ELEMENTO, str_lower(nombre), "")
+end
+
+func jsdom_crear_texto(t: String) -> Nodo
+    return dom_nodo(DOM_TEXTO, "", t)
+end
+
+# hijo pasa al final de padre (si estaba en otro sitio, sale de allí); false si hijo contiene a padre
+func jsdom_agregar(padre: Nodo, hijo: Nodo) -> Bool
+    p = padre
+    while p != nil
+        if p == hijo
+            return false
+        end
+        p = p.padre
+    end
+    if hijo.padre != nil
+        jsdom_quitar(hijo.padre, hijo)
+    end
+    dom_agregar(padre, hijo)
+    return true
+end
+
+func jsdom_quitar(padre: Nodo, hijo: Nodo) -> Bool
+    i = 0
+    while i < padre.hijos.length
+        if padre.hijos[i] == hijo
+            var nadie: Nodo = nil
+            hijo.padre = nadie
+            padre.hijos.remove(i)
+            return true
+        end
+        i = i + 1
+    end
+    return false
+end
+
+func jsdom_padre(n: Nodo) -> Nodo
+    return n.padre
+end
+
+# Los hijos (solo los elementos, o todos)
+func jsdom_hijos(n: Nodo, solo_elementos: Bool) -> [Nodo]
+    var r: [Nodo] = []
+    for h in n.hijos
+        if not solo_elementos or h.tipo == DOM_ELEMENTO
+            r.push(h)
+        end
+    end
+    return r
+end
+
+# innerHTML: el HTML de los hijos
+func jsdom_html(n: Nodo) -> String
+    r = ""
+    for h in n.hijos
+        r = r + _jsdom_html_nodo(h)
+    end
+    return r
+end
+
+func _jsdom_html_nodo(n: Nodo) -> String
+    if n.tipo == DOM_TEXTO
+        if n.padre != nil and (n.padre.nombre == "script" or n.padre.nombre == "style")
+            return n.texto
+        end
+        return _jsdom_escapar(n.texto, false)
+    elif n.tipo == DOM_COMENTARIO
+        return "<!--" + n.texto + "-->"
+    elif n.tipo != DOM_ELEMENTO
+        return ""
+    end
+    r = "<" + n.nombre
+    for a in n.atributos
+        r = r + " " + a.nombre + "=\"" + _jsdom_escapar(a.valor, true) + "\""
+    end
+    r = r + ">"
+    if dom_es_vacio(n.nombre)
+        return r
+    end
+    return r + jsdom_html(n) + "</" + n.nombre + ">"
+end
+
+func _jsdom_escapar(t: String, atributo: Bool) -> String
+    r = str_replace(str_replace(str_replace(t, "&", "&amp;"), "<", "&lt;"), ">", "&gt;")
+    if atributo
+        r = str_replace(r, "\"", "&quot;")
+    end
+    return r
+end
+
+# innerHTML = html: los hijos se cambian por lo que da ese HTML (leído como el cuerpo de una página)
+func jsdom_poner_html(n: Nodo, html: String)
+    _jsdom_vaciar(n)
+    trozo = dom_desde_html("<body>" + html)
+    cuerpo = dom_buscar(trozo, "body")
+    if cuerpo == nil
+        return
+    end
+    for h in jsdom_hijos(cuerpo, false)
+        jsdom_agregar(n, h)
+    end
+end
+
+func jsdom_cuerpo(doc: Nodo) -> Nodo
+    return dom_buscar(doc, "body")
+end
+
+func jsdom_raiz(doc: Nodo) -> Nodo
+    return dom_buscar(doc, "html")
+end
+
+func jsdom_titulo(doc: Nodo) -> String
+    t = dom_buscar(doc, "title")
+    if t == nil
+        return ""
+    end
+    return str_trim(dom_texto(t))
+end
+
+# Ejecuta los <script> del documento en orden: los de dentro y los de src (http(s) o fichero,
+# relativo a base). Solo JavaScript (sin type, o type text/javascript, module no). Un error se
+# escribe en la salida y se sigue con el siguiente. Cuántos se ejecutaron.
+func jsdom_ejecutar_scripts(js: Int, doc: Nodo, base: String) -> Int
+    var scripts: [Nodo] = []
+    _jsdom_scripts(doc, scripts)
+    hechos = 0
+    u = url_parse(base)
+    for s in scripts
+        tipo = str_lower(str_trim(dom_atributo(s, "type")))
+        if tipo == "" or tipo == "text/javascript" or tipo == "application/javascript"
+            codigo = dom_texto(s)
+            nombre = base
+            if dom_tiene_atributo(s, "src")
+                nombre = url_text(url_resolve(u, dom_atributo(s, "src")))
+                codigo = _jsdom_traer(nombre)
+            end
+            js_evaluar(js, codigo, nombre)
+            if js_error(js) != ""
+                Print "JS: " + str_replace(js_error(js), "\n    ", " | ")
+            end
+            hechos = hechos + 1
+        end
+    end
+    return hechos
+end
+
+func _jsdom_scripts(n: Nodo, r: [Nodo])
+    if n.tipo == DOM_ELEMENTO and n.nombre == "script"
+        r.push(n)
+    end
+    for h in n.hijos
+        _jsdom_scripts(h, r)
+    end
+end
+
+func _jsdom_traer(direccion: String) -> String
+    u = url_parse(direccion)
+    if u.esquema == "http" or u.esquema == "https"
+        r = http_get(direccion, 15000)
+        if r.error != "" or r.estado != 200
+            return ""
+        end
+        return http_texto(r)
+    end
+    ruta = direccion
+    if u.esquema == "file"
+        ruta = u.ruta
+        if str_starts(ruta, "/")
+            ruta = ruta[1:]
+        end
+    end
+    t = file_read_text(ruta)
+    if t == nil
+        return ""
+    end
+    return utf8_a_latin1(t)
+end
+
+# === La parte en C: los objetos JS de los nodos ===
+
+@c
+"""
+/* lib/jsdom.dash: one JS object per Dash node, kept in a table until js_liberar */
+static JSClassID _jsdom_clase;
+
+typedef struct {
+    _Dash_Nodo *doc;
+    _Dash_Nodo **nodos;      /* open addressing: node -> its JS object */
+    JSValue *objetos;
+    LONG capacidad, usados;
+    LONG cambios;
+} _JsDom;
+
+static void _jsdom_finalizar(JSRuntime *rt, JSValue val) {
+    _Dash_Nodo *n = (_Dash_Nodo *)JS_GetOpaque(val, _jsdom_clase);
+    if (n) _dash_release(n);
+}
+
+static _JsDom *_jsdom_de(JSContext *ctx) { return (_JsDom *)JS_GetContextOpaque(ctx); }
+
+static void _jsdom_crecer(_JsDom *d);
+
+/* The JS object of a node (the same every time); null for nil */
+static JSValue _jsdom_objeto(JSContext *ctx, _Dash_Nodo *n) {
+    _JsDom *d = _jsdom_de(ctx);
+    ULONG i;
+    JSValue o;
+    if (!n || !d) return JS_NULL;
+    if (d->usados * 2 >= d->capacidad) _jsdom_crecer(d);
+    i = ((ULONG)n >> 3) & (d->capacidad - 1);
+    while (d->nodos[i]) {
+        if (d->nodos[i] == n) return JS_DupValue(ctx, d->objetos[i]);
+        i = (i + 1) & (d->capacidad - 1);
+    }
+    o = JS_NewObjectClass(ctx, _jsdom_clase);
+    if (JS_IsException(o)) return o;
+    _dash_retain(n);
+    JS_SetOpaque(o, n);
+    d->nodos[i] = n;
+    d->objetos[i] = JS_DupValue(ctx, o);
+    d->usados++;
+    return o;
+}
+
+static void _jsdom_crecer(_JsDom *d) {
+    LONG vieja = d->capacidad, i;
+    _Dash_Nodo **nodos = d->nodos;
+    JSValue *objetos = d->objetos;
+    d->capacidad = vieja ? vieja * 2 : 256;
+    d->nodos = (_Dash_Nodo **)calloc(d->capacidad, sizeof(_Dash_Nodo *));
+    d->objetos = (JSValue *)calloc(d->capacidad, sizeof(JSValue));
+    for (i = 0; i < vieja; i++) {
+        if (nodos[i]) {
+            ULONG j = ((ULONG)nodos[i] >> 3) & (d->capacidad - 1);
+            while (d->nodos[j]) j = (j + 1) & (d->capacidad - 1);
+            d->nodos[j] = nodos[i];
+            d->objetos[j] = objetos[i];
+        }
+    }
+    free(nodos);
+    free(objetos);
+}
+
+static void _jsdom_liberar(_JsMotor *m) {
+    _JsDom *d = (_JsDom *)m->extra;
+    LONG i;
+    if (!d) return;
+    for (i = 0; i < d->capacidad; i++) if (d->nodos[i]) JS_FreeValue(m->ctx, d->objetos[i]);
+    free(d->nodos);
+    free(d->objetos);
+    if (d->doc) _dash_release(d->doc);
+    free(d);
+    m->extra = NULL;
+    JS_SetContextOpaque(m->ctx, NULL);
+}
+
+static _Dash_Nodo *_jsdom_nodo(JSContext *ctx, JSValueConst v) {
+    return (_Dash_Nodo *)JS_GetOpaque(v, _jsdom_clase);
+}
+
+/* A JS string from a Latin-1 text */
+static JSValue _jsdom_cadena(JSContext *ctx, STRPTR s) {
+    char *u = _js_utf8(s ? (const char *)s : "");
+    JSValue v = u ? JS_NewString(ctx, u) : JS_EXCEPTION;
+    free(u);
+    return v;
+}
+
+/* argument i as a Latin-1 text (malloc; free it) */
+static char *_jsdom_arg(JSContext *ctx, int argc, JSValueConst *argv, int i) {
+    return i < argc ? _js_texto(ctx, argv[i]) : strdup("undefined");
+}
+
+static JSValue _jsdom_lista(JSContext *ctx, DashArrayLong *l) {
+    JSValue a = JS_NewArray(ctx);
+    LONG i, n = l ? DashArray_length(l) : 0;
+    for (i = 0; i < n; i++)
+        JS_SetPropertyUint32(ctx, a, i, _jsdom_objeto(ctx, (_Dash_Nodo *)DashArray_get(l, i)));
+    return a;
+}
+
+#define _JSDOM_ESTE _Dash_Nodo *n = _jsdom_nodo(ctx, this_val); \
+    if (!n) return JS_ThrowTypeError(ctx, "not a node")
+
+static JSValue _jsdom_tagName(JSContext *ctx, JSValueConst this_val) {
+    char *t;
+    JSValue v;
+    _JSDOM_ESTE;
+    if (n->tipo != DOM_ELEMENTO) return n->tipo == DOM_TEXTO ? JS_NewString(ctx, "#text") : JS_NewString(ctx, "#document");
+    t = strdup((const char *)n->nombre);
+    if (!t) return JS_EXCEPTION;
+    { char *p; for (p = t; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32; }
+    v = JS_NewString(ctx, t);
+    free(t);
+    return v;
+}
+
+static JSValue _jsdom_nodeType(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    return JS_NewInt32(ctx, n->tipo);
+}
+
+static JSValue _jsdom_textContent(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    return _jsdom_cadena(ctx, jsdom_texto(n));
+}
+
+static JSValue _jsdom_set_textContent(JSContext *ctx, JSValueConst this_val, JSValueConst v) {
+    char *t;
+    _JSDOM_ESTE;
+    t = _js_texto(ctx, v);
+    jsdom_poner_texto(n, (STRPTR)(t ? t : ""));
+    free(t);
+    _jsdom_de(ctx)->cambios++;
+    return JS_UNDEFINED;
+}
+
+static JSValue _jsdom_innerHTML(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    return _jsdom_cadena(ctx, jsdom_html(n));
+}
+
+static JSValue _jsdom_set_innerHTML(JSContext *ctx, JSValueConst this_val, JSValueConst v) {
+    char *t;
+    _JSDOM_ESTE;
+    t = _js_texto(ctx, v);
+    jsdom_poner_html(n, (STRPTR)(t ? t : ""));
+    free(t);
+    _jsdom_de(ctx)->cambios++;
+    return JS_UNDEFINED;
+}
+
+/* id and className: getters and setters of an attribute (magic 0: id, 1: class) */
+static const char *_jsdom_atr_nombres[] = { "id", "class" };
+
+static JSValue _jsdom_atr(JSContext *ctx, JSValueConst this_val, int magic) {
+    _JSDOM_ESTE;
+    return _jsdom_cadena(ctx, jsdom_atributo(n, (STRPTR)_jsdom_atr_nombres[magic]));
+}
+
+static JSValue _jsdom_set_atr(JSContext *ctx, JSValueConst this_val, JSValueConst v, int magic) {
+    char *t;
+    _JSDOM_ESTE;
+    t = _js_texto(ctx, v);
+    jsdom_poner_atributo(n, (STRPTR)_jsdom_atr_nombres[magic], (STRPTR)(t ? t : ""));
+    free(t);
+    _jsdom_de(ctx)->cambios++;
+    return JS_UNDEFINED;
+}
+
+static JSValue _jsdom_parentNode(JSContext *ctx, JSValueConst this_val) {
+    _JSDOM_ESTE;
+    return _jsdom_objeto(ctx, jsdom_padre(n));
+}
+
+/* magic 0: children (elements), 1: childNodes */
+static JSValue _jsdom_hijos(JSContext *ctx, JSValueConst this_val, int magic) {
+    _JSDOM_ESTE;
+    return _jsdom_lista(ctx, jsdom_hijos(n, magic == 0));
+}
+
+/* magic 0: firstChild, 1: lastChild */
+static JSValue _jsdom_extremo(JSContext *ctx, JSValueConst this_val, int magic) {
+    DashArrayLong *l;
+    LONG k;
+    _JSDOM_ESTE;
+    l = n->hijos;
+    k = l ? DashArray_length(l) : 0;
+    if (!k) return JS_NULL;
+    return _jsdom_objeto(ctx, (_Dash_Nodo *)DashArray_get(l, magic ? k - 1 : 0));
+}
+
+static JSValue _jsdom_getAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *a;
+    JSValue v;
+    _JSDOM_ESTE;
+    a = _jsdom_arg(ctx, argc, argv, 0);
+    v = a && jsdom_tiene_atributo(n, (STRPTR)a) ? _jsdom_cadena(ctx, jsdom_atributo(n, (STRPTR)a)) : JS_NULL;
+    free(a);
+    return v;
+}
+
+static JSValue _jsdom_hasAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *a;
+    BOOL r;
+    _JSDOM_ESTE;
+    a = _jsdom_arg(ctx, argc, argv, 0);
+    r = a && jsdom_tiene_atributo(n, (STRPTR)a);
+    free(a);
+    return JS_NewBool(ctx, r);
+}
+
+static JSValue _jsdom_setAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *a, *v;
+    _JSDOM_ESTE;
+    a = _jsdom_arg(ctx, argc, argv, 0);
+    v = _jsdom_arg(ctx, argc, argv, 1);
+    if (a && v) jsdom_poner_atributo(n, (STRPTR)a, (STRPTR)v);
+    free(a);
+    free(v);
+    _jsdom_de(ctx)->cambios++;
+    return JS_UNDEFINED;
+}
+
+static JSValue _jsdom_removeAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *a;
+    _JSDOM_ESTE;
+    a = _jsdom_arg(ctx, argc, argv, 0);
+    if (a) jsdom_quitar_atributo(n, (STRPTR)a);
+    free(a);
+    _jsdom_de(ctx)->cambios++;
+    return JS_UNDEFINED;
+}
+
+static JSValue _jsdom_appendChild(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *h;
+    _JSDOM_ESTE;
+    h = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    if (!h) return JS_ThrowTypeError(ctx, "appendChild: not a node");
+    if (!jsdom_agregar(n, h)) return JS_ThrowRangeError(ctx, "appendChild: the node contains this one");
+    _jsdom_de(ctx)->cambios++;
+    return JS_DupValue(ctx, argv[0]);
+}
+
+static JSValue _jsdom_removeChild(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *h;
+    _JSDOM_ESTE;
+    h = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    if (!h || !jsdom_quitar(n, h)) return JS_ThrowRangeError(ctx, "removeChild: not a child of this node");
+    _jsdom_de(ctx)->cambios++;
+    return JS_DupValue(ctx, argv[0]);
+}
+
+/* magic 0: querySelector, 1: querySelectorAll, 2: getElementsByTagName */
+static JSValue _jsdom_selector(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic) {
+    char *s;
+    DashArrayLong *l;
+    _JSDOM_ESTE;
+    s = _jsdom_arg(ctx, argc, argv, 0);
+    if (!s) return JS_EXCEPTION;
+    l = jsdom_selector(n, (STRPTR)s, magic != 0);
+    free(s);
+    if (magic) return _jsdom_lista(ctx, l);
+    return l && DashArray_length(l) ? _jsdom_objeto(ctx, (_Dash_Nodo *)DashArray_get(l, 0)) : JS_NULL;
+}
+
+static const JSCFunctionListEntry _jsdom_metodos[] = {
+    JS_CGETSET_DEF("tagName", _jsdom_tagName, NULL),
+    JS_CGETSET_DEF("nodeName", _jsdom_tagName, NULL),
+    JS_CGETSET_DEF("nodeType", _jsdom_nodeType, NULL),
+    JS_CGETSET_DEF("textContent", _jsdom_textContent, _jsdom_set_textContent),
+    JS_CGETSET_DEF("innerHTML", _jsdom_innerHTML, _jsdom_set_innerHTML),
+    JS_CGETSET_MAGIC_DEF("id", _jsdom_atr, _jsdom_set_atr, 0),
+    JS_CGETSET_MAGIC_DEF("className", _jsdom_atr, _jsdom_set_atr, 1),
+    JS_CGETSET_DEF("parentNode", _jsdom_parentNode, NULL),
+    JS_CGETSET_DEF("parentElement", _jsdom_parentNode, NULL),
+    JS_CGETSET_MAGIC_DEF("children", _jsdom_hijos, NULL, 0),
+    JS_CGETSET_MAGIC_DEF("childNodes", _jsdom_hijos, NULL, 1),
+    JS_CGETSET_MAGIC_DEF("firstChild", _jsdom_extremo, NULL, 0),
+    JS_CGETSET_MAGIC_DEF("lastChild", _jsdom_extremo, NULL, 1),
+    JS_CFUNC_DEF("getAttribute", 1, _jsdom_getAttribute),
+    JS_CFUNC_DEF("hasAttribute", 1, _jsdom_hasAttribute),
+    JS_CFUNC_DEF("setAttribute", 2, _jsdom_setAttribute),
+    JS_CFUNC_DEF("removeAttribute", 1, _jsdom_removeAttribute),
+    JS_CFUNC_DEF("appendChild", 1, _jsdom_appendChild),
+    JS_CFUNC_DEF("removeChild", 1, _jsdom_removeChild),
+    JS_CFUNC_MAGIC_DEF("querySelector", 1, _jsdom_selector, 0),
+    JS_CFUNC_MAGIC_DEF("querySelectorAll", 1, _jsdom_selector, 1),
+    JS_CFUNC_MAGIC_DEF("getElementsByTagName", 1, _jsdom_selector, 2),
+};
+
+/* document.* (besides what every node has) */
+static JSValue _jsdom_getElementById(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *id = _jsdom_arg(ctx, argc, argv, 0);
+    JSValue v;
+    if (!id) return JS_EXCEPTION;
+    v = _jsdom_objeto(ctx, jsdom_por_id(_jsdom_de(ctx)->doc, (STRPTR)id));
+    free(id);
+    return v;
+}
+
+/* magic 0: createElement, 1: createTextNode */
+static JSValue _jsdom_crear(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic) {
+    char *t = _jsdom_arg(ctx, argc, argv, 0);
+    JSValue v;
+    if (!t) return JS_EXCEPTION;
+    v = _jsdom_objeto(ctx, magic ? jsdom_crear_texto((STRPTR)t) : jsdom_crear((STRPTR)t));
+    free(t);
+    return v;
+}
+
+/* magic 0: body, 1: documentElement */
+static JSValue _jsdom_parte(JSContext *ctx, JSValueConst this_val, int magic) {
+    _Dash_Nodo *doc = _jsdom_de(ctx)->doc;
+    return _jsdom_objeto(ctx, magic ? jsdom_raiz(doc) : jsdom_cuerpo(doc));
+}
+
+static JSValue _jsdom_title(JSContext *ctx, JSValueConst this_val) {
+    return _jsdom_cadena(ctx, jsdom_titulo(_jsdom_de(ctx)->doc));
+}
+
+static const JSCFunctionListEntry _jsdom_documento[] = {
+    JS_CFUNC_DEF("getElementById", 1, _jsdom_getElementById),
+    JS_CFUNC_MAGIC_DEF("createElement", 1, _jsdom_crear, 0),
+    JS_CFUNC_MAGIC_DEF("createTextNode", 1, _jsdom_crear, 1),
+    JS_CGETSET_MAGIC_DEF("body", _jsdom_parte, NULL, 0),
+    JS_CGETSET_MAGIC_DEF("documentElement", _jsdom_parte, NULL, 1),
+    JS_CGETSET_DEF("title", _jsdom_title, NULL),
+};
+"""
+end
+
+# document = doc en el motor js (una sola vez por motor)
+@native(borrow) func jsdom_preparar(js: Int, doc: Nodo)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    _JsDom *d;
+    JSValue proto, documento, global;
+    JSClassDef clase = { "Node", _jsdom_finalizar };
+    if (!m || m->extra) return;
+    d = (_JsDom *)calloc(1, sizeof(_JsDom));
+    if (!d) return;
+    JS_NewClassID(&_jsdom_clase);
+    if (!JS_IsRegisteredClass(m->rt, _jsdom_clase)) JS_NewClass(m->rt, _jsdom_clase, &clase);
+    _dash_retain(doc);
+    d->doc = doc;
+    m->extra = d;
+    m->liberar_extra = _jsdom_liberar;
+    JS_SetContextOpaque(m->ctx, d);
+    proto = JS_NewObject(m->ctx);
+    JS_SetPropertyFunctionList(m->ctx, proto, _jsdom_metodos, sizeof(_jsdom_metodos) / sizeof(_jsdom_metodos[0]));
+    JS_SetClassProto(m->ctx, _jsdom_clase, proto);
+    documento = _jsdom_objeto(m->ctx, doc);
+    JS_SetPropertyFunctionList(m->ctx, documento, _jsdom_documento, sizeof(_jsdom_documento) / sizeof(_jsdom_documento[0]));
+    global = JS_GetGlobalObject(m->ctx);
+    JS_SetPropertyStr(m->ctx, global, "document", documento);
+    JS_SetPropertyStr(m->ctx, global, "window", JS_DupValue(m->ctx, global));
+    JS_FreeValue(m->ctx, global);
+"""
+end
+
+# Cuántas veces cambió el JS el documento desde jsdom_preparar
+@native(borrow) func jsdom_cambios(js: Int) -> Int
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    return m && m->extra ? ((_JsDom *)m->extra)->cambios : 0;
+"""
+end

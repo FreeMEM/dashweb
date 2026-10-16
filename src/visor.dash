@@ -8,6 +8,7 @@
 # Al acabar escribe cuánto tardó cada fase.
 
 import "../lib/pintor.dash"
+import "../lib/jsdom.dash"
 
 Window Visor
     title "dashweb"
@@ -67,6 +68,15 @@ Main
     t1 = time_ms()
     doc = dom_desde_html(texto)
     t_html = time_ms() - t1
+    # los <script> antes del estilo: lo que cambien ya sale maquetado (sin eventos aún: tarea 16b)
+    t1 = time_ms()
+    js = 0
+    if dom_buscar(doc, "script") != nil
+        js = js_nuevo()
+        jsdom_preparar(js, doc)
+        jsdom_ejecutar_scripts(js, doc, direccion)
+    end
+    t_js = time_ms() - t1
     t1 = time_ms()
     estilo_aplicar(doc, estilo_hojas(doc, direccion))
     t_estilo = time_ms() - t1
@@ -82,7 +92,7 @@ Main
     pintar(pagina, im, desde, x0, y0, ancho, alto)
     t_pintar = time_ms() - t1
     Print "visor: " + direccion + " " + texto.length + " bytes, " + pagina.dibujos.length + " dibujos, alto " + pagina.alto
-    Print "tiempos ms: carga " + t_carga + ", html " + t_html + ", estilo " + t_estilo + ", imagenes " + t_imagenes + ", maqueta " + t_maqueta + ", pintar " + t_pintar
+    Print "tiempos ms: carga " + t_carga + ", html " + t_html + ", js " + t_js + ", estilo " + t_estilo + ", imagenes " + t_imagenes + ", maqueta " + t_maqueta + ", pintar " + t_pintar
     paso = 0
     EventLoop
         On Key "DOWN"
@@ -121,4 +131,7 @@ Main
         end
     end
     imagenes_liberar(im)
+    if js != 0
+        js_liberar(js)
+    end
 end

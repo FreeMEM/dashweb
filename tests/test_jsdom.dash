@@ -1,0 +1,46 @@
+# Test: lib/jsdom.dash. Una página con <script> (en línea y con src por HTTP) que usa el DOM:
+# getElementById, querySelector(All) con los selectores de CSS, textContent, innerHTML (leer y
+# poner), atributos, createElement/appendChild/removeChild, el mismo objeto para el mismo nodo,
+# un error de JS que no para los demás scripts, y los cambios vistos desde Dash.
+# emu-server: http.py 40854
+# memcheck
+# expect-out: título: Prueba del DOM
+# expect-out: h1: Hola
+# expect-out: 3 li, 2 .par, primero: uno
+# expect-out: mismo objeto: true
+# expect-out: externo: 3 elementos en #lista
+# expect-out: JS: TypeError: cannot set property 'textContent' of null | at <eval> (http://127.0.0.1:40854/pages/x.html:1:34)
+# expect-out: nuevo: <li class="par">cuatro &amp; más</li>
+# expect-out: quitado: dos, quedan 3
+# expect-out: html: <b>negrita</b> y <i>cursiva</i> 2
+# expect-out: atributos: null rojo true false
+# expect-out: 5 scripts, 6 cambios
+# expect-out: Dash: <ul id="lista"><li>uno</li><li class="par">tres</li><li class="par">cuatro &amp; más</li></ul>
+# expect-out: p: negrita y cursiva
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+
+Main
+    h = "<html><head><title>Prueba del DOM</title></head><body><h1 id=t>Hola</h1>"
+    h = h + "<ul id=lista><li>uno<li class=par>dos<li class=par>tres</ul><p id=p>texto</p>"
+    h = h + "<script>console.log('título: ' + document.title); console.log('h1: ' + document.getElementById('t').textContent);"
+    h = h + "var lis = document.querySelectorAll('#lista li'); console.log(lis.length + ' li, ' + document.querySelectorAll('li.par').length + ' .par, primero: ' + document.querySelector('ul > li').textContent);"
+    h = h + "console.log('mismo objeto: ' + (document.getElementById('lista') === lis[0].parentNode));</script>"
+    h = h + "<script src=js_dom.js></script>"
+    h = h + "<script>document.getElementById('no_hay').textContent = 'x';</script>"
+    h = h + "<script>var li = document.createElement('LI'); li.className = 'par'; li.textContent = 'cuatro & más';"
+    h = h + "var ul = document.getElementById('lista'); ul.appendChild(li); console.log('nuevo: <' + ul.lastChild.tagName.toLowerCase() + ' class=\"' + li.getAttribute('class') + '\">' + li.innerHTML + '</li>');"
+    h = h + "var dos = ul.children[1]; ul.removeChild(dos); console.log('quitado: ' + dos.textContent + ', quedan ' + ul.children.length);</script>"
+    h = h + "<script>var p = document.getElementById('p'); p.innerHTML = '<b>negrita</b> y <i>cursiva</i>'; console.log('html: ' + p.innerHTML + ' ' + p.children.length);"
+    h = h + "p.setAttribute('data-color', 'rojo'); console.log('atributos: ' + p.getAttribute('nada') + ' ' + p.getAttribute('data-color') + ' ' + p.hasAttribute('id') + ' ' + p.hasAttribute('nada'));</script>"
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    n = jsdom_ejecutar_scripts(js, doc, "http://127.0.0.1:40854/pages/x.html")
+    Print "" + n + " scripts, " + jsdom_cambios(js) + " cambios"
+    js_liberar(js)
+    Print "Dash: " + "<ul id=\"lista\">" + jsdom_html(dom_por_id(doc, "lista")) + "</ul>"
+    Print "p: " + dom_texto(dom_por_id(doc, "p"))
+end

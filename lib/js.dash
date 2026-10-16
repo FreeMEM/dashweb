@@ -18,10 +18,12 @@
 @c
 """
 /* lib/js.dash: a QuickJS runtime and context, and the last exception as Latin-1 */
-typedef struct {
+typedef struct _JsMotorS {
     JSRuntime *rt;
     JSContext *ctx;
     char *error;
+    void *extra;                                  /* other modules' data (lib/jsdom.dash) */
+    void (*liberar_extra)(struct _JsMotorS *m);   /* called before the context is freed */
 } _JsMotor;
 
 /* Latin-1 -> UTF-8 (malloc; free it) */
@@ -128,7 +130,7 @@ end
 
 # Ejecuta el código (Latin-1) como un script; el resultado como texto ("undefined" si no da
 # nada). Si salta una excepción, da "" y js_error la cuenta.
-@native func js_evaluar(js: Int, codigo: String, nombre: String) -> String
+@native(borrow) func js_evaluar(js: Int, codigo: String, nombre: String) -> String
 """
     _JsMotor *m = (_JsMotor *)js;
     char *fuente, *texto;
@@ -155,17 +157,18 @@ end
 end
 
 # La excepción de la última evaluación (mensaje y pila), o ""
-@native func js_error(js: Int) -> String
+@native(borrow) func js_error(js: Int) -> String
 """
     _JsMotor *m = (_JsMotor *)js;
     return (STRPTR)(m && m->error ? m->error : "");
 """
 end
 
-@native func js_liberar(js: Int)
+@native(borrow) func js_liberar(js: Int)
 """
     _JsMotor *m = (_JsMotor *)js;
     if (!m) return;
+    if (m->liberar_extra) m->liberar_extra(m);
     JS_FreeContext(m->ctx);
     JS_FreeRuntime(m->rt);
     free(m->error);
