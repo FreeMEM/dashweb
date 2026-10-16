@@ -21,6 +21,10 @@ const V_PAUSA = 3
 const V_FIN = 4
 const V_ERROR = 5
 
+# Una imagen se puede enseñar hasta este adelanto sobre su hora: el temporizador del sistema despierta tarde
+# (en la máquina RTG emulada, unos 27 ms de media) y esperar a la hora exacta la retrasa siempre
+const VIDEO_ADELANTO = 30
+
 struct Reproductor
     nodo: Nodo
     direccion: String
@@ -32,6 +36,14 @@ struct Reproductor
     pos: Int = 0             # ms del vídeo donde se paró
     hay_imagen: Bool = false
     error: String = ""
+    decodificadas: Int = 0   # desde que empezó a sonar
+    mostradas: Int = 0       # las que llegaron a pintarse (las demás se saltaron por ir tarde)
+    t_decodificar: Int = 0   # ms decodificando
+    modo: Int = 2            # el modo de H.264 (video_rapido): 2 rápido, 3 turbo, 4 turbo+
+    tics: Int = 0            # vueltas de videos_avanzar mientras suena (medida)
+    fuera: Int = 0           # ms entre el final de una vuelta y el principio de la siguiente (medida)
+    fin_vuelta: Int = 0
+    lista: Bool = false      # una imagen decodificada que aún no ha llegado su hora
 end
 
 struct Videos
@@ -99,12 +111,19 @@ func _video_empezar(r: Reproductor)
     end
     # H.264: el modo rápido (sin filtros caros); en la máquina objetivo, ~12 imágenes/s a 640x360
     video_rapido(r.v, 2)
+    r.modo = 2
     r.inicio = time_ms()
     r.pos = 0
+    r.decodificadas = 0
+    r.mostradas = 0
+    r.lista = false
+    r.t_decodificar = 0
     r.estado = V_SONANDO
 end
 
-# Avanza descargas y reproducción; true si algún vídeo cambió de imagen o de estado (hay que repintar)
+# Avanza descargas y reproducción; true si algún vídeo cambió de imagen o de estado (hay que repintar).
+# La imagen siguiente se decodifica por adelantado (videos_adelantar, después de pintar) y aquí solo se
+# muestra cuando llega su hora; si no hay ninguna lista, se decodifica ya.
 func videos_avanzar(vs: Videos) -> Bool
     cambio = false
     for r in vs.lista
@@ -121,30 +140,68 @@ func videos_avanzar(vs: Videos) -> Bool
                 cambio = true
             end
         elif r.estado == V_SONANDO
-            ahora = time_ms() - r.inicio
-            # la última imagen cuyo instante ya pasó (saltando las que llegan tarde)
-            nueva = false
-            vueltas = 0
-            while vueltas < 8
-                if r.hay_imagen and video_ms(r.v) + 1000 * 1000 / _fps(r.v) > ahora
-                    break
-                end
-                s = video_siguiente(r.v)
-                if s != 1
-                    r.estado = V_FIN
-                    cambio = true
-                    break
-                end
-                r.hay_imagen = true
-                nueva = true
-                vueltas = vueltas + 1
+            if r.fin_vuelta > 0
+                r.fuera = r.fuera + time_ms() - r.fin_vuelta
             end
-            if nueva
+            r.tics = r.tics + 1
+            if not r.lista
+                _video_decodificar(r)
+            end
+            if r.estado == V_SONANDO and r.lista and video_ms(r.v) <= time_ms() - r.inicio + VIDEO_ADELANTO
+                r.lista = false
+                r.hay_imagen = true
+                r.mostradas = r.mostradas + 1
+                cambio = true
+            elif r.estado == V_FIN
                 cambio = true
             end
+            r.fin_vuelta = time_ms()
         end
     end
     return cambio
+end
+
+# Después de pintar: la imagen siguiente de cada vídeo que suena, decodificada mientras se espera su hora;
+# true si alguno se acabó (hay que repintarlo: el botón de volver a empezar)
+func videos_adelantar(vs: Videos) -> Bool
+    acabado = false
+    for r in vs.lista
+        if r.estado == V_SONANDO and not r.lista
+            _video_decodificar(r)
+            r.fin_vuelta = time_ms()
+            if r.estado == V_FIN
+                acabado = true
+            end
+        end
+    end
+    return acabado
+end
+
+# La siguiente imagen, decodificada; se enseña aunque llegue tarde (mejor pocas imágenes que una cada mucho).
+# Si el retraso pasa de 200 ms, H.264 en turbo (no decodifica las imágenes que no sirven de referencia)
+# hasta alcanzar el reloj; al alcanzarlo, otra vez el modo rápido. Turbo+ (solo las imágenes clave) no: con una
+# imagen clave cada 10 s (lo normal en x264) se salta el vídeo entero.
+func _video_decodificar(r: Reproductor)
+    t0 = time_ms()
+    s = video_siguiente(r.v)
+    r.t_decodificar = r.t_decodificar + time_ms() - t0
+    if s != 1
+        r.estado = V_FIN
+        Print "video: " + r.mostradas + " imagenes mostradas, " + r.decodificadas + " decodificadas en " + (time_ms() - r.inicio) + " ms (" + r.t_decodificar + " ms decodificando), " + video_ancho(r.v) + "x" + video_alto(r.v)
+        return
+    end
+    r.decodificadas = r.decodificadas + 1
+    r.lista = true
+    retraso = (time_ms() - r.inicio) - video_ms(r.v)
+    modo = r.modo
+    if retraso > 200 and modo < 3
+        modo = 3
+    elif retraso <= 0
+        modo = 2
+    end
+    if modo != r.modo and video_rapido(r.v, modo)
+        r.modo = modo
+    end
 end
 
 func _fps(v: Int) -> Int
@@ -153,6 +210,47 @@ func _fps(v: Int) -> Int
         return 25000
     end
     return f
+end
+
+# Una línea para la barra de estado: el vídeo que suena, su segundo y las imágenes por segundo que se ven
+func videos_estado(vs: Videos) -> String
+    for r in vs.lista
+        if r.estado == V_TRAYENDO
+            return "Vídeo: trayéndolo..."
+        elif r.estado == V_SONANDO
+            t = time_ms() - r.inicio
+            ips = 0
+            if t > 0
+                ips = r.mostradas * 10000 / t
+            end
+            return "Vídeo: " + (t / 1000) + " s, " + (ips / 10) + "," + (ips % 10) + " imágenes/s"
+        end
+    end
+    return ""
+end
+
+# Milisegundos hasta que toca la siguiente imagen de algún vídeo que suena (1 si ya toca); -1 si no suena
+# ninguno (50 mientras alguno llega)
+func videos_espera(vs: Videos) -> Int
+    espera = -1
+    for r in vs.lista
+        e = -1
+        if r.estado == V_TRAYENDO
+            e = 50
+        elif r.estado == V_SONANDO
+            e = 1
+            if r.lista
+                e = video_ms(r.v) - (time_ms() - r.inicio) - VIDEO_ADELANTO
+                if e < 1
+                    e = 1
+                end
+            end
+        end
+        if e > 0 and (espera < 0 or e < espera)
+            espera = e
+        end
+    end
+    return espera
 end
 
 # ¿Algún vídeo suena o llega? (el bucle tiene que seguir dando tics)

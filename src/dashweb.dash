@@ -55,6 +55,7 @@ struct Ventana
     carga_dir: String = ""
     preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
     js_cuando: Int = -1      # time_ms del siguiente temporizador del JavaScript, -1 si no hay
+    estado_video: Int = 0    # time_ms de la última vez que la barra de estado dijo cómo va el vídeo
     foco: Nodo = nil         # el campo de formulario donde se escribe
     con_historial: Bool = false   # la lista del historial desplegada (empieza oculta)
     giro: Int = -1           # el indicador de actividad: el punto que va delante (0-7), -1 parado
@@ -98,9 +99,6 @@ func dw_estado(w: Ventana, texto: String)
     end
     mui_set_text(w.v.estado, t)
 end
-
-# Al repintar por una imagen nueva de un vídeo: solo los vídeos, no la página entera
-var dw_solo_videos: Bool = false
 
 # La zona de dibujo de cada ventana (MUI llama a una función sin decir de qué zona: una por ventana)
 func pinta0(x: Int, y: Int, ancho: Int, alto: Int)
@@ -188,7 +186,8 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
     end
     pintor_foco = w.foco
     pintor_videos = w.actual.videos
-    if dw_solo_videos
+    if mui_canvas_updating()
+        # una imagen nueva de un vídeo (mui_canvas_update: MUI no borra el lienzo): solo los vídeos
         pintar_videos(w.actual.pagina, w.desde, x, y, ancho, alto)
         return
     end
@@ -378,9 +377,12 @@ func programar()
             if trayendo and (espera < 0 or espera > 50)
                 espera = 50
             end
-            # un vídeo sonando: un tic cada 20 ms (cada imagen a su hora)
-            if w.actual != nil and w.actual.videos != nil and videos_activos(w.actual.videos) and (espera < 0 or espera > 20)
-                espera = 20
+            # un vídeo sonando: el tic, cuando toca su siguiente imagen
+            if w.actual != nil and w.actual.videos != nil
+                ev = videos_espera(w.actual.videos)
+                if ev > 0 and (espera < 0 or ev < espera)
+                    espera = ev
+                end
             end
         end
     end
@@ -421,10 +423,29 @@ func tic(w: Ventana)
     if w.js_cuando >= 0 and time_ms() >= w.js_cuando
         temporizadores(w)
     end
-    if w.actual != nil and w.actual.videos != nil and videos_avanzar(w.actual.videos)
-        dw_solo_videos = true
-        mui_canvas_redraw(w.v.pagina)
-        dw_solo_videos = false
+    if w.actual != nil and w.actual.videos != nil
+        # cada vuelta por el bucle de eventos cuesta unos 27 ms en la máquina RTG emulada: si la imagen
+        # siguiente ya toca, se enseña aquí mismo (hasta 4 seguidas: la ventana sigue respondiendo)
+        vueltas = 0
+        while vueltas < 4
+            if videos_avanzar(w.actual.videos)
+                mui_canvas_update(w.v.pagina)
+            end
+            if videos_adelantar(w.actual.videos)
+                mui_canvas_update(w.v.pagina)
+            end
+            vueltas = vueltas + 1
+            if videos_espera(w.actual.videos) != 1
+                break
+            end
+        end
+    end
+    if w.actual != nil and w.actual.videos != nil and time_ms() - w.estado_video > 1000
+        e = videos_estado(w.actual.videos)
+        if e != ""
+            dw_estado(w, e)
+            w.estado_video = time_ms()
+        end
     end
     actualizar_giro(w)
 end

@@ -7,7 +7,7 @@
 # expect-out: enlace: http://ejemplo.org/docs/pagina.html#abajo
 # expect-out: enlace: []
 # expect-out: enlace: []
-# expect-out: abajo: 1 nombre: 1 nada: -1
+# expect-out: abajo: true nombre: true nada: -1
 # expect-out: http://a/b.html abajo
 # expect-out: http://a/b.html []
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0

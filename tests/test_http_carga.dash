@@ -8,7 +8,7 @@
 # expect-out: 200 [unodostres-cuatr]
 # expect-out: 200 [hola] http://127.0.0.1:40855/hola
 # expect-out: 404 [no]
-# expect-out: lento: 200 2000 bytes, a medias: 1
+# expect-out: lento: 200 2000 bytes, a medias: true
 # expect-out: cancelada: [cancelada]
 # expect-out: rechazada: [conexión rechazada]
 # expect-out: fase: buscando

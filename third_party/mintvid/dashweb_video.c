@@ -40,6 +40,8 @@ typedef struct {
     int vaciando;        /* el fichero se acabó: quedan imágenes dentro del decodificador (B-frames) */
     int tras_paquete;    /* el último paquete pudo dejar más imágenes listas (mr_decoder_drain) */
     long n;              /* imágenes dadas */
+    long paquetes;       /* paquetes de vídeo leídos (también los que el modo turbo no decodifica) */
+    long retraso;        /* paquetes leídos antes de la primera imagen (lo que el decodificador reordena) */
     long ms;
     char codecs[200];
 } dwv;
@@ -77,16 +79,19 @@ long dwv_fps_mil(long h)
 }
 const char *dwv_codecs(long h) { return ((dwv *)h)->codecs; }
 
-/* Sin marca de tiempo en el contenedor, el instante sale de la cuenta de imágenes */
-static long dwv_ms_de(dwv *v)
+/* Sin marca de tiempo en el contenedor, el instante sale de la cuenta de paquetes de vídeo leídos (no de
+   imágenes: el modo turbo se salta algunas), menos los que el decodificador guarda para reordenar */
+static long dwv_ms_de(dwv *v, long indice)
 {
     const mr_video_info *vi = mr_demux_video(v->dx);
-    return vi->rate ? (long)((unsigned long long)v->n * 1000u * vi->scale / vi->rate) : -1;
+    return vi->rate ? (long)((unsigned long long)indice * 1000u * vi->scale / vi->rate) : -1;
 }
 
-static long dwv_imagen(dwv *v)
+static long dwv_imagen(dwv *v, int del_paquete)
 {
-    v->ms = dwv_ms_de(v);
+    if (v->n == 0) v->retraso = v->paquetes - 1;
+    if (del_paquete) v->ms = dwv_ms_de(v, v->paquetes - 1 - v->retraso);
+    else v->ms = v->ms >= 0 ? v->ms + dwv_ms_de(v, 1) : dwv_ms_de(v, v->n);   /* las que quedaban dentro */
     v->n++;
     return 1;
 }
@@ -97,22 +102,23 @@ long dwv_siguiente(long h)
     mr_packet pkt;
     /* otra imagen que dejó lista el último paquete */
     if (v->tras_paquete) {
-        if (mr_decoder_drain(&v->dec) == MR_OK) return dwv_imagen(v);
+        if (mr_decoder_drain(&v->dec) == MR_OK) return dwv_imagen(v, 0);
         v->tras_paquete = 0;
     }
     while (!v->vaciando && mr_demux_next_packet(v->dx, &pkt) == MR_OK) {
         mr_status s;
         if (!pkt.is_video || pkt.len == 0) continue;
+        v->paquetes++;
         mr_h264_set_input_annexb(&v->dec, pkt.is_annexb);
         s = mr_decoder_decode(&v->dec, pkt.data, pkt.len);
         if (s == MR_EAGAIN || s == MR_SKIPPED) continue;
         if (s != MR_OK) return -1;
         v->tras_paquete = 1;
-        return dwv_imagen(v);
+        return dwv_imagen(v, 1);
     }
     /* fin del fichero: las que el decodificador aún guarda para reordenarlas */
     v->vaciando = 1;
-    if (mr_decoder_flush(&v->dec) == MR_OK) return dwv_imagen(v);
+    if (mr_decoder_flush(&v->dec) == MR_OK) return dwv_imagen(v, 0);
     return 0;
 }
 

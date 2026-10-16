@@ -2,7 +2,7 @@
 # la página con sus enlaces, y preferencias clave=valor (poner, leer, cambiar).
 # memcheck
 # expect-out: 2 marcadores: http://a.org/ [A org] http://b.org/x?y=1&z=2 [B dos]
-# expect-out: página: 2 enlaces, escapado: 1
+# expect-out: página: 2 enlaces, escapado: true
 # expect-out: inicio [] -> [http://a.org/] -> [http://b.org/], otra [sí]
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 

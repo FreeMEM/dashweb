@@ -10,7 +10,7 @@
 # expect-out: x,1.png
 # expect-out: de-source.jpg
 # expect-out: solo.gif
-# expect-out: vista a 225x220 b 0
+# expect-out: vista a 225x220 b false
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/imagenes.dash"

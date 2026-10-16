@@ -1378,3 +1378,18 @@ Formato:
   hecha en la rama `areas`); al repintar solo el vídeo MUI borra el lienzo y la página queda gris (Dash:
   tarea 11, mui_canvas_update). Hasta fusionar rgb, dashweb no compila con el Dash de `dashweb`: commit en
   dev2, sin pasar a dev.
+
+### 2026-10-17 — Tarea 30b, tercera parte (vídeo fluido)
+- Dash: fusionadas `bools` (true/false al escribir un Bool; 5 expect-out de dashweb cambiados) y `rgb`
+  (gfx_rgb_draw, gfx_rgb_draw_scaled). Probadas sin fusionar aún `areas` (rellenos en lienzos de MUI),
+  `canvasupd` (mui_canvas_update / mui_canvas_updating: repintar solo el vídeo sin que MUI borre la página) y
+  `rgbfast` (escalado en el formato de la pantalla: 2x de 16 a 5,5 ms).
+- Reproducción: la imagen siguiente se decodifica justo después de pintar la actual (`videos_adelantar`) y se
+  enseña cuando toca, hasta 30 ms antes; si al acabar un tic la siguiente ya toca, se enseña en el mismo tic
+  (hasta 4): cada vuelta por el bucle de eventos cuesta ~27 ms en la máquina RTG emulada (medido: el temporizador
+  despierta tarde, pida lo que pida). Se enseña toda imagen decodificada; con más de 200 ms de retraso, H.264
+  en turbo hasta alcanzar el reloj (turbo+ no: con una imagen clave cada 10 s se salta el vídeo). Barra de
+  estado: "Vídeo: N s, X imágenes/s"; al acabar, el botón de volver a empezar.
+- Medido en la máquina objetivo (68040+JIT, RTG): 320x180 escalado a 640x360, 300 de 300 imágenes en 12 s
+  (25/s, tiempo real; antes 8/s). 640x360 a su tamaño: ~9 imágenes/s (decodificar cuesta ~87 ms), el vídeo va
+  un 50 % más lento que el reloj. En una PiStorm real está por medir.
