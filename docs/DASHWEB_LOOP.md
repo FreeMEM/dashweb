@@ -891,8 +891,6 @@ Formato:
   `--memcheck`). En el emulador: post.html, escribir "hola", Return, "ab" y clic en Enviar → el servidor recibe
   `nota=hola%0Aab`. dashweb 24/24, también con `--memcheck`.
 
-
-
 ### 2026-10-16 — Tarea 22a (marcadores y página de inicio)
 - Tarea 22 partida: 22a (marcadores e inicio), 22b (varias ventanas), 22c (atajos de menú en el emulador).
 - `lib/marcadores.dash`: marcadores en `PROGDIR:dashweb.marcadores` (`dirección<TAB>título`, sin repetir),
