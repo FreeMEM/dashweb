@@ -149,6 +149,8 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+- [x] D17. **Texto prestado adoptado.** `s = t` con `t` un parámetro temporal del que llama lo liberaba al volver
+      (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
 
@@ -489,6 +491,17 @@ Formato:
   Estilo guardado en `nodo.estilo` (`{String: String}`, campo nuevo de `Nodo`). Tamaño normal: 13 px.
 - `css_partir` público (lo usa estilo).
 - Tests: `test_estilo` (`--memcheck`), `test_estilo_enlaces` (link + @import por HTTP contra `tests/servers/http.py`).
-  11/11, también con `--memcheck`.
+  11/11. Corrección: al cerrar escribí "también con `--memcheck`" sin haberlo visto; con `--memcheck` fallaba
+  `test_estilo_enlaces` (la hoja enlazada no cargaba). Causa: fallo de Dash, D17 (un texto prestado se adoptaba y se
+  liberaba). Con D17 arreglado: 11/11 con `--memcheck`.
 - Pendiente: rendimiento con muchas reglas (todas contra todos los elementos; indexar por id/clase/etiqueta si
   hace falta, se medirá en la tarea 17).
+
+### 2026-10-16 — D17 (Dash: texto prestado adoptado)
+- Hecho (rama `dashweb`, 295e2e1 tras rebase sobre la 14 de MUI): al guardar un parámetro o variable de bucle String
+  (en variable, campo, lista, diccionario o constructor) se copia (`_dash_str_dup(t, TRUE)`); antes
+  `_dash_str_set` adoptaba el temporal del que llama y lo liberaba al volver. Test `test_lent_string`. Cambia el C
+  de 3 programas previos (los que guardan parámetros de texto, entre ellos `examples/mui_navegador`).
+- Batería: 392/392 con `--emu --emu-a500 --emu-32`; con `--emu --memcheck` 238/239 (`test_window_handles`, timeout:
+  solo pasa en las dos versiones, con y sin D17; se tomó por carga de la máquina, con la otra sesión usando
+  emuladores a la vez). Tras el rebase: 159/159 y 240/240 en el A1200. dashweb: 11/11 con `--memcheck`.
