@@ -12,3 +12,13 @@ Ficheros sin cambios. Se quedan fuera, para que dashweb siga siendo MIT y use su
   - De libavc: el codificador, MVC/SVC y el código de otras arquitecturas.
 dashweb_video.c (nuestro, MIT) pone sustitutos vacíos de lo que falta y la interfaz que usa lib/video.dash.
 tools/build_video.sh lo compila en build/video-lib/libvideo.a.
+
+Sonido (2026-10-17)
+-------------------
+  - audio/ (mr_audio_decode.c, mr_pcm.c, mr_aac_m68k_config.h) y amiga/ (audio_paula.c, la salida por Paula):
+    de MintVID, sin cambios.
+  - mintamp/: de MintAMP (https://github.com/boingball/MintAMP, commit 21f5346), los decodificadores Helix de
+    RealNetworks: AAC-LC (decoders/aac, sin SBR/HE-AAC) y MP3 (real/, mp3dec.c), con el ensamblador de 68k de
+    MintAMP. Licencia RPSL (RPSL.txt; o RCSL.txt): estos ficheros se distribuyen con sus fuentes, aquí, y con sus
+    avisos; dashweb sigue siendo MIT.
+  - sin_a52/: sustitutos propios (MIT) de las cabeceras de liba52 que nombra mr_audio_decode.c: sin AC-3.

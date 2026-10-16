@@ -1,13 +1,18 @@
 # Test: lib/video.dash, el núcleo de MintVID (tarea 30): un MP4 con H.264 (160x48, 10 imágenes a 10 por
 # segundo, rojo a la izquierda y azul a la derecha, hecho con ffmpeg) traído por HTTP: sus códecs, tamaño,
-# imágenes por segundo, cada imagen con su instante y el color de dos píxeles; un fichero que no es vídeo.
+# imágenes por segundo, cada imagen con su instante y el color de dos píxeles; un fichero que no es vídeo; uno
+# con sonido AAC (su decodificador y la salida por Paula se abren). Con 64 MB: libavc pide 5 MB al crear el
+# decodificador y en los 8 MB del A1200 de pruebas no caben junto al programa.
 # emu-server: http.py 40863
 # memcheck
+# emu-config: cpu = 68030
+# emu-config: zorro_iii_memory = 65536
 # expect-out: codecs: video=H.264/AVC (fourcc 'avc1'), audio=none detected
 # expect-out: 160x48 fps=10000 paso=480
 # expect-out: imagenes=10 ultima=900 ms
 # expect-out: rojo azul
 # expect-out: nada: 0
+# expect-out: con sonido: video=H.264/AVC (fourcc 'avc1'), audio=AAC-LC sonido=sí
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/video.dash"
@@ -49,4 +54,17 @@ Main
         video_cerrar(v)
     end
     Print "nada: " + video_abrir("T:no_existe.mp4")
+    # uno con sonido AAC (MintAMP): se abre su salida por Paula
+    if arg_count() == 0
+        http_a_fichero("http://127.0.0.1:40863/pages/video_sonido.mp4", "T:video_sonido.mp4", 10000)
+        s = video_abrir("T:video_sonido.mp4")
+        if s != 0
+            sonido = "no"
+            if video_con_sonido(s)
+                sonido = "sí"
+            end
+            Print "con sonido: " + video_codecs(s) + " sonido=" + sonido
+            video_cerrar(s)
+        end
+    end
 end

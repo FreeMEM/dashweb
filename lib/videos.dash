@@ -90,9 +90,11 @@ func videos_alternar(vs: Videos, n: Nodo, base: String)
         end
     elif r.estado == V_SONANDO
         r.pos = time_ms() - r.inicio
+        video_pausa(r.v, true)
         r.estado = V_PAUSA
     elif r.estado == V_PAUSA
         r.inicio = time_ms() - r.pos
+        video_pausa(r.v, false)
         r.estado = V_SONANDO
     elif r.estado == V_FIN
         video_cerrar(r.v)
@@ -121,6 +123,16 @@ func _video_empezar(r: Reproductor)
     r.estado = V_SONANDO
 end
 
+# El instante del vídeo que suena: el reloj del sonido si tiene (manda: la imagen se ajusta a él), si no el
+# tiempo desde que empezó
+func _ahora(r: Reproductor) -> Int
+    reloj = video_reloj(r.v)
+    if reloj >= 0
+        return reloj
+    end
+    return time_ms() - r.inicio
+end
+
 # Avanza descargas y reproducción; true si algún vídeo cambió de imagen o de estado (hay que repintar).
 # La imagen siguiente se decodifica por adelantado (videos_adelantar, después de pintar) y aquí solo se
 # muestra cuando llega su hora; si no hay ninguna lista, se decodifica ya.
@@ -144,10 +156,11 @@ func videos_avanzar(vs: Videos) -> Bool
                 r.fuera = r.fuera + time_ms() - r.fin_vuelta
             end
             r.tics = r.tics + 1
+            video_servicio(r.v)
             if not r.lista
                 _video_decodificar(r)
             end
-            if r.estado == V_SONANDO and r.lista and video_ms(r.v) <= time_ms() - r.inicio + VIDEO_ADELANTO
+            if r.estado == V_SONANDO and r.lista and video_ms(r.v) <= _ahora(r) + VIDEO_ADELANTO
                 r.lista = false
                 r.hay_imagen = true
                 r.mostradas = r.mostradas + 1
@@ -187,12 +200,12 @@ func _video_decodificar(r: Reproductor)
     r.t_decodificar = r.t_decodificar + time_ms() - t0
     if s != 1
         r.estado = V_FIN
-        Print "video: " + r.mostradas + " imagenes mostradas, " + r.decodificadas + " decodificadas en " + (time_ms() - r.inicio) + " ms (" + r.t_decodificar + " ms decodificando), " + video_ancho(r.v) + "x" + video_alto(r.v)
+        Print "video: " + r.mostradas + " imagenes mostradas, " + r.decodificadas + " decodificadas en " + (time_ms() - r.inicio) + " ms (" + r.t_decodificar + " ms decodificando), " + video_ancho(r.v) + "x" + video_alto(r.v) + ", sonido " + video_con_sonido(r.v) + " (reloj " + video_reloj(r.v) + " ms)"
         return
     end
     r.decodificadas = r.decodificadas + 1
     r.lista = true
-    retraso = (time_ms() - r.inicio) - video_ms(r.v)
+    retraso = _ahora(r) - video_ms(r.v)
     modo = r.modo
     if retraso > 200 and modo < 3
         modo = 3
@@ -240,7 +253,10 @@ func videos_espera(vs: Videos) -> Int
         elif r.estado == V_SONANDO
             e = 1
             if r.lista
-                e = video_ms(r.v) - (time_ms() - r.inicio) - VIDEO_ADELANTO
+                e = video_ms(r.v) - _ahora(r) - VIDEO_ADELANTO
+                if video_con_sonido(r.v) and e > 20
+                    e = 20       # Paula pide búferes nuevos a menudo
+                end
                 if e < 1
                     e = 1
                 end

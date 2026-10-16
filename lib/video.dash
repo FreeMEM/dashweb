@@ -84,3 +84,29 @@ end
     dwv_cerrar(v);
 """
 end
+
+# Lo que ya ha sonado, en ms: el reloj que manda cuando el vídeo tiene sonido; -1 si no tiene o aún no empezó
+@native func video_reloj(v: Int) -> Int
+"""
+    return dwv_reloj(v);
+"""
+end
+
+# Atender la salida de sonido (llenar los búferes de Paula): a menudo mientras suena
+@native func video_servicio(v: Int)
+"""
+    dwv_servicio(v);
+"""
+end
+
+@native func video_pausa(v: Int, pausa: Bool)
+"""
+    dwv_pausa(v, pausa ? 1 : 0);
+"""
+end
+
+@native func video_con_sonido(v: Int) -> Bool
+"""
+    return dwv_con_sonido(v) ? TRUE : FALSE;
+"""
+end

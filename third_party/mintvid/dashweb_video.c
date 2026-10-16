@@ -11,6 +11,13 @@
 #include "mr_hls.h"
 #include "mr_youtube.h"
 #include "mr_h264.h"
+#ifndef DWV_SIN_SONIDO
+#include "mr_audio_decode.h"
+#include "mr_audio.h"
+#else
+typedef struct mr_audio_decoder mr_audio_decoder;
+typedef struct mr_audio mr_audio;
+#endif
 #include "dashweb_video.h"
 
 /* --- lo que no va en dashweb --- */
@@ -33,6 +40,7 @@ int mr_youtube_resolve_media(const char *url, const struct mr_http_options *opti
 { (void)url; (void)options; (void)out; (void)out_size; (void)kind; return 0; }
 
 /* --- la interfaz --- */
+
 typedef struct {
     mr_demux *dx;
     mr_decoder dec;
@@ -42,9 +50,35 @@ typedef struct {
     long n;              /* imágenes dadas */
     long paquetes;       /* paquetes de vídeo leídos (también los que el modo turbo no decodifica) */
     long retraso;        /* paquetes leídos antes de la primera imagen (lo que el decodificador reordena) */
+    mr_audio_decoder *ad;  /* el sonido (NULL si no tiene o no se sabe decodificar) */
+    mr_audio *au;          /* su salida por Paula */
+    int sonando;           /* la salida ya empezó (tras llenar un poco el búfer) */
+    int pausa;
     long ms;
     char codecs[200];
 } dwv;
+
+#ifndef DWV_SIN_SONIDO
+/* Lo que sale del decodificador de sonido va a la cola de Paula */
+static void dwv_pcm(void *user, const int16_t *pcm, unsigned frames, unsigned channels)
+{
+    audio_write_s16((mr_audio *)user, (const short *)pcm, frames, (int)channels);
+}
+
+/* El sonido de un paquete; la salida empieza cuando hay 150 ms en cola */
+static void dwv_sonido(dwv *v, const mr_packet *pkt)
+{
+    if (!v->ad || !v->au) return;
+    mr_audio_decoder_feed(v->ad, pkt->data, pkt->len, dwv_pcm, v->au);
+    audio_service(v->au);
+    if (!v->sonando && !v->pausa && audio_buffered_ms(v->au) >= 150) {
+        audio_set_running(v->au, 1);
+        v->sonando = 1;
+    }
+}
+#else
+static void dwv_sonido(dwv *v, const mr_packet *pkt) { (void)v; (void)pkt; }
+#endif
 
 long dwv_abrir(const char *fichero)
 {
@@ -64,6 +98,16 @@ long dwv_abrir(const char *fichero)
     }
     v->abierto = 1;
     v->ms = -1;
+#ifndef DWV_SIN_SONIDO
+    {
+        const mr_audio_info *ai = mr_demux_audio(v->dx);
+        if (ai && ai->valid) {
+            v->ad = mr_audio_decoder_open(ai, 0, 0);
+            if (v->ad) v->au = audio_open(mr_audio_decoder_rate(v->ad), (int)mr_audio_decoder_channels(v->ad), 16);
+            if (!v->au && v->ad) { mr_audio_decoder_close(v->ad); v->ad = NULL; }
+        }
+    }
+#endif
     mr_demux_describe_video_codec(v->dx, vc, sizeof vc);
     mr_demux_describe_audio_codec(v->dx, ac, sizeof ac);
     snprintf(v->codecs, sizeof v->codecs, "video=%s, audio=%s", vc, ac);
@@ -107,7 +151,8 @@ long dwv_siguiente(long h)
     }
     while (!v->vaciando && mr_demux_next_packet(v->dx, &pkt) == MR_OK) {
         mr_status s;
-        if (!pkt.is_video || pkt.len == 0) continue;
+        if (!pkt.is_video) { if (pkt.len) dwv_sonido(v, &pkt); continue; }
+        if (pkt.len == 0) continue;
         v->paquetes++;
         mr_h264_set_input_annexb(&v->dec, pkt.is_annexb);
         s = mr_decoder_decode(&v->dec, pkt.data, pkt.len);
@@ -131,10 +176,45 @@ long dwv_rapido(long h, long modo)
     if (v->dec.codec != &mr_codec_h264) return 0;
     return mr_h264_set_speed_mode(&v->dec, (mr_h264_speed_mode)modo) ? 1 : 0;
 }
+#ifdef DWV_SIN_SONIDO
+long dwv_reloj(long h) { (void)h; return -1; }
+void dwv_servicio(long h) { (void)h; }
+void dwv_pausa(long h, long pausa) { (void)h; (void)pausa; }
+#else
+/* El reloj del sonido en ms (lo que ya ha sonado), o -1 si no hay sonido o aún no empezó */
+long dwv_reloj(long h)
+{
+    dwv *v = (dwv *)h;
+    if (!v->au || !v->sonando) return -1;
+    audio_service(v->au);
+    return (long)audio_elapsed_ms(v->au);
+}
+
+/* Lo que pide Paula entre imagen e imagen (llenar sus búferes): llamarlo a menudo */
+void dwv_servicio(long h)
+{
+    dwv *v = (dwv *)h;
+    if (v->au) audio_service(v->au);
+}
+
+void dwv_pausa(long h, long pausa)
+{
+    dwv *v = (dwv *)h;
+    v->pausa = pausa != 0;
+    if (v->au && v->sonando) audio_set_running(v->au, !v->pausa);
+}
+
+#endif
+long dwv_con_sonido(long h) { return ((dwv *)h)->au != NULL; }
+
 void dwv_cerrar(long h)
 {
     dwv *v = (dwv *)h;
     if (!v) return;
+#ifndef DWV_SIN_SONIDO
+    if (v->au) { audio_set_running(v->au, 0); audio_close(v->au); }
+    if (v->ad) mr_audio_decoder_close(v->ad);
+#endif
     if (v->abierto) mr_decoder_close(&v->dec);
     if (v->dx) mr_demux_close(v->dx);
     free(v);

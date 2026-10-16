@@ -18,7 +18,7 @@ rm -rf "$B"
 mkdir -p "$B/o"
 CF="-noixemul -O2 -std=c99 -m68020-60 -m68881 -fomit-frame-pointer -fno-strict-aliasing -fwrapv
     -DAMIGA_M68K -DMR_HAVE_H264 -DMR_M68K_ASM=1 -DMR_PL_MPEG_SKIP_AUDIO_TIME=1
-    -I$M/libavc_port -I$M/libavc/common -I$M/libavc/decoder -include $M/libavc_port/compat.h -I$M/core
+    -I$M/libavc_port -I$M/libavc/common -I$M/libavc/decoder -include $M/libavc_port/compat.h -I$M/core -I$M/audio -I$M/amiga
     -w"
 # los ficheros del núcleo que MintVID enlaza en su mr_decode (player/Makefile.amiga), sin MPEG-2, DV ni su red
 NUCLEO="mr_codec.c mr_source.c mr_demux.c mr_latm.c mr_mkv.c mr_avi.c mr_mov.c mr_ts.c mr_ps.c mr_raw_mjpeg.c
@@ -31,9 +31,32 @@ NUCLEO="mr_codec.c mr_source.c mr_demux.c mr_latm.c mr_mkv.c mr_avi.c mr_mov.c m
 for f in $NUCLEO; do
     $GCC $CF -c "$M/core/$f" -o "$B/o/n_$(echo "$f" | tr . _).o"
 done
-for f in "$M"/libavc/decoder/*.c "$M"/libavc_port/*.c "$M"/libavc_port/*.S "$M"/dashweb_video.c; do
+for f in "$M"/libavc/decoder/*.c "$M"/libavc_port/*.c "$M"/libavc_port/*.S; do
     $GCC $CF -c "$f" -o "$B/o/$(basename "$f" | tr . _).o"
 done
+# el sonido: el adaptador de MintVID (AAC, MP3, MP2, PCM; AC-3 no: sin_a52/ son sustitutos), MintAMP (Helix,
+# RPSL: AAC-LC sin SBR y MP3, con su ensamblador de 68k) y la salida por Paula de MintVID
+A=$M/mintamp
+AF="-DAMIGA_M68K -DARDUINO -DESP8266 -DAAC_ENABLE_DECIM -I$A/pub -I$A/real -I$A/decoders/aac
+    -I$A/decoders/aac-arduino-shim -I$A/decoders -include $M/audio/mr_aac_m68k_config.h
+    -DAMIGA_M68K_ASM -DAMIGA_M68K_ASM_FDCT32 -DAMIGA_M68K_ASM_FDCT32_UNROLL -DAMIGA_FAST_POLYPHASE
+    -DAMIGA_FAST_REDUCED_TAPS -DAMIGA_FAST_FDCT32_QUARTER -DAMIGA_M68K_IMDCT_THIN_OUTPUT -DAMIGA_FAST_SUBBAND_CAP
+    -DAMIGA_M68K_ASM_POLYPHASE -DAMIGA_M68K_ASM_IMDCT -DAMIGA_M68K_ASM_ANTIALIAS -DAMIGA_M68K_ASM_MIDSIDE
+    -DAMIGA_M68K_ASM_INTENSITY -DAMIGA_M68K_ASM_DEQUANT -DAMIGA_M68K_ASM_HUFFMAN -DAMIGA_M68K_ASM_PLANARS8
+    -I$M/sin_a52"
+if [ -z "$SIN_SONIDO" ]; then
+for f in "$A"/decoders/aac/*.c "$A"/real/*.c "$A"/real/*.S "$A"/mp3dec.c "$A"/mp3tabs.c "$A"/amiga_m68k_planars8.S; do
+    # aac/ y real/ tienen ficheros con el mismo nombre (bitstream.c, buffers.c...): el prefijo es su carpeta
+    $GCC $CF $AF -c "$f" -o "$B/o/a_$(basename "$(dirname "$f")")_$(basename "$f" | tr . _).o"
+done
+for f in "$M"/audio/mr_audio_decode.c "$M"/audio/mr_pcm.c; do
+    $GCC $CF $AF -c "$f" -o "$B/o/$(basename "$f" | tr . _).o"
+done
+$GCC $CF -I$M/amiga -c "$M/amiga/audio_paula.c" -o "$B/o/audio_paula_c.o"
+else
+    CF="$CF -DDWV_SIN_SONIDO"   # SIN_SONIDO=1: sin MintAMP ni Paula (para comparar)
+fi
+$GCC $CF -c "$M/dashweb_video.c" -o "$B/o/dashweb_video_c.o"
 for f in "$M"/libavc/common/*.c; do
     case $(basename "$f") in ithread.c|ih264_resi_trans_quant.c|ih264_trans_data.c) continue ;; esac
     $GCC $CF -c "$f" -o "$B/o/c_$(basename "$f" .c).o"

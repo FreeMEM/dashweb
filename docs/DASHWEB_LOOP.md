@@ -1393,3 +1393,17 @@ Formato:
 - Medido en la máquina objetivo (68040+JIT, RTG): 320x180 escalado a 640x360, 300 de 300 imágenes en 12 s
   (25/s, tiempo real; antes 8/s). 640x360 a su tamaño: ~9 imágenes/s (decodificar cuesta ~87 ms), el vídeo va
   un 50 % más lento que el reloj. En una PiStorm real está por medir.
+
+### 2026-10-17 — Tarea 30b, cuarta parte (sonido)
+- El sonido de MintVID en libvideo.a: su adaptador (audio/mr_audio_decode.c: AAC, MP3, MP2, PCM), los
+  decodificadores Helix de MintAMP (AAC-LC sin SBR y MP3, RPSL, con su ensamblador de 68k; aac/ y real/ tienen
+  ficheros con el mismo nombre: prefijo de carpeta en los objetos) y su salida por Paula (amiga/audio_paula.c).
+  AC-3 fuera (liba52, GPL): `sin_a52/` son cabeceras sustitutas propias. SIN_SONIDO=1 hace la librería sin él.
+- dashweb_video.c: el sonido de cada paquete va a Paula (empieza con 150 ms en cola); dwv_reloj (lo que ya ha
+  sonado: reloj maestro), dwv_servicio, dwv_pausa, dwv_con_sonido. lib/videos.dash: la imagen sigue al reloj
+  del sonido; pausa también lo para; tics de 20 ms como mucho mientras suena.
+- Probado en la máquina RTG con un MP4 H.264 320x180 + AAC 44,1 kHz de 8 s: el reloj del sonido llega a 8034
+  ms (Paula lo consumió entero; en el emulador no se oye, va sin altavoz) y se ven las 200 imágenes.
+- Fallo encontrado y no de Dash: libavc pide 5 MB al crear el decodificador; en los 8 MB del A1200 de pruebas
+  ya no cabía con el sonido. test_video usa un 68030 con 64 MB (emu-config) y abre también un vídeo con AAC.
+- Fallo de Dash encargado: un @native que devuelve Bool no se escribe true/false al concatenarlo.

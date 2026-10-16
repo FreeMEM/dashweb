@@ -11,5 +11,9 @@ const unsigned char *dwv_rgb(long v);          /* la imagen: RGB24, dwv_paso() b
 long dwv_paso(long v);
 long dwv_ms(long v);                           /* su instante en ms desde el principio (-1 si no se sabe) */
 long dwv_rapido(long v, long modo);            /* H.264: 0 calidad ... 4 turbo; 1 si se aceptó */
+long dwv_reloj(long v);                        /* ms ya sonados (reloj maestro), -1 sin sonido */
+void dwv_servicio(long v);                     /* atender la salida de sonido (a menudo) */
+void dwv_pausa(long v, long pausa);
+long dwv_con_sonido(long v);
 void dwv_cerrar(long v);
 #endif
