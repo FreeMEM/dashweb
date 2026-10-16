@@ -13,25 +13,31 @@ from emu_run import run_programs
 
 pagina, ancho, niveles = sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "940", sys.argv[3] if len(sys.argv) > 3 else "6"
 servidor = None
-if not pagina.startswith("http") and Path(pagina).resolve().parent == ROOT / "tests" / "pages":
-    # una página de tests/pages: por la red de pruebas (tests/servers/http.py), que es mucho más rápido
+if not pagina.startswith("http") and Path(pagina).is_file():
+    # una página de disco: se sirve su carpeta por HTTP (con sus hojas e imágenes), que es mucho más rápido
     # que copiarla al disco emulado como un programa más
     import time
-    servidor = subprocess.Popen([sys.executable, str(ROOT / "tests" / "servers" / "http.py"), "40862"])
+    servidor = subprocess.Popen([sys.executable, "-m", "http.server", "40862", "--bind", "127.0.0.1"],
+                                cwd=str(Path(pagina).resolve().parent), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
-    pagina = "http://127.0.0.1:40862/pages/" + Path(pagina).name
+    pagina = "http://127.0.0.1:40862/" + Path(pagina).name
 if len(sys.argv) > 5:            # y además los dibujos entre dos alturas
     niveles = niveles + " " + sys.argv[4] + " " + sys.argv[5]
 with tempfile.TemporaryDirectory(prefix="traza_") as tmp:
     exe = Path(tmp) / "traza"
-    r = subprocess.run([str(DASH / "dash"), str(ROOT / "tools" / "traza_maqueta.dash"), "-o", str(exe)], cwd=DASH,
+    # TRAZA_PERFIL=1: con ./dash --profile (la tabla de tiempos por función sale al final)
+    perfil = ["--profile"] if os.environ.get("TRAZA_PERFIL") else []
+    r = subprocess.run([str(DASH / "dash"), str(ROOT / "tools" / "traza_maqueta.dash"), "-o", str(exe)] + perfil, cwd=DASH,
                        capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit(r.stdout + r.stderr)
     cfg = "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n"
     if pagina.startswith("http"):
         # por la red: AmiSSL para https
-        out = run_programs([str(exe)], timeout=900, kickstart=os.environ.get("DASH_KICKSTART"),
+        # TRAZA_CAPTURA="segundos fichero.png": la pantalla del Amiga a esa altura (para ver un cuelgue)
+        cap = os.environ.get("TRAZA_CAPTURA", "").split()
+        out = run_programs([str(exe)], timeout=int(os.environ.get("TRAZA_TIEMPO", "900")), kickstart=os.environ.get("DASH_KICKSTART"),
+                           screenshot=(float(cap[0]), cap[1]) if cap else None,
                            extra_config=cfg + "bsdsocket_library = 1\n",
                            system=os.path.expanduser("~/.cache/dash-emu/sys31muisslweb"), args=[pagina + " " + ancho + " " + niveles])[0]
     else:

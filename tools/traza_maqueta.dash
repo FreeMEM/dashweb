@@ -28,6 +28,10 @@ Main
                 vueltas = vueltas + 1
             end
             documento_al_dia(d)
+            # lo que cuesta el estilo de la página ya cargada (las hojas ya leídas e indexadas)
+            t1 = time_ms()
+            estilo_aplicar(d.doc, d.hojas)
+            Print "estilo: " + (time_ms() - t1) + " ms"
         else
             t = file_read_text(arg(0))
             t1 = time_ms()

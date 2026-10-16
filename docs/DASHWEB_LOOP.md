@@ -292,7 +292,7 @@ tarea, con el estilo de Dash.
       browser sencillo pero actual y con un buen UX", y cargar https://freemem.space.
 - [x] 25. **jQuery.** freemem.space (WordPress) usa jQuery 3.7: falta DOM (createDocumentFragment, cloneNode,
       insertBefore, hermanos, eventos en document/window, readyState), `navigator`, `location`...
-- [ ] 26. **Maqueta más rápida.** 5 s en el A1200 para la página de prueba de 9 KB; ahora es la fase más lenta.
+- [x] 26. **Maqueta más rápida.** 5 s en el A1200 para la página de prueba de 9 KB; ahora es la fase más lenta.
 - [x] 27. **Emulación RTG.** Petición del usuario (2026-10-16): "poner la emulación en RTG a una resolución más alta".
       Un sistema emulado con tarjeta gráfica (uaegfx de FS-UAE con Picasso96, o el RTG de AmigaOS 3.2), pantalla
       de 1024x768 o más en 16/24 bits, con MUI, AmiSSL y fuentes; `medir_visor --maquina objetivo` lo usa. Como una
@@ -1217,3 +1217,26 @@ Formato:
   lupa, iconos y metadatos como en Chrome.
 - Encargos a la otra sesión: tarea 2 (Dash comprueba el tipo de return; str_contains y str_split: hechos en la
   rama `tipos`), 1b (recorrer las claves de un diccionario sin copiarlas) y 3 (-fbbb sin s).
+
+### 2026-10-16 — Tarea 26 (estilo y maqueta más rápidos)
+- Medido con `tools/traza.py` sobre la copia local de freemem.space (`~/.cache/dashweb/bench`), máquina objetivo
+  (68040 + JIT): aplicar el estilo 5,0 s → 2,0 s; maquetar 1,47 s → 1,26 s. Mismo resultado (alto 7186, 368
+  dibujos).
+- Estilo: las propiedades --x van aparte del estilo y un hijo comparte el diccionario de su padre mientras no
+  declare otro valor (WordPress hereda unas 60 y Tailwind repite 45 en cada elemento con `*`); las --x que ningún
+  var() nombra no se guardan (`Hojas.vars_usadas`), salvo en el atributo style. Los atajos (margin, border,
+  background, font...) se parten una vez por regla (`Regla.expandidas`), no en cada elemento. ::before y
+  ::after solo se calculan si se cumple alguna regla suya con content (`Regla.con_content`).
+- Una caché de lo declarado por conjunto de reglas cumplidas (`_ganadoras_hechas`) colgaba la página:
+  Dash usa memoria liberada con un diccionario de diccionarios. Caso mínimo en
+  `~/.cache/dashweb/repro/dict_de_dicts.dash`; encargado (tarea 4 de la otra sesión). La caché queda
+  apagada (`_ganadoras_cache`) hasta el arreglo.
+- Maqueta: las fuentes se abren una vez por programa (antes cada maquetación las abría otra vez sin
+  cerrarlas); se buscan primero por el font-family tal cual. `estilo_px` sin crear textos.
+- Dash no tiene operadores de bits: encargado (tarea 5). Dash fusionado en `dashweb`: `rendimiento` (copias y
+  temporales, -fbbb sin la pasada s) y `tipos` (return comprobado, str_contains, str_split).
+- Pendiente visto: un atajo con var() (padding: var(--x)) se parte antes de sustituir la variable.
+- `tools/traza.py`: cualquier página de disco se sirve por HTTP con su carpeta; TRAZA_PERFIL=1 (tabla de
+  --profile), TRAZA_TIEMPO, TRAZA_CAPTURA; `traza_maqueta` mide aparte el estilo de la página ya cargada.
+- Test nuevo `test_estilo_vars` (memcheck). Trabajo hecho en un worktree (`~/Projects/dashweb-w`, rama dev2)
+  para no mover el árbol que usan las baterías de la otra sesión.

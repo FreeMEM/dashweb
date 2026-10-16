@@ -22,11 +22,23 @@ struct Entrada
     # lo que tiene que haber entre los antecesores ("#id", ".clase" o la etiqueta de cada parte de
     # antes de un combinador de descendiente o hijo): sin ello el selector no se prueba
     antes: [String] = nil
+    num: Int = 0         # su número en el índice (la clave de _ganadoras_hechas)
 end
 
 # Cuántos antecesores del nodo que se está mirando tienen cada etiqueta, "#id" y ".clase" (el filtro de
 # antecesores de los navegadores: un selector como ".menu a" se descarta sin subir por el árbol)
 var _antepasados: {String: Int} = {}
+# Hojas.vars_usadas de las hojas que se están aplicando (nil: se guardan todas)
+var _vars_usadas: {String: Int} = nil
+# Las propiedades --x del último _calcular: van aparte del estilo y un hijo comparte las de su padre
+# (el mismo diccionario) mientras no declare otro valor
+var _calc_vars: {String: String} = nil
+# Lo que declaran las reglas que cumple un elemento, por la lista de sus números ("3,17,40"): muchos
+# elementos cumplen las mismas reglas (todos los <p> sin clase...) y no hace falta repasarlas otra vez
+var _ganadoras_hechas: {String: {String: Candidata}} = {}
+# Apagada mientras Dash no lleve bien un diccionario de diccionarios (memoria liberada que se usa:
+# tarea 4 encargada a la otra sesión el 2026-10-16)
+var _ganadoras_cache: Bool = false
 
 func _antepasado(clave: String, cuanto: Int)
     if _antepasados.has(clave)
@@ -98,6 +110,9 @@ struct Hojas
     indice_ancho: Int = -1             # el ancho de la página con que se hizo (por los @media)
     # los de ::before y ::after, con la clave "before .clase", "after a"... ("before " los universales)
     indice_pe: {String: [Entrada]} = nil
+    # las propiedades --x que algún var() nombra: las demás no se guardan (Tailwind declara unas 45 en cada
+    # elemento y WordPress unas 60 que se heredan; copiarlas en cada nodo era lo que más costaba)
+    vars_usadas: {String: Int} = nil
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -519,6 +534,7 @@ func _estilo_indexar(h: Hojas)
     var indice: {String: [Entrada]} = {}
     var universales: [Entrada] = []
     var indice_pe: {String: [Entrada]} = {}
+    numero = 0
     for k in (0..h.lista.length - 1)
         for regla in h.lista[k].reglas
             if not css_regla_vale(regla)
@@ -529,6 +545,8 @@ func _estilo_indexar(h: Hojas)
                 if pe != ""
                     e = Entrada(sel, regla, h.autor[k])
                     e.antes = _requisitos(sel)
+                    numero = numero + 1
+                    e.num = numero
                     clave = pe + " " + _clave(sel.partes[sel.partes.length - 1].simple)
                     if indice_pe.has(clave)
                         indice_pe[clave].push(e)
@@ -539,6 +557,8 @@ func _estilo_indexar(h: Hojas)
                 elif estilo_puede_cumplirse(sel)
                     e = Entrada(sel, regla, h.autor[k])
                     e.antes = _requisitos(sel)
+                    numero = numero + 1
+                    e.num = numero
                     clave = _clave(sel.partes[sel.partes.length - 1].simple)
                     if clave == ""
                         universales.push(e)
@@ -555,6 +575,15 @@ func _estilo_indexar(h: Hojas)
     h.indice = indice
     h.universales = universales
     h.indice_pe = indice_pe
+    var usadas: {String: Int} = {}
+    for hoja in h.lista
+        for regla in hoja.reglas
+            for d in regla.declaraciones
+                _vars_nombradas(d.valor, usadas)
+            end
+        end
+    end
+    h.vars_usadas = usadas
     h.indice_ancho = css_vista_ancho()
 end
 
@@ -579,16 +608,54 @@ func _antepasados_tienen(claves: [String]) -> Bool
     return true
 end
 
+# Las entradas cuyo selector cumple n, a la lista
+func _cumplidas(n: Nodo, entradas: [Entrada], cumplidas: [Entrada])
+    for e in entradas
+        if e.antes != nil and not _antepasados_tienen(e.antes)
+            continue
+        end
+        if estilo_cumple(n, e.sel)
+            cumplidas.push(e)
+        end
+    end
+end
+
+# Lo que declaran esas entradas, cada propiedad con la que gana (una regla con varios selectores que se
+# cumplen se declara una vez por cada uno: gana la especificidad más alta, como si se tomara la mejor)
+func _declarar_todas(cumplidas: [Entrada], ganadoras: {String: Candidata})
+    for e in cumplidas
+        _declarar_entrada(e, ganadoras)
+    end
+end
+
 func _probar(n: Nodo, entradas: [Entrada], ganadoras: {String: Candidata})
     for e in entradas
         if e.antes != nil and not _antepasados_tienen(e.antes)
             continue
         end
         if estilo_cumple(n, e.sel)
-            for d in e.regla.declaraciones
-                _declarar(ganadoras, d, e.autor, e.sel.especificidad, e.regla.orden)
+            _declarar_entrada(e, ganadoras)
+        end
+    end
+end
+
+func _declarar_entrada(e: Entrada, ganadoras: {String: Candidata})
+    r = e.regla
+    if r.expandidas == nil
+        r.expandidas = _expandir(r.declaraciones)
+    end
+    esp = e.sel.especificidad
+    for d in r.expandidas
+        p = d.propiedad
+        if _vars_usadas != nil and str_code(p, 0) == 45 and str_starts(p, "--") and not _vars_usadas.has(p)
+            continue
+        end
+        if ganadoras.has(p)
+            if not _gana_con(d.importante, e.autor, esp, r.orden, ganadoras[p])
+                continue
             end
         end
+        ganadoras[p] = Candidata(d.valor, d.importante, e.autor, esp, r.orden)
     end
 end
 
@@ -604,17 +671,35 @@ struct Candidata
 end
 
 func _gana(nueva: Candidata, vieja: Candidata) -> Bool
-    if nueva.importante != vieja.importante
-        return nueva.importante
+    return _gana_con(nueva.importante, nueva.autor, nueva.especificidad, nueva.orden, vieja)
+end
+
+func _gana_con(importante: Bool, autor: Bool, especificidad: Int, orden: Int, vieja: Candidata) -> Bool
+    if importante != vieja.importante
+        return importante
     end
-    if nueva.autor != vieja.autor
+    if autor != vieja.autor
         # normal: el autor gana; !important: el navegador (no hay hoja del usuario)
-        return nueva.autor != nueva.importante
+        return autor != importante
     end
-    if nueva.especificidad != vieja.especificidad
-        return nueva.especificidad > vieja.especificidad
+    if especificidad != vieja.especificidad
+        return especificidad > vieja.especificidad
     end
-    return nueva.orden >= vieja.orden
+    return orden >= vieja.orden
+end
+
+# Las declaraciones de una regla con los atajos partidos (margin en margin-top..., border, background,
+# font...), en el mismo orden: se hace una vez por regla, no en cada elemento
+func _expandir(decl: [Declaracion]) -> [Declaracion]
+    var r: [Declaracion] = []
+    for d in decl
+        var una: {String: Candidata} = {}
+        _declarar(una, d, true, 0, 0)
+        for k in una.keys()
+            r.push(Declaracion(k, una[k].valor, una[k].importante))
+        end
+    end
+    return r
 end
 
 func _proponer(ganadoras: {String: Candidata}, propiedad: String, c: Candidata)
@@ -785,7 +870,26 @@ end
 
 # Propiedades que se heredan si el elemento no dice nada
 func _se_hereda(p: String) -> Bool
-    return str_starts(p, "--") or p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform"
+    return p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform"
+end
+
+# Apunta en usadas los nombres de los var(--x) de un valor
+func _vars_nombradas(v: String, usadas: {String: Int})
+    i = str_find(v, "var(")
+    while i >= 0
+        j = i + 4
+        while j < v.length and str_code(v, j) == 32
+            j = j + 1
+        end
+        k = j
+        while k < v.length and str_code(v, k) != 44 and str_code(v, k) != 41 and str_code(v, k) != 32
+            k = k + 1
+        end
+        if k > j
+            usadas[v[j:k]] = 1
+        end
+        i = str_find_from(v, "var(", k)
+    end
 end
 
 # Calcula el estilo de todo el árbol
@@ -795,53 +899,76 @@ func estilo_aplicar(doc: Nodo, hojas: Hojas)
     end
     var limpios: {String: Int} = {}
     _antepasados = limpios
+    _vars_usadas = hojas.vars_usadas
+    var hechas: {String: {String: Candidata}} = {}
+    _ganadoras_hechas = hechas
     var raiz: {String: String} = {"color": "black", "font-family": "sans-serif", "font-size": "" + ESTILO_MEDIUM + "px", "font-weight": "normal", "font-style": "normal", "text-align": "left", "white-space": "normal", "list-style-type": "disc", "visibility": "visible", "display": "block"}
+    var sin_vars: {String: String} = {}
     for h in doc.hijos
-        _estilo_nodo(h, hojas, raiz)
+        _estilo_nodo(h, hojas, raiz, sin_vars)
     end
 end
 
-func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
+func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {String: String})
     if n.tipo != DOM_ELEMENTO
         return
     end
-    var ganadoras: {String: Candidata} = {}
-    # una regla con varios selectores que se cumplen se declara una vez por cada uno: gana la
-    # especificidad más alta, como si se tomara la mejor
-    _probar(n, hojas.universales, ganadoras)
+    var cumplidas: [Entrada] = []
+    _cumplidas(n, hojas.universales, cumplidas)
     if hojas.indice.has(n.nombre)
-        _probar(n, hojas.indice[n.nombre], ganadoras)
+        _cumplidas(n, hojas.indice[n.nombre], cumplidas)
     end
     id = dom_id(n)
     if id != "" and hojas.indice.has("#" + id)
-        _probar(n, hojas.indice["#" + id], ganadoras)
+        _cumplidas(n, hojas.indice["#" + id], cumplidas)
     end
     for c in dom_clases(n)
         if hojas.indice.has("." + c)
-            _probar(n, hojas.indice["." + c], ganadoras)
+            _cumplidas(n, hojas.indice["." + c], cumplidas)
         end
     end
+    var ganadoras: {String: Candidata} = nil
     if dom_tiene_atributo(n, "style")
+        var propias: {String: Candidata} = {}
+        ganadoras = propias
+        _declarar_todas(cumplidas, ganadoras)
         for d in css_declaraciones(dom_atributo(n, "style"))
             _declarar(ganadoras, d, true, 1000000, 1000000)
         end
+    else
+        clave = ""
+        for ce in cumplidas
+            clave = clave + ce.num + ","
+        end
+        if _ganadoras_cache and _ganadoras_hechas.has(clave)
+            ganadoras = _ganadoras_hechas[clave]
+        else
+            var nuevas: {String: Candidata} = {}
+            ganadoras = nuevas
+            _declarar_todas(cumplidas, ganadoras)
+            if _ganadoras_cache
+                _ganadoras_hechas[clave] = ganadoras
+            end
+        end
     end
-    e = _calcular(ganadoras, padre, "inline")
+    e = _calcular(ganadoras, padre, padre_vars, "inline")
+    vars = _calc_vars
     if _oculto_a_la_vista(e)
         e["display"] = "none"
     end
     n.estilo = e
-    n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, "before"), "::before")
-    n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, "after"), "::after")
+    n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "before"), "::before")
+    n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "after"), "::after")
     _antepasados_cambiar(n, 1)
     for h in n.hijos
-        _estilo_nodo(h, hojas, e)
+        _estilo_nodo(h, hojas, e, vars)
     end
     _antepasados_cambiar(n, -1)
 end
 
-# Lo heredado del padre y encima lo propio; var() resuelto; font-size en px
-func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, display: String) -> {String: String}
+# Lo heredado del padre y encima lo propio; var() resuelto; font-size en px. Las --x quedan en _calc_vars:
+# las del padre (el mismo diccionario) o, si alguna cambia, una copia con los cambios.
+func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_vars: {String: String}, display: String) -> {String: String}
     var e: {String: String} = {}
     for p in padre.keys()
         if _se_hereda(p)
@@ -849,24 +976,47 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, display:
         end
     end
     e["display"] = display
+    vars = padre_vars
+    propias = false
+    # primero las --x (las demás pueden usarlas)
+    for p in ganadoras.keys()
+        if str_starts(p, "--")
+            v = ganadoras[p].valor
+            if str_find(v, "var(") >= 0
+                v = _resolver_var(v, vars, 0)
+            end
+            if not vars.has(p) or vars[p] != v
+                if not propias
+                    var copia: {String: String} = {}
+                    for k in vars.keys()
+                        copia[k] = vars[k]
+                    end
+                    vars = copia
+                    propias = true
+                end
+                vars[p] = v
+            end
+        end
+    end
     for p in ganadoras.keys()
         v = ganadoras[p].valor
-        if str_lower(v) == "inherit"
+        if str_starts(p, "--")
+            continue
+        elif str_lower(v) == "inherit"
             if padre.has(p)
                 e[p] = padre[p]
             end
         elif p != "font-size"
+            if str_find(v, "var(") >= 0
+                v = _resolver_var(v, vars, 0)
+            end
             e[p] = v
         end
     end
-    for p in e.keys()
-        if str_find(e[p], "var(") >= 0
-            e[p] = _resolver_var(e[p], e, 0)
-        end
-    end
     if ganadoras.has("font-size")
-        e["font-size"] = "" + estilo_tamano(_resolver_var(ganadoras["font-size"].valor, e, 0), estilo_px(padre["font-size"], 0, 0)) + "px"
+        e["font-size"] = "" + estilo_tamano(_resolver_var(ganadoras["font-size"].valor, vars, 0), estilo_px(padre["font-size"], 0, 0)) + "px"
     end
+    _calc_vars = vars
     return e
 end
 
@@ -915,9 +1065,31 @@ func _resolver_var(v: String, e: {String: String}, nivel: Int) -> String
 end
 
 # El estilo de n::before o n::after si alguna regla le da un content que se pinta; nil si no
-func _estilo_pseudo(n: Nodo, hojas: Hojas, e: {String: String}, cual: String) -> {String: String}
+func _estilo_pseudo(n: Nodo, hojas: Hojas, e: {String: String}, vars: {String: String}, cual: String) -> {String: String}
     var nada: {String: String} = nil
     if hojas.indice_pe == nil or hojas.indice_pe.length == 0
+        return nada
+    end
+    # solo si alguna de las reglas que podrían aplicarse da un content (Tailwind pone ::before y ::after
+    # con sus --tw en todos los elementos, sin content)
+    _con_pseudo_elemento = true
+    algo = _con_content(n, hojas.indice_pe, cual + " ")
+    if not algo
+        algo = _con_content(n, hojas.indice_pe, cual + " " + n.nombre)
+    end
+    if not algo and dom_id(n) != ""
+        algo = _con_content(n, hojas.indice_pe, cual + " #" + dom_id(n))
+    end
+    if not algo
+        for c in dom_clases(n)
+            if _con_content(n, hojas.indice_pe, cual + " ." + c)
+                algo = true
+                break
+            end
+        end
+    end
+    _con_pseudo_elemento = false
+    if not algo
         return nada
     end
     var ganadoras: {String: Candidata} = {}
@@ -940,7 +1112,7 @@ func _estilo_pseudo(n: Nodo, hojas: Hojas, e: {String: String}, cual: String) ->
     if not ganadoras.has("content")
         return nada
     end
-    pe = _calcular(ganadoras, e, "inline")
+    pe = _calcular(ganadoras, e, vars, "inline")
     c = str_trim(pe["content"])
     if c == "none" or c == "normal" or pe["display"] == "none"
         return nada
@@ -950,6 +1122,28 @@ func _estilo_pseudo(n: Nodo, hojas: Hojas, e: {String: String}, cual: String) ->
         return nada
     end
     return pe
+end
+
+# ¿Cumple n alguna de las entradas de esa clave que son de una regla que declara content?
+func _con_content(n: Nodo, indice: {String: [Entrada]}, clave: String) -> Bool
+    if not indice.has(clave)
+        return false
+    end
+    for e in indice[clave]
+        r = e.regla
+        if r.con_content < 0
+            r.con_content = 0
+            for d in r.declaraciones
+                if d.propiedad == "content"
+                    r.con_content = 1
+                end
+            end
+        end
+        if r.con_content == 1 and (e.antes == nil or _antepasados_tienen(e.antes)) and estilo_cumple(n, e.sel)
+            return true
+        end
+    end
+    return false
 end
 
 # El nodo de un ::before o ::after con ese estilo (nil si no hay): sus hijos, lo que dice el content
@@ -1119,27 +1313,40 @@ end
 
 # Una longitud CSS en píxeles: px, pt, em (respecto a em_px), % (respecto a cien), sin unidad = px.
 # Decimales con hasta dos cifras ("1.5em"). Lo que no se entiende vale 0.
+func _minuscula(c: Int) -> Int
+    if c >= 65 and c <= 90
+        return c + 32
+    end
+    return c
+end
+
 func estilo_px(v: String, em_px: Int, cien: Int) -> Int
-    x = str_lower(str_trim(v))
-    n = x.length
+    # sin crear textos (se llama decenas de miles de veces al maquetar): se mira el valor en su sitio
+    n = v.length
     i = 0
+    while i < n and str_code(v, i) == 32
+        i = i + 1
+    end
+    while n > i and str_code(v, n - 1) == 32
+        n = n - 1
+    end
     signo = 1
-    if i < n and str_code(x, i) == 45
+    if i < n and str_code(v, i) == 45
         signo = -1
         i = i + 1
     end
     entero = 0
-    while i < n and str_code(x, i) >= 48 and str_code(x, i) <= 57
-        entero = entero * 10 + str_code(x, i) - 48
+    while i < n and str_code(v, i) >= 48 and str_code(v, i) <= 57
+        entero = entero * 10 + str_code(v, i) - 48
         i = i + 1
     end
     centesimas = 0
-    if i < n and str_code(x, i) == 46
+    if i < n and str_code(v, i) == 46
         i = i + 1
         cifras = 0
-        while i < n and str_code(x, i) >= 48 and str_code(x, i) <= 57
+        while i < n and str_code(v, i) >= 48 and str_code(v, i) <= 57
             if cifras < 2
-                centesimas = centesimas * 10 + str_code(x, i) - 48
+                centesimas = centesimas * 10 + str_code(v, i) - 48
                 cifras = cifras + 1
             end
             i = i + 1
@@ -1149,26 +1356,36 @@ func estilo_px(v: String, em_px: Int, cien: Int) -> Int
         end
     end
     valor = entero * 100 + centesimas
-    unidad = x[i:]
     r = valor / 100
-    if unidad == "em" or unidad == "rem"
-        r = valor * em_px / 100
-    elif unidad == "ex"
-        r = valor * em_px / 200
-    elif unidad == "%"
-        r = valor * cien / 10000
-    elif unidad == "pt"
-        r = valor * 4 / 300
-    elif unidad == "pc"
-        r = valor * 16 / 100
-    elif unidad == "in"
-        r = valor * 96 / 100
-    elif unidad == "cm"
-        r = valor * 3780 / 10000
-    elif unidad == "mm"
-        r = valor * 378 / 10000
-    elif unidad != "px" and unidad != ""
-        r = 0
+    k = n - i
+    if k > 0
+        # la unidad, en minúsculas
+        a = _minuscula(str_code(v, i))
+        b = 0
+        if k >= 2
+            b = _minuscula(str_code(v, i + 1))
+        end
+        if k == 2 and a == 112 and b == 120
+            r = valor / 100
+        elif (k == 2 and a == 101 and b == 109) or (k == 3 and a == 114 and b == 101 and _minuscula(str_code(v, i + 2)) == 109)
+            r = valor * em_px / 100
+        elif k == 2 and a == 101 and b == 120
+            r = valor * em_px / 200
+        elif k == 1 and a == 37
+            r = valor * cien / 10000
+        elif k == 2 and a == 112 and b == 116
+            r = valor * 4 / 300
+        elif k == 2 and a == 112 and b == 99
+            r = valor * 16 / 100
+        elif k == 2 and a == 105 and b == 110
+            r = valor * 96 / 100
+        elif k == 2 and a == 99 and b == 109
+            r = valor * 3780 / 10000
+        elif k == 2 and a == 109 and b == 109
+            r = valor * 378 / 10000
+        else
+            r = 0
+        end
     end
     return signo * r
 end

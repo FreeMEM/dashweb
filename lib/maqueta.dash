@@ -134,6 +134,17 @@ end
 # si no la vectorial parecida (CGTriumvirate, CGTimes, LetterGothic: bullet.library las dibuja a
 # cualquier tamaño) y, si no hay, la de mapa de bits más cercana; la topaz de la ROM si no hay otra
 func _fuente(m: Maquetador, familia: String, tam: Int) -> Int
+    # primero por el font-family tal cual (suele ser una lista larga: mirarla entera cuesta)
+    cruda = familia + "|" + tam
+    if m.fuentes.has(cruda)
+        return m.fuentes[cruda]
+    end
+    h = _fuente_de(m, familia, tam)
+    m.fuentes[cruda] = h
+    return h
+end
+
+func _fuente_de(m: Maquetador, familia: String, tam: Int) -> Int
     f = str_lower(familia)
     nombre = "helvetica"
     vectorial = "CGTriumvirate"
@@ -227,11 +238,18 @@ end
 
 # === Página ===
 
+# Las fuentes abiertas, para todas las páginas del programa (abrir una, sobre todo vectorial, cuesta;
+# antes se abrían otra vez, sin cerrarse, cada vez que se maquetaba)
+var _fuentes_abiertas: {String: Int} = {}
+var _topaz: Int = 0
+
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
     var dibujos: [Dibujo] = []
     p = Pagina(dibujos, ancho, 0, 16777215)
-    var fuentes: {String: Int} = {}
-    m = Maquetador(p, fuentes, font_open("topaz.font", 8))
+    if _topaz == 0
+        _topaz = font_open("topaz.font", 8)
+    end
+    m = Maquetador(p, _fuentes_abiertas, _topaz)
     html = dom_buscar(doc, "html")
     if html == nil
         return p

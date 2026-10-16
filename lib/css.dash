@@ -56,6 +56,8 @@ struct Regla
     declaraciones: [Declaracion]
     orden: Int
     medios: [String] = nil      # las condiciones de los @media que la rodean (nil: vale siempre)
+    expandidas: [Declaracion] = nil   # las declaraciones con los atajos (margin, border...) ya partidos (lib/estilo.dash)
+    con_content: Int = -1       # 1 si declara content (lib/estilo.dash: los ::before/::after sin él no se miran)
 end
 
 struct HojaCSS
