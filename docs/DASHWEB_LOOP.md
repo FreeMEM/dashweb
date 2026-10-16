@@ -1331,3 +1331,16 @@ Formato:
   en la página con el núcleo de MintVID) pasa delante de 28g y 28h; sin el paso de abrir MintVID aparte.
 - Licencias explicadas al usuario: MintVID MIT y libavc Apache-2.0 valen para dashweb (MIT); libmpeg2 y a52dec (GPL)
   no; Helix AAC (RPSL) con condiciones.
+
+### 2026-10-17 — Tarea 30a (núcleo de MintVID en el emulador)
+- MintVID (main, con submódulos libavc y MintAMP; ~/Projects tiene la copia solo en el scratchpad) compila con
+  nuestro gcc 6.5 de bebbo: `make -f Makefile.amiga mr_decode CPU=68040 CPUFLAGS="-m68040 -D_sfdc_vararg=ULONG"`
+  (el _sfdc_vararg es de sus cabeceras de red más nuevas). Su programa de prueba `mr_decode` decodifica un MP4
+  como los de YouTube (H.264 Main 640x360 25 imágenes/s + AAC 96k, hecho con ffmpeg) en la máquina objetivo:
+  normal 89 + 23 ms por imagen (decodificar + pasar a RGB, ~9/s), fast 61 + 23 (~12/s), turbo (decodifica una de
+  cada dos) 56 + 21. El vídeo se ve, no en tiempo real a 25/s en el emulador (la PiStorm real está por medir).
+  Necesita 320 KB de pila (Stack 400000 en el sistema de prueba).
+- Pasos siguientes (30b): una librería libvideo.a con lo justo del núcleo (mr_codec, mr_source, mr_demux, mr_mov,
+  mr_h264 + libavc + libavc_port, mr_yuv, mr_scale; sin libmpeg2/a52/libdv, que son GPL/LGPL, ni su red), una
+  interfaz en C (abrir de memoria o fichero, siguiente imagen en RGB, su tiempo) y lib/video.dash. Para pintar,
+  D43 encargada a la otra sesión (tarea 9: gfx_rgb_draw y gfx_rgb_draw_scaled con WritePixelArray/p96).
