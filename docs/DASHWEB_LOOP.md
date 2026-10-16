@@ -149,6 +149,8 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+- [x] D21. **Interior de una ventana.** `Win.inner_left/_top/_width/_height` (lo pidió el visor).
+- [x] D20. **Reloj.** `time_ms()` (para medir el visor).
 - [x] D19. **Argumentos del programa.** `arg_count()`, `arg(i)` (lo pidió el visor, tarea 13).
 - [x] D18. **Funciones privadas por módulo.** Dos módulos con `_fuente` chocaban (lo pidió la tarea 12).
 - [x] D17. **Texto prestado adoptado.** `s = t` con `t` un parámetro temporal del que llama lo liberaba al volver
@@ -544,3 +546,9 @@ Formato:
   solo en los programas que los usan). `tools/emu_run.py`: `run_programs(..., args=[...])`; runner: `# emu-args:`.
   Test `test_args` (comillas incluidas) en A1200, A500 y 3.2. 165/165 sin emulador, 250/250 en el A1200, ejemplos.
 - Sigue la tarea 13 (pintor y visor).
+
+### 2026-10-16 — D20 y D21 (Dash: reloj e interior de ventana)
+- D20 (6cfad76): `time_ms()` (EClock de timer.device desde el arranque; `TIME_RUNTIME` solo si se usa; `TimerBase`
+  como definición provisional para convivir con `bench_lib`). Test `test_time_ms` en las tres máquinas.
+- D21: `Win.inner_left`, `.inner_top`, `.inner_width`, `.inner_height` (bordes reales de la ventana abierta; 0
+  cerrada). Test `test_window_inner` en las tres máquinas. Mismo C en los programas previos en los dos.
