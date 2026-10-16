@@ -38,6 +38,10 @@ def main():
                     "tools/emu_sys_fuentes.sh)")
     ap.add_argument("--acciones", metavar="'TÍTULO e 100 c X Y ...'",
                     help="tools/amiga/clicar.dash in the background: clicks and keys in that window")
+    ap.add_argument("--local", action="store_true",
+                    help="the page from the emulated disk, without network: FS-UAE's bsdsocket.library makes the "
+                         "emulated CPU many times slower (measure the A1200 like this)")
+    ap.add_argument("--perfil", action="store_true", help="build with ./dash --profile (the table goes to the output)")
     ap.add_argument("--guardar", metavar="DIR", help="keep the emulated disk there (outputs: out0.txt, bg0.txt)")
     ap.add_argument("--segundos", type=int, default=40, help="the visor closes itself after this")
     args = ap.parse_args()
@@ -50,6 +54,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix="visor_") as tmp:
         exe = Path(tmp) / "visor"
         env = dict(os.environ, DASH_TEST_AUTOCLOSE=str(args.segundos))
+        if args.perfil:
+            env["DASH_PROFILE"] = "1"
         r = subprocess.run([str(DASH / "dash"), str(ROOT / ("tests/bench/fases.dash" if args.fases else args.programa)), "-o", str(exe)],
                            cwd=DASH, env=env, capture_output=True, text=True)
         if r.returncode != 0:
@@ -60,13 +66,21 @@ def main():
         time.sleep(1)
         try:
             shot = (args.segundos - 5, args.captura) if args.captura else None
-            out = run_programs([str(exe)], timeout=args.segundos + 60,
+            programs = [str(exe)]
+            prog_args = [" ".join(f"http://127.0.0.1:{PORT}{p}" if p.startswith("/") else f"http://127.0.0.1:{PORT}/pages/{p}"
+                                  for p in args.pagina.split(","))]
+            red = "bsdsocket_library = 1\n"
+            if args.local:
+                # the page goes to the disk as a second "program" (DH0:p1; running it just fails)
+                programs.append(str(ROOT / "tests" / "pages" / args.pagina))
+                prog_args = ["DH0:p1", ""]
+                red = ""
+            out = run_programs(programs, timeout=args.segundos + 60,
                                kickstart=os.environ.get("DASH_KICKSTART"),
-                               extra_config="bsdsocket_library = 1\n" + MAQUINAS[args.maquina],
+                               extra_config=red + MAQUINAS[args.maquina],
                                screenshot=shot, system=args.sistema, keep=args.guardar,
                                background=[(str(ROOT / "tools" / "amiga" / "clicar.dash"), args.acciones)]
-                               if args.acciones else None, args=[" ".join(f"http://127.0.0.1:{PORT}{p}" if p.startswith("/") else f"http://127.0.0.1:{PORT}/pages/{p}"
-                                              for p in args.pagina.split(","))])[0]
+                               if args.acciones else None, args=prog_args)[0]
         finally:
             server.kill()
             server.wait()

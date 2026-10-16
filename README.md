@@ -8,8 +8,10 @@ lenguaje, sus librerías y su rendimiento.
 
 ## Estado
 
-Fase A terminada (sin MUI): `src/visor.dash` abre una página (fichero o URL http/https), la maqueta, la pinta
-en una ventana normal y ejecuta su JavaScript. Fase B (MUI 5) por empezar. Plan y bitácora en
+Fase A (sin MUI): `src/visor.dash` abre una página (fichero o URL http/https), la maqueta, la pinta en una
+ventana normal y ejecuta su JavaScript. Fase B (MUI 5): `src/dashweb.dash`, el navegador: barra de dirección,
+atrás/adelante, recargar, parar, historial, marcadores, página de inicio, hasta 4 ventanas; las páginas llegan
+sin congelar la ventana (imágenes, hojas y scripts a la vez); enlaces, anclas, formularios (GET y POST). Plan y bitácora en
 [docs/DASHWEB_LOOP.md](docs/DASHWEB_LOOP.md), módulos en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 - Red: TCP (`bsdsocket.library`), HTTP/1.1 (longitud, `chunked`, redirecciones) y HTTPS con AmiSSL 5.
@@ -25,20 +27,25 @@ rápidos, listas y diccionarios con tipo, red, TLS, fuentes, imágenes, C de fue
 
 ### Medidas (FS-UAE, 2026-10-16)
 
-`objetivo` = 68040 + JIT a toda velocidad (lo más parecido a un PiStorm); `A1200` = 68020 a 14 MHz. En ms.
+`objetivo` = 68040 + JIT a toda velocidad (lo más parecido a un PiStorm); `A1200` = 68020 a 14 MHz. En ms,
+con las fuentes del Workbench (helvetica, times, courier).
 
-| Página | Máquina | carga | html | js | estilo | imágenes | maqueta | pintar | memoria |
-|---|---|---|---|---|---|---|---|---|---|
-| prueba.html (8,8 KB) | objetivo | 40 | 28 | 0 | 102 | 0 | 295 | 21 | 357 KB |
-| prueba.html | A1200 | 3770 | 1626 | 15 | 7363 | 17 | 9463 | 90 | 357 KB |
-| imagenes.html | objetivo | 4 | 3 | 0 | 33 | 6 | 157 | 26 | 173 KB |
-| imagenes.html | A1200 | 304 | 182 | 2 | 2501 | 316 | 769 | 94 | 173 KB |
-| js.html | objetivo | 5 | 3 | 29 | 34 | 0 | 157 | 16 | 333 KB |
-| js.html | A1200 | 380 | 155 | 1633 | 2589 | 9 | 793 | 51 | 333 KB |
+| Página | Máquina | carga | html | js | estilo | imágenes | maqueta | pintar |
+|---|---|---|---|---|---|---|---|---|
+| prueba.html (8,8 KB) | objetivo | 7 | 17 | 0 | 76 | 0 | 242 | 22 |
+| prueba.html | A1200 | 459 | 1091 | 15 | 5545 | 15 | 5829 | 92 |
+| imagenes.html | objetivo | 2 | 2 | 0 | 15 | 5 | 155 | 24 |
+| imagenes.html | A1200 | 53 | 113 | 1 | 1023 | 193 | 640 | 94 |
+| js.html | objetivo | 2 | 2 | 28 | 15 | 1 | 156 | 16 |
+| js.html | A1200 | 57 | 97 | 1635 | 1108 | 6 | 681 | 51 |
 
-Con las fuentes del Workbench (helvetica, times, courier). El visor ocupa 1 MB (casi todo QuickJS). En la
-configuración objetivo una página va en menos de medio segundo; en un A1200 estilo y maqueta son lentos (hay
-un coste fijo de unos 2,5 s en el estilo, por mirar).
+Memoria: 350 KB para prueba.html (con el motor JS, 330 KB para una página pequeña). El visor ocupa 1 MB y el
+navegador MUI 1,1 MB (casi todo QuickJS). En la configuración objetivo una página va en menos de medio segundo.
+En un A1200 el estilo y la maqueta son lo lento: `./dash --profile` (Dash D23) señala la cascada (`_estilo_nodo`,
+`_cumple_desde`: cada elemento prueba todos los selectores) y el corte en palabras (`_palabras`).
+
+Las primeras medidas del A1200 (tarea 17) eran el triple de lentas: el modo de pruebas de Dash (`--autoclose`)
+miraba el reloj en cada vuelta de cada `while` (arreglado en Dash, D34).
 
 ## Requisitos previstos
 

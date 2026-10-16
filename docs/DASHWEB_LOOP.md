@@ -130,7 +130,7 @@ tarea, con el estilo de Dash.
       elementos); `for x in` cualquier expresión de lista.
 - [x] D4b. **Listas que crecen.** Añadir, quitar, insertar (sin copiar la lista entera); lista vacía con tipo
       que ya sepa qué guarda.
-- [ ] D4c. **Campo de un elemento.** `l[0].x = 5` (hoy hay que pasar por una variable).
+- [x] D4c. **Campo de un elemento.** `l[0].x = 5`.
 - [x] D5. **Diccionario** texto → valor (con tipo), para cabeceras HTTP, propiedades CSS, entidades.
 - [x] D6. **Referencia débil** (campo que no cuenta, para `padre` en el DOM) o romper ciclos, con `--memcheck`.
 - [x] D7. **Ficheros a texto.** Leer un fichero entero a un `String` (y escribirlo); texto desde un buffer con
@@ -165,8 +165,9 @@ tarea, con el estilo de Dash.
       `DoMethod` (chocaba con las cabeceras de MUI).
 - [x] D29. **Programas en segundo plano en `emu_run`.** Para las pruebas de interfaz del navegador (tarea 19).
 - [x] D31. **Teclas como texto en la zona de dibujo de MUI.** `mui_canvas_char` (lo pidió la 21a).
+- [x] D34. **Modo de pruebas sin frenar los bucles.** `--autoclose` miraba el reloj en cada vuelta (lo encontró D23).
 - [x] D32. **Ventana activa en MUI.** `mui_window_active` (lo pidió la 22b).
-- [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
+- [x] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
 - [x] D22. **Textos largos sin copias.** (lo pidió la tarea 13)
@@ -258,10 +259,12 @@ tarea, con el estilo de Dash.
 - [x] 22a. **Marcadores y página de inicio.** Menú Proyecto: Página de inicio, Marcadores (una página con los
       enlaces), Añadir marcador, Usar como página de inicio.
 - [x] 22b. **Varias ventanas.** Cada una con su página, historial y carga (hoy el estado del navegador es global).
-- [ ] 22c. **Atajos de menú en el emulador.** Inyectar Amiga derecha + tecla con `input.device` en un programa MUI
+- [?] 22c. **Atajos de menú en el emulador.** PREGUNTA: ¿se prueba en hardware real (o en otro emulador) o se
+      deja? Intentado sin éxito: tecla con cualificador, secuencia completa y ratón (MUI 5 usa menús propios). Inyectar Amiga derecha + tecla con `input.device` en un programa MUI
       cuelga el sistema con 68040+JIT (también un programa MUI mínimo con un menú) y en el A1200 sin JIT el atajo
       no llega. Averiguar si es la inyección, MUI o FS-UAE; probar el menú con el ratón (botón derecho).
-- [ ] 20d. **Bucle de eventos: conectar.** (movida aquí el 2026-10-16: en el emulador conectar es instantáneo y
+- [?] 20d. **Bucle de eventos: conectar.** PREGUNTA: ¿merece la pena? Necesita una red lenta para probarse (no
+      se puede en FS-UAE en local); en PiStorm la negociación TLS es rápida. (movida aquí el 2026-10-16: en el emulador conectar es instantáneo y
       no hay cómo probarla; lo que aún bloquea es corto salvo la negociación TLS) DNS, `connect` y la negociación TLS sin bloquear (hoy
       `http_empezar` espera a que conecte). Si una pila TCP/IP real da `SIGIO`, usarlo con
       `mui_wait_event_signals` (FS-UAE no lo da).
@@ -923,4 +926,24 @@ Formato:
   `m MENÚ ELEMENTO` (menús de Intuition, para otros programas). Sin probar: Nueva ventana y Cerrar ventana desde
   el menú.
 - dashweb 25/25.
+
+### 2026-10-16 — D4c, D23 y D34 (Dash), y medidas corregidas
+- D4c (Dash, 4078996): `l[0].x = 5`, `caja.items[i].nombre = "z"` (regla `indexed_member_assign`). Test con
+  `--memcheck`. Mismo C en los programas previos.
+- D23 (Dash, 2c6f140): `./dash --profile`: cada función se apunta en una pila (variable con `cleanup`, también en
+  los `return`) y una interrupción VBlank mira 50 veces por segundo dónde está el programa; al salir, la tabla
+  (propio, total, llamadas). Runner de Dash: `# profile`, `# ignore-out:`. `tools/medir_visor.py --perfil`.
+- Lo que encontró el perfil: el 15 % del tiempo en `utf8_a_latin1` (una llamada de 3,6 s para 9 KB). Buscando la
+  causa (no era la caché de longitudes: un intento, D33, no mejoró nada y se deshizo; ni la red de FS-UAE): el modo
+  de pruebas (`DASH_TEST_AUTOCLOSE`, que usan `emu_run --autoclose` y `medir_visor`) llamaba a `DateStamp` en cada
+  vuelta de cada `while`. D34 (Dash, 748748a): una vez cada 1024 vueltas; runner `# autoclose: N`, test.
+- Medidas buenas (A1200, prueba.html): carga 459 ms (antes 3770), html 1091 (1626), estilo 5545 (7363), maqueta
+  5829 (9463). El README tiene la tabla nueva. Perfil real del A1200: `_estilo_nodo` 16 % propio y 40 % total,
+  `_palabras` 14 %, `_cumple_desde` 12 % (11.262 llamadas para 271 elementos: cada uno prueba todos los
+  selectores), `estilo_px` 6 %. Mejora apuntada para después: agrupar las reglas por el último selector
+  (etiqueta, id, clase) como los navegadores.
+- La sesión de MUI paró la fusión a `main` por un fallo de `test_mui_canvas_char` (D31): el programa salía sin
+  esperar a su proceso que teclea y en 3.2 se colgaban las pruebas MUI siguientes. Arreglo suyo commiteado en la
+  rama `dashweb-fusion` (9ee00c3, sobre e952095), probado en un worktree aparte; `main` avanzará hasta ahí.
+- Pendientes con pregunta: 20d y 22c (`[?]`).
 
