@@ -317,14 +317,18 @@ tarea, con el estilo de Dash.
       memoria ni tiempo, sin WebP/SVG y distintos en cada sistema. Decodificar en C (third_party: stb_image para
       JPEG/PNG/GIF/BMP, libwebp para WebP) al tamaño en que se va a ver (JPEG a 1/2, 1/4, 1/8 al decodificar), sin
       esperar y con límites; datatypes solo para lo demás.
-- [ ] 29b. **SVG.** Logos e iconos en SVG (muchas webs): un subconjunto (path, rect, circle, fill/stroke) dibujado
+- [x] 29b. **SVG.** Logos e iconos en SVG (muchas webs): un subconjunto (path, rect, circle, fill/stroke) dibujado
       con gfx_ o rasterizado a RGB (nanosvg, zlib) al tamaño en que se ve.
 - [ ] 29c. **Decodificar sin parar la interfaz.** Hoy una imagen se decodifica entera en imagenes_avanzar (la
       ventana no responde mientras): por trozos (TJpgDec por bloques, libwebp incremental) o en otra tarea.
-- [?] 30. **Vídeo (YouTube).** PREGUNTA al usuario: el reproductor de YouTube son megas de JS y H.264/VP9 por software no
-      es viable en un 68k (en PiStorm con Emu68, quizá 240p sin garantías). Lo realista: reconocer el vídeo y
-      reproducir una versión de baja resolución en un reproductor aparte, convertida (MPEG-1, CDXL...) por un servicio.
-      ¿Se quiere un servicio externo para eso?
+- [ ] 30a. **Vídeo: miniatura con enlace.** Decisión con el usuario (2026-10-16): un `<iframe>`/enlace de YouTube (y
+      de Vimeo) se ve como la miniatura del vídeo (img.youtube.com/vi/ID/hqdefault.jpg) con su título y un botón
+      de reproducir; al pulsarlo, abre la dirección del vídeo. El reproductor de YouTube (megas de JS, H.264/VP9)
+      no es viable en un 68k.
+- [?] 30b. **Vídeo: conversión en un servidor externo.** PREGUNTA al usuario: un programa en otro ordenador baja el
+      vídeo y lo convierte a algo que el Amiga reproduce (320x180, 15 imágenes/s, MPEG-1 o CDXL), y dashweb lo
+      pone en un reproductor aparte. Necesita un ordenador encendido (la Raspberry de la PiStorm está ocupada) y
+      va contra las condiciones de YouTube. ¿Se hace?
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -1282,3 +1286,14 @@ Formato:
   webp; quedan fuera avif y jxl.
 - Tests: test_imagen_dec con cuatro WebP (con pérdida, sin pérdida, alfa, 640x320 reducido a 300x150).
 - Partida: 29b (SVG) y 29c (decodificar sin parar la ventana).
+
+### 2026-10-16 — Tarea 29b (SVG)
+- nanosvg (memononen/nanosvg, licencia zlib; su AI_POLICY trata de contribuciones al proyecto, no de usarlo)
+  en third_party/nanosvg, en libimg.a con `nanosvg_impl.c`. `_imgdec_svg`: un texto que empieza por XML y
+  lleva `<svg` se dibuja a su tamaño (width/height o viewBox, sin pasar de 1280x1024) o, si se sabe a qué
+  tamaño se ve (imagenes_vista), a la escala más pequeña que lo cubre; RGBA con su transparencia.
+- Los SVG salían de 0x0 en el Amiga: libimg se compilaba sin FPU y nanosvg llamaba a las funciones de -lm del
+  programa (con FPU: el resultado en fp0, no en d0/d1). `tools/build_img.sh` compila ahora para 68020 con FPU
+  como dashweb (IMG_CPU="" para uno sin FPU). El test de decodificadores baja de 124 s a 95 s en el A1200.
+- Test: test_imagen_dec con un SVG (rectángulos, un círculo, una parte transparente) a su tamaño y al doble.
+- Tras pasar `dev` a esta versión hay que rehacer build/img-lib en ~/Projects/dashweb (`tools/build_img.sh`).

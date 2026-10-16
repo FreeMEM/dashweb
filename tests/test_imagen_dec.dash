@@ -1,7 +1,8 @@
 # Test: lib/imagen_dec.dash, los decodificadores propios (sin pantalla): JPEG normal con TJpgDec, JPEG
 # progresivo, PNG con alfa, GIF (siempre con alfa: puede tener transparencia) y BMP con stb_image; uno grande reducido al decodificar (2048x1024 a lo
 # que cabe en 600x300: TJpgDec a 1/2, 1024x512) y un fichero que no es imagen. WebP con libwebp: con pérdida,
-# sin pérdida, con alfa y uno más grande reducido al decodificar (640x320 a 300x150).
+# sin pérdida, con alfa y uno más grande reducido al decodificar (640x320 a 300x150). SVG con nanosvg: a su
+# tamaño (rojo, azul, un círculo verde en medio, transparente abajo a la derecha) y al doble.
 # emu-server: http.py 40852
 # memcheck
 # expect-out: base: 64x32 alfa=0 rojo azul
@@ -15,6 +16,9 @@
 # expect-out: webp sin pérdida: 64x32 alfa=0 rojo azul
 # expect-out: webp alfa: 20x10 alfa=1 0,255,0,255 / 0
 # expect-out: webp grande: 300x150
+# expect-out: svg: 64x32 alfa=1 rojo azul
+# expect-out: svg círculo: 0,255,0,255 esquina: 0
+# expect-out: svg doble: 128x64
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/imagen_dec.dash"
@@ -64,4 +68,8 @@ Main
     wa = traer("dec_alfa.webp")
     Print "webp alfa: " + imagen_probar(wa, 2000, 2000, 2, 2) + " / " + css_partir(imagen_probar(wa, 2000, 2000, 15, 2), 44)[3]
     Print "webp grande: " + css_partir(imagen_probar(traer("dec_grande.webp"), 300, 150, 0, 0), 32)[0]
+    sv = traer("dec.svg")
+    Print "svg: " + colores(sv)
+    Print "svg círculo: " + css_partir(imagen_probar(sv, 2000, 2000, 16, 16), 32)[2] + " esquina: " + css_partir(imagen_probar(sv, 2000, 2000, 60, 30), 44)[3]
+    Print "svg doble: " + css_partir(imagen_probar(sv, 128, 64, 0, 0), 32)[0]
 end

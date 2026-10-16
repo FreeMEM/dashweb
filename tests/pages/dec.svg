@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- rojo a la izquierda, azul a la derecha, un círculo verde y una esquina transparente -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32" viewBox="0 0 64 32">
+  <rect x="0" y="0" width="32" height="32" fill="#ff0000"/>
+  <rect x="32" y="0" width="32" height="24" fill="blue"/>
+  <circle cx="16" cy="16" r="6" fill="rgb(0,255,0)"/>
+</svg>
