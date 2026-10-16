@@ -150,6 +150,8 @@ tarea, con el estilo de Dash.
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
 - [x] D24. **Pila desde un módulo.** `@stack N` (lo pide la tarea 15: QuickJS necesita 256 KB).
+- [x] D25. **Salir con el stdio de libnix.** Dash dejaba `DOSBase` a NULL al salir y libnix lo usa después:
+      un programa con QuickJS (o `printf` en una `@native`) se colgaba al terminar. (Lo encontró la tarea 15.)
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -207,7 +209,7 @@ tarea, con el estilo de Dash.
 - [x] 14. **Imágenes.** (necesita D12) Hace falta un cuerpo HTTP en buffer (`http_get` da texto: los bytes 0
       pasan a espacios y una imagen se rompería). Datatypes (PNG, GIF, JPEG) a bitmap y dibujarlas en la página; `width`/`height`
       del HTML; imágenes que llegan por HTTP.
-- [ ] 15. **QuickJS enlazable.** (necesita D10) Compilar QuickJS como objetos que se enlazan con un programa Dash
+- [x] 15. **QuickJS enlazable.** (necesita D10) Compilar QuickJS como objetos que se enlazan con un programa Dash
       (`tools/build_qjs.sh` con modo librería), fdlibm para que `Math.*` sea exacto (ver
       `docs/quickjs_amiga.md`), y un módulo `lib/js.dash` con `@native`: crear el motor, evaluar, errores,
       `console.log`. Test.
@@ -651,4 +653,25 @@ Formato:
   sigue mandando. Test `test_stack_directive` (módulo con 40000 sobre el programa con 20000; la pila de la tarea
   se mide con `FindTask`) en A1200, A500 y 3.2, y en modo multifichero. 178/178 sin emulador, ejemplos 34/34. Mismo
   C en los programas previos, así que la batería completa en emulador no cambia (no se repitió).
+
+### 2026-10-16 — Tarea 15 (QuickJS enlazable), D10b y D25
+- `third_party/fdlibm`: la fdlibm 5.3 de Sun (de GNU Classpath, en las fuentes de GCC del toolchain; licencia
+  de Sun en cada fichero), sin `mprec.h`. `tools/build_qjs.sh lib` deja `build/qjs-lib/libqjs.a` (QuickJS,
+  fdlibm y fp-bit) con `quickjs.h` al lado; `tests/run.py` lo construye si falta o está viejo.
+- `lib/js.dash`: `js_nuevo()`, `js_evaluar(js, código, nombre)` (resultado como texto; "" con excepción),
+  `js_error(js)` (mensaje y pila), `js_liberar(js)`; `console.log/info/warn/error` a la salida; Latin-1 <->
+  UTF-8 al entrar y al salir. `@link` de la librería, `@header` de `quickjs.h`, `@stack 262144` y el C de
+  apoyo en un `@c`.
+- D10b (Dash): el C de `@native` y `@c` que nombra funciones del runtime (`_dash_str_dup`) trae su runtime.
+  En `test_c_link`.
+- D25 (Dash): al terminar, Dash cerraba `dos.library` y dejaba `DOSBase` a NULL; `DOSBase` es de libnix y su
+  stdio lo usa al salir (QuickJS usa stdio): el programa se colgaba al acabar. Ahora cierra su apertura y deja
+  el puntero. Test `test_libnix_stdio` (se colgaba antes del arreglo). Cambia el C de todos los programas
+  (una línea de la limpieza). Dash (commit aparte): 179/179 sin emulador, 454/454 en A1200, A500 y 3.2,
+  273/273 con `--memcheck`, ejemplos 34/34.
+- Test `test_js`: resultado, `console.log`, acentos de ida y vuelta, excepción con pila, `Math` (los dígitos
+  de fdlibm en un PC: `exp(1)` = 2.7182818284590455; V8 da ...045), JSON, estado entre evaluaciones;
+  también con `--memcheck`.
+- Medidas: ejecutable mínimo 889 KB. A1200: crear el motor 429 ms, `fib(20)` 5,95 s (el lanzador de pruebas
+  daba 4,3 s: pendiente), liberar 131 ms. Objetivo: 7, 59 y 2 ms.
 

@@ -1,0 +1,174 @@
+# JavaScript con QuickJS (third_party/quickjs, como librería: tools/build_qjs.sh lib).
+#
+#   js = js_nuevo()                              # 0 si no hay memoria
+#   r = js_evaluar(js, "1 + 2", "prueba.js")     # el resultado como texto ("3")
+#   if js_error(js) != ""                        # la excepción de la última evaluación, o ""
+#       Print js_error(js)
+#   end
+#   js_liberar(js)
+#
+# console.log (y error, warn, info) escribe en la salida del programa. Los textos de Dash son
+# Latin-1 y los de QuickJS UTF-8: se convierten al entrar y al salir ("?" lo que no cabe).
+# QuickJS pide mucha pila: el programa que importa este módulo arranca con 256 KB.
+
+@link "../build/qjs-lib/libqjs.a"
+@header "#include <quickjs.h>"
+@stack 262144
+
+@c
+"""
+/* lib/js.dash: a QuickJS runtime and context, and the last exception as Latin-1 */
+typedef struct {
+    JSRuntime *rt;
+    JSContext *ctx;
+    char *error;
+} _JsMotor;
+
+/* Latin-1 -> UTF-8 (malloc; free it) */
+static char *_js_utf8(const char *s) {
+    const unsigned char *p;
+    char *r, *q;
+    size_t n = 0;
+    for (p = (const unsigned char *)s; *p; p++) n += *p < 0x80 ? 1 : 2;
+    r = q = (char *)malloc(n + 1);
+    if (!r) return NULL;
+    for (p = (const unsigned char *)s; *p; p++) {
+        if (*p < 0x80) *q++ = (char)*p;
+        else { *q++ = (char)(0xC0 | (*p >> 6)); *q++ = (char)(0x80 | (*p & 0x3F)); }
+    }
+    *q = 0;
+    return r;
+}
+
+/* UTF-8 -> Latin-1 in place (it only gets shorter); what does not fit is "?" */
+static void _js_latin1(char *s) {
+    unsigned char *p = (unsigned char *)s, *q = (unsigned char *)s;
+    while (*p) {
+        unsigned long c = *p++;
+        int more = c >= 0xF0 ? 3 : c >= 0xE0 ? 2 : c >= 0xC0 ? 1 : 0;
+        if (c >= 0x80 && c < 0xC0) { *q++ = '?'; continue; }
+        if (more) c &= 0x3F >> more;
+        while (more-- > 0 && (*p & 0xC0) == 0x80) c = (c << 6) | (*p++ & 0x3F);
+        *q++ = c < 0x100 ? (unsigned char)c : '?';
+    }
+    *q = 0;
+}
+
+/* A JS value as a Latin-1 C string (malloc; free it) */
+static char *_js_texto(JSContext *ctx, JSValueConst v) {
+    const char *s = JS_ToCString(ctx, v);
+    char *r;
+    if (!s) return NULL;
+    r = (char *)malloc(strlen(s) + 1);
+    if (r) { strcpy(r, s); _js_latin1(r); }
+    JS_FreeCString(ctx, s);
+    return r;
+}
+
+static JSValue _js_console_log(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    int i;
+    for (i = 0; i < argc; i++) {
+        char *s = _js_texto(ctx, argv[i]);
+        if (i) PutStr((CONST_STRPTR)" ");
+        PutStr((CONST_STRPTR)(s ? s : "?"));
+        free(s);
+    }
+    PutStr((CONST_STRPTR)"\n");
+    return JS_UNDEFINED;
+}
+
+/* The pending exception as text: "Error: message" and its stack, if it has one */
+static char *_js_excepcion(JSContext *ctx) {
+    JSValue ex = JS_GetException(ctx), pila;
+    char *texto = _js_texto(ctx, ex), *lugar = NULL, *r;
+    if (JS_IsError(ctx, ex)) {
+        pila = JS_GetPropertyStr(ctx, ex, "stack");
+        if (!JS_IsUndefined(pila)) lugar = _js_texto(ctx, pila);
+        JS_FreeValue(ctx, pila);
+    }
+    JS_FreeValue(ctx, ex);
+    if (!lugar || !*lugar) { free(lugar); return texto; }
+    r = (char *)malloc((texto ? strlen(texto) : 0) + strlen(lugar) + 2);
+    if (r) sprintf(r, "%s\n%s", texto ? texto : "", lugar);
+    free(texto);
+    free(lugar);
+    while (r && *r && r[strlen(r) - 1] == '\n') r[strlen(r) - 1] = 0;
+    return r;
+}
+"""
+end
+
+# Un motor nuevo con su contexto y console; 0 si no hay memoria
+@native func js_nuevo() -> Int
+"""
+    _JsMotor *m = (_JsMotor *)calloc(1, sizeof(_JsMotor));
+    JSValue global, console;
+    if (!m) return 0;
+    m->rt = JS_NewRuntime();
+    if (m->rt) {
+        JS_SetMaxStackSize(m->rt, 192 * 1024);     /* of the 256 KB of @stack */
+        m->ctx = JS_NewContext(m->rt);
+    }
+    if (!m->ctx) {
+        if (m->rt) JS_FreeRuntime(m->rt);
+        free(m);
+        return 0;
+    }
+    global = JS_GetGlobalObject(m->ctx);
+    console = JS_NewObject(m->ctx);
+    JS_SetPropertyStr(m->ctx, console, "log", JS_NewCFunction(m->ctx, _js_console_log, "log", 1));
+    JS_SetPropertyStr(m->ctx, console, "info", JS_NewCFunction(m->ctx, _js_console_log, "info", 1));
+    JS_SetPropertyStr(m->ctx, console, "warn", JS_NewCFunction(m->ctx, _js_console_log, "warn", 1));
+    JS_SetPropertyStr(m->ctx, console, "error", JS_NewCFunction(m->ctx, _js_console_log, "error", 1));
+    JS_SetPropertyStr(m->ctx, global, "console", console);
+    JS_FreeValue(m->ctx, global);
+    return (LONG)m;
+"""
+end
+
+# Ejecuta el código (Latin-1) como un script; el resultado como texto ("undefined" si no da
+# nada). Si salta una excepción, da "" y js_error la cuenta.
+@native func js_evaluar(js: Int, codigo: String, nombre: String) -> String
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    char *fuente, *texto;
+    JSValue v;
+    STRPTR r;
+    if (!m) return (STRPTR)"";
+    free(m->error);
+    m->error = NULL;
+    fuente = _js_utf8(codigo ? (const char *)codigo : "");
+    if (!fuente) { m->error = strdup("sin memoria"); return (STRPTR)""; }
+    v = JS_Eval(m->ctx, fuente, strlen(fuente), nombre ? (const char *)nombre : "<js>", JS_EVAL_TYPE_GLOBAL);
+    free(fuente);
+    if (JS_IsException(v)) {
+        m->error = _js_excepcion(m->ctx);
+        if (!m->error) m->error = strdup("error");
+        return (STRPTR)"";
+    }
+    texto = _js_texto(m->ctx, v);
+    JS_FreeValue(m->ctx, v);
+    r = _dash_str_dup((STRPTR)(texto ? texto : ""), TRUE);
+    free(texto);
+    return r;
+"""
+end
+
+# La excepción de la última evaluación (mensaje y pila), o ""
+@native func js_error(js: Int) -> String
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    return (STRPTR)(m && m->error ? m->error : "");
+"""
+end
+
+@native func js_liberar(js: Int)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    if (!m) return;
+    JS_FreeContext(m->ctx);
+    JS_FreeRuntime(m->rt);
+    free(m->error);
+    free(m);
+"""
+end

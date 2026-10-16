@@ -65,6 +65,20 @@ def compile_test(src: Path, memcheck: bool):
     return exe, None
 
 
+def build_qjs_lib() -> bool:
+    """build/qjs-lib/libqjs.a (lib/js.dash links it) when it is missing or older than its sources"""
+    lib = ROOT / "build" / "qjs-lib" / "libqjs.a"
+    sources = list((ROOT / "third_party").rglob("*.[ch]")) + [ROOT / "tools" / "build_qjs.sh"]
+    if lib.exists() and lib.stat().st_mtime >= max(f.stat().st_mtime for f in sources):
+        return True
+    print("building build/qjs-lib/libqjs.a (tools/build_qjs.sh lib)...", flush=True)
+    r = subprocess.run([str(ROOT / "tools" / "build_qjs.sh"), "lib"], capture_output=True, text=True,
+                       env=dict(os.environ, DASH=str(DASH)))
+    if r.returncode != 0:
+        print("tools/build_qjs.sh lib failed:\n" + r.stdout + r.stderr, file=sys.stderr)
+    return r.returncode == 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("filter", nargs="?")
@@ -84,6 +98,8 @@ def main():
     if args.filter:
         tests = [t for t in tests if args.filter in t.stem]
     BUILD.mkdir(parents=True, exist_ok=True)
+    if any("js.dash" in t.read_text() for t in tests) and not build_qjs_lib():
+        return 1
 
     results = {}          # name -> (ok, message)
     to_run = {}           # emu config -> [(src, exe, expected)]

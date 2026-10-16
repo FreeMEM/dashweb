@@ -57,8 +57,20 @@ Con modelos de A1200 con tarjeta Blizzard (en segundos): compilar jQuery 29,2 (0
 8,9 (040/40 y 060/50). El 040 y el 060 dan exactamente lo mismo: FS-UAE no simula bien su velocidad, así
 que para 040/060 hace falta medir en hardware real (o PiStorm).
 
+## Como librería (tarea 15)
+
+`tools/build_qjs.sh lib` deja `build/qjs-lib/libqjs.a` (QuickJS, fdlibm de `third_party/fdlibm` y el fp-bit
+de Dash) y `quickjs.h` al lado. `lib/js.dash` lo enlaza con `@link` y pide 256 KB de pila con `@stack`.
+`Math.*` da ya los dígitos de fdlibm en un PC (`Math.exp(1)` = 2.7182818284590455, como fdlibm; V8 da
+2.718281828459045). Ejecutable mínimo con el motor: 889 KB. Crear el motor: 429 ms en el A1200, 7 ms en el
+objetivo (68040 + JIT); `fib(20)`: 5,95 s y 59 ms.
+
+Al terminar un programa Dash que usaba QuickJS se colgaba: Dash dejaba `DOSBase` (la variable de libnix) a
+NULL y la limpieza de stdio de libnix la usaba después (arreglado en Dash, D25).
+
 ## Siguiente
 
 - Memoria del motor en los pools de exec (como Dash) en vez del `malloc` de libnix.
-- fdlibm para `Math.*` exacto.
+- Variante con FPU de `libqjs.a` para los programas compilados con `--fpu`.
+- `fib(20)` tarda más enlazado en Dash (5,95 s) que en el lanzador de pruebas (4,3 s): mirar por qué.
 - Por qué cada instrucción del intérprete cuesta ~125 ciclos en el 020 (valores de 64 bits, caché de 256 bytes).
