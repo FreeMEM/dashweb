@@ -25,6 +25,10 @@ struct Nodo
     hijos: [Nodo]
     weak padre: Nodo
     estilo: {String: String}
+    # ::before y ::after (lib/estilo.dash): nodos aparte (el JavaScript no los ve) con su estilo y lo que dice
+    # su content (un texto, o un nodo "::icono" con el código de un icono de Font Awesome); nil si no hay
+    pseudo_antes: Nodo = nil
+    pseudo_despues: Nodo = nil
     clases_cache: [String] = nil   # dom_clases y dom_id: el atributo class partido y el id, la primera vez que
     id_cache: String = nil         # se piden (dom_olvidar_atributos al cambiar un atributo)
 end

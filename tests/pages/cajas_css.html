@@ -1,0 +1,19 @@
+<html><head><style>
+*,:after,:before{box-sizing:border-box}
+.wrap{position:relative;text-align:center;width:400px}
+.nav{margin:0 80px 0 0}
+.menu-toggle{display:inline-block;width:30px;padding:20px 0;margin:5px auto 0 90px;font-size:0;border:0}
+.line-bar,.line-bar:before,.line-bar:after{background-color:#333;height:2px;width:30px;position:absolute;border-radius:5px}
+.line-bar{display:block;margin-top:-2px}
+.line-bar:before,.line-bar:after{content:"";display:block}
+.line-bar:before{top:-8px}
+.line-bar:after{bottom:-8px}
+.lupa{position:absolute;right:0;bottom:6px;width:36px;height:36px;margin:0 50px 0 0;border:none;background-color:transparent}
+.lupa:before{border:1px solid #333;border-radius:50%;content:"";display:inline-block;height:15px;width:15px}
+.lupa:after{background-color:#333;content:"";display:inline-block;height:10px;width:1px;transform:translateX(50%) translateY(50%) rotate(-45deg)}
+.punto{display:inline-block;width:20px;height:20px;border-radius:50%;background-color:#c00}
+</style></head><body>
+<div class="wrap"><nav class="nav"><button class="menu-toggle"><span class="line-bar"></span></button></nav>
+<button class="lupa"></button></div>
+<p style="text-align:right">fin <span class="punto"></span></p>
+</body></html>

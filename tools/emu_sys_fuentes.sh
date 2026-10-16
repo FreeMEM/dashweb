@@ -1,5 +1,6 @@
 #!/bin/sh
-# Copia un sistema emulado de Dash ($DASH_EMU_SYS...) y le añade las fuentes (Fonts/) de un
+# Copia un sistema emulado de Dash ($DASH_EMU_SYS...) y le añade las fuentes (Fonts/, y bullet.library
+# para las vectoriales) de un
 # disco duro de Workbench, para ver páginas con helvetica, times y courier en el emulador.
 #
 #   tools/emu_sys_fuentes.sh ~/.cache/dash-emu/sys31ssl ~/Amiberry/HardDrives/system3.1.hdf ~/.cache/dash-emu/sys31web
@@ -28,4 +29,6 @@ rm -rf "$3"
 cp -r "$1" "$3"
 rm -rf "$3/Fonts"
 "$XDF" "$tmp/disco.hdf" read Fonts "$3/Fonts" >/dev/null
+# bullet.library dibuja las fuentes vectoriales (CGTriumvirate, CGTimes...) a cualquier tamaño
+"$XDF" "$tmp/disco.hdf" read Libs/bullet.library "$3/Libs/bullet.library" >/dev/null
 ls "$3/Fonts"

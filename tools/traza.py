@@ -12,6 +12,14 @@ sys.path.insert(0, str(DASH / "tools"))
 from emu_run import run_programs
 
 pagina, ancho, niveles = sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "940", sys.argv[3] if len(sys.argv) > 3 else "6"
+servidor = None
+if not pagina.startswith("http") and Path(pagina).resolve().parent == ROOT / "tests" / "pages":
+    # una página de tests/pages: por la red de pruebas (tests/servers/http.py), que es mucho más rápido
+    # que copiarla al disco emulado como un programa más
+    import time
+    servidor = subprocess.Popen([sys.executable, str(ROOT / "tests" / "servers" / "http.py"), "40862"])
+    time.sleep(1)
+    pagina = "http://127.0.0.1:40862/pages/" + Path(pagina).name
 if len(sys.argv) > 5:            # y además los dibujos entre dos alturas
     niveles = niveles + " " + sys.argv[4] + " " + sys.argv[5]
 with tempfile.TemporaryDirectory(prefix="traza_") as tmp:
@@ -30,3 +38,5 @@ with tempfile.TemporaryDirectory(prefix="traza_") as tmp:
         out = run_programs([str(exe), pagina], timeout=600, kickstart=os.environ.get("DASH_KICKSTART"), extra_config=cfg,
                            system=os.path.expanduser("~/.cache/dash-emu/sys31muiweb"), args=["DH0:p1 " + ancho + " " + niveles, ""])[0]
     print(out.output)
+if servidor:
+    servidor.terminate()

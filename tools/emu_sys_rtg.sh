@@ -33,7 +33,7 @@ cp -r "$C/sys31muiweb/Fonts" "$D/"
 mkdir -p "$D/Libs/Picasso96" "$D/Devs/Monitors" "$D/Prefs/Env-Archive/Sys"
 for f in Libs/Picasso96API.library Libs/Picasso96/emulation.library Libs/Picasso96/fastlayers.library \
          Libs/Picasso96/rtg.library Libs/Picasso96/uaegfx.card Devs/Monitors/uaegfx Devs/Monitors/uaegfx.info \
-         C/IPrefs C/Copy C/SetPatch Libs/680x0.library Libs/68040.library Libs/mmu.library \
+         C/IPrefs C/Copy C/SetPatch Libs/680x0.library Libs/68040.library Libs/mmu.library Libs/bullet.library \
          Prefs/Env-Archive/Sys/ScreenMode.prefs; do
     "$XDF" "$tmp/p0.hdf" read "$f" "$D/$f" >/dev/null
 done

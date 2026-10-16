@@ -38,12 +38,45 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                 font_use(d.fuente)
                 font_style(d.estilo)
                 gfx_pen(_lapiz(d.color))
-                gfx_text_at(x, y + font_baseline(), d.texto)
+                if d.espaciado > 0 and d.texto.length > 0
+                    # letter-spacing: letra a letra
+                    lx = x
+                    for i in (0..d.texto.length - 1)
+                        letra = d.texto[i:i + 1]
+                        gfx_text_at(lx, y + font_baseline(), letra)
+                        lx = lx + font_text_width(letra) + d.espaciado
+                    end
+                else
+                    gfx_text_at(x, y + font_baseline(), d.texto)
+                end
             end
         elif d.tipo == D_RECT or d.tipo == D_LINEA
             _rect_recortado(x, y, d.ancho, d.alto, x0, y0, derecha, abajo, _lapiz(d.color))
         elif d.tipo == D_CONTROL
             _control_pintar(d, x, y, x0, y0, derecha, abajo)
+        elif d.tipo == D_ICONO
+            if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
+                _icono_pintar(d, x, y)
+            end
+        elif d.tipo == D_ELIPSE
+            if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
+                _elipse_pintar(d, x, y)
+            end
+        elif d.tipo == D_TRAZO
+            if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
+                gfx_pen(_lapiz(d.color))
+                g = d.fuente
+                if g < 1
+                    g = 1
+                end
+                for k in (0..g - 1)
+                    if d.estilo == 0
+                        gfx_line(x + k, y, x + d.ancho - 1 + k, y + d.alto - 1)
+                    else
+                        gfx_line(x + k, y + d.alto - 1, x + d.ancho - 1 + k, y)
+                    end
+                end
+            end
         elif d.tipo == D_FONDO and im != nil
             _fondo_pintar(im, d, x, y, x0, y0, derecha, abajo)
         elif d.tipo == D_IMAGEN
@@ -389,4 +422,158 @@ func _fondo_lugar(v: String, sobra: Int) -> Int
         return sobra * Int(v[:v.length - 1]) / 100
     end
     return estilo_px(v, 16, 0)
+end
+
+# === Iconos (Font Awesome) ===
+# Los más comunes, dibujados con rectángulos, líneas y círculos en un cuadrado del tamaño de la letra
+# (d.ancho) centrado en la línea; los demás, un cuadrado pequeño.
+
+func _icono_pintar(d: Dibujo, x: Int, y: Int)
+    s = d.ancho
+    if s < 6
+        s = 6
+    end
+    ix = x
+    iy = y + (d.alto - s) / 2
+    g = s / 8                     # grosor de los trazos
+    if g < 1
+        g = 1
+    end
+    gfx_pen(_lapiz(d.color))
+    c = str_lower(d.texto)
+    m = s / 2
+    if c == "f0c9" or c == "f550" or c == "f7a5"
+        # menú: tres barras
+        for k in (0..2)
+            yy = iy + s / 6 + k * (s / 3)
+            gfx_rect(ix + 1, yy, ix + s - 2, yy + g - 1)
+        end
+    elif c == "f002" or c == "f689"
+        # lupa: círculo y mango
+        r = s * 3 / 10
+        cx = ix + r + 1
+        cy = iy + r + 1
+        for k in (0..g - 1)
+            gfx_circle(cx, cy, r - k)
+        end
+        for k in (0..g)
+            gfx_line(cx + r * 7 / 10 + k, cy + r * 7 / 10, ix + s - 2 + k, iy + s - 2)
+        end
+    elif c == "f073" or c == "f133" or c == "f274" or c == "f783" or c == "f272" or c == "f271"
+        # calendario: marco, cabecera y dos anillas
+        _icono_marco(ix + 1, iy + s / 6, ix + s - 2, iy + s - 1, g)
+        gfx_rect(ix + 1, iy + s / 6, ix + s - 2, iy + s / 6 + s / 5)
+        gfx_rect(ix + s / 4, iy, ix + s / 4 + g, iy + s / 4)
+        gfx_rect(ix + s * 3 / 4 - g, iy, ix + s * 3 / 4, iy + s / 4)
+    elif c == "f075" or c == "f27a" or c == "f086" or c == "f4ad" or c == "f0e5" or c == "f4a6"
+        # comentario: bocadillo
+        _icono_marco(ix + 1, iy + 1, ix + s - 2, iy + s * 2 / 3, g)
+        for k in (0..g)
+            gfx_line(ix + s / 4 + k, iy + s * 2 / 3, ix + s / 5 + k, iy + s - 1)
+        end
+    elif c == "f106" or c == "f077" or c == "f062" or c == "f0d8"
+        _icono_flecha(ix, iy, s, g, 0)
+    elif c == "f107" or c == "f078" or c == "f063" or c == "f0d7"
+        _icono_flecha(ix, iy, s, g, 1)
+    elif c == "f104" or c == "f053" or c == "f060" or c == "f0d9"
+        _icono_flecha(ix, iy, s, g, 2)
+    elif c == "f105" or c == "f054" or c == "f061" or c == "f0da"
+        _icono_flecha(ix, iy, s, g, 3)
+    elif c == "f007" or c == "f2bd" or c == "f406"
+        # usuario: cabeza y hombros
+        gfx_circle_fill(ix + m, iy + s / 4 + 1, s / 4)
+        gfx_ellipse_fill(ix + m, iy + s - 1, s * 2 / 5, s / 3)
+    elif c == "f017" or c == "f1da"
+        # reloj
+        for k in (0..g - 1)
+            gfx_circle(ix + m, iy + m, m - 1 - k)
+        end
+        gfx_rect(ix + m, iy + m / 2, ix + m + g - 1, iy + m)
+        gfx_rect(ix + m, iy + m, ix + m + m / 2, iy + m + g - 1)
+    elif c == "f02b" or c == "f02c"
+        # etiqueta
+        gfx_poly_begin(ix + 1, iy + 1)
+        gfx_poly_add(ix + s / 2, iy + 1)
+        gfx_poly_add(ix + s - 1, iy + s / 2)
+        gfx_poly_add(ix + s / 2, iy + s - 1)
+        gfx_poly_add(ix + 1, iy + s / 2)
+        gfx_poly_end()
+    elif c == "f07b" or c == "f07c"
+        # carpeta
+        gfx_rect(ix + 1, iy + s / 4, ix + s / 2, iy + s / 3)
+        gfx_rect(ix + 1, iy + s / 3, ix + s - 2, iy + s - 2)
+    elif c == "f0e0" or c == "f003"
+        # sobre
+        _icono_marco(ix + 1, iy + s / 5, ix + s - 2, iy + s * 4 / 5, g)
+        gfx_line(ix + 1, iy + s / 5, ix + m, iy + m)
+        gfx_line(ix + m, iy + m, ix + s - 2, iy + s / 5)
+    elif c == "f015"
+        # casa
+        gfx_poly_begin(ix + m, iy + 1)
+        gfx_poly_add(ix + s - 1, iy + m)
+        gfx_poly_add(ix + 1, iy + m)
+        gfx_poly_end()
+        gfx_rect(ix + s / 5, iy + m, ix + s - s / 5, iy + s - 1)
+    elif c == "f00d"
+        # aspa
+        for k in (0..g)
+            gfx_line(ix + 2 + k, iy + 2, ix + s - 3 + k, iy + s - 3)
+            gfx_line(ix + s - 3 + k, iy + 2, ix + 2 + k, iy + s - 3)
+        end
+    elif c == "f00c"
+        # marca
+        for k in (0..g)
+            gfx_line(ix + 2, iy + m + k, ix + s / 3, iy + s - 3 + k)
+            gfx_line(ix + s / 3, iy + s - 3 + k, ix + s - 2, iy + 3 + k)
+        end
+    else
+        _icono_marco(ix + s / 4, iy + s / 4, ix + s * 3 / 4, iy + s * 3 / 4, 1)
+    end
+end
+
+func _icono_marco(x1: Int, y1: Int, x2: Int, y2: Int, g: Int)
+    gfx_rect(x1, y1, x2, y1 + g - 1)
+    gfx_rect(x1, y2 - g + 1, x2, y2)
+    gfx_rect(x1, y1, x1 + g - 1, y2)
+    gfx_rect(x2 - g + 1, y1, x2, y2)
+end
+
+# Un ángulo: 0 arriba, 1 abajo, 2 izquierda, 3 derecha
+func _icono_flecha(ix: Int, iy: Int, s: Int, g: Int, hacia: Int)
+    a = s / 4
+    b = s - s / 4
+    m = s / 2
+    for k in (0..g)
+        if hacia == 0
+            gfx_line(ix + a, iy + m + a / 2 + k, ix + m, iy + a + k)
+            gfx_line(ix + m, iy + a + k, ix + b, iy + m + a / 2 + k)
+        elif hacia == 1
+            gfx_line(ix + a, iy + a + k, ix + m, iy + m + a / 2 + k)
+            gfx_line(ix + m, iy + m + a / 2 + k, ix + b, iy + a + k)
+        elif hacia == 2
+            gfx_line(ix + m + a / 2 + k, iy + a, ix + a + k, iy + m)
+            gfx_line(ix + a + k, iy + m, ix + m + a / 2 + k, iy + b)
+        else
+            gfx_line(ix + a + k, iy + a, ix + m + a / 2 + k, iy + m)
+            gfx_line(ix + m + a / 2 + k, iy + m, ix + a + k, iy + b)
+        end
+    end
+end
+
+# Una caja redonda: rellena (estilo 0) o su borde de estilo píxeles
+func _elipse_pintar(d: Dibujo, x: Int, y: Int)
+    gfx_pen(_lapiz(d.color))
+    rx = (d.ancho - 1) / 2
+    ry = (d.alto - 1) / 2
+    cx = x + rx
+    cy = y + ry
+    if d.estilo == 0
+        gfx_ellipse_fill(cx, cy, rx, ry)
+        return
+    end
+    for k in (0..d.estilo - 1)
+        if rx - k > 0 and ry - k > 0
+            gfx_ellipse(cx, cy, rx - k, ry - k)
+        end
+    end
 end

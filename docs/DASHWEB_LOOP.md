@@ -307,8 +307,8 @@ tarea, con el estilo de Dash.
 - [x] 28b. **float.** left/right y clear en la maqueta (la fecha, el logotipo, las cinco entradas destacadas).
 - [x] 28c. **Imágenes de fondo y position.** background-image (cover, center, no-repeat) en bloques;
       position relative/absolute (el título encima de la imagen), top/left/bottom.
-- [ ] 28d. **Tipografía.** text-transform, letter-spacing, fuentes web (Lato...) a las del Amiga, tamaños.
-- [ ] 28e. **Iconos.** Los de Font Awesome más comunes (menú, lupa, calendario, comentario) dibujados.
+- [x] 28d. **Tipografía.** text-transform, letter-spacing, fuentes web (Lato...) a las del Amiga, tamaños.
+- [x] 28e. **Iconos.** Los de Font Awesome más comunes (menú, lupa, calendario, comentario) dibujados.
 - [ ] 29. **Imágenes con decodificadores propios.** Pregunta del usuario (2026-10-16): ¿son óptimos los datatypes? No:
       decodifican a tamaño completo (una foto de freemem.space no acabó en 5 min en la máquina RTG), sin límites de
       memoria ni tiempo, sin WebP/SVG y distintos en cada sistema. Decodificar en C (third_party: stb_image para
@@ -1188,3 +1188,32 @@ Formato:
   de temporales, retain/release en los for.
 - sys32rtg: `C:SetPatch` con `680x0.library`, `68040.library` y `mmu.library` (la de 3.2 es de MMULib): pone
   AFF_68881 y los programas de `./dash --fpu` arrancan (libnix comprueba ese bit).
+
+### 2026-10-16 — Decisión del usuario: el motor, en Dash
+- Pregunta del usuario: ¿no hay un motor de CSS/HTML ya hecho? Sí: NetSurf (libcss, libdom y hubbub, MIT, ya
+  en 68k; su maqueta es GPL) y litehtml (C++, BSD). Respuesta del usuario: "vamos a seguir haciéndolo todo en
+  Dash". Se miran esos motores para ver cómo resuelven cada cosa, sin usarlos.
+
+### 2026-10-16 — Tareas 28d (tipografía) y 28e (iconos y cajas de CSS)
+- Tipografía: los tamaños sin fuente de mapa de bits salen de una vectorial (CGTriumvirate, con
+  bullet.library en los sistemas de pruebas; `_tamano_de_mapa`); text-transform; letter-spacing (el pintor
+  pone las letras una a una). Imágenes: el ancho y alto del `<img>` limitan lo que se decodifica.
+- Estilo: propiedades `--x` heredadas y `var()` (con valor por defecto y calc sencillo); ::before y ::after
+  como nodos virtuales (`Nodo.pseudo_antes/pseudo_despues`; índice aparte de sus selectores) con su texto o
+  un icono de Font Awesome (códigos del área privada: nodo `::icono`).
+- Maqueta y pintor: `D_ICONO` (menú, lupa, calendario, comentario, flechas, usuario, reloj, etiqueta,
+  carpeta, sobre, casa, aspa y marca, dibujados con líneas y rectángulos; los demás, un cuadrado pequeño).
+  inline-block en la línea como una pieza que no se corta, alineada por su último texto (así "1 COMENTARIO"
+  no se parte); con width o bloques dentro sigue flotando a la izquierda salvo con el texto centrado o a la
+  derecha (el menú de freemem.space, centrado como en Chrome). Un `<button>` con elementos dentro o sin texto
+  se maqueta como una caja más (lo dibuja su CSS). border-radius ≥ 50 % en una caja casi cuadrada: `D_ELIPSE`
+  (rellena o con borde); transform translate (px o %) y rotate de 45 grados en una barra: `D_TRAZO` (la lupa
+  del tema, hecha con ::before y ::after). Un absoluto sin top ni left queda donde estaría (tras el relleno).
+- Fallo de gcc encontrado: la pasada `s` de -fbbb (bebbo) da código erróneo (un absoluto con right: 0 salía
+  con ancho 1; desaparece al añadir un Print). Encargado a la otra sesión quitarla de `compiler/cflags.py`
+  (tarea 3); mientras, DASH_CFLAGS="-fbbb=abcfhilmnpz0".
+- `tools/traza.py` con una página de tests/pages la sirve por `tests/servers/http.py` (6 s en vez de 10 min).
+- Test nuevo `test_maqueta_css` (memcheck). Comparación con Chrome enviada al usuario (comparar6): menú,
+  lupa, iconos y metadatos como en Chrome.
+- Encargos a la otra sesión: tarea 2 (Dash comprueba el tipo de return; str_contains y str_split: hechos en la
+  rama `tipos`), 1b (recorrer las claves de un diccionario sin copiarlas) y 3 (-fbbb sin s).

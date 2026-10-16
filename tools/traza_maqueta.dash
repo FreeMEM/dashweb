@@ -45,7 +45,14 @@ Main
             hasta = Int(arg(4))
             for dd in d.pagina.dibujos
                 if dd.y + dd.alto > desde and dd.y < hasta
-                    Print "dibujo " + dd.tipo + " [" + dd.x + "," + dd.y + " " + dd.ancho + "x" + dd.alto + "] " + dd.color + " " + dd.texto[:60]
+                    quien = ""
+                    if dd.nodo != nil
+                        quien = dd.nodo.nombre + "." + dom_atributo(dd.nodo, "class")
+                        if dd.nodo.padre != nil
+                            quien = dd.nodo.padre.nombre + "." + dom_atributo(dd.nodo.padre, "class") + " > " + quien
+                        end
+                    end
+                    Print "dibujo " + dd.tipo + " [" + dd.x + "," + dd.y + " " + dd.ancho + "x" + dd.alto + "] " + dd.color + " " + dd.texto[:60] + " <" + quien + ">"
                 end
             end
         end

@@ -46,6 +46,26 @@ func _antepasados_cambiar(n: Nodo, cuanto: Int)
     end
 end
 
+# "before" o "after" si el selector acaba en ese pseudo-elemento y lo demás puede cumplirse; "" si no
+func _pseudo_elemento_de(sel: Selector) -> String
+    ultima = sel.partes[sel.partes.length - 1].simple
+    pe = ultima.pseudo_elemento
+    if pe != "before" and pe != "after"
+        return ""
+    end
+    for parte in sel.partes
+        if parte.simple.pseudo_elemento != "" and parte.simple != ultima
+            return ""
+        end
+        for p in parte.simple.pseudo
+            if not css_pseudo_conocida(p)
+                return ""
+            end
+        end
+    end
+    return pe
+end
+
 # Las claves que el selector pide a los antecesores (solo por la cadena de descendiente/hijo desde el sujeto)
 func _requisitos(sel: Selector) -> [String]
     var r: [String] = []
@@ -76,6 +96,8 @@ struct Hojas
     indice: {String: [Entrada]} = nil
     universales: [Entrada] = nil
     indice_ancho: Int = -1             # el ancho de la página con que se hizo (por los @media)
+    # los de ::before y ::after, con la clave "before .clase", "after a"... ("before " los universales)
+    indice_pe: {String: [Entrada]} = nil
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -392,8 +414,11 @@ func _nth(expr: String, puesto: Int) -> Bool
     return d / a >= 0 and d % a == 0
 end
 
+# Mientras se buscan las reglas de un ::before o ::after: su parte final se compara sin el pseudo-elemento
+var _con_pseudo_elemento: Bool = false
+
 func _cumple_simple(n: Nodo, s: SelSimple) -> Bool
-    if n.tipo != DOM_ELEMENTO or s.pseudo_elemento != ""
+    if n.tipo != DOM_ELEMENTO or (s.pseudo_elemento != "" and not _con_pseudo_elemento)
         return false
     end
     if s.etiqueta != "" and s.etiqueta != n.nombre
@@ -493,13 +518,25 @@ end
 func _estilo_indexar(h: Hojas)
     var indice: {String: [Entrada]} = {}
     var universales: [Entrada] = []
+    var indice_pe: {String: [Entrada]} = {}
     for k in (0..h.lista.length - 1)
         for regla in h.lista[k].reglas
             if not css_regla_vale(regla)
                 continue
             end
             for sel in regla.selectores
-                if estilo_puede_cumplirse(sel)
+                pe = _pseudo_elemento_de(sel)
+                if pe != ""
+                    e = Entrada(sel, regla, h.autor[k])
+                    e.antes = _requisitos(sel)
+                    clave = pe + " " + _clave(sel.partes[sel.partes.length - 1].simple)
+                    if indice_pe.has(clave)
+                        indice_pe[clave].push(e)
+                    else
+                        var lista_pe: [Entrada] = [e]
+                        indice_pe[clave] = lista_pe
+                    end
+                elif estilo_puede_cumplirse(sel)
                     e = Entrada(sel, regla, h.autor[k])
                     e.antes = _requisitos(sel)
                     clave = _clave(sel.partes[sel.partes.length - 1].simple)
@@ -517,6 +554,7 @@ func _estilo_indexar(h: Hojas)
     end
     h.indice = indice
     h.universales = universales
+    h.indice_pe = indice_pe
     h.indice_ancho = css_vista_ancho()
 end
 
@@ -747,7 +785,7 @@ end
 
 # Propiedades que se heredan si el elemento no dice nada
 func _se_hereda(p: String) -> Bool
-    return p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform"
+    return str_starts(p, "--") or p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform"
 end
 
 # Calcula el estilo de todo el árbol
@@ -788,14 +826,29 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
             _declarar(ganadoras, d, true, 1000000, 1000000)
         end
     end
-    # lo heredado, y encima lo propio
+    e = _calcular(ganadoras, padre, "inline")
+    if _oculto_a_la_vista(e)
+        e["display"] = "none"
+    end
+    n.estilo = e
+    n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, "before"), "::before")
+    n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, "after"), "::after")
+    _antepasados_cambiar(n, 1)
+    for h in n.hijos
+        _estilo_nodo(h, hojas, e)
+    end
+    _antepasados_cambiar(n, -1)
+end
+
+# Lo heredado del padre y encima lo propio; var() resuelto; font-size en px
+func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, display: String) -> {String: String}
     var e: {String: String} = {}
     for p in padre.keys()
         if _se_hereda(p)
             e[p] = padre[p]
         end
     end
-    e["display"] = "inline"
+    e["display"] = display
     for p in ganadoras.keys()
         v = ganadoras[p].valor
         if str_lower(v) == "inherit"
@@ -806,18 +859,213 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String})
             e[p] = v
         end
     end
+    for p in e.keys()
+        if str_find(e[p], "var(") >= 0
+            e[p] = _resolver_var(e[p], e, 0)
+        end
+    end
     if ganadoras.has("font-size")
-        e["font-size"] = "" + estilo_tamano(ganadoras["font-size"].valor, estilo_px(padre["font-size"], 0, 0)) + "px"
+        e["font-size"] = "" + estilo_tamano(_resolver_var(ganadoras["font-size"].valor, e, 0), estilo_px(padre["font-size"], 0, 0)) + "px"
     end
-    if _oculto_a_la_vista(e)
-        e["display"] = "none"
+    return e
+end
+
+# var(--nombre, respaldo): el valor de la propiedad personalizada, o el respaldo (también anidado)
+func _resolver_var(v: String, e: {String: String}, nivel: Int) -> String
+    p = str_find(v, "var(")
+    if p < 0 or nivel > 8
+        return v
     end
-    n.estilo = e
-    _antepasados_cambiar(n, 1)
-    for h in n.hijos
-        _estilo_nodo(h, hojas, e)
+    # el paréntesis que cierra este var(
+    hondo = 0
+    i = p + 4
+    fin = -1
+    coma = -1
+    while i < v.length and fin < 0
+        c = str_code(v, i)
+        if c == 40
+            hondo = hondo + 1
+        elif c == 41
+            if hondo == 0
+                fin = i
+            else
+                hondo = hondo - 1
+            end
+        elif c == 44 and hondo == 0 and coma < 0
+            coma = i
+        end
+        i = i + 1
     end
-    _antepasados_cambiar(n, -1)
+    if fin < 0
+        return v
+    end
+    nombre = ""
+    respaldo = ""
+    if coma > 0
+        nombre = str_trim(v[p + 4:coma])
+        respaldo = str_trim(v[coma + 1:fin])
+    else
+        nombre = str_trim(v[p + 4:fin])
+    end
+    valor = respaldo
+    if e.has(nombre)
+        valor = e[nombre]
+    end
+    return _resolver_var(v[:p] + valor + v[fin + 1:], e, nivel + 1)
+end
+
+# El estilo de n::before o n::after si alguna regla le da un content que se pinta; nil si no
+func _estilo_pseudo(n: Nodo, hojas: Hojas, e: {String: String}, cual: String) -> {String: String}
+    var nada: {String: String} = nil
+    if hojas.indice_pe == nil or hojas.indice_pe.length == 0
+        return nada
+    end
+    var ganadoras: {String: Candidata} = {}
+    _con_pseudo_elemento = true
+    if hojas.indice_pe.has(cual + " ")
+        _probar(n, hojas.indice_pe[cual + " "], ganadoras)
+    end
+    if hojas.indice_pe.has(cual + " " + n.nombre)
+        _probar(n, hojas.indice_pe[cual + " " + n.nombre], ganadoras)
+    end
+    if dom_id(n) != "" and hojas.indice_pe.has(cual + " #" + dom_id(n))
+        _probar(n, hojas.indice_pe[cual + " #" + dom_id(n)], ganadoras)
+    end
+    for c in dom_clases(n)
+        if hojas.indice_pe.has(cual + " ." + c)
+            _probar(n, hojas.indice_pe[cual + " ." + c], ganadoras)
+        end
+    end
+    _con_pseudo_elemento = false
+    if not ganadoras.has("content")
+        return nada
+    end
+    pe = _calcular(ganadoras, e, "inline")
+    c = str_trim(pe["content"])
+    if c == "none" or c == "normal" or pe["display"] == "none"
+        return nada
+    end
+    # un content vacío solo cuenta si es una caja que se ve (los iconos dibujados con CSS)
+    if (c == "\"\"" or c == "''") and not (pe.has("width") or pe.has("height") or pe.has("background-color") or pe.has("border-top-style"))
+        return nada
+    end
+    return pe
+end
+
+# El nodo de un ::before o ::after con ese estilo (nil si no hay): sus hijos, lo que dice el content
+func _pseudo_nodo(n: Nodo, pe: {String: String}, nombre: String) -> Nodo
+    var nada: Nodo = nil
+    if pe == nil
+        return nada
+    end
+    p = dom_nodo(DOM_ELEMENTO, nombre, "")
+    p.estilo = pe
+    p.padre = n
+    familia = ""
+    if pe.has("font-family")
+        familia = str_lower(pe["font-family"])
+    end
+    for trozo in _contenido_trozos(n, pe["content"])
+        if trozo.length > 0 and str_code(trozo, 0) == 1
+            # un icono: "\x01" y el código en hexadecimal
+            i = dom_nodo(DOM_ELEMENTO, "::icono", "")
+            i.estilo = pe
+            i.atributos.push(Atributo("codigo", trozo[1:]))
+            dom_agregar(p, i)
+        elif trozo != ""
+            dom_agregar(p, dom_nodo(DOM_TEXTO, "", trozo))
+        end
+    end
+    return p
+end
+
+# Los trozos de un content: textos entre comillas (con \hex), attr(nombre); los caracteres de la zona
+# privada de Unicode (Font Awesome y otras fuentes de iconos) van como "\x01" + código hexadecimal
+func _contenido_trozos(n: Nodo, c: String) -> [String]
+    var r: [String] = []
+    i = 0
+    k = c.length
+    while i < k
+        ch = str_code(c, i)
+        if ch == 34 or ch == 39
+            fin_comilla = ch
+            i = i + 1
+            texto = ""
+            while i < k and str_code(c, i) != fin_comilla
+                if str_code(c, i) == 92 and i + 1 < k
+                    # \hex (hasta 6 cifras y un blanco) o \carácter
+                    j = i + 1
+                    hex = ""
+                    while j < k and hex.length < 6 and _es_hex(str_code(c, j))
+                        hex = hex + c[j:j + 1]
+                        j = j + 1
+                    end
+                    if hex == ""
+                        texto = texto + c[i + 1:i + 2]
+                        i = i + 2
+                    else
+                        if j < k and str_code(c, j) == 32
+                            j = j + 1
+                        end
+                        codigo = str_to_int(hex, 16)
+                        if codigo >= 57344 and codigo <= 63743
+                            if texto != ""
+                                r.push(texto)
+                                texto = ""
+                            end
+                            r.push(str_char(1) + hex)
+                        else
+                            texto = texto + _latin1_de(codigo)
+                        end
+                        i = j
+                    end
+                else
+                    texto = texto + c[i:i + 1]
+                    i = i + 1
+                end
+            end
+            if texto != ""
+                r.push(texto)
+            end
+            i = i + 1
+        elif str_starts(str_lower(c[i:]), "attr(")
+            fin = str_find_from(c, ")", i)
+            if fin < 0
+                return r
+            end
+            r.push(dom_atributo(n, str_lower(str_trim(c[i + 5:fin]))))
+            i = fin + 1
+        else
+            i = i + 1
+        end
+    end
+    return r
+end
+
+func _es_hex(c: Int) -> Bool
+    return (c >= 48 and c <= 57) or (c >= 97 and c <= 102) or (c >= 65 and c <= 70)
+end
+
+# Un código de Unicode en Latin-1 (lo que no cabe, lo más parecido)
+func _latin1_de(c: Int) -> String
+    if c < 256
+        return str_char(c)
+    elif c == 8211 or c == 8212
+        return "-"
+    elif c == 8216 or c == 8217
+        return "'"
+    elif c == 8220 or c == 8221
+        return "\""
+    elif c == 8226
+        return str_char(183)
+    elif c == 8230
+        return "..."
+    elif c == 8594 or c == 8250
+        return ">"
+    elif c == 8592 or c == 8249
+        return "<"
+    end
+    return ""
 end
 
 # El texto solo para lectores de pantalla ("Saltar al contenido", .screen-reader-text): fuera del

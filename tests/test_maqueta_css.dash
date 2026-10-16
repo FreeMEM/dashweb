@@ -1,0 +1,77 @@
+# Test: lib/estilo.dash y lib/maqueta.dash con lo que pidió freemem.space (tareas 28d y 28e), con la topaz 8
+# (letras de 8x8): ::before y ::after con texto, var() de una propiedad --x heredada, un icono de Font
+# Awesome (content "\f002": D_ICONO), un inline-block en una línea centrada (una pieza: no flota),
+# un inline-block que no se corta entre líneas, un absoluto sin top ni left en su sitio (tras el
+# relleno), border-radius 50 % (D_ELIPSE, rellena o con borde), una barra girada 45 grados (D_TRAZO) y
+# translate en px y en %.
+# memcheck
+# expect-out: T [<] c=0 0,1 8x8
+# expect-out: T [x] c=0 8,1 8x8
+# expect-out: T [>] c=0 16,1 8x8
+# expect-out: T [rojo] c=cc0000 0,11 32x8
+# expect-out: I f002 0,21 13x8
+# expect-out: T [busca] c=0 13,21 40x8
+# expect-out: R c=ff 50,31 20x10
+# expect-out: T [aaaa bbbb] c=0 0,43 80x8
+# expect-out: T [cc dd ee ff gg] c=0 0,54 112x8
+# expect-out: T [z] c=0 6,75 8x8
+# expect-out: R c=ff00 6,74 8x4
+# expect-out: E g=0 0,84 10x10
+# expect-out: E g=2 10,84 16x16
+# expect-out: Z 0 g=1 23,86 7x7
+# expect-out: R c=ffff 32,86 10x4
+# expect-out: alto 100
+# expect-out: fin
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+Window W
+    title "CSS"
+    width 300
+    height 100
+end
+
+func muestra(d: Dibujo) -> String
+    r = "? " + d.tipo
+    if d.tipo == D_TEXTO
+        r = "T [" + str_trim(d.texto) + "] c=" + str_from_int(d.color, 16)
+    elif d.tipo == D_RECT
+        r = "R c=" + str_from_int(d.color, 16)
+    elif d.tipo == D_LINEA
+        r = "L"
+    elif d.tipo == D_ICONO
+        r = "I " + d.texto
+    elif d.tipo == D_ELIPSE
+        r = "E g=" + d.estilo
+    elif d.tipo == D_TRAZO
+        r = "Z " + d.estilo + " g=" + d.fuente
+    end
+    return r + " " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto
+end
+
+Main
+    W.open
+    h = "<style>body { margin: 0; --tinta: #c00 } div, p { margin: 0 } .a::before { content: '<' } .a::after { content: \">\" }"
+    h = h + " .v { color: var(--tinta) } .i::before { font-family: FontAwesome; content: \"\\f002\" }"
+    h = h + " .c { text-align: center } .ib { display: inline-block; width: 20px; height: 10px; background-color: #00f }"
+    h = h + " .nc { display: inline-block } .rel { padding: 10px 0 0 6px } .abs { position: absolute; width: 8px; height: 4px; background-color: #0f0 }"
+    h = h + " .o { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f00 }"
+    h = h + " .ob { display: inline-block; width: 12px; height: 12px; border: 2px solid #000; border-radius: 8px }"
+    h = h + " .g { display: inline-block; width: 1px; height: 10px; background-color: #333; transform: rotate(-45deg) }"
+    h = h + " .t { display: inline-block; width: 10px; height: 4px; background-color: #0ff; transform: translate(5px, 50%) }</style>"
+    h = h + "<p class=a>x</p><p class=v>rojo</p><p class=i>busca</p>"
+    h = h + "<div class=c><span class=ib></span></div>"
+    h = h + "<div>aaaa bbbb <span class=nc>cc dd ee ff gg</span></div>"
+    h = h + "<div class=rel><div class=abs></div>z</div>"
+    h = h + "<div><span class=o></span><span class=ob></span><span class=g></span><span class=t></span></div>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 120)
+    for d in p.dibujos
+        Print muestra(d)
+    end
+    Print "alto " + p.alto
+    W.close
+    Print "fin"
+end

@@ -21,8 +21,12 @@ const D_TEXTO = 2
 const D_LINEA = 3
 const D_IMAGEN = 4
 const D_CONTROL = 5      # un control de formulario (input, select, button): lo pinta el pintor según su nodo
+const D_ICONO = 7        # un icono de una fuente de iconos (Font Awesome): texto, su código en hexadecimal
 const D_FONDO = 6        # la imagen de fondo de una caja (texto: su dirección); background-size, -position y
                          # -repeat los mira el pintor en el estilo del nodo
+const D_ELIPSE = 8       # una caja redonda (border-radius: 50 %): estilo, el grosor del borde (0: rellena)
+const D_TRAZO = 9        # una barra girada 45 grados (transform: rotate): estilo 0 de arriba a la izquierda
+                         # abajo a la derecha, 1 de abajo a la izquierda arriba a la derecha; fuente, su grosor
 
 const EST_SUBRAYADO = 1
 const EST_NEGRITA = 2
@@ -40,6 +44,7 @@ struct Dibujo
     estilo: Int
     enlace: String
     nodo: Nodo = nil     # el elemento que lo puso (para saber qué hay bajo un clic)
+    espaciado: Int = 0   # letter-spacing: px de más detrás de cada letra (el pintor las pone una a una)
 end
 
 struct Pagina
@@ -66,6 +71,27 @@ struct Pieza
     pegada: Bool = false     # sin blanco con la anterior: no se puede cortar la línea entre las dos
     nodo: Nodo = nil         # el elemento de la palabra o la imagen
     control: Bool = false    # un control de formulario (nodo: el input, select o button)
+    espaciado: Int = 0       # letter-spacing en px
+    icono: Bool = false      # un icono (texto: su código en hexadecimal)
+    caja: Nodo = nil         # un inline-block maquetado como bloque en su sitio de la línea (ancho: con márgenes)
+end
+
+# Los hijos de n con su ::before delante y su ::after detrás (lib/estilo.dash)
+func _hijos(n: Nodo) -> [Nodo]
+    if n.pseudo_antes == nil and n.pseudo_despues == nil
+        return n.hijos
+    end
+    var r: [Nodo] = []
+    if n.pseudo_antes != nil
+        r.push(n.pseudo_antes)
+    end
+    for h in n.hijos
+        r.push(h)
+    end
+    if n.pseudo_despues != nil
+        r.push(n.pseudo_despues)
+    end
+    return r
 end
 
 struct Maquetador
@@ -73,6 +99,7 @@ struct Maquetador
     fuentes: {String: Int}
     topaz: Int
     blanco: Int = 0      # un blanco detrás de una imagen: el ancho del espacio que toma la pieza siguiente
+    ancho_linea: Int = 0 # el ancho de las líneas del bloque que se está maquetando
 end
 
 # Para depurar (tools/traza_maqueta.dash): cuántos niveles de cajas se escriben al maquetar (0: ninguno)
@@ -103,27 +130,46 @@ end
 
 # === Fuentes ===
 
-# Fuente del Amiga para una familia CSS y un tamaño; la topaz de la ROM si no hay otra
+# Fuente del Amiga para una familia CSS y un tamaño: la de mapa de bits si tiene ese tamaño (nítida),
+# si no la vectorial parecida (CGTriumvirate, CGTimes, LetterGothic: bullet.library las dibuja a
+# cualquier tamaño) y, si no hay, la de mapa de bits más cercana; la topaz de la ROM si no hay otra
 func _fuente(m: Maquetador, familia: String, tam: Int) -> Int
     f = str_lower(familia)
-    nombre = "helvetica.font"
-    if str_find(f, "mono") >= 0 or str_find(f, "courier") >= 0
-        nombre = "courier.font"
-    elif str_find(f, "serif") >= 0 and str_find(f, "sans") < 0
-        nombre = "times.font"
-    elif str_find(f, "times") >= 0 or str_find(f, "georgia") >= 0
-        nombre = "times.font"
+    nombre = "helvetica"
+    vectorial = "CGTriumvirate"
+    if str_find(f, "mono") >= 0 or str_find(f, "courier") >= 0 or str_find(f, "consol") >= 0
+        nombre = "courier"
+        vectorial = "LetterGothic"
+    elif (str_find(f, "serif") >= 0 and str_find(f, "sans") < 0) or str_find(f, "times") >= 0 or str_find(f, "georgia") >= 0
+        nombre = "times"
+        vectorial = "CGTimes"
     end
     clave = nombre + "/" + tam
     if m.fuentes.has(clave)
         return m.fuentes[clave]
     end
-    h = font_open(nombre, tam)
+    h = 0
+    if not _tamano_de_mapa(nombre, tam)
+        # el tamaño de una vectorial del Amiga es el alto de la línea entera: las letras salen más bajas
+        # que con el mismo font-size en un navegador (medido con freemem.space contra Chrome)
+        h = font_open(vectorial + ".font", tam * 6 / 5)
+    end
+    if h == 0
+        h = font_open(nombre + ".font", tam)
+    end
     if h == 0
         h = m.topaz
     end
     m.fuentes[clave] = h
     return h
+end
+
+# Los tamaños que traen las fuentes de mapa de bits del Workbench
+func _tamano_de_mapa(nombre: String, tam: Int) -> Bool
+    if tam == 11 or tam == 13 or tam == 15 or tam == 18 or tam == 24
+        return true
+    end
+    return nombre == "helvetica" and tam == 9
 end
 
 func _estilo_texto(e: {String: String}) -> Int
@@ -211,6 +257,9 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     _maqueta_nivel = _maqueta_nivel + 1
     antes = m.pagina.dibujos.length
     r = _bloque_en(m, n, x, y, ancho, contenedor)
+    if n.estilo.has("transform") and n.estilo["transform"] != "none"
+        _transformar(m, n.estilo["transform"], antes)
+    end
     if _invisible(n)
         # ocupa su sitio pero no se pinta (visibility: hidden, opacity: 0)
         while m.pagina.dibujos.length > antes
@@ -315,20 +364,170 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         alto = 0
     end
     # los hijos con position absolute o fixed, encima, respecto a esta caja (su relleno)
-    for h in n.hijos
-        if _fuera_del_flujo(h)
-            _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb)
+    for h in _hijos(n)
+        if _fuera_del_flujo(h) and not _oculto(h)
+            _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, pl, pt)
         end
     end
     alto_caja = bt + pt + alto + pb + bb
+    redonda = _redonda(e, interior + bl + br + pl + pr, alto_caja)
     if caja_fondo != nil
         caja_fondo.alto = alto_caja
+        if redonda
+            caja_fondo.tipo = D_ELIPSE
+            caja_fondo.estilo = 0
+        end
     end
     if imagen_fondo != nil
         imagen_fondo.alto = pt + alto + pb
     end
-    _bordes(m, e, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, bt, br, bb, bl)
+    if redonda and bt > 0 and bt == br and bt == bb and bt == bl
+        borde = _dibujo(D_ELIPSE, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, _color_borde(e, "top"))
+        borde.estilo = bt
+        borde.nodo = n
+        m.pagina.dibujos.push(borde)
+    else
+        _bordes(m, e, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, bt, br, bb, bl)
+    end
     return mt + alto_caja + mb
+end
+
+# border-radius de la mitad (o más) del lado menor en una caja casi cuadrada: un círculo o una elipse
+func _redonda(e: {String: String}, ancho: Int, alto: Int) -> Bool
+    if not e.has("border-radius") or ancho < 2 or alto < 2 or ancho > alto * 2 or alto > ancho * 2
+        return false         # una barra con las puntas redondas se queda en rectángulo
+    end
+    r = str_trim(e["border-radius"])
+    if str_find(r, " ") >= 0 or str_find(r, "/") >= 0
+        return false
+    end
+    if str_ends(r, "%")
+        return Int(r[:r.length - 1]) >= 50
+    end
+    menor = ancho
+    if alto < menor
+        menor = alto
+    end
+    return estilo_px(r, estilo_px(e["font-size"], 0, 0), 0) * 2 >= menor
+end
+
+# transform: translate (px o % de la propia caja) mueve lo dibujado; rotate en múltiplos de 45 grados
+# gira una barra (una caja que es un solo rectángulo) sobre su centro
+func _transformar(m: Maquetador, t: String, antes: Int)
+    n = m.pagina.dibujos.length - antes
+    if n <= 0
+        return
+    end
+    # la caja: lo que abarca lo dibujado
+    x1 = 1000000
+    y1 = 1000000
+    x2 = -1000000
+    y2 = -1000000
+    i = antes
+    while i < m.pagina.dibujos.length
+        d = m.pagina.dibujos[i]
+        if d.x < x1
+            x1 = d.x
+        end
+        if d.y < y1
+            y1 = d.y
+        end
+        if d.x + d.ancho > x2
+            x2 = d.x + d.ancho
+        end
+        if d.y + d.alto > y2
+            y2 = d.y + d.alto
+        end
+        i = i + 1
+    end
+    dx = 0
+    dy = 0
+    giro = 0
+    resto = str_lower(t)
+    while true
+        p = str_find(resto, "(")
+        c = str_find(resto, ")")
+        if p < 0 or c < p
+            break
+        end
+        f = str_trim(resto[:p])
+        a = resto[p + 1:c]
+        b = ""
+        coma = str_find(a, ",")
+        if coma >= 0
+            b = a[coma + 1:]
+            a = a[:coma]
+        end
+        resto = resto[c + 1:]
+        if f == "translatex"
+            dx = dx + _desplazamiento(a, x2 - x1)
+        elif f == "translatey"
+            dy = dy + _desplazamiento(a, y2 - y1)
+        elif f == "translate"
+            dx = dx + _desplazamiento(a, x2 - x1)
+            if b != ""
+                dy = dy + _desplazamiento(b, y2 - y1)
+            end
+        elif f == "rotate"
+            a = str_trim(a)
+            if str_ends(a, "deg")
+                giro = giro + Int(a[:a.length - 3])
+            end
+        end
+    end
+    if giro % 45 == 0 and giro % 180 != 0 and n == 1 and m.pagina.dibujos[antes].tipo == D_RECT
+        d = m.pagina.dibujos[antes]
+        largo = d.ancho
+        grueso = d.alto
+        angulo = giro
+        if d.alto > d.ancho
+            largo = d.alto
+            grueso = d.ancho
+            angulo = angulo + 90
+        end
+        angulo = ((angulo % 180) + 180) % 180
+        cx = d.x + d.ancho / 2
+        cy = d.y + d.alto / 2
+        if angulo == 0
+            d.x = cx - largo / 2
+            d.y = cy - grueso / 2
+            d.ancho = largo
+            d.alto = grueso
+        elif angulo == 90
+            d.x = cx - grueso / 2
+            d.y = cy - largo / 2
+            d.ancho = grueso
+            d.alto = largo
+        else
+            mitad = largo * 707 / 2000
+            d.tipo = D_TRAZO
+            d.x = cx - mitad
+            d.y = cy - mitad
+            d.ancho = mitad * 2 + 1
+            d.alto = mitad * 2 + 1
+            d.fuente = grueso
+            d.estilo = 0
+            if angulo == 135
+                d.estilo = 1
+            end
+        end
+    end
+    if dx != 0 or dy != 0
+        i = antes
+        while i < m.pagina.dibujos.length
+            m.pagina.dibujos[i].x = m.pagina.dibujos[i].x + dx
+            m.pagina.dibujos[i].y = m.pagina.dibujos[i].y + dy
+            i = i + 1
+        end
+    end
+end
+
+func _desplazamiento(v: String, propio: Int) -> Int
+    a = str_trim(v)
+    if str_ends(a, "%")
+        return Int(a[:a.length - 1]) * propio / 100
+    end
+    return estilo_px(a, 0, 0)
 end
 
 # float: left o right; "" si no flota. Un inline-block que lleva bloques dentro, o tiene width o
@@ -343,17 +542,34 @@ func _flota(n: Nodo) -> String
             return f
         end
     end
+    if _caja_en_linea(n) and not _alineado(n)
+        return "left"
+    end
+    return ""
+end
+
+# Un inline-block que lleva bloques dentro o tiene width o height: se maqueta como un bloque. Con el
+# texto del padre centrado o a la derecha va en la línea (una pieza); si no, flota a la izquierda.
+func _caja_en_linea(n: Nodo) -> Bool
     if n.estilo["display"] == "inline-block" or n.estilo["display"] == "inline-flex"
         if (n.estilo.has("width") and n.estilo["width"] != "auto") or (n.estilo.has("height") and n.estilo["height"] != "auto")
-            return "left"
+            return true
         end
         for h in n.hijos
             if _es_bloque(h) and not _oculto(h)
-                return "left"
+                return true
             end
         end
     end
-    return ""
+    return false
+end
+
+func _alineado(n: Nodo) -> Bool
+    if n.padre == nil
+        return false
+    end
+    a = n.padre.estilo["text-align"]
+    return a == "center" or a == "right"
 end
 
 func _invisible(n: Nodo) -> Bool
@@ -375,7 +591,7 @@ end
 # Un elemento con position absolute (o fixed) dentro de la caja (cx, cy, cw, ch): top/left/right/
 # bottom; sin left ni right, a la izquierda; sin top ni bottom, arriba. El ancho: left y right, su
 # width, o lo que mide su contenido.
-func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int)
+func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, pl: Int, pt: Int)
     e = n.estilo
     tiene_l = e.has("left") and e["left"] != "auto"
     tiene_r = e.has("right") and e["right"] != "auto"
@@ -404,6 +620,8 @@ func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int)
     ax = cx + l
     if not tiene_l and tiene_r
         ax = cx + cw - r - w
+    elif not tiene_l
+        ax = cx + pl         # sin left ni right: donde estaría (al principio del contenido)
     end
     # se maqueta arriba y luego se baja a su sitio (bottom necesita su alto)
     antes = m.pagina.dibujos.length
@@ -413,6 +631,8 @@ func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int)
         dy = _px(e, "top", ch)
     elif tiene_b
         dy = ch - _px(e, "bottom", ch) - alto
+    else
+        dy = pt
     end
     if dy != 0
         i = antes
@@ -465,21 +685,32 @@ func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
     return derecha - izquierda + caja + extra
 end
 
-# El contenido de un bloque: hijos de bloque uno debajo de otro y lo de en medio, en líneas. Los
-# flotantes seguidos van en filas (los de la izquierda desde la izquierda, los de la derecha desde
-# la derecha); lo que no flota va debajo de la fila (como con clear: el texto aún no los rodea) y el
-# bloque crece hasta abarcarlos (como clearfix).
+# Un flotante ya colocado
+struct Flotante
+    x: Int
+    y: Int
+    ancho: Int
+    alto: Int
+    izquierda: Bool
+end
+
+# El contenido de un bloque: hijos de bloque uno debajo de otro y lo de en medio, en líneas. Cada
+# flotante va al primer sitio desde arriba donde cabe junto a los ya puestos (los de la izquierda
+# pegados a la izquierda, los de la derecha a la derecha; nunca más arriba que el anterior), como en
+# CSS; lo que no flota va debajo de ellos (como con clear: el texto aún no los rodea) y el bloque
+# crece hasta abarcarlos (como clearfix).
 func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
+    ancho_previo = m.ancho_linea
+    m.ancho_linea = ancho
     cy = y
     var piezas: [Pieza] = []
     m.blanco = 0
     margen_previo = 0
     en_fila = false
     fila_y = 0
-    izq = 0
-    der = 0
     fondo = 0
-    for h in n.hijos
+    var flotantes: [Flotante] = []
+    for h in _hijos(n)
         if _oculto(h) or _fuera_del_flujo(h)
             continue
         end
@@ -492,30 +723,51 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             if not en_fila
                 en_fila = true
                 fila_y = cy
-                izq = x
-                der = x + ancho
                 fondo = cy
+                flotantes.clear()
             end
             w = _ancho_flotante(m, h, ancho)
             if w > ancho
                 w = ancho
             end
-            if izq + w > der and (izq > x or der < x + ancho)
-                # no cabe en esta fila: otra debajo
-                fila_y = fondo
+            # el primer sitio desde fila_y (la altura del flotante anterior) donde cabe
+            fy = fila_y
+            izq = x
+            der = x + ancho
+            vueltas = 0
+            while vueltas < 100
                 izq = x
                 der = x + ancho
+                siguiente = -1
+                for f in flotantes
+                    if f.y <= fy and f.y + f.alto > fy
+                        if f.izquierda and f.x + f.ancho > izq
+                            izq = f.x + f.ancho
+                        end
+                        if not f.izquierda and f.x < der
+                            der = f.x
+                        end
+                        if siguiente < 0 or f.y + f.alto < siguiente
+                            siguiente = f.y + f.alto
+                        end
+                    end
+                end
+                if der - izq >= w or siguiente < 0
+                    break
+                end
+                fy = siguiente
+                vueltas = vueltas + 1
             end
             alto = 0
-            if lado == "left"
-                alto = _bloque_de(m, h, izq, fila_y, w, ancho)
-                izq = izq + w
-            else
-                alto = _bloque_de(m, h, der - w, fila_y, w, ancho)
-                der = der - w
+            fx = izq
+            if lado != "left"
+                fx = der - w
             end
-            if fila_y + alto > fondo
-                fondo = fila_y + alto
+            alto = _bloque_de(m, h, fx, fy, w, ancho)
+            flotantes.push(Flotante(fx, fy, w, alto, lado == "left"))
+            fila_y = fy
+            if fy + alto > fondo
+                fondo = fy + alto
             end
             margen_previo = 0
             continue
@@ -553,6 +805,7 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     if en_fila and fondo > cy
         cy = fondo
     end
+    m.ancho_linea = ancho_previo
     return cy - y
 end
 
@@ -603,7 +856,25 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
-    if n.nombre == "input" or n.nombre == "select" or n.nombre == "button" or n.nombre == "textarea"
+    if n.nombre == "::icono"
+        tam = estilo_px(e["font-size"], 0, 0)
+        font_use(_fuente(m, "sans-serif", tam))
+        color = css_color(e["color"])
+        if color < 0
+            color = 0
+        end
+        ic = Pieza(dom_atributo(n, "codigo"), tam, font_height(), font_baseline(), _fuente(m, "sans-serif", tam), 0, color, false, enlace, m.blanco, false, false)
+        ic.icono = true
+        ic.nodo = n.padre
+        piezas.push(ic)
+        m.blanco = 0
+        return
+    end
+    if (e["display"] == "inline-block" or e["display"] == "inline-flex") and not (e.has("float") and (e["float"] == "left" or e["float"] == "right"))
+        _pieza_caja(m, n, piezas, enlace)
+        return
+    end
+    if (n.nombre == "input" or n.nombre == "select" or n.nombre == "button" or n.nombre == "textarea") and not _boton_propio(n)
         _control(m, n, e, piezas, enlace)
         return
     end
@@ -611,9 +882,53 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
     if n.nombre == "a" and dom_tiene_atributo(n, "href")
         destino = dom_atributo(n, "href")
     end
-    for h in n.hijos
+    for h in _hijos(n)
         _piezas(m, h, e, piezas, destino)
     end
+end
+
+# Un inline-block en la línea (una pieza que no se corta): mide su ancho y su alto maquetándolo aparte;
+# _poner_linea lo maqueta en su sitio. Su línea base, la de su último texto (sin texto, abajo).
+func _pieza_caja(m: Maquetador, n: Nodo, piezas: [Pieza], enlace: String)
+    w = _ancho_flotante(m, n, m.ancho_linea)
+    if w > m.ancho_linea
+        w = m.ancho_linea
+    end
+    antes = m.pagina.dibujos.length
+    h = _bloque_de(m, n, 0, 0, w, m.ancho_linea)
+    base = h
+    i = m.pagina.dibujos.length - 1
+    while i >= antes
+        d = m.pagina.dibujos[i]
+        if (d.tipo == D_TEXTO or d.tipo == D_ICONO) and d.fuente != 0
+            font_use(d.fuente)
+            base = d.y + font_baseline()
+            break
+        end
+        i = i - 1
+    end
+    while m.pagina.dibujos.length > antes
+        m.pagina.dibujos.pop()
+    end
+    pz = Pieza("", w, h, base, 0, 0, 0, false, enlace, m.blanco, false, false)
+    pz.caja = n
+    pz.nodo = n
+    piezas.push(pz)
+    m.blanco = 0
+end
+
+# Un <button> con elementos dentro o sin texto: lo dibuja su CSS (un icono, unas barras...), no es
+# el botón de siempre
+func _boton_propio(n: Nodo) -> Bool
+    if n.nombre != "button"
+        return false
+    end
+    for h in _hijos(n)
+        if h.tipo == DOM_ELEMENTO
+            return true
+        end
+    end
+    return str_trim(dom_texto(n)) == ""
 end
 
 # Un control de formulario: una pieza de su tamaño (lo dibuja el pintor con lo que tenga el nodo)
@@ -708,8 +1023,25 @@ func formulario_opcion(n: Nodo) -> Nodo
 end
 
 # Palabras de un texto con el estilo de su elemento
-func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza], enlace: String, elemento: Nodo)
+func _palabras(m: Maquetador, texto_dom: String, e: {String: String}, piezas: [Pieza], enlace: String, elemento: Nodo)
     tam = estilo_px(e["font-size"], 0, 0)
+    texto = texto_dom
+    transformar = ""
+    if e.has("text-transform")
+        transformar = e["text-transform"]
+    end
+    if transformar == "uppercase"
+        texto = str_upper(texto)
+    elif transformar == "lowercase"
+        texto = str_lower(texto)
+    end
+    ls = 0
+    if e.has("letter-spacing") and e["letter-spacing"] != "normal"
+        ls = estilo_px(e["letter-spacing"], tam, 0)
+        if ls < 0
+            ls = 0
+        end
+    end
     f = _fuente(m, e["font-family"], tam)
     estilo = _estilo_texto(e)
     deco = ""
@@ -764,14 +1096,21 @@ func _palabras(m: Maquetador, texto: String, e: {String: String}, piezas: [Pieza
                 j = j + 1
             end
             palabra = texto[i:j]
+            if transformar == "capitalize"
+                palabra = str_upper(palabra[:1]) + palabra[1:]
+            end
             # un blanco antes cuenta una vez: si la pieza anterior ya acaba en espacio, no otro
             espacio = 0
             if (hubo_blanco or m.blanco > 0) and not (piezas.length > 0 and _termina_en_blanco(piezas))
                 espacio = espacio_ancho
             end
             m.blanco = 0
-            pz = Pieza(palabra, font_text_width(palabra), alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
+            if ls > 0 and espacio > 0
+                espacio = espacio + ls
+            end
+            pz = Pieza(palabra, font_text_width(palabra) + ls * palabra.length, alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
             pz.nodo = elemento
+            pz.espaciado = ls
             if not hubo_blanco and piezas.length > 0
                 anterior = piezas[piezas.length - 1]
                 pz.pegada = not anterior.salto and not anterior.imagen and not anterior.control and not str_ends(anterior.texto, " ")
@@ -889,12 +1228,23 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     var actual: Dibujo = nil
     for p in linea
         cx = cx + p.espacio
-        if p.control
+        if p.caja != nil
+            _bloque_de(m, p.caja, cx, y + base - p.base + 1, p.ancho, ancho)
+            actual = nil
+        elif p.control
             ctl = _dibujo(D_CONTROL, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
             ctl.fuente = p.fuente
             ctl.nodo = p.nodo
             ctl.enlace = p.enlace
             m.pagina.dibujos.push(ctl)
+            actual = nil
+        elif p.icono
+            ic = _dibujo(D_ICONO, cx, y + base - p.base + 1, p.ancho, p.alto, p.color)
+            ic.texto = p.texto
+            ic.fuente = p.fuente
+            ic.enlace = p.enlace
+            ic.nodo = p.nodo
+            m.pagina.dibujos.push(ic)
             actual = nil
         elif p.imagen
             img = _dibujo(D_IMAGEN, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
@@ -903,7 +1253,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             img.nodo = p.nodo
             m.pagina.dibujos.push(img)
             actual = nil
-        elif actual != nil and actual.fuente == p.fuente and actual.estilo == p.estilo and actual.color == p.color and actual.enlace == p.enlace and actual.nodo == p.nodo
+        elif actual != nil and actual.fuente == p.fuente and actual.estilo == p.estilo and actual.color == p.color and actual.enlace == p.enlace and actual.nodo == p.nodo and actual.espaciado == p.espaciado
             actual.texto = actual.texto + _espacios(p.espacio, actual) + p.texto
             actual.ancho = cx + p.ancho - actual.x
         else
@@ -913,6 +1263,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             actual.estilo = p.estilo
             actual.enlace = p.enlace
             actual.nodo = p.nodo
+            actual.espaciado = p.espaciado
             m.pagina.dibujos.push(actual)
         end
         if p.tachado
