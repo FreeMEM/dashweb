@@ -137,7 +137,7 @@ tarea, con el estilo de Dash.
 - [x] D8. **Red.** Builtins sobre `bsdsocket.library`: resolver nombre, conectar, enviar, recibir, cerrar,
       tiempo límite, sin bloqueo y su máscara de señales (para `mui_wait_event_signals`). Test en FS-UAE
       (`bsdsocket_library = 1`) con un servidor Python local.
-- [ ] D9. **Fuentes y colores.** Abrir fuentes de disco con tamaño, estilo (negrita, cursiva, subrayado),
+- [x] D9. **Fuentes y colores.** Abrir fuentes de disco con tamaño, estilo (negrita, cursiva, subrayado),
       medir texto con la fuente actual, colores RGB en pantallas de paleta (`ObtainBestPen`/`ReleasePen`) y en RTG.
 - [ ] D10. **C externo.** Enlazar objetos o librerías C desde el programa (directiva o opción) y llamar a
       funciones Dash desde C (callbacks), para QuickJS.
@@ -505,3 +505,15 @@ Formato:
 - Batería: 392/392 con `--emu --emu-a500 --emu-32`; con `--emu --memcheck` 238/239 (`test_window_handles`, timeout:
   solo pasa en las dos versiones, con y sin D17; se tomó por carga de la máquina, con la otra sesión usando
   emuladores a la vez). Tras el rebase: 159/159 y 240/240 en el A1200. dashweb: 11/11 con `--memcheck`.
+
+### 2026-10-16 — D9 (Dash: fuentes y colores)
+- Hecho (rama `dashweb`): `font_open(nombre, tamaño)` (OpenDiskFont, o OpenFont para la de la ROM; 0 si no hay),
+  `font_use`, `font_close`, `font_style` (1 subrayado, 2 negrita, 4 cursiva), `font_height`, `font_baseline`,
+  `font_text_width` (TextExtent), `font_size`; `color_pen(r, g, b)` (ObtainBestPen en la pantalla de la ventana del
+  RastPort —vale también en la zona de MUI— o la pública por defecto; caché de 128; se devuelven al salir).
+- Encontrado: `SetSoftStyle` con la máscara de `AskSoftStyle` dejaba la negrita de topaz en subrayado; se usa la
+  máscara fija de los tres estilos. La negrita del sistema no ensancha el texto (mismo ancho medido).
+- Tests (Dash): `test_fonts` (`--memcheck`) en A1200, A500 y 3.2. 160/160 sin emulador, ejemplos 33/33. Mismo C
+  en los programas previos.
+- Pendiente: el sistema emulado de los tests no tiene `FONTS:` (solo topaz de la ROM): para la maquetación y el visor
+  hará falta uno con las fuentes del Workbench (amitools en un venv en `~/.cache/dashweb`).
