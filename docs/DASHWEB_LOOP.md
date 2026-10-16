@@ -312,6 +312,15 @@ tarea, con el estilo de Dash.
 - [x] 28f. **Degradados.** linear-gradient (los títulos de las entradas destacadas sobre una sombra) leído y en la
       maqueta (`D_DEGRADADO`); pintarlo mezclado con lo de debajo necesita D42 (tarea 6 de la otra sesión:
       `gfx_blend_rect`, `gfx_gradient_rect`). Mientras, solo los tramos casi opacos.
+- [ ] 30. **Vídeo dentro de la página (prioridad del usuario, 2026-10-16).** `<video>` y YouTube reproducidos en su
+      recuadro y a pantalla completa, "directo al vídeo integrado" (sin el paso de abrir MintVID aparte), con el
+      núcleo de MintVID (github.com/boingball/MintVID, MIT; C99 portable): H.264 con libavc (Apache-2.0) y AAC.
+      MintVID saca el MP4 de 360p (itag 18) o el HLS de la página de YouTube en el propio Amiga; en PiStorm/Emu68
+      con RTG reproduce 360p. Licencias: dashweb es MIT; fuera libmpeg2 y a52dec (GPL); AAC: buscar un
+      decodificador de licencia permisiva o usar el Helix de MintAMP (RPSL: publicar sus fuentes y avisos).
+      Partes: 30a traer y compilar el núcleo y libavc (decodificar un MP4 local en el emulador); 30b reproducir en
+      el recuadro de `<video>` (imagen por imagen en la zona de dibujo, sonido); 30c YouTube (de la página del
+      vídeo al MP4/HLS); 30d controles y pantalla completa.
 - [ ] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
       objetivo): QuickJS 24 %. libqjs.a va sin FPU (fp-bit): compilarlo para 68020+FPU como dashweb.
 - [ ] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
@@ -325,14 +334,6 @@ tarea, con el estilo de Dash.
       con gfx_ o rasterizado a RGB (nanosvg, zlib) al tamaño en que se ve.
 - [ ] 29c. **Decodificar sin parar la interfaz.** Hoy una imagen se decodifica entera en imagenes_avanzar (la
       ventana no responde mientras): por trozos (TJpgDec por bloques, libwebp incremental) o en otra tarea.
-- [ ] 30a. **Vídeo: miniatura que abre MintVID.** Un `<iframe>`/enlace de YouTube (y de Vimeo) se ve como la miniatura
-      del vídeo (img.youtube.com/vi/ID/hqdefault.jpg) con su título y un botón de reproducir; al pulsarlo se abre
-      MintVID (github.com/boingball/MintVID, MIT; instalado aparte) con la dirección; sin MintVID, la del vídeo.
-- [ ] 30b. **Vídeo dentro de la página.** `<video>` y YouTube reproducidos en su recuadro (y a pantalla completa) con el
-      núcleo de MintVID (C99 portable: H.264 con libavc, Apache-2.0; AAC/MP3; sin libmpeg2 ni a52dec, que son GPL):
-      MintVID saca el MP4 de 360p (itag 18) o el HLS de la página de YouTube en el propio Amiga y en PiStorm/Emu68
-      con RTG reproduce 360p. Corrige lo dicho antes: no hace falta un servidor que convierta (eso solo para Amigas
-      lentos).
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -1324,3 +1325,9 @@ Formato:
   ("no viable en un 68k", "hace falta un servidor") era falso para la máquina objetivo. 30a ahora abre MintVID;
   30b, el vídeo en su recuadro con el núcleo de MintVID. Otros proyectos citados: AmiTube y BoingTube
   (conversión en un servidor, para Amigas lentos).
+
+### 2026-10-16 — Decisión del usuario: vídeo integrado primero
+- "Prefiero ir directo al vídeo dentro, integrado en el navegador y también a pantalla completa": la tarea 30 (vídeo
+  en la página con el núcleo de MintVID) pasa delante de 28g y 28h; sin el paso de abrir MintVID aparte.
+- Licencias explicadas al usuario: MintVID MIT y libavc Apache-2.0 valen para dashweb (MIT); libmpeg2 y a52dec (GPL)
+  no; Helix AAC (RPSL) con condiciones.
