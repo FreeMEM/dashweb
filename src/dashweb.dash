@@ -99,6 +99,9 @@ func dw_estado(w: Ventana, texto: String)
     mui_set_text(w.v.estado, t)
 end
 
+# Al repintar por una imagen nueva de un vídeo: solo los vídeos, no la página entera
+var dw_solo_videos: Bool = false
+
 # La zona de dibujo de cada ventana (MUI llama a una función sin decir de qué zona: una por ventana)
 func pinta0(x: Int, y: Int, ancho: Int, alto: Int)
     pinta_en(0, x, y, ancho, alto)
@@ -184,6 +187,11 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         mui_timer(1, ID_RANGO)
     end
     pintor_foco = w.foco
+    pintor_videos = w.actual.videos
+    if dw_solo_videos
+        pintar_videos(w.actual.pagina, w.desde, x, y, ancho, alto)
+        return
+    end
     pintar(w.actual.pagina, w.actual.im, w.desde, x, y, ancho, alto)
 end
 
@@ -370,6 +378,10 @@ func programar()
             if trayendo and (espera < 0 or espera > 50)
                 espera = 50
             end
+            # un vídeo sonando: un tic cada 20 ms (cada imagen a su hora)
+            if w.actual != nil and w.actual.videos != nil and videos_activos(w.actual.videos) and (espera < 0 or espera > 20)
+                espera = 20
+            end
         end
     end
     if espera > 0
@@ -409,6 +421,11 @@ func tic(w: Ventana)
     if w.js_cuando >= 0 and time_ms() >= w.js_cuando
         temporizadores(w)
     end
+    if w.actual != nil and w.actual.videos != nil and videos_avanzar(w.actual.videos)
+        dw_solo_videos = true
+        mui_canvas_redraw(w.v.pagina)
+        dw_solo_videos = false
+    end
     actualizar_giro(w)
 end
 
@@ -431,6 +448,14 @@ func clic(w: Ventana)
         envio_del_js(w)
     end
     if not seguir
+        return
+    end
+    # un <video>: reproducir o parar
+    vid = documento_video_de(n)
+    if vid != nil
+        videos_alternar(documento_videos(w.actual), vid, w.actual.direccion)
+        mui_canvas_redraw(w.v.pagina)
+        programar()
         return
     end
     # el formulario: foco, marcar, elegir, enviar

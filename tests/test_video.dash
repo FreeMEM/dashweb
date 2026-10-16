@@ -1,0 +1,52 @@
+# Test: lib/video.dash, el núcleo de MintVID (tarea 30): un MP4 con H.264 (160x48, 10 imágenes a 10 por
+# segundo, rojo a la izquierda y azul a la derecha, hecho con ffmpeg) traído por HTTP: sus códecs, tamaño,
+# imágenes por segundo, cada imagen con su instante y el color de dos píxeles; un fichero que no es vídeo.
+# emu-server: http.py 40863
+# memcheck
+# expect-out: codecs: video=H.264/AVC (fourcc 'avc1'), audio=none detected
+# expect-out: 160x48 fps=10000 paso=480
+# expect-out: imagenes=10 ultima=900 ms
+# expect-out: rojo azul
+# expect-out: nada: 0
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/video.dash"
+import "../lib/http.dash"
+
+Main
+    f = "T:video.mp4"
+    if arg_count() > 0
+        f = arg(0)
+    else
+        http_a_fichero("http://127.0.0.1:40863/pages/video.mp4", f, 10000)
+    end
+    v = video_abrir(f)
+    if v == 0
+        Print "no se abre"
+    else
+        Print "codecs: " + video_codecs(v)
+        Print "" + video_ancho(v) + "x" + video_alto(v) + " fps=" + video_fps_mil(v) + " paso=" + video_paso(v)
+        n = 0
+        ms = -1
+        colores = ""
+        while video_siguiente(v) == 1
+            n = n + 1
+            ms = video_ms(v)
+            if n == 1
+                p = video_rgb(v)
+                izq = p + 20 * video_paso(v) + 10 * 3
+                der = p + 20 * video_paso(v) + 150 * 3
+                if buffer_get_byte(izq, 0) > 200 and buffer_get_byte(izq, 2) < 60
+                    colores = colores + "rojo"
+                end
+                if buffer_get_byte(der, 2) > 200 and buffer_get_byte(der, 0) < 60
+                    colores = colores + " azul"
+                end
+            end
+        end
+        Print "imagenes=" + n + " ultima=" + ms + " ms"
+        Print colores
+        video_cerrar(v)
+    end
+    Print "nada: " + video_abrir("T:no_existe.mp4")
+end

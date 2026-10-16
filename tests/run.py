@@ -68,8 +68,8 @@ def compile_test(src: Path, memcheck: bool):
 def build_img_lib() -> bool:
     """build/img-lib/libimg.a (lib/imagen_dec.dash links it) when it is missing or older than its sources"""
     lib = ROOT / "build" / "img-lib" / "libimg.a"
-    sources = (list((ROOT / "third_party" / "tjpgd").glob("*.[ch]")) + list((ROOT / "third_party" / "stb").glob("*.[ch]"))
-               + [ROOT / "tools" / "build_img.sh"])
+    sources = [f for d in ("tjpgd", "stb", "libwebp", "nanosvg") for f in (ROOT / "third_party" / d).rglob("*.[ch]")]
+    sources.append(ROOT / "tools" / "build_img.sh")
     if lib.exists() and lib.stat().st_mtime >= max(f.stat().st_mtime for f in sources):
         return True
     print("building build/img-lib/libimg.a (tools/build_img.sh)...", flush=True)
@@ -83,7 +83,8 @@ def build_img_lib() -> bool:
 def build_qjs_lib() -> bool:
     """build/qjs-lib/libqjs.a (lib/js.dash links it) when it is missing or older than its sources"""
     lib = ROOT / "build" / "qjs-lib" / "libqjs.a"
-    sources = list((ROOT / "third_party").rglob("*.[ch]")) + [ROOT / "tools" / "build_qjs.sh"]
+    sources = [f for d in ("quickjs", "fdlibm") for f in (ROOT / "third_party" / d).rglob("*.[ch]")]
+    sources.append(ROOT / "tools" / "build_qjs.sh")
     if lib.exists() and lib.stat().st_mtime >= max(f.stat().st_mtime for f in sources):
         return True
     print("building build/qjs-lib/libqjs.a (tools/build_qjs.sh lib)...", flush=True)
@@ -91,6 +92,19 @@ def build_qjs_lib() -> bool:
                        env=dict(os.environ, DASH=str(DASH)))
     if r.returncode != 0:
         print("tools/build_qjs.sh lib failed:\n" + r.stdout + r.stderr, file=sys.stderr)
+    return r.returncode == 0
+
+
+def build_video_lib() -> bool:
+    """build/video-lib/libvideo.a (lib/video.dash links it) when it is missing or older than its sources"""
+    lib = ROOT / "build" / "video-lib" / "libvideo.a"
+    sources = list((ROOT / "third_party" / "mintvid").rglob("*.[chS]")) + [ROOT / "tools" / "build_video.sh"]
+    if lib.exists() and lib.stat().st_mtime >= max(f.stat().st_mtime for f in sources):
+        return True
+    print("building build/video-lib/libvideo.a (tools/build_video.sh)...", flush=True)
+    r = subprocess.run([str(ROOT / "tools" / "build_video.sh")], capture_output=True, text=True)
+    if r.returncode != 0:
+        print("tools/build_video.sh failed:\n" + r.stdout + r.stderr, file=sys.stderr)
     return r.returncode == 0
 
 
@@ -121,6 +135,8 @@ def main():
     if any("js.dash" in t.read_text() or "documento.dash" in t.read_text() for t in tests + programas) and not build_qjs_lib():
         return 1
     if not build_img_lib():
+        return 1
+    if any("video.dash" in t.read_text() for t in tests + programas) and not build_video_lib():
         return 1
 
     results = {}          # name -> (ok, message)

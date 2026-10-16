@@ -1,0 +1,86 @@
+# Vídeo (tarea 30): el núcleo de MintVID (third_party/mintvid: H.264 con libavc, MPEG-1, MPEG-4, MJPEG,
+# Cinepak...; MP4/MOV, AVI, MKV, MPEG-TS) por la interfaz de third_party/mintvid/dashweb_video.c, en
+# build/video-lib/libvideo.a (tools/build_video.sh). Imagen a imagen, en RGB24; sin sonido todavía.
+#
+#   v = video_abrir("T:clip.mp4")         # 0 si no se puede
+#   while video_siguiente(v) == 1
+#       pixeles = video_rgb(v)            # video_ancho(v) x video_alto(v), video_paso(v) bytes por fila
+#       ... video_ms(v): su instante
+#   end
+#   video_cerrar(v)
+
+@link "../build/video-lib/libvideo.a"
+# MintVID pide 320 KB de pila (su mr_decode: Stack 320000)
+@stack 400000
+@header "#include <dashweb_video.h>"
+
+@native(borrow) func video_abrir(fichero: String) -> Int
+"""
+    return dwv_abrir((const char *)fichero);
+"""
+end
+
+@native func video_ancho(v: Int) -> Int
+"""
+    return dwv_ancho(v);
+"""
+end
+
+@native func video_alto(v: Int) -> Int
+"""
+    return dwv_alto(v);
+"""
+end
+
+# Imágenes por segundo x 1000 (0 si el fichero no lo dice)
+@native func video_fps_mil(v: Int) -> Int
+"""
+    return dwv_fps_mil(v);
+"""
+end
+
+@native(borrow) func video_codecs(v: Int) -> String
+"""
+    return (STRPTR)dwv_codecs(v);
+"""
+end
+
+# 1: hay una imagen nueva; 0: se acabó; -1: error
+@native func video_siguiente(v: Int) -> Int
+"""
+    return dwv_siguiente(v);
+"""
+end
+
+# La imagen: RGB24, video_paso(v) bytes por fila (vale hasta el siguiente video_siguiente)
+@native func video_rgb(v: Int) -> Int
+"""
+    return (LONG)dwv_rgb(v);
+"""
+end
+
+@native func video_paso(v: Int) -> Int
+"""
+    return dwv_paso(v);
+"""
+end
+
+# Su instante en ms (-1 si no se sabe)
+@native func video_ms(v: Int) -> Int
+"""
+    return dwv_ms(v);
+"""
+end
+
+# H.264: 0 calidad, 1 equilibrado, 2 rápido, 3 turbo (una de cada dos), 4 turbo+ (solo las clave)
+@native func video_rapido(v: Int, modo: Int) -> Bool
+"""
+    return dwv_rapido(v, modo) ? TRUE : FALSE;
+"""
+end
+
+@native func video_cerrar(v: Int)
+"""
+    dwv_cerrar(v);
+"""
+end

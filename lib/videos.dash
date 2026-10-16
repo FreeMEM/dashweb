@@ -1,0 +1,234 @@
+# Los vídeos de una página (tarea 30): cada <video> tiene un reproductor. Un clic lo trae (por HTTP/HTTPS, a
+# un fichero de T:) y lo reproduce; otro lo para. Cada vuelta del bucle, videos_avanzar decodifica hasta la
+# imagen que toca según el reloj (si va con retraso, salta imágenes) y dice si hay que repintar; el pintor
+# llama a videos_pintar con el recuadro del vídeo. Sin sonido todavía.
+#
+#   vs = videos_nuevos()
+#   videos_alternar(vs, nodo_video, "https://ejemplo.org/")   # al hacer clic
+#   if videos_avanzar(vs)                                   # en cada tic
+#       ... repintar
+#   videos_liberar(vs)
+
+import "video.dash"
+import "http.dash"
+import "url.dash"
+import "dom.dash"
+
+const V_PARADO = 0       # aún no se ha pulsado
+const V_TRAYENDO = 1
+const V_SONANDO = 2
+const V_PAUSA = 3
+const V_FIN = 4
+const V_ERROR = 5
+
+struct Reproductor
+    nodo: Nodo
+    direccion: String
+    fichero: String
+    estado: Int = 0
+    carga: Carga = nil
+    v: Int = 0
+    inicio: Int = 0          # time_ms() del instante 0 del vídeo (mientras suena)
+    pos: Int = 0             # ms del vídeo donde se paró
+    hay_imagen: Bool = false
+    error: String = ""
+end
+
+struct Videos
+    lista: [Reproductor]
+    n: Int = 0               # para los nombres de los ficheros
+end
+
+func videos_nuevos() -> Videos
+    var lista: [Reproductor] = []
+    return Videos(lista)
+end
+
+# El reproductor de ese <video> (nil si aún no tiene)
+func videos_de(vs: Videos, n: Nodo) -> Reproductor
+    for r in vs.lista
+        if r.nodo == n
+            return r
+        end
+    end
+    var nadie: Reproductor = nil
+    return nadie
+end
+
+# Un clic en el vídeo: traerlo y reproducirlo, pararlo o seguir
+func videos_alternar(vs: Videos, n: Nodo, base: String)
+    r = videos_de(vs, n)
+    if r == nil
+        src = video_src(n)
+        if src == ""
+            return
+        end
+        vs.n = vs.n + 1
+        r = Reproductor(n, url_text(url_resolve(url_parse(base), src)), "T:dashweb_video" + vs.n)
+        vs.lista.push(r)
+    end
+    if r.estado == V_PARADO or r.estado == V_ERROR
+        r.error = ""
+        if str_starts(r.direccion, "http://") or str_starts(r.direccion, "https://")
+            r.carga = http_empezar_a_fichero(r.direccion, r.fichero, 60000)
+            r.estado = V_TRAYENDO
+        else
+            r.fichero = r.direccion
+            _video_empezar(r)
+        end
+    elif r.estado == V_SONANDO
+        r.pos = time_ms() - r.inicio
+        r.estado = V_PAUSA
+    elif r.estado == V_PAUSA
+        r.inicio = time_ms() - r.pos
+        r.estado = V_SONANDO
+    elif r.estado == V_FIN
+        video_cerrar(r.v)
+        r.v = 0
+        r.hay_imagen = false
+        _video_empezar(r)
+    end
+end
+
+func _video_empezar(r: Reproductor)
+    r.v = video_abrir(r.fichero)
+    if r.v == 0
+        r.estado = V_ERROR
+        r.error = "no se puede reproducir"
+        return
+    end
+    # H.264: el modo rápido (sin filtros caros); en la máquina objetivo, ~12 imágenes/s a 640x360
+    video_rapido(r.v, 2)
+    r.inicio = time_ms()
+    r.pos = 0
+    r.estado = V_SONANDO
+end
+
+# Avanza descargas y reproducción; true si algún vídeo cambió de imagen o de estado (hay que repintar)
+func videos_avanzar(vs: Videos) -> Bool
+    cambio = false
+    for r in vs.lista
+        if r.estado == V_TRAYENDO
+            if http_avanzar(r.carga)
+                resp = r.carga.respuesta
+                r.carga = nil
+                if resp.error == "" and resp.estado >= 200 and resp.estado < 300
+                    _video_empezar(r)
+                else
+                    r.estado = V_ERROR
+                    r.error = "no se pudo traer"
+                end
+                cambio = true
+            end
+        elif r.estado == V_SONANDO
+            ahora = time_ms() - r.inicio
+            # la última imagen cuyo instante ya pasó (saltando las que llegan tarde)
+            nueva = false
+            vueltas = 0
+            while vueltas < 8
+                if r.hay_imagen and video_ms(r.v) + 1000 * 1000 / _fps(r.v) > ahora
+                    break
+                end
+                s = video_siguiente(r.v)
+                if s != 1
+                    r.estado = V_FIN
+                    cambio = true
+                    break
+                end
+                r.hay_imagen = true
+                nueva = true
+                vueltas = vueltas + 1
+            end
+            if nueva
+                cambio = true
+            end
+        end
+    end
+    return cambio
+end
+
+func _fps(v: Int) -> Int
+    f = video_fps_mil(v)
+    if f <= 0
+        return 25000
+    end
+    return f
+end
+
+# ¿Algún vídeo suena o llega? (el bucle tiene que seguir dando tics)
+func videos_activos(vs: Videos) -> Bool
+    for r in vs.lista
+        if r.estado == V_TRAYENDO or r.estado == V_SONANDO
+            return true
+        end
+    end
+    return false
+end
+
+# Pinta el vídeo de ese nodo en el recuadro x, y, ancho x alto: su imagen escalada o, si aún no tiene, un
+# recuadro negro con el triángulo de reproducir (y "..." mientras llega)
+func videos_pintar(vs: Videos, n: Nodo, x: Int, y: Int, ancho: Int, alto: Int)
+    var r: Reproductor = nil
+    if vs != nil
+        r = videos_de(vs, n)
+    end
+    if r != nil and r.hay_imagen and r.v != 0
+        gfx_rgb_draw_scaled(video_rgb(r.v), video_ancho(r.v), video_alto(r.v), x, y, ancho, alto)
+        if r.estado == V_PAUSA or r.estado == V_FIN
+            _triangulo(x, y, ancho, alto)
+        end
+        return
+    end
+    gfx_pen(color_pen(0, 0, 0))
+    gfx_rect(x, y, x + ancho - 1, y + alto - 1)
+    if r != nil and r.estado == V_TRAYENDO
+        gfx_pen(color_pen(255, 255, 255))
+        gfx_text_at(x + ancho / 2 - 12, y + alto / 2, "...")
+        return
+    end
+    _triangulo(x, y, ancho, alto)
+    if r != nil and r.estado == V_ERROR
+        gfx_pen(color_pen(255, 120, 120))
+        gfx_text_at(x + 8, y + alto - 8, r.error)
+    end
+end
+
+# El botón de reproducir: un rectángulo oscuro con un triángulo blanco en el centro
+func _triangulo(x: Int, y: Int, ancho: Int, alto: Int)
+    r = alto / 6
+    if ancho / 6 < r
+        r = ancho / 6
+    end
+    if r < 8
+        r = 8
+    end
+    cx = x + ancho / 2
+    cy = y + alto / 2
+    gfx_pen(color_pen(40, 40, 40))
+    gfx_rect(cx - r, cy - r * 2 / 3, cx + r, cy + r * 2 / 3)
+    # el triángulo, línea a línea (el relleno de polígonos necesita memoria de área que una zona de dibujo
+    # de MUI no tiene)
+    gfx_pen(color_pen(255, 255, 255))
+    alto_t = r / 2
+    for k in (0 - alto_t..alto_t)
+        d = k
+        if d < 0
+            d = 0 - d
+        end
+        largo = (r * 5 / 6) * (alto_t - d) / alto_t
+        gfx_line(cx - r / 3, cy + k, cx - r / 3 + largo, cy + k)
+    end
+end
+
+func videos_liberar(vs: Videos)
+    for r in vs.lista
+        if r.v != 0
+            video_cerrar(r.v)
+            r.v = 0
+        end
+        if str_starts(r.fichero, "T:dashweb_video")
+            file_delete(r.fichero)
+        end
+    end
+    vs.lista.clear()
+end

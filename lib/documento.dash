@@ -30,6 +30,7 @@ struct Documento
     error: String
     ms: Int              # lo que tardó en abrirse y maquetarse
     recursos: Recursos = nil   # documento_empezar: las hojas y scripts que están llegando
+    videos: Videos = nil       # los reproductores de sus <video> (lib/videos.dash)
 end
 
 # El texto de la página (Latin-1): http(s) o un fichero; si falla, una página que lo dice
@@ -221,6 +222,9 @@ func documento_liberar(d: Documento)
         recursos_cancelar(d.recursos)
     end
     imagenes_liberar(d.im)
+    if d.videos != nil
+        videos_liberar(d.videos)
+    end
     if d.js != 0
         js_liberar(d.js)
         d.js = 0
@@ -305,4 +309,25 @@ func documento_fragmento(direccion: String) -> String
         return ""
     end
     return direccion[p + 1:]
+end
+
+# Los vídeos de la página (se crean al primer clic en uno)
+func documento_videos(d: Documento) -> Videos
+    if d.videos == nil
+        d.videos = videos_nuevos()
+    end
+    return d.videos
+end
+
+# El <video> que contiene a n (o n mismo); nil si no está en uno
+func documento_video_de(n: Nodo) -> Nodo
+    m = n
+    while m != nil
+        if m.tipo == DOM_ELEMENTO and m.nombre == "video"
+            return m
+        end
+        m = m.padre
+    end
+    var nada: Nodo = nil
+    return nada
 end

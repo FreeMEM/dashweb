@@ -1,0 +1,14 @@
+MintVID para dashweb
+====================
+
+Un subconjunto de MintVID (https://github.com/boingball/MintVID, MIT, Darren "boingball" Banfi), commit
+b3be6f3b3181996a46f1881845ec65a053022901, con el decodificador H.264 de Ittiam libavc (Apache-2.0, LICENSE y
+NOTICE en libavc/) en su submódulo de MintVID (28825e13a734c8667ac9274e1b34489c25da7e37) y su adaptación
+libavc_port.
+
+Ficheros sin cambios. Se quedan fuera, para que dashweb siga siendo MIT y use su propia red:
+  - libmpeg2 y liba52 (GPL-2.0-or-later), libdv (LGPL-2.1): core/mr_mpeg2.*, core/mr_dv.* y sus vendor/.
+  - La red de MintVID (core/mr_http.c, mr_hls.c, mr_youtube.c; quedan sus cabeceras) y MintAMP (sonido).
+  - De libavc: el codificador, MVC/SVC y el código de otras arquitecturas.
+dashweb_video.c (nuestro, MIT) pone sustitutos vacíos de lo que falta y la interfaz que usa lib/video.dash.
+tools/build_video.sh lo compila en build/video-lib/libvideo.a.

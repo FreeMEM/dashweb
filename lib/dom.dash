@@ -535,3 +535,20 @@ func _formato_raro(dir: String) -> Bool
     end
     return str_ends(d, ".avif") or str_ends(d, ".jxl")
 end
+
+# La dirección de un <video>: su src o la del primer <source> con un tipo que se sabe reproducir (MP4, MOV,
+# AVI, MKV, MPEG-TS, MPEG-1) o sin tipo
+func video_src(n: Nodo) -> String
+    if dom_atributo(n, "src") != ""
+        return dom_atributo(n, "src")
+    end
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO and h.nombre == "source" and dom_atributo(h, "src") != ""
+            tipo = str_lower(dom_atributo(h, "type"))
+            if tipo == "" or str_starts(tipo, "video/mp4") or tipo == "video/quicktime" or tipo == "video/x-msvideo" or tipo == "video/x-matroska" or tipo == "video/mp2t" or tipo == "video/mpeg"
+                return dom_atributo(h, "src")
+            end
+        end
+    end
+    return ""
+end

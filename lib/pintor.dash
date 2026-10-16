@@ -9,9 +9,12 @@
 
 import "maqueta.dash"
 import "imagenes.dash"
+import "videos.dash"
 
 # El campo de formulario con el foco: se dibuja con el borde azul y el cursor
 var pintor_foco: Nodo = nil
+# Los vídeos de la página que se pinta (lib/videos.dash), o nil: entonces cada uno es un recuadro negro
+var pintor_videos: Videos = nil
 
 func _lapiz(rgb: Int) -> Int
     return color_pen(rgb / 65536, (rgb / 256) % 256, rgb % 256)
@@ -64,6 +67,8 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
                 _elipse_pintar(d, x, y)
             end
+        elif d.tipo == D_VIDEO
+            _video_dibujo(d, x, y, x0, y0, derecha, abajo)
         elif d.tipo == D_DEGRADADO
             _degradado_pintar(d, x, y, x0, y0, derecha, abajo)
         elif d.tipo == D_TRAZO
@@ -652,4 +657,23 @@ func _color_en(c1: Int, c2: Int, en: Int, largo: Int) -> Int
     g2 = (c2 / 256) % 256
     b2 = c2 % 256
     return (r1 + (r2 - r1) * en / largo) * 65536 + (g1 + (g2 - g1) * en / largo) * 256 + b1 + (b2 - b1) * en / largo
+end
+
+# Un vídeo: entero si cabe en el rectángulo (su imagen o el botón de reproducir); si no, la parte que se ve
+# en negro
+func _video_dibujo(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    if x >= x0 and y >= y0 and x + d.ancho - 1 <= x1 and y + d.alto - 1 <= y1
+        videos_pintar(pintor_videos, d.nodo, x, y, d.ancho, d.alto)
+    else
+        _rect_recortado(x, y, d.ancho, d.alto, x0, y0, x1, y1, _lapiz(0))
+    end
+end
+
+# Solo los vídeos de la franja [desde, desde + alto) (una imagen nueva: no hace falta pintar la página entera)
+func pintar_videos(p: Pagina, desde: Int, x0: Int, y0: Int, ancho: Int, alto: Int)
+    for d in p.dibujos
+        if d.tipo == D_VIDEO and d.y + d.alto > desde and d.y < desde + alto
+            _video_dibujo(d, x0 + d.x, y0 + d.y - desde, x0, y0, x0 + ancho - 1, y0 + alto - 1)
+        end
+    end
 end

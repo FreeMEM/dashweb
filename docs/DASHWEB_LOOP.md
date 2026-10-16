@@ -1344,3 +1344,37 @@ Formato:
   mr_h264 + libavc + libavc_port, mr_yuv, mr_scale; sin libmpeg2/a52/libdv, que son GPL/LGPL, ni su red), una
   interfaz en C (abrir de memoria o fichero, siguiente imagen en RGB, su tiempo) y lib/video.dash. Para pintar,
   D43 encargada a la otra sesión (tarea 9: gfx_rgb_draw y gfx_rgb_draw_scaled con WritePixelArray/p96).
+
+### 2026-10-17 — Tarea 30b, primera parte (el núcleo de MintVID dentro de dashweb)
+- third_party/mintvid: el subconjunto de MintVID (b3be6f3, MIT) sin cambios: su núcleo (contenedores MP4/MOV,
+  AVI, MKV, TS/PS; códecs H.264, MPEG-1, MPEG-4/DivX, MJPEG, Cinepak, WMV1/2, H.263, MS Video 1, RLE; YUV a
+  RGB en ensamblador de 68k) y libavc (Apache-2.0, sin codificador, MVC/SVC ni otras arquitecturas) con su
+  adaptación libavc_port. Fuera: libmpeg2, liba52 (GPL), libdv (LGPL), su red y MintAMP. README.dashweb lo
+  explica. `dashweb_video.c` (nuestro): sustitutos vacíos de lo que falta y la interfaz dwv_* (abrir, tamaño,
+  imágenes por segundo, códecs, siguiente imagen en RGB24 con drain/flush para los B-frames, instante, modo
+  rápido de H.264, cerrar).
+- `tools/build_video.sh` → build/video-lib/libvideo.a (830 KB): la lista de ficheros del mr_decode de MintVID,
+  -m68020-60 -m68881, y sus redirecciones de enlace (--wrap, las rutas en ensamblador de libavc) resueltas con
+  ld -r dentro de la librería. tests/run.py la compila si falta (y ya no rehace QuickJS por cualquier fichero de
+  third_party).
+- `lib/video.dash`: video_abrir, video_ancho/alto, video_fps_mil, video_codecs, video_siguiente, video_rgb,
+  video_paso, video_ms, video_rapido, video_cerrar. Probado en el emulador (un MP4 H.264 de 160x48 con
+  B-frames): códecs, tamaño, 10 imágenes de 10 con su instante, colores bien, memcheck sin nada.
+- Test nuevo `test_video` (emu-server 40863, pila de 400 KB; MintVID pide 320 KB).
+- Falta (30b): pintarlo en el recuadro de `<video>` (D43 encargada: gfx_rgb_draw), al ritmo del reloj, y
+  el sonido.
+
+### 2026-10-17 — Tarea 30b, segunda parte (vídeo en la página)
+- `<video>` en la maqueta (`D_VIDEO`): 300x150 si no dice más, width en px o %, alto con la proporción de sus
+  atributos; su dirección, la de src o la del primer `<source>` con un tipo que se reproduce (`video_src`).
+- `lib/videos.dash`: un reproductor por `<video>`. Un clic lo trae (HTTP/HTTPS a T:) y lo reproduce en modo
+  rápido de H.264; otro lo pausa; al acabar, otro lo vuelve a empezar. Cada tic decodifica hasta la imagen que
+  toca según el reloj (salta las que llegan tarde). Sin imagen, un recuadro negro con el botón de reproducir.
+  `@stack 400000` en lib/video.dash (MintVID pide 320 KB).
+- Pintor: `D_VIDEO` con gfx_rgb_draw_scaled (D43, rama `rgb` de la otra sesión, aún sin fusionar);
+  `pintar_videos` solo repinta los vídeos. dashweb.dash: clic en un vídeo, tic cada 20 ms mientras suena.
+- Probado en la máquina RTG (tests/pages/video.html, H.264 320x180 a 640x360): se reproduce entero (captura
+  enviada al usuario). Fallos: los rellenos (círculo, polígono) colgaban en el lienzo de MUI (Dash: tarea 10,
+  hecha en la rama `areas`); al repintar solo el vídeo MUI borra el lienzo y la página queda gris (Dash:
+  tarea 11, mui_canvas_update). Hasta fusionar rgb, dashweb no compila con el Dash de `dashweb`: commit en
+  dev2, sin pasar a dev.
