@@ -1,0 +1,62 @@
+# Test: lib/maqueta.dash, la colocación de cajas que pidió freemem.space (tarea 28) con la topaz 8
+# (letras de 8x8): float left/right en filas (con anchos en % del contenedor, no de la caja), lo que
+# no flota debajo; inline-block con bloques dentro como un flotante; position absolute (bottom y
+# right) respecto al padre; min-height; max-width con margin auto; visibility: hidden (ocupa sitio,
+# no se pinta); una imagen de fondo (D_FONDO); rgba casi transparente sin fondo.
+# expect-out: T 0,1 [a] c=0 e=0
+# expect-out: T 80,1 [b] c=0 e=0
+# expect-out: T 0,11 [c] c=0 e=0
+# expect-out: T 192,11 [d] c=0 e=0
+# expect-out: T 0,21 [debajo] c=0 e=0
+# expect-out: T 0,31 [i1] c=0 e=0
+# expect-out: T 16,31 [i2] c=0 e=0
+# expect-out: F 0,40 200x50 http://x/f.png
+# expect-out: T 184,81 [ab] c=0 e=0
+# expect-out: T 76,91 [centro] c=0 e=0
+# expect-out: T 0,111 [visible] c=0 e=0
+# expect-out: alto 120
+# expect-out: fin
+
+import "../lib/maqueta.dash"
+
+Window W
+    title "Cajas"
+    width 300
+    height 100
+end
+
+func muestra(d: Dibujo) -> String
+    if d.tipo == D_TEXTO
+        return "T " + d.x + "," + d.y + " [" + str_trim(d.texto) + "] c=" + str_from_int(d.color, 16) + " e=" + d.estilo
+    elif d.tipo == D_RECT
+        return "R " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " c=" + str_from_int(d.color, 16)
+    elif d.tipo == D_FONDO
+        return "F " + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + " " + d.texto
+    end
+    return "? " + d.tipo + " " + d.x + "," + d.y
+end
+
+Main
+    W.open
+    h = "<style>body { margin: 0 } div, p { margin: 0 } .f { float: left; width: 40% } .d { float: right }"
+    h = h + " .ib { display: inline-block } .r { position: relative; min-height: 50px; background-image: url(f.png) }"
+    h = h + " .ab { position: absolute; bottom: 0; right: 0 } .m { max-width: 100px; margin: 0 auto; text-align: center }"
+    h = h + " .h { visibility: hidden } .t { background-color: rgba(0, 0, 0, 0.2) }</style>"
+    h = h + "<div><div class=f>a</div><div class=f>b</div><div class=f>c</div><div class=d>d</div></div>"
+    h = h + "<p>debajo</p>"
+    h = h + "<div><span class=ib><div>i1</div></span><span class=ib><div>i2</div></span></div>"
+    h = h + "<div class=r><div class=ab>ab</div></div>"
+    h = h + "<div class=m>centro</div><div class=h>oculto</div><div class=t>visible</div>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    # imagenes_pedir pone en el estilo la dirección completa de los fondos: aquí a mano
+    r = dom_buscar(doc, "body").hijos[3]
+    r.estilo["background-image"] = "url(http://x/f.png)"
+    p = maquetar(doc, 200)
+    for d in p.dibujos
+        Print muestra(d)
+    end
+    Print "alto " + p.alto
+    W.close
+    Print "fin"
+end

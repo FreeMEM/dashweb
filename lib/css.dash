@@ -614,6 +614,15 @@ func css_importes(texto: String) -> [String]
     return r
 end
 
+# La dirección de un valor con url(...) ("" si no lleva)
+func css_url(valor: String) -> String
+    p = str_find(str_lower(valor), "url(")
+    if p < 0
+        return ""
+    end
+    return _css_url(valor[p:])
+end
+
 # url("x"), url(x), "x" -> x
 func _css_url(t: String) -> String
     v = str_trim(t)

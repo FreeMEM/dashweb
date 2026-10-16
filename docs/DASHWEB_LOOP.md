@@ -171,6 +171,10 @@ tarea, con el estilo de Dash.
       `{String: [T]}` y `[[T]]` (lo pidió el índice de CSS).
 - [x] D38. **Barra de herramientas.** `mui_image_button`, `mui_help`, `mui_window_size` (y en `.dashui`
       `image_button`, `help`, `size`) para una interfaz de navegador actual.
+- [x] D40. **Imágenes desde píxeles.** `image_from_rgb(buffer, ancho, alto, alfa)` con picture.datatype V43
+      (lo pidió la 29).
+- [x] D41. **Plazos de la red sin espera.** El tiempo en que el programa no consulta no cuenta y el de la
+      negociación TLS empieza de nuevo con cada paso (lo encontró la 28c: los fondos de freemem.space fallaban).
 - [x] D36. **Conectar sin esperar.** `net_connect_start`/`_poll`/`_stage` (el nombre se busca en otro proceso,
       la conexión sin bloquear) y `tls_connect_start`/`_poll` (lo pidió la 20d).
 - [x] D35. **Atajos de menú de MUI.** Amiga+tecla colgaba el programa (barra de menús puesta con `SetAttrs`
@@ -300,11 +304,20 @@ tarea, con el estilo de Dash.
 - [x] 28a. **@media con el ancho de la página.** Se evalúan como 640 px: con RTG (unos 940) salen las reglas de
       móvil (la barra superior de freemem.space se esconde). El ancho real de la zona de dibujo; volver a leer las
       hojas si cambia de lado de un corte.
-- [ ] 28b. **float.** left/right y clear en la maqueta (la fecha, el logotipo, las cinco entradas destacadas).
-- [ ] 28c. **Imágenes de fondo y position.** background-image (cover, center, no-repeat) en bloques;
+- [x] 28b. **float.** left/right y clear en la maqueta (la fecha, el logotipo, las cinco entradas destacadas).
+- [x] 28c. **Imágenes de fondo y position.** background-image (cover, center, no-repeat) en bloques;
       position relative/absolute (el título encima de la imagen), top/left/bottom.
 - [ ] 28d. **Tipografía.** text-transform, letter-spacing, fuentes web (Lato...) a las del Amiga, tamaños.
 - [ ] 28e. **Iconos.** Los de Font Awesome más comunes (menú, lupa, calendario, comentario) dibujados.
+- [ ] 29. **Imágenes con decodificadores propios.** Pregunta del usuario (2026-10-16): ¿son óptimos los datatypes? No:
+      decodifican a tamaño completo (una foto de freemem.space no acabó en 5 min en la máquina RTG), sin límites de
+      memoria ni tiempo, sin WebP/SVG y distintos en cada sistema. Decodificar en C (third_party: stb_image para
+      JPEG/PNG/GIF/BMP, libwebp para WebP) al tamaño en que se va a ver (JPEG a 1/2, 1/4, 1/8 al decodificar), sin
+      esperar y con límites; datatypes solo para lo demás.
+- [?] 30. **Vídeo (YouTube).** PREGUNTA al usuario: el reproductor de YouTube son megas de JS y H.264/VP9 por software no
+      es viable en un 68k (en PiStorm con Emu68, quizá 240p sin garantías). Lo realista: reconocer el vídeo y
+      reproducir una versión de baja resolución en un reproductor aparte, convertida (MPEG-1, CDXL...) por un servicio.
+      ¿Se quiere un servicio externo para eso?
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
 
@@ -1128,3 +1141,37 @@ Formato:
   de leer cada página; `documento_maquetar` la cambia con el ancho y, si algún corte cambia de lado
   (`estilo_cambia_con`), vuelve a calcular el estilo. Las de print ni se guardan. matchMedia mira lo mismo.
 - freemem.space en RTG: aparecen la barra azul con la fecha y el título a su tamaño (la página ya no es "de móvil").
+
+### 2026-10-16 — Tareas 28b y 28c (float, position, fondos) y 29 a medias (decodificadores), D40 y D41
+- Maqueta (`lib/maqueta.dash`): flotantes en filas (left desde la izquierda, right desde la derecha; bajan de
+  fila si no caben; sin width miden su contenido); lo que no flota va debajo (el texto aún no los rodea) y el
+  bloque los abarca (como clearfix). inline-block con bloques dentro (o con width/height) como un flotante.
+  position absolute/fixed respecto al padre (top/left/right/bottom, encima del contenido). min-height,
+  max-width (con margin auto), box-sizing: border-box, visibility: hidden y opacity: 0 (ocupan sitio, no se
+  pintan). Fallo encontrado: un flotante recibía su ancho resuelto y volvía a aplicarle su width en %
+  (`_bloque_de`: los % del contenedor).
+- Imágenes de fondo: el atajo background da image/repeat/position/size; `imagenes_pedir` las trae (con la
+  dirección completa en el estilo); `D_FONDO` y el pintor (cover, contain, px, %, posición, repeat/no-repeat/
+  -x/-y, recortado a la caja). rgba con alfa < 0,5 es transparente.
+- Los fondos de freemem.space no salían: sus 4 descargas empezaban durante 28 s de JavaScript sin tics y la
+  negociación TLS se agotaba. D41 en Dash (el tiempo sin consultar no cuenta) no bastaba: el servidor no contesta
+  a una conexión TCP que lleva tanto callada. `lib/red.dash` abre otra si la conexión se pidió hace más de 5 s
+  (el programa estaba ocupado) y reintenta una vez si la negociación se agota. Reproducido y comprobado con 5
+  descargas, 28 s sin consultar y después 1,9 s.
+- Herramientas: `tools/traza.py` (con `tools/traza_maqueta.dash`): una página de disco o de la red, con sus
+  hojas y scripts, maquetada a un ancho con la caja de cada bloque y los dibujos entre dos alturas
+  (`maqueta_traza`). La maqueta de freemem.space tarda 1 s; leer su CSS es lo lento.
+- Tarea 29 (en marcha): D40 en Dash (`image_from_rgb`); `lib/imagen_dec.dash` con TJpgDec (third_party/tjpgd,
+  JPEG reducido 1/2-1/8 al decodificar) y stb_image (third_party/stb: JPEG progresivo, PNG, GIF, BMP), en
+  `build/img-lib/libimg.a` (`tools/build_img.sh`); `imagen_cargar` los usa y, si no, los datatypes (3.1). Medido
+  en la máquina RTG: un JPEG de 1376x768 tarda 2,6 s (los datatypes 2,2): la ventaja es decodificar reducido.
+- Tests: `test_maqueta_cajas`, `test_imagen_dec` (memcheck), `test_estilo` con la vista a 1000 px.
+- freemem.space en RTG: barra con la fecha, márgenes del tema, título en dos líneas como en Chrome y la rejilla
+  de entradas destacadas con sus imágenes y títulos encima. Comparación enviada al usuario. Falta: iconos de
+  Font Awesome (menú, lupa), tipografía (Lato, el lema en mayúsculas espaciadas), un "contenido" que se cuela
+  arriba.
+- `--fpu` no arranca en el 68040 de sys32rtg: la comprobación de libnix mira AFF_68881, que pone 68040.library
+  al cargarla SetPatch (explicación de la sesión de MUI). Pendiente: SetPatch y 68040.library en sys32rtg.
+- Dash rebasado sobre main 45231f8 (interpolación nueva, ReAction con varias ventanas...): D40/D41 en ef0022f.
+  Dash 196/196, 34/34, 514/514 en tres máquinas y 306/306 con memcheck (antes del rebase); dashweb 28/28 sobre
+  el Dash rebasado. Desde ahora los cambios de Dash los hace la otra sesión por encargo (lo pidió el usuario).

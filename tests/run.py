@@ -65,6 +65,21 @@ def compile_test(src: Path, memcheck: bool):
     return exe, None
 
 
+def build_img_lib() -> bool:
+    """build/img-lib/libimg.a (lib/imagen_dec.dash links it) when it is missing or older than its sources"""
+    lib = ROOT / "build" / "img-lib" / "libimg.a"
+    sources = (list((ROOT / "third_party" / "tjpgd").glob("*.[ch]")) + list((ROOT / "third_party" / "stb").glob("*.[ch]"))
+               + [ROOT / "tools" / "build_img.sh"])
+    if lib.exists() and lib.stat().st_mtime >= max(f.stat().st_mtime for f in sources):
+        return True
+    print("building build/img-lib/libimg.a (tools/build_img.sh)...", flush=True)
+    r = subprocess.run([str(ROOT / "tools" / "build_img.sh")], capture_output=True, text=True)
+    if r.returncode != 0:
+        print("tools/build_img.sh failed:\n" + r.stdout + r.stderr, file=sys.stderr)
+        return False
+    return True
+
+
 def build_qjs_lib() -> bool:
     """build/qjs-lib/libqjs.a (lib/js.dash links it) when it is missing or older than its sources"""
     lib = ROOT / "build" / "qjs-lib" / "libqjs.a"
@@ -104,6 +119,8 @@ def main():
     programas = [] if args.filter else sorted((ROOT / "src").glob("*.dash"))
     BUILD.mkdir(parents=True, exist_ok=True)
     if any("js.dash" in t.read_text() or "documento.dash" in t.read_text() for t in tests + programas) and not build_qjs_lib():
+        return 1
+    if not build_img_lib():
         return 1
 
     results = {}          # name -> (ok, message)

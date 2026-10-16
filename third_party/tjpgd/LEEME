@@ -1,0 +1,4 @@
+TJpgDec R0.03 (ChaN, 2021): http://elm-chan.org/fsw/tjpgd/  (arc/tjpgd3.zip, src/)
+Licencia: libre para cualquier uso (ver la cabecera de tjpgd.c); se conserva el aviso de copyright.
+Cambios: tjpgdcnf.h con JD_SZBUF 4096 y JD_FASTDECODE 2 (un 68020+ tiene memoria y barrel shifter).
+Lo usa lib/imagen_dec.dash para decodificar JPEG ya reducido (1/2, 1/4, 1/8).

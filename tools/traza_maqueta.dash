@@ -1,0 +1,51 @@
+# Depurar la maqueta: lee una página (de disco, o por la red con sus hojas y scripts, como el navegador),
+# aplica el estilo con la página a ANCHO px y escribe la caja de cada bloque hasta NIVELES de
+# profundidad (lib/maqueta.dash).
+#
+#   traza_maqueta pagina.html 940 8          (tools/traza.py lo corre en el emulador)
+#   traza_maqueta https://ejemplo.org/ 940 8
+
+import "../lib/documento.dash"
+
+Main
+    if arg_count() < 3
+        Print "uso: traza_maqueta pagina.html ancho niveles"
+    else
+        ancho = Int(arg(1))
+        css_vista(ancho + DOC_BARRA, 600)
+        var d: Documento = nil
+        if str_starts(arg(0), "http")
+            r = http_get(arg(0), 30000)
+            d = documento_empezar(arg(0), r)
+            while not documento_avanzar(d)
+                time_delay(1)
+            end
+            espera = jsdom_temporizadores(d.js)
+            vueltas = 0
+            while espera >= 0 and espera < 2000 and vueltas < 100
+                time_delay(2)
+                espera = jsdom_temporizadores(d.js)
+                vueltas = vueltas + 1
+            end
+            documento_al_dia(d)
+        else
+            t = file_read_text(arg(0))
+            d = documento_html("file:///" + arg(0), utf8_a_latin1(t))
+        end
+        maqueta_traza = Int(arg(2))
+        t0 = time_ms()
+        documento_maquetar(d, ancho)
+        maqueta_traza = 0
+        Print "alto " + d.pagina.alto + ", " + d.pagina.dibujos.length + " dibujos, " + (time_ms() - t0) + " ms"
+        if arg_count() > 4
+            # los dibujos entre dos alturas: tipo x,y ancho x alto y texto
+            desde = Int(arg(3))
+            hasta = Int(arg(4))
+            for dd in d.pagina.dibujos
+                if dd.y + dd.alto > desde and dd.y < hasta
+                    Print "dibujo " + dd.tipo + " [" + dd.x + "," + dd.y + " " + dd.ancho + "x" + dd.alto + "] " + dd.color + " " + dd.texto[:60]
+                end
+            end
+        end
+    end
+end

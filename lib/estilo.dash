@@ -581,12 +581,39 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
         end
     elif p == "background"
         color = "transparent"
+        imagen = "none"
+        repetir = "repeat"
+        var lugar: [String] = []
+        tam = "auto"
         for t in _palabras(v)
-            if _es_color(t)
+            tl = str_lower(t)
+            if str_starts(tl, "url(")
+                imagen = t
+            elif tl == "repeat" or tl == "no-repeat" or tl == "repeat-x" or tl == "repeat-y"
+                repetir = tl
+            elif tl == "center" or tl == "top" or tl == "bottom" or tl == "left" or tl == "right" or str_ends(tl, "%")
+                lugar.push(tl)
+            elif str_starts(tl, "/")
+                tam = tl[1:]
+            elif tl == "cover" or tl == "contain"
+                tam = tl
+            elif tl == "fixed" or tl == "scroll" or tl == "local" or tl == "none"
+                tam = tam
+            elif _es_color(t)
                 color = t
             end
         end
+        posicion = "0% 0%"
+        if lugar.length == 1
+            posicion = lugar[0]
+        elif lugar.length >= 2
+            posicion = lugar[0] + " " + lugar[1]
+        end
         _proponer(ganadoras, "background-color", Candidata(color, d.importante, autor, esp, orden))
+        _proponer(ganadoras, "background-image", Candidata(imagen, d.importante, autor, esp, orden))
+        _proponer(ganadoras, "background-repeat", Candidata(repetir, d.importante, autor, esp, orden))
+        _proponer(ganadoras, "background-position", Candidata(posicion, d.importante, autor, esp, orden))
+        _proponer(ganadoras, "background-size", Candidata(tam, d.importante, autor, esp, orden))
     elif p == "list-style"
         for t in _palabras(v)
             if t != "inside" and t != "outside" and not str_starts(t, "url(")

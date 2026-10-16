@@ -36,7 +36,14 @@ struct Conexion
     fase: Int = 0     # abriéndose sin esperar: 1 nombre y conexión, 2 negociación TLS; 0 abierta
     host: String = ""
     con_tls: Bool = false
+    puerto: Int = 0
+    empezada: Int = 0      # time_ms de cuando se pidió la conexión
+    reintentos: Int = 0
 end
+
+# Un servidor deja de contestar a una conexión TCP que pasa muchos segundos callada antes de la
+# negociación TLS (el programa estaba ocupado): entonces se abre otra (como mucho dos veces)
+const RED_CALLADA_MS = 5000
 
 func red_abrir(host: String, puerto: Int, espera_ms: Int) -> Conexion
     c = Conexion(-1, -1, espera_ms, buffer_alloc(RED_TROZO * 4), RED_TROZO * 4, 0, 0, false, "")
@@ -66,6 +73,8 @@ func red_abrir_empezar(host: String, puerto: Int, con_tls: Bool, espera_ms: Int)
     c = Conexion(-1, -1, espera_ms, buffer_alloc(RED_TROZO * 4), RED_TROZO * 4, 0, 0, false, "")
     c.host = host
     c.con_tls = con_tls
+    c.puerto = puerto
+    c.empezada = time_ms()
     c.sock = net_connect_start(host, puerto, espera_ms)
     if c.sock < 0
         c.error = net_error()
@@ -96,6 +105,9 @@ func red_abrir_avanzar(c: Conexion) -> Int
             c.fase = 0
             return 1
         end
+        if time_ms() - c.empezada > RED_CALLADA_MS and c.reintentos < 2
+            return _red_otra_vez(c)
+        end
         c.tls = tls_connect_start(c.sock, c.host, c.espera)
         if c.tls < 0
             c.error = net_error()
@@ -112,12 +124,36 @@ func red_abrir_avanzar(c: Conexion) -> Int
         if r < 0
             c.error = net_error()
             c.tls = -1
+            if str_starts(c.error, "tiempo agotado") and c.reintentos < 2
+                return _red_otra_vez(c)
+            end
             red_cerrar(c)
             return -1
         end
         c.fase = 0
     end
     return 1
+end
+
+# Cierra el socket (y el TLS a medias) y pide otra conexión al mismo sitio
+func _red_otra_vez(c: Conexion) -> Int
+    if c.tls >= 0
+        tls_close(c.tls)
+        c.tls = -1
+    end
+    if c.sock >= 0
+        net_close(c.sock)
+    end
+    c.reintentos = c.reintentos + 1
+    c.empezada = time_ms()
+    c.sock = net_connect_start(c.host, c.puerto, c.espera)
+    if c.sock < 0
+        c.error = net_error()
+        red_cerrar(c)
+        return -1
+    end
+    c.fase = 1
+    return 0
 end
 
 # En qué está una conexión que se abre: "buscando" (el nombre), "conectando", "negociando" (TLS); "" abierta

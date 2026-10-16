@@ -32,6 +32,10 @@ func css_color(valor: String) -> Int
         resto = partes[c2 + 1:]
         c3 = str_find(resto, ",")
         if c3 >= 0
+            # rgba: casi transparente (alfa < 0,5) es transparente; si no, el color sin mezclar
+            if _alfa_baja(resto[c3 + 1:])
+                return -1
+            end
             resto = resto[:c3]
         end
         b = _canal(resto)
@@ -41,6 +45,25 @@ func css_color(valor: String) -> Int
         return -1
     end
     return _color_nombre(v)
+end
+
+# ¿Alfa por debajo de 0,5? ("0", "0.3", ".2", "40%")
+func _alfa_baja(t: String) -> Bool
+    a = str_trim(t)
+    if str_ends(a, "%")
+        return Int(a[:a.length - 1]) < 50
+    end
+    if a == "0"
+        return true
+    end
+    p = str_find(a, ".")
+    if p < 0
+        return Int(a) < 1
+    end
+    if Int("0" + a[:p]) >= 1
+        return false
+    end
+    return p + 1 >= a.length or str_code(a, p + 1) < 53
 end
 
 # "128" o "50%" a 0-255

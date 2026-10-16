@@ -44,6 +44,8 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             _rect_recortado(x, y, d.ancho, d.alto, x0, y0, derecha, abajo, _lapiz(d.color))
         elif d.tipo == D_CONTROL
             _control_pintar(d, x, y, x0, y0, derecha, abajo)
+        elif d.tipo == D_FONDO and im != nil
+            _fondo_pintar(im, d, x, y, x0, y0, derecha, abajo)
         elif d.tipo == D_IMAGEN
             img = 0
             if im != nil
@@ -238,3 +240,153 @@ func _textarea_pintar(n: Nodo, x: Int, y: Int, w: Int, h: Int)
     end
 end
 
+
+# === Imágenes de fondo ===
+
+# La imagen de fondo de una caja (x, y, d.ancho, d.alto) recortada a ella y a la zona visible:
+# background-size (auto, cover, contain, px, %), background-position (palabras, %, px) y
+# background-repeat (repeat, no-repeat, repeat-x, repeat-y)
+func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    img = imagenes_cargada(im, d.texto)
+    if img == 0 or d.ancho <= 0 or d.alto <= 0
+        return
+    end
+    iw = image_width(img)
+    ih = image_height(img)
+    if iw <= 0 or ih <= 0
+        return
+    end
+    e = d.nodo.estilo
+    bw = d.ancho
+    bh = d.alto
+    # el tamaño
+    tam = "auto"
+    if e.has("background-size")
+        tam = str_lower(str_trim(e["background-size"]))
+    end
+    sw = iw
+    sh = ih
+    if tam == "cover" or tam == "contain"
+        ancha = bw * ih > bh * iw
+        if ancha == (tam == "cover")
+            sw = bw
+            sh = ih * bw / iw
+        else
+            sh = bh
+            sw = iw * bh / ih
+        end
+    elif tam != "auto"
+        partes = css_partir(tam, 32)
+        if partes.length > 0 and partes[0] != "auto"
+            sw = estilo_px(partes[0], 16, bw)
+            sh = ih * sw / iw
+        end
+        if partes.length > 1 and partes[1] != "auto"
+            sh = estilo_px(partes[1], 16, bh)
+            if partes[0] == "auto"
+                sw = iw * sh / ih
+            end
+        end
+    end
+    if sw < 1 or sh < 1
+        return
+    end
+    # el sitio
+    pos = "0% 0%"
+    if e.has("background-position")
+        pos = str_lower(str_trim(e["background-position"]))
+    end
+    px = 0
+    py = 0
+    partes = css_partir(pos, 32)
+    if partes.length == 1
+        if partes[0] == "top" or partes[0] == "bottom"
+            partes.insert(0, "center")
+        else
+            partes.push("center")
+        end
+    end
+    if partes.length >= 2
+        a = partes[0]
+        b = partes[1]
+        if a == "top" or a == "bottom"
+            c = a
+            a = b
+            b = c
+        end
+        px = _fondo_lugar(a, bw - sw)
+        py = _fondo_lugar(b, bh - sh)
+    end
+    # recorte: la caja y lo visible
+    cx0 = x
+    cy0 = y
+    cx1 = x + bw - 1
+    cy1 = y + bh - 1
+    if cx0 < x0
+        cx0 = x0
+    end
+    if cy0 < y0
+        cy0 = y0
+    end
+    if cx1 > x1
+        cx1 = x1
+    end
+    if cy1 > y1
+        cy1 = y1
+    end
+    if cx0 > cx1 or cy0 > cy1
+        return
+    end
+    escalada = imagenes_a_tamano(im, d.texto, sw, sh)
+    if escalada == 0
+        return
+    end
+    rep = "repeat"
+    if e.has("background-repeat")
+        rep = str_lower(str_trim(e["background-repeat"]))
+    end
+    # los mosaicos: desde el sitio hacia atrás y hacia delante (como mucho 4000)
+    ax = x + px
+    ay = y + py
+    if rep == "repeat" or rep == "repeat-x"
+        while ax > cx0
+            ax = ax - sw
+        end
+    end
+    if rep == "repeat" or rep == "repeat-y"
+        while ay > cy0
+            ay = ay - sh
+        end
+    end
+    cuantos = 0
+    ty = ay
+    while ty <= cy1 and cuantos < 4000
+        tx = ax
+        while tx <= cx1 and cuantos < 4000
+            _imagen_recortada(escalada, tx, ty, sw, sh, cx0, cy0, cx1, cy1)
+            cuantos = cuantos + 1
+            if rep != "repeat" and rep != "repeat-x"
+                break
+            end
+            tx = tx + sw
+        end
+        if rep != "repeat" and rep != "repeat-y"
+            break
+        end
+        ty = ty + sh
+    end
+end
+
+# left/center/right/top/bottom, % o px dentro del hueco que sobra
+func _fondo_lugar(v: String, sobra: Int) -> Int
+    if v == "left" or v == "top"
+        return 0
+    elif v == "center"
+        return sobra / 2
+    elif v == "right" or v == "bottom"
+        return sobra
+    elif str_ends(v, "%")
+        return sobra * Int(v[:v.length - 1]) / 100
+    end
+    return estilo_px(v, 16, 0)
+end

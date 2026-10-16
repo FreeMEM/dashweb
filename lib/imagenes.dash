@@ -1,5 +1,5 @@
-# Imágenes de una página: las <img> se traen (HTTP/HTTPS a un fichero de T:, o de disco), se
-# cargan con los datatypes del sistema (image_ de Dash) y se pintan a su tamaño en la página.
+# Imágenes de una página: las <img> y las imágenes de fondo se traen (HTTP/HTTPS a un fichero de T:, o
+# de disco), se decodifican (lib/imagen_dec.dash; si no, los datatypes del sistema) y se pintan.
 #
 #   im = imagenes_nuevas()
 #   imagenes_cargar(im, doc, "http://ejemplo.org/")   # con la ventana ya abierta (colores)
@@ -16,6 +16,18 @@
 
 import "http.dash"
 import "dom.dash"
+import "css.dash"
+import "imagen_dec.dash"
+
+# Una imagen de un fichero: decodificada aquí (lib/imagen_dec.dash, reducida a lo que cabe en una
+# pantalla grande) y, si no se puede (otro formato, AmigaOS 3.1), con los datatypes
+func imagen_cargar(fichero: String) -> Int
+    img = imagen_decodificar(fichero, 1280, 1024)
+    if img == 0
+        img = image_load(fichero)
+    end
+    return img
+end
 
 struct Imagenes
     por_src: {String: Int}      # src del HTML -> imagen cargada (0: no se pudo, o aún no ha llegado)
@@ -47,7 +59,40 @@ func imagenes_pedir(im: Imagenes, doc: Nodo, base: String)
     imagenes_avanzar(im, doc)
 end
 
+# La imagen de fondo de un elemento (background-image: url(...)), como dirección completa; "" si no
+func imagenes_fondo(n: Nodo, base: Url) -> String
+    if n.tipo != DOM_ELEMENTO or not n.estilo.has("background-image")
+        return ""
+    end
+    u = css_url(n.estilo["background-image"])
+    if u == ""
+        return ""
+    end
+    completa = url_text(url_resolve(base, u))
+    # la maqueta y el pintor no saben la dirección de la página: el estilo se queda con la completa
+    n.estilo["background-image"] = "url(" + completa + ")"
+    return completa
+end
+
+func _imagenes_pedir_fondo(im: Imagenes, n: Nodo, base: Url)
+    src = imagenes_fondo(n, base)
+    if src == "" or im.por_src.has(src)
+        return
+    end
+    u = url_parse(src)
+    if u.esquema == "http" or u.esquema == "https"
+        im.por_src[src] = 0
+        fichero = "T:dashweb_img" + im.ficheros.length
+        im.ficheros.push(fichero)
+        var sin: Carga = nil
+        im.cola.push(Pedida(src, src, fichero, sin))
+    else
+        im.por_src[src] = _imagen_traer(im, base, src)
+    end
+end
+
 func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
+    _imagenes_pedir_fondo(im, n, base)
     if n.tipo == DOM_ELEMENTO and n.nombre == "img"
         src = dom_atributo(n, "src")
         if src != "" and im.por_src.has(src)
@@ -89,12 +134,12 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                 r = p.carga.respuesta
                 img = 0
                 if r.error == "" and r.estado >= 200 and r.estado < 300
-                    img = image_load(p.fichero)
+                    img = imagen_cargar(p.fichero)
                 end
                 im.por_src[p.src] = img
                 if img != 0
                     _imagenes_tamano_de(doc, p.src, img)
-                    llegadas = llegadas + 1
+                    llegadas = llegadas + 1      # (un fondo también: hay que volver a pintar)
                 end
                 im.cola.remove(i)
                 continue
@@ -128,6 +173,10 @@ func imagenes_cargar(im: Imagenes, doc: Nodo, base: String)
 end
 
 func _imagenes_recorrer(im: Imagenes, n: Nodo, base: Url)
+    fondo = imagenes_fondo(n, base)
+    if fondo != "" and not im.por_src.has(fondo)
+        im.por_src[fondo] = _imagen_traer(im, base, fondo)
+    end
     if n.tipo == DOM_ELEMENTO and n.nombre == "img"
         src = dom_atributo(n, "src")
         if src != ""
@@ -156,7 +205,7 @@ func _imagen_traer(im: Imagenes, base: Url, src: String) -> Int
         if r.error != "" or r.estado < 200 or r.estado >= 300
             return 0
         end
-        return image_load(fichero)
+        return imagen_cargar(fichero)
     end
     ruta = direccion
     if u.esquema == "file"
@@ -165,7 +214,7 @@ func _imagen_traer(im: Imagenes, base: Url, src: String) -> Int
             ruta = ruta[1:]
         end
     end
-    return image_load(ruta)
+    return imagen_cargar(ruta)
 end
 
 # width/height que faltan, con el tamaño real de la imagen
@@ -237,4 +286,12 @@ func imagenes_liberar(im: Imagenes)
         file_delete(f)
     end
     im.ficheros.clear()
+end
+
+# La imagen ya cargada de src a su tamaño natural (0 si no está); para los fondos
+func imagenes_cargada(im: Imagenes, src: String) -> Int
+    if not im.por_src.has(src)
+        return 0
+    end
+    return im.por_src[src]
 end

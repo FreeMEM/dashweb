@@ -1,0 +1,57 @@
+# Test: lib/imagen_dec.dash, los decodificadores propios (sin pantalla): JPEG normal con TJpgDec, JPEG
+# progresivo, PNG con alfa, GIF (siempre con alfa: puede tener transparencia) y BMP con stb_image; uno grande reducido al decodificar (2048x1024 a lo
+# que cabe en 600x300: TJpgDec a 1/2, 1024x512) y un fichero que no es imagen.
+# emu-server: http.py 40852
+# memcheck
+# expect-out: base: 64x32 alfa=0 rojo azul
+# expect-out: prog: 64x32 alfa=0 rojo azul
+# expect-out: png: 20x10 alfa=1 0,255,0,255 / 0
+# expect-out: gif: 64x32 alfa=1 rojo azul
+# expect-out: bmp: 64x32 alfa=0 rojo azul
+# expect-out: grande: 1024x512
+# expect-out: nada: no
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/imagen_dec.dash"
+import "../lib/http.dash"
+import "../lib/css.dash"
+
+# el fichero de tests/pages por HTTP a T:
+func traer(nombre: String) -> String
+    http_a_fichero("http://127.0.0.1:40852/pages/" + nombre, "T:" + nombre, 10000)
+    return "T:" + nombre
+end
+
+# rojo a la izquierda y azul a la derecha (con la tolerancia del JPEG)
+func colores(f: String) -> String
+    a = imagen_probar(f, 2000, 2000, 4, 4)
+    b = imagen_probar(f, 2000, 2000, 60, 4)
+    if a == "no"
+        return a
+    end
+    partes = css_partir(a, 32)
+    r = partes[0] + " " + partes[1]
+    ca = css_partir(partes[2], 44)
+    cb = css_partir(css_partir(b, 32)[2], 44)
+    if Int(ca[0]) > 200 and Int(ca[2]) < 60
+        r = r + " rojo"
+    end
+    if Int(cb[2]) > 200 and Int(cb[0]) < 60
+        r = r + " azul"
+    end
+    return r
+end
+
+Main
+    Print "base: " + colores(traer("dec_base.jpg"))
+    Print "prog: " + colores(traer("dec_prog.jpg"))
+    png = traer("dec_alfa.png")
+    a = imagen_probar(png, 2000, 2000, 2, 2)
+    b = imagen_probar(png, 2000, 2000, 15, 2)
+    Print "png: " + a + " / " + css_partir(b, 44)[3]
+    Print "gif: " + colores(traer("dec.gif"))
+    Print "bmp: " + colores(traer("dec.bmp"))
+    g = imagen_probar(traer("dec_grande.jpg"), 600, 300, 0, 0)
+    Print "grande: " + css_partir(g, 32)[0]
+    Print "nada: " + imagen_probar("T:no_existe.jpg", 100, 100, 0, 0)
+end

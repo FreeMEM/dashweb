@@ -11,6 +11,7 @@ B=$R/build/paquete
 rm -rf "$B"
 mkdir -p "$B/dashweb/Licencias"
 [ -f "$R/build/qjs-lib/libqjs.a" ] || DASH=$DASH "$R/tools/build_qjs.sh" lib
+[ -f "$R/build/img-lib/libimg.a" ] || "$R/tools/build_img.sh"
 cd "$DASH"
 PYTHONPATH=$DASH ./dash "$R/src/dashweb.dash" -o "$B/dashweb/dashweb"
 PYTHONPATH=$DASH ./dash "$R/src/visor.dash" -o "$B/dashweb/visor"

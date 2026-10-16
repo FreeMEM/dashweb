@@ -10,7 +10,8 @@
 # (una ventana abierta, o la zona de dibujo de MUI). Flujo normal: cajas de bloque (márgenes
 # que se funden entre hermanos, bordes, relleno, width/height, fondos) y líneas de texto
 # (cortes, espacios colapsados o pre, text-align); listas con su marca; tablas sencillas
-# (celdas del mismo ancho); imágenes como un hueco de su tamaño. float y position, más adelante.
+# (celdas del mismo ancho); imágenes como un hueco de su tamaño; float en filas (el texto aún no los
+# rodea). position, más adelante.
 
 import "estilo.dash"
 import "colores.dash"
@@ -20,6 +21,8 @@ const D_TEXTO = 2
 const D_LINEA = 3
 const D_IMAGEN = 4
 const D_CONTROL = 5      # un control de formulario (input, select, button): lo pinta el pintor según su nodo
+const D_FONDO = 6        # la imagen de fondo de una caja (texto: su dirección); background-size, -position y
+                         # -repeat los mira el pintor en el estilo del nodo
 
 const EST_SUBRAYADO = 1
 const EST_NEGRITA = 2
@@ -70,6 +73,28 @@ struct Maquetador
     fuentes: {String: Int}
     topaz: Int
     blanco: Int = 0      # un blanco detrás de una imagen: el ancho del espacio que toma la pieza siguiente
+end
+
+# Para depurar (tools/traza_maqueta.dash): cuántos niveles de cajas se escriben al maquetar (0: ninguno)
+var maqueta_traza: Int = 0
+var _maqueta_nivel: Int = 0
+
+func _trazar(n: Nodo, x: Int, y: Int, ancho: Int, alto: Int, que: String)
+    if _maqueta_nivel > maqueta_traza
+        return
+    end
+    sangria = ""
+    for i in (1.._maqueta_nivel)
+        sangria = sangria + "  "
+    end
+    nombre = n.nombre
+    if dom_atributo(n, "id") != ""
+        nombre = nombre + "#" + dom_atributo(n, "id")
+    end
+    if dom_atributo(n, "class") != ""
+        nombre = nombre + "." + str_replace(str_trim(dom_atributo(n, "class")), " ", ".")
+    end
+    Print sangria + nombre + " " + que + " [" + x + "," + y + " " + ancho + "x" + alto + "] " + n.estilo["display"]
 end
 
 func _dibujo(tipo: Int, x: Int, y: Int, ancho: Int, alto: Int, color: Int) -> Dibujo
@@ -177,28 +202,66 @@ end
 
 # Coloca un elemento de bloque en (x, y) con ese ancho; devuelve el alto que ocupa, márgenes incluidos
 func _bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
+    return _bloque_de(m, n, x, y, ancho, ancho)
+end
+
+# Lo mismo con los tantos por ciento (width, márgenes, rellenos) del ancho del contenedor: un flotante
+# o un absoluto recibe su ancho ya resuelto (el 25 % del contenedor) y no hay que volver a aplicarlo
+func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
+    _maqueta_nivel = _maqueta_nivel + 1
+    antes = m.pagina.dibujos.length
+    r = _bloque_en(m, n, x, y, ancho, contenedor)
+    if _invisible(n)
+        # ocupa su sitio pero no se pinta (visibility: hidden, opacity: 0)
+        while m.pagina.dibujos.length > antes
+            m.pagina.dibujos.pop()
+        end
+    end
+    _maqueta_nivel = _maqueta_nivel - 1
+    if maqueta_traza > 0
+        _trazar(n, x, y, ancho, r, "")
+    end
+    return r
+end
+
+func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
     e = n.estilo
-    mt = _px(e, "margin-top", ancho)
-    mb = _px(e, "margin-bottom", ancho)
-    ml = _px(e, "margin-left", ancho)
-    mr = _px(e, "margin-right", ancho)
+    mt = _px(e, "margin-top", contenedor)
+    mb = _px(e, "margin-bottom", contenedor)
+    ml = _px(e, "margin-left", contenedor)
+    mr = _px(e, "margin-right", contenedor)
     bt = _borde(e, "top")
     bb = _borde(e, "bottom")
     bl = _borde(e, "left")
     br = _borde(e, "right")
-    pt = _px(e, "padding-top", ancho)
-    pb = _px(e, "padding-bottom", ancho)
-    pl = _px(e, "padding-left", ancho)
-    pr = _px(e, "padding-right", ancho)
+    pt = _px(e, "padding-top", contenedor)
+    pb = _px(e, "padding-bottom", contenedor)
+    pl = _px(e, "padding-left", contenedor)
+    pr = _px(e, "padding-right", contenedor)
     interior = ancho - ml - mr - bl - br - pl - pr
     if e.has("width") and e["width"] != "auto"
-        w = _px(e, "width", ancho)
-        if w > 0 and w < interior
+        w = _px(e, "width", contenedor)
+        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            w = w - bl - br - pl - pr
+        end
+        if w > 0 and w <= interior
             # margin: auto a los dos lados centra
             if e.has("margin-left") and e.has("margin-right") and e["margin-left"] == "auto" and e["margin-right"] == "auto"
                 ml = (ancho - w - bl - br - pl - pr) / 2
             end
             interior = w
+        end
+    end
+    if e.has("max-width") and e["max-width"] != "none"
+        mx = _px(e, "max-width", contenedor)
+        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            mx = mx - bl - br - pl - pr
+        end
+        if mx > 0 and interior > mx
+            if e.has("margin-left") and e.has("margin-right") and e["margin-left"] == "auto" and e["margin-right"] == "auto"
+                ml = (ancho - mx - bl - br - pl - pr) / 2
+            end
+            interior = mx
         end
     end
     if interior < 1
@@ -215,6 +278,13 @@ func _bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         caja_fondo.nodo = n
         m.pagina.dibujos.push(caja_fondo)
     end
+    var imagen_fondo: Dibujo = nil
+    if e.has("background-image") and css_url(e["background-image"]) != ""
+        imagen_fondo = _dibujo(D_FONDO, x + ml + bl, y + mt + bt, interior + pl + pr, 0, 0)
+        imagen_fondo.texto = css_url(e["background-image"])
+        imagen_fondo.nodo = n
+        m.pagina.dibujos.push(imagen_fondo)
+    end
     cx = x + ml + bl + pl
     cy = y + mt + bt + pt
     alto = 0
@@ -228,24 +298,233 @@ func _bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     end
     if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
         alto = _px(e, "height", 0)
+        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            alto = alto - bt - bb - pt - pb
+        end
+    end
+    if e.has("min-height") and not str_ends(e["min-height"], "%")
+        minimo = _px(e, "min-height", 0)
+        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            minimo = minimo - bt - bb - pt - pb
+        end
+        if alto < minimo
+            alto = minimo
+        end
+    end
+    if alto < 0
+        alto = 0
+    end
+    # los hijos con position absolute o fixed, encima, respecto a esta caja (su relleno)
+    for h in n.hijos
+        if _fuera_del_flujo(h)
+            _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb)
+        end
     end
     alto_caja = bt + pt + alto + pb + bb
     if caja_fondo != nil
         caja_fondo.alto = alto_caja
     end
+    if imagen_fondo != nil
+        imagen_fondo.alto = pt + alto + pb
+    end
     _bordes(m, e, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, bt, br, bb, bl)
     return mt + alto_caja + mb
 end
 
-# El contenido de un bloque: hijos de bloque uno debajo de otro y lo de en medio, en líneas
+# float: left o right; "" si no flota. Un inline-block que lleva bloques dentro, o tiene width o
+# height, va como uno de la izquierda (en una fila con sus hermanos)
+func _flota(n: Nodo) -> String
+    if n.tipo != DOM_ELEMENTO or _fuera_del_flujo(n)
+        return ""
+    end
+    if n.estilo.has("float")
+        f = n.estilo["float"]
+        if f == "left" or f == "right"
+            return f
+        end
+    end
+    if n.estilo["display"] == "inline-block" or n.estilo["display"] == "inline-flex"
+        if (n.estilo.has("width") and n.estilo["width"] != "auto") or (n.estilo.has("height") and n.estilo["height"] != "auto")
+            return "left"
+        end
+        for h in n.hijos
+            if _es_bloque(h) and not _oculto(h)
+                return "left"
+            end
+        end
+    end
+    return ""
+end
+
+func _invisible(n: Nodo) -> Bool
+    e = n.estilo
+    if e.has("visibility") and (e["visibility"] == "hidden" or e["visibility"] == "collapse")
+        return true
+    end
+    return e.has("opacity") and (e["opacity"] == "0" or str_starts(e["opacity"], "0.0") or e["opacity"] == ".0")
+end
+
+func _fuera_del_flujo(n: Nodo) -> Bool
+    if n.tipo != DOM_ELEMENTO or not n.estilo.has("position")
+        return false
+    end
+    p = n.estilo["position"]
+    return p == "absolute" or p == "fixed"
+end
+
+# Un elemento con position absolute (o fixed) dentro de la caja (cx, cy, cw, ch): top/left/right/
+# bottom; sin left ni right, a la izquierda; sin top ni bottom, arriba. El ancho: left y right, su
+# width, o lo que mide su contenido.
+func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int)
+    e = n.estilo
+    tiene_l = e.has("left") and e["left"] != "auto"
+    tiene_r = e.has("right") and e["right"] != "auto"
+    tiene_t = e.has("top") and e["top"] != "auto" and e["top"] != "inherit"
+    tiene_b = e.has("bottom") and e["bottom"] != "auto"
+    l = 0
+    r = 0
+    if tiene_l
+        l = _px(e, "left", cw)
+    end
+    if tiene_r
+        r = _px(e, "right", cw)
+    end
+    w = 0
+    if tiene_l and tiene_r and not (e.has("width") and e["width"] != "auto")
+        w = cw - l - r
+    else
+        w = _ancho_flotante(m, n, cw)
+    end
+    if w > cw
+        w = cw
+    end
+    if w < 1
+        w = 1
+    end
+    ax = cx + l
+    if not tiene_l and tiene_r
+        ax = cx + cw - r - w
+    end
+    # se maqueta arriba y luego se baja a su sitio (bottom necesita su alto)
+    antes = m.pagina.dibujos.length
+    alto = _bloque_de(m, n, ax, cy, w, cw)
+    dy = 0
+    if tiene_t
+        dy = _px(e, "top", ch)
+    elif tiene_b
+        dy = ch - _px(e, "bottom", ch) - alto
+    end
+    if dy != 0
+        i = antes
+        while i < m.pagina.dibujos.length
+            m.pagina.dibujos[i].y = m.pagina.dibujos[i].y + dy
+            i = i + 1
+        end
+    end
+end
+
+# El ancho que ocupa un flotante, márgenes incluidos: su width, o lo que mide su contenido
+# (maquetándolo aparte y deshaciendo lo dibujado)
+func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
+    e = h.estilo
+    extra = _px(e, "margin-left", ancho) + _px(e, "margin-right", ancho)
+    caja = _borde(e, "left") + _borde(e, "right") + _px(e, "padding-left", ancho) + _px(e, "padding-right", ancho)
+    if e.has("width") and e["width"] != "auto"
+        w = _px(e, "width", ancho)
+        if w > 0
+            if e.has("box-sizing") and e["box-sizing"] == "border-box"
+                return w + extra
+            end
+            return w + caja + extra
+        end
+    end
+    # de lo más a la izquierda a lo más a la derecha (con texto centrado, el borde derecho no basta)
+    antes = m.pagina.dibujos.length
+    _bloque_de(m, h, 0, 0, ancho, ancho)
+    derecha = 0
+    izquierda = ancho
+    i = antes
+    while i < m.pagina.dibujos.length
+        d = m.pagina.dibujos[i]
+        if d.tipo != D_RECT and d.tipo != D_LINEA
+            if d.x + d.ancho > derecha
+                derecha = d.x + d.ancho
+            end
+            if d.x < izquierda
+                izquierda = d.x
+            end
+        end
+        i = i + 1
+    end
+    while m.pagina.dibujos.length > antes
+        m.pagina.dibujos.pop()
+    end
+    if derecha <= izquierda
+        return caja + extra
+    end
+    return derecha - izquierda + caja + extra
+end
+
+# El contenido de un bloque: hijos de bloque uno debajo de otro y lo de en medio, en líneas. Los
+# flotantes seguidos van en filas (los de la izquierda desde la izquierda, los de la derecha desde
+# la derecha); lo que no flota va debajo de la fila (como con clear: el texto aún no los rodea) y el
+# bloque crece hasta abarcarlos (como clearfix).
 func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     cy = y
     var piezas: [Pieza] = []
     m.blanco = 0
     margen_previo = 0
+    en_fila = false
+    fila_y = 0
+    izq = 0
+    der = 0
+    fondo = 0
     for h in n.hijos
-        if _oculto(h)
+        if _oculto(h) or _fuera_del_flujo(h)
             continue
+        end
+        lado = _flota(h)
+        if lado != ""
+            if piezas.length > 0
+                cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
+                piezas.clear()
+            end
+            if not en_fila
+                en_fila = true
+                fila_y = cy
+                izq = x
+                der = x + ancho
+                fondo = cy
+            end
+            w = _ancho_flotante(m, h, ancho)
+            if w > ancho
+                w = ancho
+            end
+            if izq + w > der and (izq > x or der < x + ancho)
+                # no cabe en esta fila: otra debajo
+                fila_y = fondo
+                izq = x
+                der = x + ancho
+            end
+            alto = 0
+            if lado == "left"
+                alto = _bloque_de(m, h, izq, fila_y, w, ancho)
+                izq = izq + w
+            else
+                alto = _bloque_de(m, h, der - w, fila_y, w, ancho)
+                der = der - w
+            end
+            if fila_y + alto > fondo
+                fondo = fila_y + alto
+            end
+            margen_previo = 0
+            continue
+        end
+        if en_fila and (_es_bloque(h) or not _solo_blanco(h))
+            en_fila = false
+            if fondo > cy
+                cy = fondo
+            end
         end
         if _es_bloque(h)
             if piezas.length > 0
@@ -271,7 +550,28 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     if piezas.length > 0
         cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
     end
+    if en_fila and fondo > cy
+        cy = fondo
+    end
     return cy - y
+end
+
+# Un texto de solo blancos (entre flotantes no corta la fila)
+func _solo_blanco(n: Nodo) -> Bool
+    if n.tipo == DOM_COMENTARIO
+        return true
+    end
+    if n.tipo != DOM_TEXTO
+        return false
+    end
+    i = 0
+    while i < n.texto.length
+        if str_code(n.texto, i) > 32
+            return false
+        end
+        i = i + 1
+    end
+    return true
 end
 
 # Las piezas en línea de un nodo (texto, elementos en línea, br, img)
