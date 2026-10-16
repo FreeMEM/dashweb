@@ -254,7 +254,12 @@ tarea, con el estilo de Dash.
       `select` dibujados en la página; clic y teclado (foco, escribir, marcar, elegir); enviar por GET.
 - [x] 21b. **Formularios: textarea, POST y JS.** `textarea`; envío POST (`application/x-www-form-urlencoded`);
       `.value`/`.checked` y `submit`/`onsubmit` en JavaScript.
-- [ ] 22. **Varias ventanas o pestañas**, marcadores sencillos, preferencias mínimas (página de inicio).
+- [x] 22a. **Marcadores y página de inicio.** Menú Proyecto: Página de inicio, Marcadores (una página con los
+      enlaces), Añadir marcador, Usar como página de inicio.
+- [ ] 22b. **Varias ventanas.** Cada una con su página, historial y carga (hoy el estado del navegador es global).
+- [ ] 22c. **Atajos de menú en el emulador.** Inyectar Amiga derecha + tecla con `input.device` en un programa MUI
+      cuelga el sistema con 68040+JIT (también un programa MUI mínimo con un menú) y en el A1200 sin JIT el atajo
+      no llega. Averiguar si es la inyección, MUI o FS-UAE; probar el menú con el ratón (botón derecho).
 - [ ] 20d. **Bucle de eventos: conectar.** (movida aquí el 2026-10-16: en el emulador conectar es instantáneo y
       no hay cómo probarla; lo que aún bloquea es corto salvo la negociación TLS) DNS, `connect` y la negociación TLS sin bloquear (hoy
       `http_empezar` espera a que conecte). Si una pila TCP/IP real da `SIGIO`, usarlo con
@@ -885,4 +890,20 @@ Formato:
 - Tests: `test_formularios_post` (POST, 303, textarea, `.value`/`.checked` desde JS, `onsubmit`, `submit()`;
   `--memcheck`). En el emulador: post.html, escribir "hola", Return, "ab" y clic en Enviar → el servidor recibe
   `nota=hola%0Aab`. dashweb 24/24, también con `--memcheck`.
+
+
+
+### 2026-10-16 — Tarea 22a (marcadores y página de inicio)
+- Tarea 22 partida: 22a (marcadores e inicio), 22b (varias ventanas), 22c (atajos de menú en el emulador).
+- `lib/marcadores.dash`: marcadores en `PROGDIR:dashweb.marcadores` (`dirección<TAB>título`, sin repetir),
+  `marcadores_html` (una página con un enlace por marcador), preferencias `clave=valor`
+  (`preferencia`, `preferencia_poner`) en `PROGDIR:dashweb.prefs`.
+- `src/navegador.dashui`: menú Proyecto con Página de inicio (H), Marcadores (B), Añadir marcador (D), Usar como
+  página de inicio, Acerca de, Salir. `src/dashweb.dash`: páginas internas `dashweb:inicio` y `dashweb:marcadores`;
+  sin argumentos abre la preferencia `inicio` si la hay.
+- Test `test_marcadores` (`--memcheck`). dashweb 25/25, también con `--memcheck`. El navegador arranca con el
+  menú nuevo (captura).
+- No probado en el emulador: los elementos del menú. `tools/amiga/clicar.dash` aprendió `a COD` (tecla con Amiga
+  derecha), pero un atajo de menú inyectado cuelga el emulador con 68040+JIT, también en un programa MUI mínimo
+  con un solo menú (Amiga+Q), y en el A1200 sin JIT no llega al programa. No es de dashweb; queda como 22c.
 

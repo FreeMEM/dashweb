@@ -10,6 +10,28 @@
           "title": "Proyecto",
           "items": [
             {
+              "label": "Página de inicio",
+              "key": "H",
+              "event": 17
+            },
+            {
+              "label": "Marcadores",
+              "key": "B",
+              "event": 14
+            },
+            {
+              "label": "Añadir marcador",
+              "key": "D",
+              "event": 15
+            },
+            {
+              "label": "Usar como página de inicio",
+              "event": 16
+            },
+            {
+              "separator": true
+            },
+            {
               "label": "Acerca de...",
               "key": "?",
               "event": 8

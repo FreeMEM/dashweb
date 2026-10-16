@@ -1,0 +1,126 @@
+# Marcadores y preferencias del navegador en ficheros de texto (Latin-1, una entrada por línea):
+#   marcadores:   direccion<TAB>título
+#   preferencias: clave=valor
+#
+#   marcadores_agregar("PROGDIR:dashweb.marcadores", url, titulo)
+#   html = marcadores_html("PROGDIR:dashweb.marcadores")   # una página con un enlace por marcador
+#   preferencia_poner("PROGDIR:dashweb.prefs", "inicio", url)
+#   inicio = preferencia("PROGDIR:dashweb.prefs", "inicio")   # "" si no está
+
+import "texto.dash"
+
+func _lineas_de(fichero: String) -> [String]
+    var r: [String] = []
+    t = file_read_text(fichero)
+    if t == nil
+        return r
+    end
+    inicio = 0
+    p = str_find(t, "\n")
+    while p >= 0
+        if p > inicio
+            r.push(t[inicio:p])
+        end
+        inicio = p + 1
+        p = str_find_from(t, "\n", inicio)
+    end
+    if inicio < t.length
+        r.push(t[inicio:])
+    end
+    return r
+end
+
+func _escribir_lineas(fichero: String, lineas: [String]) -> Bool
+    t = ""
+    for l in lineas
+        t = t + l + "\n"
+    end
+    return file_write_text(fichero, t)
+end
+
+# Las direcciones y títulos guardados (dos listas del mismo largo)
+func marcadores_direcciones(fichero: String) -> [String]
+    var r: [String] = []
+    for l in _lineas_de(fichero)
+        p = str_find(l, "\t")
+        if p < 0
+            r.push(l)
+        else
+            r.push(l[:p])
+        end
+    end
+    return r
+end
+
+func marcadores_titulos(fichero: String) -> [String]
+    var r: [String] = []
+    for l in _lineas_de(fichero)
+        p = str_find(l, "\t")
+        if p < 0
+            r.push(l)
+        else
+            r.push(l[p + 1:])
+        end
+    end
+    return r
+end
+
+# Añade la dirección si no estaba; false si no se pudo escribir
+func marcadores_agregar(fichero: String, direccion: String, titulo: String) -> Bool
+    lineas = _lineas_de(fichero)
+    for l in lineas
+        if l == direccion or str_starts(l, direccion + "\t")
+            return true
+        end
+    end
+    t = str_replace(str_replace(titulo, "\t", " "), "\n", " ")
+    lineas.push(direccion + "\t" + t)
+    return _escribir_lineas(fichero, lineas)
+end
+
+func _html_escapar(t: String) -> String
+    return str_replace(str_replace(str_replace(t, "&", "&amp;"), "<", "&lt;"), "\"", "&quot;")
+end
+
+# Una página con los marcadores como enlaces
+func marcadores_html(fichero: String) -> String
+    h = "<html><head><title>Marcadores</title><style>body { font-family: sans-serif; margin: 12px } "
+    h = h + "h1 { color: #036 } .dir { color: #666 }</style></head><body><h1>Marcadores</h1>"
+    direcciones = marcadores_direcciones(fichero)
+    titulos = marcadores_titulos(fichero)
+    if direcciones.length == 0
+        h = h + "<p>Aún no hay marcadores: menú Proyecto, Añadir marcador.</p>"
+    else
+        h = h + "<ul>"
+        for i in (0..direcciones.length - 1)
+            d = _html_escapar(direcciones[i])
+            t = _html_escapar(titulos[i])
+            if t == ""
+                t = d
+            end
+            h = h + "<li><a href=\"" + d + "\">" + t + "</a> <span class=dir>" + d + "</span>"
+        end
+        h = h + "</ul>"
+    end
+    return h + "</body></html>"
+end
+
+func preferencia(fichero: String, clave: String) -> String
+    for l in _lineas_de(fichero)
+        if str_starts(l, clave + "=")
+            return l[clave.length + 1:]
+        end
+    end
+    return ""
+end
+
+func preferencia_poner(fichero: String, clave: String, valor: String) -> Bool
+    var nuevas: [String] = []
+    for l in _lineas_de(fichero)
+        if not str_starts(l, clave + "=")
+            nuevas.push(l)
+        end
+    end
+    nuevas.push(clave + "=" + valor)
+    return _escribir_lineas(fichero, nuevas)
+end

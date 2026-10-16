@@ -1,0 +1,43 @@
+# Test: lib/marcadores.dash. Marcadores (sin repetir una dirección; tabuladores del título quitados),
+# la página con sus enlaces, y preferencias clave=valor (poner, leer, cambiar).
+# memcheck
+# expect-out: 2 marcadores: http://a.org/ [A org] http://b.org/x?y=1&z=2 [B dos]
+# expect-out: página: 2 enlaces, escapado: 1
+# expect-out: inicio [] -> [http://a.org/] -> [http://b.org/], otra [sí]
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/marcadores.dash"
+import "../lib/dom.dash"
+
+func contar(n: Nodo, nombre: String) -> Int
+    k = 0
+    if n.nombre == nombre
+        k = 1
+    end
+    for h in n.hijos
+        k = k + contar(h, nombre)
+    end
+    return k
+end
+
+Main
+    m = "T:prueba.marcadores"
+    p = "T:prueba.prefs"
+    file_delete(m)
+    file_delete(p)
+    marcadores_agregar(m, "http://a.org/", "A org")
+    marcadores_agregar(m, "http://b.org/x?y=1&z=2", "B\tdos")
+    marcadores_agregar(m, "http://a.org/", "otra vez")
+    d = marcadores_direcciones(m)
+    t = marcadores_titulos(m)
+    Print "" + d.length + " marcadores: " + d[0] + " [" + t[0] + "] " + d[1] + " [" + t[1] + "]"
+    html = marcadores_html(m)
+    doc = dom_desde_html(html)
+    Print "página: " + contar(doc, "a") + " enlaces, escapado: " + (str_find(html, "y=1&amp;z=2") >= 0)
+    antes = preferencia(p, "inicio")
+    preferencia_poner(p, "inicio", "http://a.org/")
+    uno = preferencia(p, "inicio")
+    preferencia_poner(p, "otra", "sí")
+    preferencia_poner(p, "inicio", "http://b.org/")
+    Print "inicio [" + antes + "] -> [" + uno + "] -> [" + preferencia(p, "inicio") + "], otra [" + preferencia(p, "otra") + "]"
+end

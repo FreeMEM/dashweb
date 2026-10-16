@@ -4,7 +4,8 @@
 #   clicar "dashweb" e 100 c 50 40 e 50 t 0x4D
 #
 # Acciones: "e N" espera N/50 s; "c X Y" clic en X, Y dentro de los bordes de la ventana;
-# "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...). Escribe lo que hace.
+# "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...); "a COD" la misma con Amiga
+# derecha (atajos de menú: 0x22 = D). Escribe lo que hace.
 
 @header "#include <devices/input.h>"
 @header "#include <intuition/intuitionbase.h>"
@@ -74,10 +75,11 @@ end
             ie.ie_Code = IECODE_LBUTTON | IECODE_UP_PREFIX;
             ie.ie_Qualifier = IEQUALIFIER_RELATIVEMOUSE;
             DoIO((struct IORequest *)io);
-        } else {                         /* tecla */
+        } else {                         /* tecla (tipo 3: con Amiga derecha, para los menús) */
             memset(&ie, 0, sizeof(ie));
             ie.ie_Class = IECLASS_RAWKEY;
             ie.ie_Code = codigo;
+            ie.ie_Qualifier = tipo == 3 ? IEQUALIFIER_RCOMMAND : 0;
             DoIO((struct IORequest *)io);
             Delay(2);
             ie.ie_Code = codigo | IECODE_UP_PREFIX;
@@ -122,6 +124,10 @@ Main
                 evento(w, 1, Int(arg(i + 1)), Int(arg(i + 2)), 0)
                 Print "clicar: clic " + arg(i + 1) + "," + arg(i + 2)
                 i = i + 3
+            elif a == "a" and i + 1 < arg_count()
+                evento(w, 3, 0, 0, str_to_int(str_replace(arg(i + 1), "0x", ""), 16))
+                Print "clicar: Amiga+" + arg(i + 1)
+                i = i + 2
             elif a == "t" and i + 1 < arg_count()
                 evento(w, 2, 0, 0, str_to_int(str_replace(arg(i + 1), "0x", ""), 16))
                 Print "clicar: tecla " + arg(i + 1)

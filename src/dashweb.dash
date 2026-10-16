@@ -12,6 +12,7 @@
 import "navegador.dashui"
 import "../lib/documento.dash"
 import "../lib/formularios.dash"
+import "../lib/marcadores.dash"
 
 # Los números de evento del .dashui
 const ID_ATRAS = 1
@@ -27,6 +28,13 @@ const ID_PAGINA = 10
 const ID_TIC = 11         # el temporizador: la carga en curso y los setTimeout/setInterval de la página
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
 const ID_PARAR = 13
+const ID_MARCADORES = 14
+const ID_ANADIR = 15
+const ID_USAR_INICIO = 16
+const ID_INICIO = 17
+
+const FICHERO_MARCADORES = "PROGDIR:dashweb.marcadores"
+const FICHERO_PREFERENCIAS = "PROGDIR:dashweb.prefs"
 
 var dw_actual: Documento = nil
 var dw_desde: Int = 0
@@ -101,8 +109,10 @@ func abrir(v: Navegador, direccion: String)
     end
     dw_estado(v, "Abriendo " + direccion + "...")
     var d: Documento = nil
-    if direccion == ""
+    if direccion == "" or direccion == "dashweb:inicio"
         d = documento_html("dashweb:inicio", dw_inicio())
+    elif direccion == "dashweb:marcadores"
+        d = documento_html("dashweb:marcadores", marcadores_html(FICHERO_MARCADORES))
     else
         d = documento_abrir(direccion)
     end
@@ -371,6 +381,9 @@ Main
         if arg_count() > 0
             primera = arg(0)
         end
+        if primera == ""
+            primera = preferencia(FICHERO_PREFERENCIAS, "inicio")
+        end
         if primera != ""
             navegar(v, primera)
         else
@@ -474,6 +487,28 @@ Main
                 elif mui_canvas_button(v.pagina) == 1
                     clic(v)
                 end
+            end
+            if ev == ID_MARCADORES
+                navegar(v, "dashweb:marcadores")
+            end
+            if ev == ID_ANADIR and dw_actual != nil
+                if marcadores_agregar(FICHERO_MARCADORES, dw_actual.direccion, dw_actual.titulo)
+                    dw_estado(v, "Marcador: " + dw_actual.titulo)
+                else
+                    dw_estado(v, "No se pudo guardar el marcador")
+                end
+            end
+            if ev == ID_USAR_INICIO and dw_actual != nil
+                if preferencia_poner(FICHERO_PREFERENCIAS, "inicio", dw_actual.direccion)
+                    dw_estado(v, "Página de inicio: " + dw_actual.direccion)
+                end
+            end
+            if ev == ID_INICIO
+                inicio = preferencia(FICHERO_PREFERENCIAS, "inicio")
+                if inicio == ""
+                    inicio = "dashweb:inicio"
+                end
+                navegar(v, inicio)
             end
             if ev == ID_ACERCA
                 if acerca_abierta
