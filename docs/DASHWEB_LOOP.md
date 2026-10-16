@@ -139,7 +139,7 @@ tarea, con el estilo de Dash.
       (`bsdsocket_library = 1`) con un servidor Python local.
 - [x] D9. **Fuentes y colores.** Abrir fuentes de disco con tamaño, estilo (negrita, cursiva, subrayado),
       medir texto con la fuente actual, colores RGB en pantallas de paleta (`ObtainBestPen`/`ReleasePen`) y en RTG.
-- [ ] D10. **C externo.** Enlazar objetos o librerías C desde el programa (directiva o opción) y llamar a
+- [x] D10. **C externo.** Enlazar objetos o librerías C desde el programa (directiva o opción) y llamar a
       funciones Dash desde C (callbacks), para QuickJS.
 - [x] D11. **AmiSSL.** Conexiones TLS sobre los sockets de D8 (módulo o builtins), con verificación de
       certificado.
@@ -631,4 +631,16 @@ Formato:
   no era la red de textos; queda para el perfilador D23).
 - Pendiente: GIF/PNG solo con los datatypes del sistema (3.1 trae ILBM); CSS `width`/`height` de las imágenes;
   `alt` cuando no se puede cargar.
+
+### 2026-10-16 — D10 (Dash: C de fuera)
+- Hecho: `@link "ruta"` enlaza un fuente C, un objeto o una librería (`.c`, `.o`, `.a`; ruta relativa al `.dash`
+  que lo dice, también en módulos importados; si no existe, error del compilador). El C generado lleva
+  `/* dash-link: ruta */` y `./dash` y el runner (también en modo multifichero) se lo pasan a gcc detrás del C,
+  con su directorio en `-I` (`compiler/cflags.py` `link_flags`). `@c """ ... """ end`: C libre después de los
+  prototipos de Dash y antes de las `@native` (callbacks con firma de C que llaman a funciones Dash). `@header`
+  entiende `\"`.
+- Tests de Dash: `test_c_link` (un `.c` enlazado, una `@native` que le pasa un callback de `@c` que llama a una
+  función Dash, un texto de C), `errors/link_missing`. Mismo C en los programas previos. Manual y referencia rápida.
+  176/176 sin emulador, 445/445 en A1200, A500 y 3.2, ejemplos 34/34.
+- Para la tarea 15: QuickJS se enlaza como `libqjs.a` con `@link` desde `lib/js.dash`, con `quickjs.h` al lado.
 
