@@ -1,0 +1,116 @@
+# Una página abierta: su texto, el árbol, las hojas de estilo, las imágenes, el JavaScript y la
+# maqueta. Lo que comparten el visor y el navegador.
+#
+#   d = documento_abrir("http://ejemplo.org/")   # carga, árbol, <script>, estilo e imágenes
+#   documento_maquetar(d, ancho)                  # d.pagina: la lista de dibujos (lib/maqueta.dash)
+#   pintar(d.pagina, d.im, desde, x, y, ancho, alto)
+#   if documento_al_dia(d) ...                    # tras un clic o un temporizador: si el JS lo cambió,
+#                                                 # vuelve a dar estilo y a maquetar (true si lo hizo)
+#   documento_liberar(d)
+#
+# Con imágenes, abrir después de que la ventana esté en su pantalla (colores).
+
+import "pintor.dash"
+import "jsdom.dash"
+
+struct Documento
+    direccion: String
+    titulo: String
+    bytes: Int
+    doc: Nodo
+    hojas: Hojas
+    im: Imagenes
+    js: Int              # el motor de JavaScript, 0 si la página no tiene <script>
+    cambios: Int         # jsdom_cambios la última vez que se maquetó
+    pagina: Pagina       # nil hasta documento_maquetar
+    ancho: Int
+    error: String
+    ms: Int              # lo que tardó en abrirse y maquetarse
+end
+
+# El texto de la página (Latin-1): http(s) o un fichero; si falla, una página que lo dice
+func documento_texto(direccion: String, d: Documento) -> String
+    if str_starts(direccion, "http://") or str_starts(direccion, "https://")
+        r = http_get(direccion, 20000)
+        if r.error != ""
+            d.error = r.error
+            return "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>"
+        end
+        d.direccion = r.url
+        return http_texto(r)
+    end
+    t = file_read_text(direccion)
+    if t == nil
+        d.error = "no se puede leer " + direccion
+        return "<title>Error</title><h1>No se pudo abrir</h1><p>" + direccion + "</p>"
+    end
+    return utf8_a_latin1(t)
+end
+
+func documento_abrir(direccion: String) -> Documento
+    t0 = time_ms()
+    var nadie: Nodo = nil
+    var sin_hojas: Hojas = nil
+    var sin_pagina: Pagina = nil
+    d = Documento(direccion, "", 0, nadie, sin_hojas, imagenes_nuevas(), 0, 0, sin_pagina, 0, "", 0)
+    return documento_desde_html(d, documento_texto(direccion, d), t0)
+end
+
+# Lo mismo con el HTML ya en la mano (una página de inicio, una de error)
+func documento_html(direccion: String, html: String) -> Documento
+    var nadie: Nodo = nil
+    var sin_hojas: Hojas = nil
+    var sin_pagina: Pagina = nil
+    d = Documento(direccion, "", 0, nadie, sin_hojas, imagenes_nuevas(), 0, 0, sin_pagina, 0, "", 0)
+    return documento_desde_html(d, html, time_ms())
+end
+
+func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
+    d.bytes = texto.length
+    d.doc = dom_desde_html(texto)
+    if dom_buscar(d.doc, "script") != nil
+        d.js = js_nuevo()
+        jsdom_preparar(d.js, d.doc)
+        jsdom_ejecutar_scripts(d.js, d.doc, d.direccion)
+        d.cambios = jsdom_cambios(d.js)
+    end
+    d.titulo = jsdom_titulo(d.doc)
+    if d.titulo == ""
+        d.titulo = d.direccion
+    end
+    d.hojas = estilo_hojas(d.doc, d.direccion)
+    estilo_aplicar(d.doc, d.hojas)
+    imagenes_cargar(d.im, d.doc, d.direccion)
+    d.ms = time_ms() - t0
+    return d
+end
+
+func documento_maquetar(d: Documento, ancho: Int)
+    t0 = time_ms()
+    d.pagina = maquetar(d.doc, ancho)
+    d.ancho = ancho
+    d.ms = d.ms + time_ms() - t0
+end
+
+# Si el JavaScript cambió el documento desde la última maqueta: estilo, imágenes y maqueta otra vez
+func documento_al_dia(d: Documento) -> Bool
+    if d.js == 0 or jsdom_cambios(d.js) == d.cambios
+        return false
+    end
+    d.cambios = jsdom_cambios(d.js)
+    d.titulo = jsdom_titulo(d.doc)
+    estilo_aplicar(d.doc, d.hojas)
+    imagenes_cargar(d.im, d.doc, d.direccion)
+    if d.ancho > 0
+        d.pagina = maquetar(d.doc, d.ancho)
+    end
+    return true
+end
+
+func documento_liberar(d: Documento)
+    imagenes_liberar(d.im)
+    if d.js != 0
+        js_liberar(d.js)
+        d.js = 0
+    end
+end

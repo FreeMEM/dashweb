@@ -150,6 +150,9 @@ tarea, con el estilo de Dash.
 - [ ] D14. **Variables locales que tapan funciones.** Hoy, si un programa define `func b()`, ningún módulo puede
       usar una variable local `b` ("Cannot assign to 'b' - it's not a variable"): los módulos se rompen según
       los nombres del programa que los importa. Una variable local (o parámetro) debe tapar la función.
+      Visto también en la tarea 18: una global del programa (`var actual`) es la misma variable que las
+      locales `actual` de los módulos importados (css.dash), y una función `inicio()` del programa tapa las
+      variables `inicio` de los módulos. En `src/dashweb.dash` se usan nombres `dw_*` mientras tanto.
 - [x] D24. **Pila desde un módulo.** `@stack N` (lo pide la tarea 15: QuickJS necesita 256 KB).
 - [x] D25. **Salir con el stdio de libnix.** Dash dejaba `DOSBase` a NULL al salir y libnix lo usa después:
       un programa con QuickJS (o `printf` en una `@native`) se colgaba al terminar. (Lo encontró la tarea 15.)
@@ -157,6 +160,9 @@ tarea, con el estilo de Dash.
       el documento y el código de cada evaluación quedaban retenidos hasta salir).
 - [x] D27. **Clic y temporizador en el EventLoop.** `On Click` (`click_x()`, `click_y()`) y `On Timer N`
       (lo pidió la 16b).
+- [x] D28. **Medir textos sin ventana.** `font_*` sobre un RastPort propio si no hay `_dash_rp` (lo pidió la 18:
+      con MUI la página se maqueta fuera de la zona de dibujo). D12b: `IMAGE_RUNTIME` con el prototipo de
+      `DoMethod` (chocaba con las cabeceras de MUI).
 - [ ] D23. **Perfilador.** `./dash --profile`: cuántas veces se llama cada función y en cuál está el programa
       (muestras a 50 Hz desde la interrupción VBlank), escrito al salir. Lo pide la tarea 13: estilo y maqueta
       tardan 7 y 8 s en un A1200 con una página de 9 KB y no se ve dónde.
@@ -228,7 +234,7 @@ tarea, con el estilo de Dash.
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
 
-- [ ] 18. **Ventana del navegador.** Con la API de MUI de Dash (`docs/MUI_DISEÑO.md` del clon): barra
+- [x] 18. **Ventana del navegador.** Con la API de MUI de Dash (`docs/MUI_DISEÑO.md` del clon): barra
       de URL, atrás/adelante/recargar, barra de estado y de progreso. La zona de página es la clase de dibujo
       propia de MUI (su tarea 7) pintando con el código de la tarea 13.
       Nota de la sesión de MUI (2026-10-16): la ventana se puede describir en un `.dashui` (formato en
@@ -738,4 +744,23 @@ Formato:
   9 KB, 3,8 s. En el objetivo todo va en menos de medio segundo. Para el A1200 hace falta el perfilador (D23).
 - `--memcheck`: los 16 tests de dashweb con 0 vivos. README con el estado, las medidas y cómo probar.
 - Fase A terminada. Siguiente: fase B (tarea 18, ventana del navegador con MUI).
+
+### 2026-10-16 — Tarea 18 (ventana del navegador con MUI), D28 y D12b
+- `src/dashweb.dash` + `src/navegador.dashui` (el `.dashui` del ejemplo de la sesión de MUI, con la zona de
+  dibujo más baja para caber en 640x256): barra de URL (Return), atrás/adelante, recargar, historial,
+  barra de estado (bytes y ms) y de progreso, título de la página en la ventana, barra de desplazamiento
+  y rueda; clic en la zona → `jsdom_clic`; temporizadores del JS con `mui_timer`. Página de inicio propia;
+  con un argumento abre esa dirección.
+- `lib/documento.dash`: abrir (cargar, árbol, scripts, hojas, estilo, imágenes), maquetar a un ancho,
+  `documento_al_dia` (si el JS cambió algo: estilo, imágenes y maqueta otra vez), liberar.
+- Encontrado: `mui_width` del lienzo (441) no es el ancho que recibe la función de dibujo (424); la página se
+  maqueta otra vez al pintar y pide `ID_RANGO` con `mui_timer`, que es uno solo y cancelaba el del JS (el
+  contador de reloj.html se quedaba en 1). `ID_RANGO` vuelve a poner los temporizadores del JS.
+- D28 (Dash, 5b196e0): medir textos sin ventana. D12b (Dash, db39ece): `DoMethod` con prototipo.
+- `tests/run.py` compila también los programas de `src/` (sin ejecutarlos) y construye `libqjs.a` si hace
+  falta. `tools/medir_visor.py --programa src/dashweb.dash`; `~/.cache/dash-emu/sys31muiweb` = sys31mui +
+  fuentes. Capturas en el emulador: js.html, reloj.html (el contador sube) y prueba.html con la barra de
+  estado. dashweb 18/18 (16 tests y los 2 programas), también con `--memcheck`.
+- No probado en el emulador: botones, historial, barra y rueda (no hay forma de mandarles eventos desde
+  `medir_visor`). Pendiente: los nombres que chocan entre programa y módulos (D14).
 

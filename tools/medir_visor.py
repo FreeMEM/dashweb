@@ -32,6 +32,8 @@ def main():
     ap.add_argument("--maquina", choices=sorted(MAQUINAS), default="a1200")
     ap.add_argument("--captura", metavar="FILE.png", help="screen picture after the first paint")
     ap.add_argument("--fases", action="store_true", help="run tests/bench/fases.dash instead (no window)")
+    ap.add_argument("--programa", default="src/visor.dash", help="the program to run (e.g. src/dashweb.dash, "
+                    "with --sistema ~/.cache/dash-emu/sys31muiweb)")
     ap.add_argument("--sistema", metavar="DIR", help="emulated system (default $DASH_EMU_SYS; with fonts: "
                     "tools/emu_sys_fuentes.sh)")
     ap.add_argument("--segundos", type=int, default=40, help="the visor closes itself after this")
@@ -43,7 +45,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="visor_") as tmp:
         exe = Path(tmp) / "visor"
         env = dict(os.environ, DASH_TEST_AUTOCLOSE=str(args.segundos))
-        r = subprocess.run([str(DASH / "dash"), str(ROOT / ("tests/bench/fases.dash" if args.fases else "src/visor.dash")), "-o", str(exe)],
+        r = subprocess.run([str(DASH / "dash"), str(ROOT / ("tests/bench/fases.dash" if args.fases else args.programa)), "-o", str(exe)],
                            cwd=DASH, env=env, capture_output=True, text=True)
         if r.returncode != 0:
             sys.exit("compile failed:\n" + r.stdout + r.stderr)

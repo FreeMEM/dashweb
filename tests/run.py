@@ -97,14 +97,19 @@ def main():
     tests = sorted((ROOT / "tests").glob("test_*.dash"))
     if args.filter:
         tests = [t for t in tests if args.filter in t.stem]
+    # the programs of src/ must compile too (they are not run: they wait for the user)
+    programas = [] if args.filter else sorted((ROOT / "src").glob("*.dash"))
     BUILD.mkdir(parents=True, exist_ok=True)
-    if any("js.dash" in t.read_text() for t in tests) and not build_qjs_lib():
+    if any("js.dash" in t.read_text() or "documento.dash" in t.read_text() for t in tests + programas) and not build_qjs_lib():
         return 1
 
     results = {}          # name -> (ok, message)
     to_run = {}           # emu config -> [(src, exe, expected)]
     sysdir = os.environ.get("DASH_EMU_SYS", "")
     t0 = time.time()
+    for prog in programas:
+        exe, err = compile_test(prog, args.memcheck)
+        results["src/" + prog.stem] = (False, "compile failed:\n" + err) if err else (True, "compiled")
     for src in tests:
         exe, err = compile_test(src, args.memcheck)
         if err:
@@ -167,14 +172,15 @@ def main():
                                      ("\n--- output:\n" + "\n".join(got) if args.verbose else ""))
 
     failed = 0
-    for src in tests:
-        ok, msg = results[src.stem]
+    names = ["src/" + p.stem for p in programas] + [t.stem for t in tests]
+    for name in names:
+        ok, msg = results[name]
         failed += not ok
         first, _, rest = msg.partition("\n")
-        print(f"{'PASS' if ok else 'FAIL'}  {src.stem}: {first}")
+        print(f"{'PASS' if ok else 'FAIL'}  {name}: {first}")
         if not ok and rest:
             print("\n".join("      " + l for l in rest.splitlines()))
-    print(f"\n{len(tests) - failed}/{len(tests)} passed ({time.time() - t0:.0f} s)")
+    print(f"\n{len(names) - failed}/{len(names)} passed ({time.time() - t0:.0f} s)")
     return 1 if failed else 0
 
 

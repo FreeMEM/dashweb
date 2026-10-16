@@ -1,0 +1,225 @@
+# dashweb: el navegador con MUI (fase B). La ventana está en navegador.dashui (editor visual de
+# Dash); la página la abre lib/documento.dash y la pinta lib/pintor.dash en la zona de dibujo.
+#
+#   dashweb                       # página de inicio
+#   dashweb http://ejemplo.org/   # esa página
+#
+# Barra de URL (Return para ir), atrás, adelante, recargar, historial, barra de estado y de
+# progreso. La rueda y la barra desplazan; un clic llega al JavaScript de la página.
+# Necesita MUI 3.8 o 5 y un 68020.
+
+import "navegador.dashui"
+import "../lib/documento.dash"
+
+# Los números de evento del .dashui
+const ID_ATRAS = 1
+const ID_ADELANTE = 2
+const ID_RECARGAR = 3
+const ID_IR = 4
+const ID_SCROLL = 5
+const ID_HISTORIAL = 6
+const ID_ACERCA = 8
+const ID_SALIR = 9
+const ID_PAGINA = 10
+# y los del programa
+const ID_JS = 11          # setTimeout/setInterval de la página
+const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
+
+var dw_actual: Documento = nil
+var dw_desde: Int = 0
+
+func dw_inicio() -> String
+    h = "<html><head><title>dashweb</title><style>body { font-family: sans-serif; margin: 12px }"
+    h = h + " h1 { color: #036 } .nota { color: #555 }</style></head><body>"
+    h = h + "<h1>dashweb</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
+    h = h + "<p>Escribe una dirección arriba (http o https) y pulsa Return.</p>"
+    h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
+    h = h + "<p class=nota>Fase B: ventana con MUI 5.</p></body></html>"
+    return h
+end
+
+# La zona de dibujo de MUI: la página dw_desde "dw_desde"; si el ancho cambió, se maqueta otra vez
+func pinta(x: Int, y: Int, ancho: Int, alto: Int)
+    if dw_actual == nil
+        gfx_pen(color_pen(255, 255, 255))
+        gfx_rect(x, y, x + ancho - 1, y + alto - 1)
+        return
+    end
+    if dw_actual.pagina == nil or dw_actual.ancho != ancho
+        documento_maquetar(dw_actual, ancho)
+        mui_timer(1, ID_RANGO)
+    end
+    pintar(dw_actual.pagina, dw_actual.im, dw_desde, x, y, ancho, alto)
+end
+
+# Barra de desplazamiento: total de la página y lo que se ve
+func ajustar_barra(v: Navegador)
+    if dw_actual == nil or dw_actual.pagina == nil
+        return
+    end
+    alto = mui_height(v.pagina)
+    mui_set_range(v.barra, dw_actual.pagina.alto, alto)
+    if dw_desde > dw_actual.pagina.alto - alto
+        dw_desde = dw_actual.pagina.alto - alto
+    end
+    if dw_desde < 0
+        dw_desde = 0
+    end
+    mui_set_value(v.barra, dw_desde)
+end
+
+# Abre la dirección en la ventana (direccion "" = la página de inicio)
+func abrir(v: Navegador, direccion: String)
+    mui_set_text(v.estado, "Cargando " + direccion + "...")
+    mui_set_value(v.progreso, 30)
+    if dw_actual != nil
+        documento_liberar(dw_actual)
+    end
+    if direccion == ""
+        dw_actual = documento_html("dashweb:inicio", dw_inicio())
+    else
+        dw_actual = documento_abrir(direccion)
+        mui_set_text(v.url, dw_actual.direccion)
+    end
+    mui_set_value(v.progreso, 70)
+    dw_desde = 0
+    ancho = mui_width(v.pagina)
+    if ancho > 0
+        documento_maquetar(dw_actual, ancho)
+    end
+    mui_set_text(v.window, "dashweb: " + dw_actual.titulo)
+    ajustar_barra(v)
+    if dw_actual.error != ""
+        mui_set_text(v.estado, "Error: " + dw_actual.error)
+    else
+        mui_set_text(v.estado, "Listo: " + dw_actual.bytes + " bytes en " + dw_actual.ms + " ms")
+    end
+    mui_set_value(v.progreso, 0)
+    mui_canvas_redraw(v.pagina)
+    temporizadores(v)
+end
+
+# Los setTimeout/setInterval que tocan; el siguiente con mui_timer
+func temporizadores(v: Navegador)
+    if dw_actual == nil or dw_actual.js == 0
+        return
+    end
+    espera = jsdom_temporizadores(dw_actual.js)
+    if documento_al_dia(dw_actual)
+        ajustar_barra(v)
+        mui_canvas_redraw(v.pagina)
+    end
+    if espera >= 0
+        if espera < 1
+            espera = 1
+        end
+        mui_timer(espera, ID_JS)
+    end
+end
+
+func clic(v: Navegador)
+    if dw_actual == nil or dw_actual.pagina == nil or dw_actual.js == 0
+        return
+    end
+    n = maqueta_nodo_en(dw_actual.pagina, mui_canvas_mouse_x(v.pagina), mui_canvas_mouse_y(v.pagina) + dw_desde)
+    if n == nil
+        return
+    end
+    jsdom_clic(dw_actual.js, n)
+    if documento_al_dia(dw_actual)
+        ajustar_barra(v)
+        mui_canvas_redraw(v.pagina)
+    end
+    temporizadores(v)
+end
+
+Main
+    if mui_app_begin("dashweb", "DASHWEB") == 0
+        Print "dashweb necesita MUI (3.8 o 5) y un 68020"
+    else
+        v = Navegador_create()
+        a = Acerca_create()
+        mui_canvas_on_draw(v.pagina, pinta)
+        mui_canvas_on_input(v.pagina, ID_PAGINA)
+        mui_window_open(v.window)
+        primera = ""
+        if arg_count() > 0
+            primera = arg(0)
+        end
+        abrir(v, primera)
+        if primera != ""
+            mui_list_add(v.historial, primera)
+        end
+        visto = mui_list_count(v.historial) - 1    # la línea del historial que se ve
+        acerca_abierta = false
+        while true
+            ev = mui_wait_event()
+            if ev == -1 or ev == ID_SALIR
+                break
+            end
+            if ev == ID_IR or ev == ID_RECARGAR
+                direccion = mui_get_text(v.url)
+                if ev == ID_IR and direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
+                    direccion = "http://" + direccion
+                end
+                abrir(v, direccion)
+                if ev == ID_IR and direccion != "" and (visto < 0 or mui_list_get(v.historial, visto) != dw_actual.direccion)
+                    mui_list_add(v.historial, dw_actual.direccion)
+                    visto = mui_list_count(v.historial) - 1
+                end
+                mui_set_enabled(v.atras, visto > 0)
+                mui_set_enabled(v.adelante, visto < mui_list_count(v.historial) - 1)
+            end
+            if ev == ID_ATRAS or ev == ID_ADELANTE or ev == ID_HISTORIAL
+                if ev == ID_ATRAS and visto > 0
+                    visto = visto - 1
+                end
+                if ev == ID_ADELANTE and visto < mui_list_count(v.historial) - 1
+                    visto = visto + 1
+                end
+                if ev == ID_HISTORIAL
+                    visto = mui_get_value(v.historial)
+                end
+                if visto >= 0
+                    direccion = mui_list_get(v.historial, visto)
+                    mui_set_text(v.url, direccion)
+                    abrir(v, direccion)
+                end
+                mui_set_enabled(v.atras, visto > 0)
+                mui_set_enabled(v.adelante, visto < mui_list_count(v.historial) - 1)
+            end
+            if ev == ID_SCROLL
+                dw_desde = mui_get_value(v.barra)
+                mui_canvas_redraw(v.pagina)
+            end
+            if ev == ID_RANGO
+                # mui_timer es uno solo: el de pinta cancela el del JavaScript, que se vuelve a poner
+                ajustar_barra(v)
+                temporizadores(v)
+            end
+            if ev == ID_JS
+                temporizadores(v)
+            end
+            if ev == ID_PAGINA
+                rueda = mui_canvas_wheel(v.pagina)
+                if rueda != 0
+                    mui_set_value(v.barra, mui_get_value(v.barra) - rueda * 30)
+                elif mui_canvas_button(v.pagina) == 1
+                    clic(v)
+                end
+            end
+            if ev == ID_ACERCA
+                if acerca_abierta
+                    mui_window_close(a.window)
+                else
+                    mui_window_open(a.window)
+                end
+                acerca_abierta = not acerca_abierta
+            end
+        end
+        if dw_actual != nil
+            documento_liberar(dw_actual)
+        end
+        mui_app_end()
+    end
+end

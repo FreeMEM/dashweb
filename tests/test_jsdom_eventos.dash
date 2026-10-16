@@ -17,7 +17,7 @@
 # expect-out: iv 1
 # expect-out: iv 2
 # expect-out: iv 3
-# expect-out: t200
+# expect-out: t1000
 # expect-out: temporizadores: fin
 # expect-out: bajo el punto: a
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
@@ -54,7 +54,7 @@ Main
     Print "seguir: " + jsdom_clic(js, dom_por_id(doc, "a"))
     Print "seguir: " + jsdom_clic(js, dom_por_id(doc, "b"))
     Print "cambios: " + jsdom_cambios(js)
-    js_evaluar(js, "setTimeout(function () { console.log('t200') }, 200); setTimeout(function () { console.log('t0') }, 0); var n = 0; var iv = setInterval(function () { n++; console.log('iv ' + n); if (n == 3) clearInterval(iv) }, 20); setTimeout(\"console.log('texto')\", 10)", "x")
+    js_evaluar(js, "setTimeout(function () { console.log('t1000') }, 1000); setTimeout(function () { console.log('t0') }, 0); var n = 0; var iv = setInterval(function () { n++; console.log('iv ' + n); if (n == 3) clearInterval(iv) }, 100); setTimeout(\"console.log('texto')\", 30)", "x")
     espera = jsdom_temporizadores(js)
     vueltas = 0
     while espera >= 0 and vueltas < 100
