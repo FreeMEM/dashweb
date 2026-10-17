@@ -78,7 +78,7 @@ const IMAGENES_A_LA_VEZ = 4
 const IMAGENES_DECODIFICANDO = 4
 # Las fuentes van aparte, con sus propias descargas: si no, las imágenes esperaban detrás (freemem.space: 4 pesos
 # de Inter de 325 KB y 4 de Font Awesome; las imágenes empezaban a bajarse a los 28 s)
-const FUENTES_A_LA_VEZ = 2
+const FUENTES_A_LA_VEZ = 4
 
 func imagenes_nuevas() -> Imagenes
     var por_src: {String: Int} = {}

@@ -2169,3 +2169,34 @@ Formato:
   googletagmanager.com/gtag/js son 465 KB: los scripts pasan de 7 s a 1,1 s y la página entera de 31,4 s a 24,7 s.
   No cambian la página (el gtag() de la página solo apunta en dataLayer). Decisión de diseño: avisado al usuario.
 - Tests: test_url (casos nuevos), jsdom, js, recursos y estilo: 16/16 (la red de pruebas la tenía la otra sesión).
+
+### 2026-10-17 — Tarea 33, las fuentes de una vez; un cierre de dashweb sin aviso
+- Con las fuentes ya pequeñas, `FUENTES_A_LA_VEZ = 4`: las 4 de Inter llegan juntas y la página se vuelve a
+  maquetar una vez por ellas, no dos (0,65 s menos). freemem.space: 21,4-22 s.
+- Otra traza: `maquetada otra vez por N imágenes o fuentes`. medir_visor tiene `--memcheck` (una carga de
+  freemem.space con memcheck: errores 0).
+- Dos de unas 15 medidas acabaron con dashweb cerrado a los 9,5 s (justo tras la primera pintada, en los
+  temporizadores del JavaScript) y "returncode 127", que es el abort() de libnix: QuickJS se para con assert() o
+  abort() (71 abort en su código), sin decir nada visible. No se ha vuelto a dar en 12 intentos más. lib/js.dash
+  pone ahora su propio `__assert_func` y `abort` que escriben dónde fallan (fichero, línea, función) por la
+  salida antes de salir: la próxima vez se sabrá. Pendiente.
+- Encargado a la otra sesión: D54 (image_from_rgb en RTG sin picture.datatype: 11 % del tiempo, 0,4 s por imagen)
+  y D55 (reusar la sesión TLS por servidor: la negociación es otro 10 %).
+
+### 2026-10-18 — Un fallo del recolector de QuickJS; el bloqueo de rastreo, apagado
+- El cierre de dashweb con "returncode 127" es un assert de QuickJS: `js_rc(p)->ref_count > 0` en
+  `gc_decref_child` (quickjs.c:6727), al pasar el recolector de ciclos durante los temporizadores del JavaScript,
+  justo tras la primera pintada de freemem.space. Algún objeto tiene menos referencias de las que le apuntan: una
+  referencia de menos en algún sitio (el C de lib/jsdom.dash o lib/js.dash revisado: no se ve; o memoria pisada).
+- Sale con el bloqueo de scripts de rastreo: 3 de 17 cargas; sin bloqueo, 0 de 10. Sustituir gtag.js por un
+  script que vacía dataLayer.push no lo arregla (2 de 14). Una prueba aislada con arguments en dataLayer y
+  JS_RunGC no lo reproduce. Lo más probable: el fallo está ahí siempre y sin los 7 s de gtag.js el recolector
+  pasa en otro momento. Hasta encontrarlo, `URL_RASTREO_BLOQUEAR = false` (lib/url.dash): freemem.space vuelve a
+  unos 28 s.
+- lib/js.dash pone su propio `__assert_func` y `abort`: escriben el fichero, la línea y la función por la salida
+  (antes solo "Program aborted", y el assert iba a stderr).
+- Pendiente (prioridad): reproducirlo a voluntad (un modo que llame a JS_RunGC tras cada script y temporizador)
+  y buscar la referencia que falta; después, volver a encender el bloqueo.
+- Encargos hechos por la otra sesión, aún en su rama tlssess: D54 (image_from_rgb en RTG: 120 -> 5 ms) y D55
+  (sesión TLS reanudada; con TLS 1.3 ahorra poco: 9,0 -> 7,9 s; para reanudar hay que abrir primero una conexión
+  y esperar a su primera lectura).

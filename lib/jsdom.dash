@@ -570,8 +570,8 @@ end
 
 func _jsdom_traer(direccion: String) -> String
     u = url_parse(direccion)
-    if url_rastreador(direccion)
-        return ""
+    if URL_RASTREO_BLOQUEAR and url_rastreador(direccion)
+        return URL_RASTREO_SUSTITUTO
     end
     if u.esquema == "http" or u.esquema == "https"
         r = http_get(direccion, 15000)

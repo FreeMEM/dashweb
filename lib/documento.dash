@@ -303,9 +303,13 @@ func documento_imagenes(d: Documento) -> Bool
         return false
     end
     if d.sin_maquetar > 0 and d.ancho > 0
+        t0 = time_ms()
         d.pagina = maquetar(d.doc, d.ancho)
         _documento_vistas(d)
         d.remaquetada = true
+        if traza_activa
+            traza("maquetada otra vez por " + d.sin_maquetar + " imágenes o fuentes en " + (time_ms() - t0) + " ms")
+        end
     end
     d.sin_maquetar = 0
     d.sin_pintar = 0

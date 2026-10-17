@@ -19,6 +19,20 @@
 """
 /* lib/js.dash: a QuickJS runtime and context, and the last exception as Latin-1 */
 
+/* QuickJS stops with assert() and abort() when something is broken inside: say so in the output (libnix only
+   writes "Program aborted", and its assert goes to stderr, which nobody sees) before leaving with 127 */
+static void _js_decir(const char *t) { BPTR o = Output(); if (o) Write(o, (APTR)t, strlen(t)); }
+__stdargs void __assert_func(const char *f, int l, const char *fn, const char *e) {
+    char b[200];
+    sprintf(b, "dashweb: assert de QuickJS en %.60s:%d (%.40s): %.60s\n", f ? f : "?", l, fn ? fn : "?", e ? e : "?");
+    _js_decir(b);
+    exit(127);
+}
+void abort(void) {
+    _js_decir("dashweb: abort (QuickJS u otra librería de C)\n");
+    exit(127);
+}
+
 /* The most memory one page's JavaScript may take */
 #define JS_MEMORIA (48L * 1024 * 1024)
 typedef struct _JsMotorS {

@@ -48,8 +48,8 @@ func recursos_pedir(r: Recursos, direccion: String, es_css: Bool, nivel: Int)
         end
     end
     u = url_parse(direccion)
-    if not es_css and url_rastreador(direccion)
-        r.traidos[direccion] = ""
+    if URL_RASTREO_BLOQUEAR and not es_css and url_rastreador(direccion)
+        r.traidos[direccion] = URL_RASTREO_SUSTITUTO
         return
     end
     if u.esquema == "http" or u.esquema == "https"
