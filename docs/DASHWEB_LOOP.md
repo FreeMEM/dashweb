@@ -1777,3 +1777,12 @@ Formato:
   amigang.com sin el menú y con la imagen de cabecera enorme; amiga.abime.net, el reto anti-bots de Anubis (la
   imagen sin su tamaño); xataka.com sin logo ni iconos (SVG: la 31i ya los pone) y sin el menú. aminet.net,
   amigastore.eu, amigaworld.net (Chrome no la cargó), trainalong.fit, meneame.net y freemem.space, parecidas a Chrome.
+
+### 2026-10-17 — Tarea 31j, primer arreglo (commodoremalacca.club)
+- La portada pone sobre su cabecera una capa azul semitransparente con position: absolute; top/right/bottom/left
+  a 0 y sin height (el título blanco va encima). dashweb le daba el alto de su contenido (0): sin capa, el título
+  blanco quedaba sobre el fondo claro. Ahora un absoluto con top y bottom y height auto mide el hueco entre los
+  dos (menos márgenes, y bordes y rellenos si no es border-box); se pone un height de un momento al maquetarlo.
+  La imagen de debajo la pinta JavaScript en el navegador (BAILOUT_TO_CLIENT_SIDE_RENDERING de Next.js).
+- Caso nuevo en `test_maqueta_transform`.
+- Base: 49/49.

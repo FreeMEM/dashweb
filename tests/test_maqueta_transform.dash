@@ -10,6 +10,7 @@
 # expect-out: g trazo
 # expect-out: h -15 132 40 10
 # expect-out: i 0 142 40 10
+# expect-out: capa 0 157 280 30
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -25,6 +26,8 @@ Main
     h = h + "<div id=g style='width:20px;height:2px;background:red;rotate:0.125turn'></div>"
     h = h + "<div id=h style='width:40px;height:10px;background:red;transform:translateX(calc(-50% + 5px))'></div>"
     h = h + "<div id=i style='width:40px;height:10px;background:red;transform:scale(-1)'></div>"
+    # (y una capa con position absolute, top y bottom y sin height: el hueco entre los dos)
+    h = h + "<div style='position:relative;height:40px'><div id=capa style='position:absolute;top:5px;bottom:5px;left:0;right:0;background:navy'></div></div>"
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
