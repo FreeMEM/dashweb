@@ -1,0 +1,36 @@
+# Test: CSS Color 4 y 5 (tarea 31n): hsl, hwb, oklab, oklch, lab, lch, color(), color-mix(), light-dark(),
+# #rgba, los nombres (rebeccapurple) y los del sistema, y la opacidad de cada uno (css_alfa). Los de lab y oklab
+# se calculan en enteros: valen si se quedan a 1 de lo que da la fórmula en coma flotante.
+# memcheck
+# expect-out: 008000 ff0000/127 00c3ff 008800/136 663399
+# expect-out: ff0000 636363 bf82da
+# expect-out: ff0000 ff0000 618041
+# expect-out: 4000bf ff0000/127 ff8000 ff8000/127 ffffff 000000 -1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/colores.dash"
+
+func hex(c: Int) -> String
+    if c < 0
+        return "-1"
+    end
+    cifras = "0123456789abcdef"
+    r = ""
+    x = c
+    for i in (1..6)
+        r = cifras[x % 16:x % 16 + 1] + r
+        x = x / 16
+    end
+    return r
+end
+
+func con_alfa(v: String) -> String
+    return hex(css_color_opaco(v)) + "/" + css_alfa(v)
+end
+
+Main
+    Print hex(css_color("hsl(120, 100%, 25%)")) + " " + con_alfa("hsl(0 100% 50% / 0.5)") + " " + hex(css_color("hwb(194 0% 0%)")) + " " + con_alfa("#0808") + " " + hex(css_color("RebeccaPurple"))
+    Print hex(css_color("oklch(62.8% 0.2577 29.23)")) + " " + hex(css_color("oklab(0.5 0 0)")) + " " + hex(css_color("oklab(70% 0.1 -0.1)"))
+    Print hex(css_color("lab(54.29 80.8 69.89)")) + " " + hex(css_color("lch(54.29% 106.84 40.85deg)")) + " " + hex(css_color("lab(50 -20 30)"))
+    Print hex(css_color("color-mix(in srgb, red 25%, blue)")) + " " + con_alfa("color-mix(in srgb, red, transparent)") + " " + hex(css_color("color(srgb 1 0.5 0)")) + " " + con_alfa("rgb(255 128 0 / 50%)") + " " + hex(css_color("light-dark(white, black)")) + " " + hex(css_color("CanvasText")) + " " + hex(css_color("rgba(0,0,0,.4)"))
+end

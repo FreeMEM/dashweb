@@ -361,7 +361,7 @@ tarea, con el estilo de Dash.
       [x] 31k. Selectors 4: :is(), :where(), :has(), :not() con listas (ami64.com usa :is() en querySelector).
       [x] 31l. Transforms completo: translate con %, scale, rotate de cualquier ángulo (en cajas e imágenes).
       [x] 31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
-      31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
+      [x] 31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
       31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
       (El usuario, 2026-10-17: "mejor CSS 3". CSS 3 es el conjunto de módulos posteriores a CSS 2.1, que sigue siendo
       la base: el bloque 31 los va completando.)
@@ -1730,3 +1730,16 @@ Formato:
 - Transitions: sin cambios de estado no hay nada que hacer (el estilo de siempre es el final).
 - Test `test_estilo_animacion` (8 casos, con cubic-bezier() con comas dentro del atajo).
 - Base: 46/46.
+
+### 2026-10-17 — Tarea 31n (Color 4 y 5)
+- lib/colores.dash rehecho alrededor de un lector (`_color_leer`: el color y su opacidad en `_color_alfa`);
+  css_color, css_alfa y css_color_opaco salen de él. Ahora entiende #rgba y #rrggbbaa, rgb()/rgba() con comas o
+  con espacios y "/ alfa" (y decimales), hsl()/hsla(), hwb(), lab(), lch(), oklab(), oklch(), color(srgb ...)
+  (también srgb-linear y xyz; display-p3 y los demás, como sRGB), color-mix() (mezcla premultiplicada en sRGB,
+  diga el espacio que diga), light-dark() (el claro), none en los canales, los 148 nombres (salen de una tabla en
+  un texto: antes había unos 40) y los colores del sistema (Canvas, CanvasText, ButtonFace...).
+- Todo en enteros (diezmilésimas): seno por tabla de grados con interpolación, gamma de sRGB por una tabla de
+  256 y búsqueda binaria. Dash no tiene sqrt/pow/sin para Float (solo fx_sqrt/fx_sin de Fixed); no hizo falta.
+- Lo que no: la sintaxis relativa (rgb(from ...)) da -1; color-mix in oklab/oklch mezcla en sRGB.
+- Test `test_colores4` (21 colores; lab y oklab a 1 de la fórmula en coma flotante).
+- Base: 47/47.

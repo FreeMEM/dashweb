@@ -1,250 +1,518 @@
-# Colores CSS a RGB (0xRRGGBB): nombres, #rgb, #rrggbb, rgb(r, g, b) y rgba(...).
-# -1: transparente o desconocido.
+# Colores CSS (CSS Color 4 y 5) a RGB (0xRRGGBB): los 148 nombres y los del sistema, #rgb, #rgba, #rrggbb,
+# #rrggbbaa, rgb()/rgba() (con comas o con espacios y /), hsl()/hsla(), hwb(), lab(), lch(), oklab(), oklch(),
+# color(srgb ...), color-mix() y light-dark() (el claro). -1: transparente o desconocido.
+# Las cuentas van en enteros, en diezmilésimas (COLOR_UNO = 1).
 
 import "css.dash"
 
+const COLOR_UNO = 10000
+
+var _color_alfa: Int = 255                # la opacidad (0-255) del último color leído
+var _color_nombres: {String: Int} = nil   # nombre -> 0xRRGGBB (se llena la primera vez)
+var _color_gamma: [Int] = nil             # sRGB 0-255 -> lineal en diezmilésimas
+
+# El color (casi transparente, alfa < 0,5, es -1; si no, el color sin mezclar)
 func css_color(valor: String) -> Int
-    v = str_lower(str_trim(valor))
-    if str_starts(v, "#")
-        h = v[1:]
-        if h.length == 3
-            r = str_to_int(h[0:1], 16)
-            g = str_to_int(h[1:2], 16)
-            b = str_to_int(h[2:3], 16)
-            return (r * 17) * 65536 + (g * 17) * 256 + b * 17
-        elif h.length >= 6
-            return str_to_int(h[0:6], 16)
-        end
+    c = _color_leer(valor)
+    if c < 0 or _color_alfa < 127
         return -1
     end
-    if str_starts(v, "rgb")
-        a = str_find(v, "(")
-        z = str_find(v, ")")
-        if a < 0 or z < a
-            return -1
+    return c
+end
+
+# La opacidad de un color CSS, 0-255 (0 para transparent; 255 si no se entiende)
+func css_alfa(valor: String) -> Int
+    if _color_leer(valor) < 0
+        return 255
+    end
+    return _color_alfa
+end
+
+# El color sin su opacidad (0xRRGGBB): transparent negro; -1 si no se entiende
+func css_color_opaco(valor: String) -> Int
+    return _color_leer(valor)
+end
+
+func _color_leer(valor: String) -> Int
+    v = str_lower(str_trim(valor))
+    _color_alfa = 255
+    if v == ""
+        return -1
+    end
+    if str_starts(v, "#")
+        return _color_hex(v[1:])
+    end
+    p = str_find(v, "(")
+    if p > 0 and str_ends(v, ")")
+        f = str_trim(v[:p])
+        dentro = v[p + 1:v.length - 1]
+        if f == "color-mix"
+            return _color_mezcla(dentro)
+        elif f == "light-dark"
+            partes = css_partir(dentro, 44)
+            return _color_leer(partes[0])
         end
-        partes = str_replace(v[a + 1:z], " ", "")
-        c1 = str_find(partes, ",")
-        c2 = str_find_from(partes, ",", c1 + 1)
-        if c1 < 0 or c2 < 0
-            return -1
+        var args: [String] = []
+        for t in css_partir(str_replace(str_replace(dentro, ",", " "), "/", " / "), 32)
+            if str_trim(t) != "" and str_trim(t) != "/"
+                args.push(str_trim(t))
+            end
         end
-        r = _canal(partes[:c1])
-        g = _canal(partes[c1 + 1:c2])
-        resto = partes[c2 + 1:]
-        c3 = str_find(resto, ",")
-        if c3 >= 0
-            # rgba: casi transparente (alfa < 0,5) es transparente; si no, el color sin mezclar
-            if _alfa_baja(resto[c3 + 1:])
+        if args.length > 0 and args[0] == "from"
+            return -1                     # sintaxis relativa: no
+        end
+        if f == "color"
+            if args.length < 4
                 return -1
             end
-            resto = resto[:c3]
+            espacio = args[0]
+            args = args[1:]
+            _color_alfa_de(args)
+            r = _num(args[0], COLOR_UNO)
+            g = _num(args[1], COLOR_UNO)
+            b = _num(args[2], COLOR_UNO)
+            if espacio == "srgb-linear" or espacio == "xyz" or espacio == "xyz-d65"
+                if espacio != "srgb-linear"
+                    lr = (32410 * r - 15374 * g - 4986 * b) / 10000
+                    lg = (-9692 * r + 18760 * g + 416 * b) / 10000
+                    lb = (556 * r - 2040 * g + 10570 * b) / 10000
+                    return _lineal(lr) * 65536 + _lineal(lg) * 256 + _lineal(lb)
+                end
+                return _lineal(r) * 65536 + _lineal(g) * 256 + _lineal(b)
+            end
+            # srgb, display-p3, a98-rgb...: como sRGB
+            return _rgb(r, g, b)
         end
-        b = _canal(resto)
-        return r * 65536 + g * 256 + b
-    end
-    if v == "transparent" or v == "" or v == "inherit" or v == "currentcolor"
+        if args.length < 3
+            return -1
+        end
+        _color_alfa_de(args)
+        if f == "rgb" or f == "rgba"
+            return _canal(args[0]) * 65536 + _canal(args[1]) * 256 + _canal(args[2])
+        elif f == "hsl" or f == "hsla"
+            c = _hsl(_tono(args[0]), _por_cien(args[1], COLOR_UNO), _por_cien(args[2], COLOR_UNO))
+            return _rgb(c[0], c[1], c[2])
+        elif f == "hwb"
+            w = _por_cien(args[1], COLOR_UNO)
+            k = _por_cien(args[2], COLOR_UNO)
+            if w + k >= COLOR_UNO
+                gris = w * 100 / ((w + k) / 100)
+                return _rgb(gris, gris, gris)
+            end
+            c = _hsl(_tono(args[0]), COLOR_UNO, COLOR_UNO / 2)
+            resto = COLOR_UNO - w - k
+            return _rgb(c[0] * resto / COLOR_UNO + w, c[1] * resto / COLOR_UNO + w, c[2] * resto / COLOR_UNO + w)
+        elif f == "lab" or f == "lch"
+            l = _num_o_cien(args[0], COLOR_UNO, 100 * COLOR_UNO)
+            if f == "lab"
+                return _lab(l, _num_o_cien(args[1], COLOR_UNO, 125 * COLOR_UNO), _num_o_cien(args[2], COLOR_UNO, 125 * COLOR_UNO))
+            end
+            croma = _num_o_cien(args[1], COLOR_UNO, 150 * COLOR_UNO)
+            h = _tono(args[2])
+            return _lab(l, croma / 100 * _coseno(h) / 100, croma / 100 * _seno(h) / 100)
+        elif f == "oklab" or f == "oklch"
+            l = _num_o_cien(args[0], COLOR_UNO, COLOR_UNO)
+            if f == "oklab"
+                return _oklab(l, _num_o_cien(args[1], COLOR_UNO, 4000), _num_o_cien(args[2], COLOR_UNO, 4000))
+            end
+            croma = _num_o_cien(args[1], COLOR_UNO, 4000)
+            h = _tono(args[2])
+            return _oklab(l, croma * _coseno(h) / COLOR_UNO, croma * _seno(h) / COLOR_UNO)
+        end
         return -1
+    end
+    if v == "transparent"
+        _color_alfa = 0
+        return 0
     end
     return _color_nombre(v)
 end
 
-# ¿Alfa por debajo de 0,5? ("0", "0.3", ".2", "40%")
-func _alfa_baja(t: String) -> Bool
-    a = str_trim(t)
-    if str_ends(a, "%")
-        return Int(a[:a.length - 1]) < 50
+# #rgb, #rgba, #rrggbb, #rrggbbaa
+func _color_hex(h: String) -> Int
+    for i in (0..h.length - 1)
+        c = str_code(h, i)
+        if not ((c >= 48 and c <= 57) or (c >= 97 and c <= 102))
+            return -1
+        end
     end
-    if a == "0"
-        return true
-    end
-    p = str_find(a, ".")
-    if p < 0
-        return Int(a) < 1
-    end
-    if Int("0" + a[:p]) >= 1
-        return false
-    end
-    return p + 1 >= a.length or str_code(a, p + 1) < 53
-end
-
-# "128" o "50%" a 0-255
-func _canal(t: String) -> Int
-    if str_ends(t, "%")
-        return Int(t[:t.length - 1]) * 255 / 100
-    end
-    n = Int(t)
-    if n > 255
-        return 255
-    end
-    if n < 0
-        return 0
-    end
-    return n
-end
-
-func _color_nombre(v: String) -> Int
-    if v == "black"
-        return 0
-    elif v == "white"
-        return 16777215
-    elif v == "red"
-        return 16711680
-    elif v == "green"
-        return 32768
-    elif v == "blue"
-        return 255
-    elif v == "yellow"
-        return 16776960
-    elif v == "gray" or v == "grey"
-        return 8421504
-    elif v == "silver"
-        return 12632256
-    elif v == "maroon"
-        return 8388608
-    elif v == "purple"
-        return 8388736
-    elif v == "fuchsia" or v == "magenta"
-        return 16711935
-    elif v == "lime"
-        return 65280
-    elif v == "olive"
-        return 8421376
-    elif v == "navy"
-        return 128
-    elif v == "teal"
-        return 32896
-    elif v == "aqua" or v == "cyan"
-        return 65535
-    elif v == "orange"
-        return 16753920
-    elif v == "darkgray" or v == "darkgrey"
-        return 11119017
-    elif v == "lightgray" or v == "lightgrey"
-        return 13882323
-    elif v == "darkblue"
-        return 139
-    elif v == "darkred"
-        return 9109504
-    elif v == "darkgreen"
-        return 25600
-    elif v == "brown"
-        return 10824234
-    elif v == "pink"
-        return 16761035
-    elif v == "gold"
-        return 16766720
-    elif v == "beige"
-        return 16119260
-    elif v == "whitesmoke"
-        return 16119285
-    elif v == "gainsboro"
-        return 14474460
-    elif v == "lightblue"
-        return 11393254
-    elif v == "lightyellow"
-        return 16777184
-    elif v == "lightgreen"
-        return 9498256
-    elif v == "dimgray" or v == "dimgrey"
-        return 6908265
-    elif v == "steelblue"
-        return 4620980
-    elif v == "royalblue"
-        return 4286945
-    elif v == "crimson"
-        return 14423100
-    elif v == "indigo"
-        return 4915330
-    elif v == "violet"
-        return 15631086
+    if h.length == 3 or h.length == 4
+        r = str_to_int(h[0:1], 16)
+        g = str_to_int(h[1:2], 16)
+        b = str_to_int(h[2:3], 16)
+        if h.length == 4
+            _color_alfa = str_to_int(h[3:4], 16) * 17
+        end
+        return (r * 17) * 65536 + (g * 17) * 256 + b * 17
+    elif h.length == 6 or h.length == 8
+        if h.length == 8
+            _color_alfa = str_to_int(h[6:8], 16)
+        end
+        return str_to_int(h[0:6], 16)
     end
     return -1
 end
 
-# La opacidad de un color CSS, 0-255: la cuarta parte de rgba(), los dos últimos dígitos de #rrggbbaa,
-# 0 para transparent; 255 para los demás
-func css_alfa(valor: String) -> Int
-    v = str_lower(str_trim(valor))
-    if v == "transparent"
-        return 0
-    end
-    if str_starts(v, "#") and v.length == 9
-        return str_to_int(v[7:9], 16)
-    end
-    if str_starts(v, "rgb")
-        a = str_find(v, "(")
-        z = str_find(v, ")")
-        if a >= 0 and z > a
-            partes = css_partir(v[a + 1:z], 44)
-            if partes.length >= 4
-                return _alfa_255(str_trim(partes[3]))
-            end
-            # rgb(r g b / a)
-            barra = str_find(v, "/")
-            if barra > a and barra < z
-                return _alfa_255(str_trim(v[barra + 1:z]))
-            end
+# La opacidad: el cuarto argumento (rgba(r, g, b, a) o rgb(r g b / a))
+func _color_alfa_de(args: [String])
+    if args.length >= 4
+        t = args[3]
+        if str_ends(t, "%")
+            _color_alfa = _limite(_num(t[:t.length - 1], 1000) * 255 / 100000, 255)
+        else
+            _color_alfa = _limite(_num(t, 1000) * 255 / 1000, 255)
         end
     end
-    return 255
 end
 
-# El color sin su opacidad (0xRRGGBB): rgba() como rgb(), transparent negro; -1 si no se entiende
-func css_color_opaco(valor: String) -> Int
-    v = str_lower(str_trim(valor))
-    if v == "transparent"
+# Un número (con signo, decimales y quizá exponente; none es 0) por escala
+func _num(t: String, escala: Int) -> Int
+    a = str_trim(t)
+    n = a.length
+    if n == 0 or a == "none"
         return 0
     end
-    if str_starts(v, "#") and v.length == 9
-        return str_to_int(v[1:7], 16)
+    i = 0
+    signo = 1
+    if str_code(a, 0) == 45
+        signo = -1
+        i = 1
+    elif str_code(a, 0) == 43
+        i = 1
     end
-    if str_starts(v, "rgb")
-        a = str_find(v, "(")
-        z = str_find(v, ")")
-        if a >= 0 and z > a
-            # rgb(r, g, b, a) o rgb(r g b / a)
-            var partes: [String] = []
-            for trozo in css_partir(str_replace(str_replace(v[a + 1:z], "/", " "), ",", " "), 32)
-                if trozo != ""
-                    partes.push(trozo)
-                end
-            end
-            if partes.length >= 3
-                return _canal(partes[0]) * 65536 + _canal(partes[1]) * 256 + _canal(partes[2])
-            end
+    entero = 0
+    while i < n and str_code(a, i) >= 48 and str_code(a, i) <= 57
+        if entero < 100000
+            entero = entero * 10 + str_code(a, i) - 48
         end
-        return -1
-    end
-    return css_color(v)
-end
-
-# "0.5", ".8", "1", "40%" a 0-255
-func _alfa_255(t: String) -> Int
-    if str_ends(t, "%")
-        return _canal(t)
-    end
-    p = str_find(t, ".")
-    if p < 0
-        if Int(t) >= 1
-            return 255
-        end
-        return 0
-    end
-    if Int("0" + t[:p]) >= 1
-        return 255
-    end
-    milesimas = 0
-    cifras = 0
-    i = p + 1
-    while i < t.length and cifras < 3
-        milesimas = milesimas * 10 + str_code(t, i) - 48
-        cifras = cifras + 1
         i = i + 1
     end
-    while cifras < 3
-        milesimas = milesimas * 10
-        cifras = cifras + 1
+    frac = 0
+    div = 1
+    if i < n and str_code(a, i) == 46
+        i = i + 1
+        while i < n and str_code(a, i) >= 48 and str_code(a, i) <= 57
+            if div < 10000
+                frac = frac * 10 + str_code(a, i) - 48
+                div = div * 10
+            end
+            i = i + 1
+        end
     end
-    return milesimas * 255 / 1000
+    r = entero * escala + frac * escala / div
+    if i < n and (str_code(a, i) == 101 or str_code(a, i) == 69)
+        e = Int(a[i + 1:])
+        while e > 0
+            r = r * 10
+            e = e - 1
+        end
+        while e < 0
+            r = r / 10
+            e = e + 1
+        end
+    end
+    return signo * r
+end
+
+# Un número o un % (que vale cien por escala) por escala
+func _num_o_cien(t: String, escala: Int, cien: Int) -> Int
+    if str_ends(t, "%")
+        return _num(t[:t.length - 1], cien) / 100
+    end
+    return _num(t, escala)
+end
+
+# Un % (o un número, que en CSS Color 4 cuenta como %) por escala, de 0 a escala
+func _por_cien(t: String, escala: Int) -> Int
+    a = t
+    if str_ends(a, "%")
+        a = a[:a.length - 1]
+    end
+    return _limite(_num(a, escala) / 100, escala)
+end
+
+func _limite(v: Int, tope: Int) -> Int
+    if v < 0
+        return 0
+    elif v > tope
+        return tope
+    end
+    return v
+end
+
+# Un canal de rgb(): 128, 12.5 o 50 %, a 0-255
+func _canal(t: String) -> Int
+    if str_ends(t, "%")
+        return _limite(_num(t[:t.length - 1], 255) / 100, 255)
+    end
+    return _limite(_num(t, 1), 255)
+end
+
+# Un tono (deg, grad, rad, turn o un número: grados) en décimas de grado, de 0 a 3599
+func _tono(t: String) -> Int
+    g = 0
+    if str_ends(t, "deg")
+        g = _num(t[:t.length - 3], 10)
+    elif str_ends(t, "grad")
+        g = _num(t[:t.length - 4], 9)
+    elif str_ends(t, "rad")
+        g = _num(t[:t.length - 3], 1000) * 1800 / 3142
+    elif str_ends(t, "turn")
+        g = _num(t[:t.length - 4], 3600)
+    else
+        g = _num(t, 10)
+    end
+    return ((g % 3600) + 3600) % 3600
+end
+
+# seno y coseno de un ángulo en décimas de grado, en diezmilésimas (tabla por grados, entre medias en línea recta)
+func _seno(g: Int) -> Int
+    a = ((g % 3600) + 3600) % 3600
+    d = a / 10
+    f = a % 10
+    s1 = _seno_grados(d)
+    s2 = _seno_grados(d + 1)
+    return s1 + (s2 - s1) * f / 10
+end
+
+func _seno_grados(g: Int) -> Int
+    tabla = [0, 175, 349, 523, 698, 872, 1045, 1219, 1392, 1564, 1736, 1908, 2079, 2250, 2419, 2588, 2756, 2924, 3090, 3256, 3420, 3584, 3746, 3907, 4067, 4226, 4384, 4540, 4695, 4848, 5000, 5150, 5299, 5446, 5592, 5736, 5878, 6018, 6157, 6293, 6428, 6561, 6691, 6820, 6947, 7071, 7193, 7314, 7431, 7547, 7660, 7771, 7880, 7986, 8090, 8192, 8290, 8387, 8480, 8572, 8660, 8746, 8829, 8910, 8988, 9063, 9135, 9205, 9272, 9336, 9397, 9455, 9511, 9563, 9613, 9659, 9703, 9744, 9781, 9816, 9848, 9877, 9903, 9925, 9945, 9962, 9976, 9986, 9994, 9998, 10000]
+    a = ((g % 360) + 360) % 360
+    if a <= 90
+        return tabla[a]
+    elif a <= 180
+        return tabla[180 - a]
+    elif a <= 270
+        return -tabla[a - 180]
+    end
+    return -tabla[360 - a]
+end
+
+func _coseno(g: Int) -> Int
+    return _seno(g + 900)
+end
+
+# HSL a r, g, b en diezmilésimas (h en décimas de grado; s y l en diezmilésimas)
+func _hsl(h: Int, s: Int, l: Int) -> [Int]
+    d = 2 * l - COLOR_UNO
+    if d < 0
+        d = -d
+    end
+    c = (COLOR_UNO - d) * (s / 10) / (COLOR_UNO / 10)
+    e = (h * 100000 / 600) % 200000 - 100000
+    if e < 0
+        e = -e
+    end
+    x = c * ((100000 - e) / 10) / 10000
+    m = l - c / 2
+    sector = h / 600
+    r = c
+    g = x
+    b = 0
+    if sector == 1
+        r = x
+        g = c
+    elif sector == 2
+        r = 0
+        g = c
+        b = x
+    elif sector == 3
+        r = 0
+        g = x
+        b = c
+    elif sector == 4
+        r = x
+        g = 0
+        b = c
+    elif sector >= 5
+        r = c
+        g = 0
+        b = x
+    end
+    return [r + m, g + m, b + m]
+end
+
+# r, g, b en diezmilésimas a 0xRRGGBB
+func _rgb(r: Int, g: Int, b: Int) -> Int
+    return (_limite(r, COLOR_UNO) * 255 + COLOR_UNO / 2) / COLOR_UNO * 65536 + (_limite(g, COLOR_UNO) * 255 + COLOR_UNO / 2) / COLOR_UNO * 256 + (_limite(b, COLOR_UNO) * 255 + COLOR_UNO / 2) / COLOR_UNO
+end
+
+# Un canal de sRGB lineal (diezmilésimas) a 0-255
+func _lineal(v: Int) -> Int
+    if _color_gamma == nil
+        var tabla: [Int] = []
+        for t in css_partir("0 3 6 9 12 15 18 21 24 27 30 33 37 40 44 48 52 56 60 65 70 75 80 86 91 97 103 110 116 123 130 137 144 152 160 168 176 185 194 203 212 222 232 242 252 262 273 284 296 307 319 331 343 356 369 382 395 409 423 437 452 467 482 497 513 529 545 561 578 595 612 630 648 666 685 704 723 742 762 782 802 823 844 865 887 908 931 953 976 999 1022 1046 1070 1095 1119 1144 1170 1195 1221 1248 1274 1301 1329 1356 1384 1413 1441 1470 1500 1529 1559 1590 1620 1651 1683 1714 1746 1779 1812 1845 1878 1912 1946 1981 2016 2051 2086 2122 2159 2195 2232 2270 2307 2346 2384 2423 2462 2502 2542 2582 2623 2664 2705 2747 2789 2831 2874 2918 2961 3005 3050 3095 3140 3185 3231 3278 3325 3372 3419 3467 3515 3564 3613 3663 3712 3763 3813 3864 3916 3968 4020 4072 4125 4179 4233 4287 4342 4397 4452 4508 4564 4621 4678 4735 4793 4851 4910 4969 5029 5089 5149 5210 5271 5333 5395 5457 5520 5583 5647 5711 5776 5841 5906 5972 6038 6105 6172 6240 6308 6376 6445 6514 6584 6654 6724 6795 6867 6939 7011 7084 7157 7231 7305 7379 7454 7529 7605 7682 7758 7835 7913 7991 8070 8148 8228 8308 8388 8469 8550 8632 8714 8796 8879 8963 9047 9131 9216 9301 9387 9473 9560 9647 9734 9823 9911 10000", 32)
+            tabla.push(Int(t))
+        end
+        _color_gamma = tabla
+    end
+    if v <= 0
+        return 0
+    elif v >= COLOR_UNO
+        return 255
+    end
+    bajo = 0
+    alto = 255
+    while bajo < alto
+        medio = (bajo + alto + 1) / 2
+        if _color_gamma[medio] <= v
+            bajo = medio
+        else
+            alto = medio - 1
+        end
+    end
+    if bajo < 255 and _color_gamma[bajo + 1] - v < v - _color_gamma[bajo]
+        return bajo + 1
+    end
+    return bajo
+end
+
+func _cubo(v: Int) -> Int
+    x = v
+    if x > 2 * COLOR_UNO
+        x = 2 * COLOR_UNO
+    elif x < -2 * COLOR_UNO
+        x = -2 * COLOR_UNO
+    end
+    return x * x / COLOR_UNO * x / COLOR_UNO
+end
+
+# OKLab (L, a, b en diezmilésimas) a 0xRRGGBB
+func _oklab(l: Int, a: Int, b: Int) -> Int
+    l1 = _cubo(l + (3963 * a + 2158 * b) / 10000)
+    m1 = _cubo(l - (1056 * a + 639 * b) / 10000)
+    s1 = _cubo(l - (895 * a + 12915 * b) / 10000)
+    r = (40767 * l1 - 33077 * m1 + 2310 * s1) / 10000
+    g = (-12684 * l1 + 26098 * m1 - 3413 * s1) / 10000
+    bb = (-42 * l1 - 7034 * m1 + 17076 * s1) / 10000
+    return _lineal(r) * 65536 + _lineal(g) * 256 + _lineal(bb)
+end
+
+# CIE Lab (D50; L de 0 a 100, a y b, todo en diezmilésimas) a 0xRRGGBB
+func _lab(l: Int, a: Int, b: Int) -> Int
+    fy = (l + 16 * COLOR_UNO) / 116
+    fx = fy + a / 500
+    fz = fy - b / 200
+    x = _cubo(fx)
+    if x <= 89
+        x = (116 * fx - 16 * COLOR_UNO) * 10 / 9033
+    end
+    y = _cubo(fy)
+    if l <= 8 * COLOR_UNO
+        y = l * 10 / 9033
+    end
+    z = _cubo(fz)
+    if z <= 89
+        z = (116 * fz - 16 * COLOR_UNO) * 10 / 9033
+    end
+    x = x * 9642 / 10000
+    z = z * 8252 / 10000
+    r = (31341 * x - 16174 * y - 4907 * z) / 10000
+    g = (-9788 * x + 19163 * y + 334 * z) / 10000
+    bb = (720 * x - 2290 * y + 14054 * z) / 10000
+    return _lineal(r) * 65536 + _lineal(g) * 256 + _lineal(bb)
+end
+
+# color-mix(in <espacio>, c1 [p1], c2 [p2]): mezcla con opacidad premultiplicada (en sRGB, sea cual sea el espacio)
+func _color_mezcla(dentro: String) -> Int
+    partes = css_partir(dentro, 44)
+    if partes.length < 3
+        return -1
+    end
+    var colores: [Int] = []
+    var alfas: [Int] = []
+    var pesos: [Int] = []
+    for i in (1..2)
+        color = ""
+        peso = -1
+        for t in css_partir(str_trim(partes[i]), 32)
+            if t == ""
+                continue
+            elif str_ends(t, "%") and str_find(t, "(") < 0
+                peso = _num(t[:t.length - 1], 1)
+            else
+                color = color + " " + t
+            end
+        end
+        c = _color_leer(color)
+        if c < 0
+            return -1
+        end
+        colores.push(c)
+        alfas.push(_color_alfa)
+        pesos.push(peso)
+    end
+    p1 = pesos[0]
+    p2 = pesos[1]
+    if p1 < 0 and p2 < 0
+        p1 = 50
+        p2 = 50
+    elif p1 < 0
+        p1 = 100 - p2
+    elif p2 < 0
+        p2 = 100 - p1
+    end
+    suma = p1 + p2
+    if suma <= 0
+        return -1
+    end
+    escala = 100
+    if suma < 100
+        escala = suma
+    end
+    p1 = p1 * 100 / suma
+    p2 = 100 - p1
+    w1 = alfas[0] * p1
+    w2 = alfas[1] * p2
+    _color_alfa = (w1 + w2) / 100 * escala / 100
+    if w1 + w2 == 0
+        _color_alfa = 0
+        return 0
+    end
+    r = 0
+    for desp in [65536, 256, 1]
+        c1 = colores[0] / desp % 256
+        c2 = colores[1] / desp % 256
+        r = r * 256 + (c1 * w1 + c2 * w2 + (w1 + w2) / 2) / (w1 + w2)
+    end
+    return r
+end
+
+func _color_nombre(v: String) -> Int
+    if _color_nombres == nil
+        var d: {String: Int} = {}
+        t = ""
+    t = t + "aliceblue f0f8ff antiquewhite faebd7 aqua 00ffff aquamarine 7fffd4 azure f0ffff beige f5f5dc bisque ffe4c4 black 000000 "
+    t = t + "blanchedalmond ffebcd blue 0000ff blueviolet 8a2be2 brown a52a2a burlywood deb887 cadetblue 5f9ea0 chartreuse 7fff00 chocolate d2691e "
+    t = t + "coral ff7f50 cornflowerblue 6495ed cornsilk fff8dc crimson dc143c cyan 00ffff darkblue 00008b darkcyan 008b8b darkgoldenrod b8860b "
+    t = t + "darkgray a9a9a9 darkgreen 006400 darkgrey a9a9a9 darkkhaki bdb76b darkmagenta 8b008b darkolivegreen 556b2f darkorange ff8c00 darkorchid 9932cc "
+    t = t + "darkred 8b0000 darksalmon e9967a darkseagreen 8fbc8f darkslateblue 483d8b darkslategray 2f4f4f darkslategrey 2f4f4f darkturquoise 00ced1 darkviolet 9400d3 "
+    t = t + "deeppink ff1493 deepskyblue 00bfff dimgray 696969 dimgrey 696969 dodgerblue 1e90ff firebrick b22222 floralwhite fffaf0 forestgreen 228b22 "
+    t = t + "fuchsia ff00ff gainsboro dcdcdc ghostwhite f8f8ff gold ffd700 goldenrod daa520 gray 808080 green 008000 greenyellow adff2f "
+    t = t + "grey 808080 honeydew f0fff0 hotpink ff69b4 indianred cd5c5c indigo 4b0082 ivory fffff0 khaki f0e68c lavender e6e6fa "
+    t = t + "lavenderblush fff0f5 lawngreen 7cfc00 lemonchiffon fffacd lightblue add8e6 lightcoral f08080 lightcyan e0ffff lightgoldenrodyellow fafad2 lightgray d3d3d3 "
+    t = t + "lightgreen 90ee90 lightgrey d3d3d3 lightpink ffb6c1 lightsalmon ffa07a lightseagreen 20b2aa lightskyblue 87cefa lightslategray 778899 lightslategrey 778899 "
+    t = t + "lightsteelblue b0c4de lightyellow ffffe0 lime 00ff00 limegreen 32cd32 linen faf0e6 magenta ff00ff maroon 800000 mediumaquamarine 66cdaa "
+    t = t + "mediumblue 0000cd mediumorchid ba55d3 mediumpurple 9370db mediumseagreen 3cb371 mediumslateblue 7b68ee mediumspringgreen 00fa9a mediumturquoise 48d1cc mediumvioletred c71585 "
+    t = t + "midnightblue 191970 mintcream f5fffa mistyrose ffe4e1 moccasin ffe4b5 navajowhite ffdead navy 000080 oldlace fdf5e6 olive 808000 "
+    t = t + "olivedrab 6b8e23 orange ffa500 orangered ff4500 orchid da70d6 palegoldenrod eee8aa palegreen 98fb98 paleturquoise afeeee palevioletred db7093 "
+    t = t + "papayawhip ffefd5 peachpuff ffdab9 peru cd853f pink ffc0cb plum dda0dd powderblue b0e0e6 purple 800080 rebeccapurple 663399 "
+    t = t + "red ff0000 rosybrown bc8f8f royalblue 4169e1 saddlebrown 8b4513 salmon fa8072 sandybrown f4a460 seagreen 2e8b57 seashell fff5ee "
+    t = t + "sienna a0522d silver c0c0c0 skyblue 87ceeb slateblue 6a5acd slategray 708090 slategrey 708090 snow fffafa springgreen 00ff7f "
+    t = t + "steelblue 4682b4 tan d2b48c teal 008080 thistle d8bfd8 tomato ff6347 turquoise 40e0d0 violet ee82ee wheat f5deb3 "
+    t = t + "white ffffff whitesmoke f5f5f5 yellow ffff00 yellowgreen 9acd32 canvas ffffff canvastext 000000 linktext 0000ee visitedtext 551a8b "
+    t = t + "activetext ff0000 buttonface efefef buttontext 000000 buttonborder 767676 field ffffff fieldtext 000000 graytext 808080 highlight 3399ff "
+    t = t + "highlighttext ffffff mark ffff00 marktext 000000 accentcolor 0075ff accentcolortext ffffff selecteditem 3399ff selecteditemtext ffffff "
+        partes = css_partir(t, 32)
+        i = 0
+        while i + 1 < partes.length
+            d[partes[i]] = str_to_int(partes[i + 1], 16)
+            i = i + 2
+        end
+        _color_nombres = d
+    end
+    if _color_nombres.has(v)
+        return _color_nombres[v]
+    end
+    return -1
 end
