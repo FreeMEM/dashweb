@@ -8,20 +8,29 @@ Contenido
 ---------
   dashweb       el navegador (MUI)
   visor         visor sin MUI: abre una página en una ventana normal (para probar)
+  iconos/       los iconos de la barra de herramientas
   LEEME         esto
-  Licencias/    MIT (dashweb, QuickJS) y la nota de Sun de fdlibm
+  Licencias/    las de dashweb y de las librerías que lleva dentro: QuickJS (MIT),
+                fdlibm (Sun), libwebp (BSD), nanosvg (zlib), stb_image y
+                stb_truetype (dominio público), TJpgDec (ChaN) y MintVID (MIT)
 
 Necesita
 --------
-  - AmigaOS 3.0 o superior y un 68020 o mejor (MUI). Con poca CPU (un A1200 sin
-    ampliar) las páginas tardan segundos; con un 68040/68060 o PiStorm, menos de un
-    segundo. Memoria: unos 2 MB libres.
+  - AmigaOS 3.2 (o 3.5/3.9): las imágenes (JPEG, PNG, GIF, WebP, SVG) se muestran con
+    picture.datatype V43; con 3.0 o 3.1 la página se ve, pero sin imágenes.
+  - Un 68020 o mejor CON FPU (68881/68882), o un 68040/68060 (con SetPatch, que carga
+    su 68040.library o 68060.library). Lo ideal: un 68060, una tarjeta aceleradora
+    rápida o PiStorm, y una tarjeta gráfica (Picasso96 o CyberGraphX): las páginas de
+    hoy son pesadas y en un Amiga sin ampliar tardan muchísimo.
+  - Memoria Fast: las páginas sencillas caben en pocos MB, pero las de hoy, con su
+    JavaScript, piden decenas (el motor de JavaScript puede usar hasta 48 MB).
   - MUI 3.8 o MUI 5 (https://muidev.de).
   - Una pila TCP/IP con bsdsocket.library: Roadshow, AmiTCP, Genesis o Miami.
-  - Para HTTPS: AmiSSL 5 (https://github.com/jens-maus/amissl), instalado con su
-    instalador (deja los assigns AmiSSL: y AmiSSL:Certs).
-  - Fuentes: usa helvetica, times y courier del Workbench (en FONTS:); si faltan,
-    la topaz de la ROM.
+  - Para HTTPS (casi todas las webs): AmiSSL 5 (https://github.com/jens-maus/amissl),
+    instalado con su instalador (deja los assigns AmiSSL: y AmiSSL:Certs).
+  - Fuentes: helvetica, times y courier del Workbench (en FONTS:) y, si están, las
+    vectoriales CGTriumvirate, CGTimes y LetterGothic; si faltan, la topaz de la ROM.
+    Las fuentes de las propias webs (TTF, OTF y WOFF; Google Fonts) se bajan solas.
 
 Instalar
 --------
@@ -38,8 +47,9 @@ Usar
 
   En la ventana: escribir la dirección y Return; atrás, adelante, recargar, parar;
   el botón Historial despliega la lista de las páginas vistas (doble clic para
-  volver a una). Arriba a la derecha giran unos puntos mientras algo llega; la
-  ventana sigue respondiendo mientras busca el servidor, conecta o negocia HTTPS.
+  volver a una). Arriba a la derecha sale un punto mientras algo llega, y abajo la
+  barra de progreso hasta que llegan todas las imágenes; la ventana sigue respondiendo
+  mientras busca el servidor, conecta o negocia HTTPS.
   La rueda, la barra y las teclas (arriba, abajo, espacio, retroceso) desplazan. Clic en enlaces y en formularios (texto,
   casillas, desplegables, botones; GET y POST).
   Menú Proyecto: Nueva ventana (Amiga-N), Cerrar ventana (Amiga-K), Página de inicio
