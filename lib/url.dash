@@ -392,10 +392,9 @@ func url_fuentes_latin1(direccion: String) -> String
     return direccion + sep + "text=" + url_codificar(t)
 end
 
-# Apagado: sin gtag.js, freemem.space hace saltar de vez en cuando un assert del recolector de QuickJS (ref_count
-# en gc_decref_child, 5 de 31 cargas; 0 de 10 con gtag.js). Hasta encontrar ese fallo, los scripts de rastreo
-# se bajan y se ejecutan como siempre (ver la bitácora, tarea 33)
-const URL_RASTREO_BLOQUEAR = false
+# (Estuvo apagado: con el image_from_rgb viejo de Dash, por picture.datatype, freemem.space hacía saltar un assert
+# del recolector de QuickJS 6 de 59 veces; con D54 (p96WritePixelArray), 0 de 32. Ver la bitácora, tarea 33.)
+const URL_RASTREO_BLOQUEAR = true
 const URL_RASTREO_SUSTITUTO = ""
 
 # Scripts de estadísticas, publicidad y rastreo: no se bajan ni se ejecutan (Google Tag Manager son 465 KB de

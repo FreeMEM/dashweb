@@ -2242,3 +2242,14 @@ Formato:
 - dashweb:cookies (enlazada desde la página de inicio, con los marcadores): las guardadas con su dominio, valor,
   caducidad, https y HttpOnly; "dashweb:cookies?borrar" las borra todas y "?borrar=dominio" las de un dominio
   (`cookies_borrar`, `cookies_html`, `cookies_dia`). Casos nuevos en test_cookies. Sin probar a mano en la ventana.
+
+### 2026-10-18 — El fallo del recolector de QuickJS era de image_from_rgb; bloqueo de rastreo encendido
+- Con D54 (image_from_rgb en RTG con p96WritePixelArray, sin picture.datatype) en la rama dashweb de Dash, el
+  bloqueo de scripts de rastreo encendido a mano: 0 de 16 cargas con QuickJS instrumentado (escribía qué objeto
+  tenía la cuenta a 0 y quién lo apuntaba) y 0 de 16 con el QuickJS de siempre. Antes, 6 de 59 (y también uno
+  sin los procesos decodificadores). Con un 10 % por carga, 32 limpias seguidas saldrían 3 de cada 100 veces: el
+  camino viejo (picture.datatype en una pantalla RTG, desde el proceso principal) pisaba memoria, y el bloqueo
+  solo hacía que las imágenes llegasen mientras el JavaScript seguía vivo. `URL_RASTREO_BLOQUEAR = true` otra vez.
+- freemem.space: entera en 20,7-22,3 s (sin bloqueo, 28,4-34,2 s). Tests: test_url, js y recursos, 6/6.
+- Ojo: en pantallas de paleta image_from_rgb sigue yendo por picture.datatype. Si allí aparece el mismo assert,
+  ya se sabe dónde mirar.
