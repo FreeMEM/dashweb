@@ -2014,3 +2014,10 @@ Formato:
   para las webs de hoy), MUI, una pila TCP/IP y AmiSSL; y el indicador nuevo y la barra de progreso.
 - El usuario quiere publicar una alfa en GitHub: v0.1.0-alfa (pre-release sobre dev, con dashweb.lha), después
   del arreglo de velocidad de la mezcla (D51), medido.
+
+### 2026-10-17 — Tarea 33, primer arreglo (los selectores de dentro de :not(), :is(), :has())
+- El perfil daba 118.000 llamadas a css_selector al aplicar el estilo de freemem.space: las listas de :not(),
+  :is()/:where() y :has() se volvían a leer cada vez que se miraba un elemento. Ahora `_selectores_de` las lee una
+  vez por texto y las guarda. Del reparto de la carga (128 s): pintar ~70 % (la mezcla lenta, D51), estilo ~19 s
+  (3 veces: la de JavaScript lo repite), imágenes ~15 s, red ~12 s, JavaScript ~7 s; maquetar, poco (5 veces).
+- Base: 52/52.

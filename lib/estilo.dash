@@ -348,6 +348,29 @@ func _cumple_atributo(n: Nodo, a: SelAtributo) -> Bool
 end
 
 # Pseudo-clases que se saben sin interacción; las demás (hover, focus...) no se cumplen
+# Los selectores de una lista (la de :not(), :is(), :has()...) ya leídos: se leen una vez por texto (antes se
+# leían cada vez que se miraba un elemento: 118.000 veces en freemem.space)
+var _selectores_leidos: {String: [Selector]} = nil
+
+func _selectores_de(lista: String) -> [Selector]
+    if _selectores_leidos == nil
+        var d: {String: [Selector]} = {}
+        _selectores_leidos = d
+    end
+    if _selectores_leidos.has(lista)
+        return _selectores_leidos[lista]
+    end
+    var r: [Selector] = []
+    for parte in css_partir(lista, 44)
+        sel = css_selector(parte)
+        if sel != nil
+            r.push(sel)
+        end
+    end
+    _selectores_leidos[lista] = r
+    return r
+end
+
 func _cumple_pseudo(n: Nodo, p: String) -> Bool
     if p == "first-child"
         return _es_primero(n)
@@ -380,9 +403,8 @@ func _cumple_pseudo(n: Nodo, p: String) -> Bool
     elif str_starts(p, "nth-of-type(")
         return _nth(p[12:p.length - 1], _posicion(n, true, false))
     elif str_starts(p, "not(")
-        for parte in css_partir(p[4:p.length - 1], 44)
-            sel = css_selector(parte)
-            if sel != nil and estilo_cumple(n, sel)
+        for sel in _selectores_de(p[4:p.length - 1])
+            if estilo_cumple(n, sel)
                 return false
             end
         end
@@ -392,9 +414,8 @@ func _cumple_pseudo(n: Nodo, p: String) -> Bool
     elif str_starts(p, "is(") or str_starts(p, "where(") or str_starts(p, "matches(") or str_starts(p, "-webkit-any(") or str_starts(p, "-moz-any(")
         # alguno de la lista (Selectors 4)
         q = str_find(p, "(")
-        for parte in css_partir(p[q + 1:p.length - 1], 44)
-            sel = css_selector(parte)
-            if sel != nil and estilo_cumple(n, sel)
+        for sel in _selectores_de(p[q + 1:p.length - 1])
+            if estilo_cumple(n, sel)
                 return true
             end
         end
@@ -418,10 +439,11 @@ func _tiene(n: Nodo, relativo: String) -> Bool
         comb = s[:1]
         s = str_trim(s[1:])
     end
-    sel = css_selector(s)
-    if sel == nil
+    lista = _selectores_de(s)
+    if lista.length == 0
         return false
     end
+    sel = lista[0]
     if comb == ">"
         for h in n.hijos
             if h.tipo == DOM_ELEMENTO and estilo_cumple(h, sel)
