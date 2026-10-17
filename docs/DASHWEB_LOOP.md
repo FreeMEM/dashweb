@@ -324,7 +324,7 @@ tarea, con el estilo de Dash.
 - [x] 30e. **Vídeo: el cartel antes del clic.** La miniatura del vídeo (la de YouTube, i.ytimg.com/vi/ID/hqdefault.jpg;
       el atributo poster de `<video>`) antes del clic. Captura del artículo de freemem.space con su YouTube.
 - [x] 30f. **Vídeo: que empiece antes.** Reproducir mientras se baja (hoy espera el fichero entero).
-- [ ] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
+- [x] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
       objetivo): QuickJS 24 %. libqjs.a va sin FPU (fp-bit): compilarlo para 68020+FPU como dashweb.
 - [ ] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
       recursos del mismo servidor.
@@ -1474,3 +1474,18 @@ Formato:
   (abre antes del final, imágenes mientras baja, espera, mismas imágenes que entero). Base: 35/35.
 - Probado en la máquina RTG con `video_goteo.html` (GOTEO_S=10): suena con el 21 % traído, espera en la imagen
   40 y sigue; 200 imágenes de 200, sonido entero (8034 ms). Capturas enviadas al usuario.
+
+### 2026-10-17 — Tarea 28g (QuickJS con FPU)
+- `tools/build_qjs.sh lib` compila ahora para 68020 con FPU (`-m68020 -m68881`, como `./dash --fpu`);
+  `QJS_CPU=""` lo deja sin FPU (fp-bit) para un dashweb sin `--fpu`.
+- Fallo encontrado (y arreglado con esto): con libqjs.a sin FPU dentro de un programa con FPU, las
+  conversiones de libgcc (enteros de 64 bits a double: `__floatdidf`...) son las de la FPU y devuelven el
+  resultado en fp0, pero QuickJS lo leía de d0/d1. `Date.now()` daba 8,8e-312, `(s + i) | 0` en un bucle de
+  100.000 vueltas daba 704927097 (bien: 704982704) y un generador de números aleatorios salía distinto.
+  Con FPU, los mismos números que el cálculo en el PC. Test: `test_js` (Date.now, BigInt a número).
+- `tools/bench_js.py` (nuevo): tests/bench/bench.js en la máquina objetivo, con AmigaOS 3.2 y su
+  68040.library. Sin ella (los sistemas 3.1 de pruebas no la traen) un programa con FPU se cuelga en el 68040
+  emulado: la máquina "objetivo" de medir_visor (3.1) no sirve para programas con FPU; la RTG (3.2) sí.
+- Medidas con FPU (68040 + JIT; Date.now va de 20 en 20 ms): fib20 60 ms, intloop100k 100, float20k 40,
+  mathsin5k 60, strcat5k 80, arrjoin 100, objects5k 140, sort5k 200, json 200, regexp 60, map5k 220,
+  closures 60, parse30k 420. Sin FPU no se pudo medir: su Date.now no funcionaba. Base: 35/35.

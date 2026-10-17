@@ -1,7 +1,9 @@
 # Test: lib/js.dash (QuickJS enlazado con @link). Evaluar y el resultado como texto, console.log,
 # acentos de ida y vuelta (Latin-1 <-> UTF-8), excepciones con su pila, Math con fdlibm (los
 # mismos dígitos que fdlibm en un PC: exp(1) sale a 1 ulp del valor bien redondeado, como en
-# fdlibm; V8 da ...045), JSON y que el estado se guarda entre evaluaciones.
+# fdlibm; V8 da ...045), JSON y que el estado se guarda entre evaluaciones. Enteros de 64 bits a número
+# (Date.now, BigInt): con libqjs.a sin FPU en un programa con FPU salían como basura (8.8e-312), porque
+# la conversión de libgcc devuelve el resultado en la FPU (tarea 28g).
 # expect-out: 3
 # expect-out: hola desde JS 42
 # expect-out: [canción]
@@ -11,6 +13,7 @@
 # expect-out: 0.8414709848078965 1.4142135623730951 2.7182818284590455
 # expect-out: 0.30000000000000004 1e+21 0.1
 # expect-out: {"a":[1,2,{"b":"c"}]}
+# expect-out: true 1152921504606847000 -4611686018427388000
 # expect-out: 6
 
 import "../lib/js.dash"
@@ -26,6 +29,7 @@ Main
     Print js_evaluar(js, "[Math.sin(1), Math.sqrt(2), Math.exp(1)].join(' ')", "prueba.js")
     Print js_evaluar(js, "[0.1 + 0.2, 1e21, 0.1].join(' ')", "prueba.js")
     Print js_evaluar(js, "JSON.stringify(JSON.parse('{\"a\": [1, 2, {\"b\": \"c\"}]}'))", "prueba.js")
+    Print js_evaluar(js, "[Date.now() > 1.7e12 && Date.now() < 1e14, Number(2n ** 60n), Number(-(2n ** 62n))].join(' ')", "prueba.js")
     js_evaluar(js, "var total = 0; function sumar(n) { total += n; return total; }", "prueba.js")
     js_evaluar(js, "sumar(1); sumar(2)", "prueba.js")
     Print js_evaluar(js, "sumar(3)", "prueba.js")

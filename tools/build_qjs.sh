@@ -6,7 +6,8 @@
 #
 # lib: QuickJS without the test runner, fdlibm (third_party/fdlibm: sin, pow... exact to the
 # last digit, instead of libnix's -lm on the ROM's math libraries) and, without -m68881,
-# fp-bit, all in one archive for a Dash program's "@link".
+# fp-bit, all in one archive for a Dash program's "@link". For a 68020 with FPU, like dashweb
+# (./dash --fpu): QJS_CPU="" builds it without FPU (fp-bit), for a dashweb without --fpu.
 # Same gcc options as Dash (compiler/cflags.py in FreeMEM/dash): bebbo's optimizer
 # without its "e" and "r" passes, which gave wrong code, and address 0 treated as
 # readable memory. -fwrapv: QuickJS relies on wrapping signed arithmetic.
@@ -18,6 +19,9 @@ set -e
 R=$(cd "$(dirname "$0")/.." && pwd)
 DASH=${DASH:-$R/../FreeMEMLang}
 V=${1:?variant}; shift
+if [ "$V" = lib ]; then
+  set -- ${QJS_CPU--m68020 -m68881} "$@"
+fi
 GCC=${GCC:-/opt/amiga/bin/m68k-amigaos-gcc}
 Q=$R/third_party/quickjs
 B=$R/build/qjs-$V; mkdir -p "$B"
