@@ -61,9 +61,18 @@ struct Regla
     capa: Int = 1000            # @layer: el puesto de su capa (1000: fuera de capas, gana a todas)
 end
 
+# Un @font-face: la familia (en minúsculas, sin comillas), su src entero, font-weight (100-900) y font-style
+struct CaraFuente
+    familia: String
+    src: String
+    peso: Int
+    estilo: String
+end
+
 struct HojaCSS
     reglas: [Regla]
     importes: [String]
+    caras: [CaraFuente] = nil
     # @keyframes: el nombre -> las declaraciones de su último fotograma (to o 100 %); "nombre 0", las del primero
     fotogramas: {String: [Declaracion]} = nil
 end
@@ -503,6 +512,9 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
                 if str_find(cabeza, "keyframes") >= 0 and str_find(cabeza, "keyframes") < 16
                     _css_fotogramas(hoja, str_trim(s[i:llave]), s[llave + 1:cierre])
                 end
+                if str_starts(cabeza, "@font-face")
+                    _css_cara(hoja, s[llave + 1:cierre])
+                end
                 if str_starts(cabeza, "@supports")
                     if _css_soporta(cabeza[9:])
                         orden = _css_bloque(hoja, s[llave + 1:cierre], orden, medios)
@@ -556,6 +568,66 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
         end
     end
     return orden
+end
+
+func _css_cara(hoja: HojaCSS, cuerpo: String)
+    familia = ""
+    src = ""
+    peso = 400
+    estilo = "normal"
+    for d in css_declaraciones(cuerpo)
+        if d.propiedad == "font-family"
+            familia = str_lower(str_trim(str_replace(str_replace(d.valor, "\"", ""), "'", "")))
+        elif d.propiedad == "src"
+            src = d.valor
+        elif d.propiedad == "font-weight"
+            w = str_lower(str_trim(d.valor))
+            if w == "bold" or w == "bolder"
+                peso = 700
+            elif w != "normal" and w != "lighter"
+                peso = Int(css_partir(w, 32)[0])
+            end
+        elif d.propiedad == "font-style"
+            estilo = str_lower(str_trim(d.valor))
+        end
+    end
+    if familia == "" or src == ""
+        return
+    end
+    if hoja.caras == nil
+        var caras: [CaraFuente] = []
+        hoja.caras = caras
+    end
+    hoja.caras.push(CaraFuente(familia, src, peso, estilo))
+end
+
+# De la lista de un src de @font-face, la dirección del primero que dashweb sabe leer (TrueType, OpenType o WOFF;
+# no WOFF2 ni local()): por su format() o, sin él, por la extensión; "" si ninguno
+func css_fuente_src(src: String) -> String
+    for item in css_partir(src, 44)
+        t = str_lower(str_trim(item))
+        if not str_starts(t, "url(")
+            continue
+        end
+        u = css_url(str_trim(item))
+        f = str_find(t, "format(")
+        if f >= 0
+            formato = t[f:]
+            if str_find(formato, "woff2") < 0 and (str_find(formato, "woff") >= 0 or str_find(formato, "truetype") >= 0 or str_find(formato, "opentype") >= 0)
+                return u
+            end
+        else
+            sin = str_lower(u)
+            q = str_find(sin, "?")
+            if q >= 0
+                sin = sin[:q]
+            end
+            if str_ends(sin, ".ttf") or str_ends(sin, ".otf") or str_ends(sin, ".woff")
+                return u
+            end
+        end
+    end
+    return ""
 end
 
 # Un @keyframes (o @-webkit-keyframes...): se guardan su primer y su último fotograma (lib/estilo.dash pinta el

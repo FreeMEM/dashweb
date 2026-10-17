@@ -364,6 +364,14 @@ tarea, con el estilo de Dash.
       [x] 31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
       [x] 31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
       [x] 31p. @supports y @layer (Conditional 3 y Cascade 5): antes se perdía todo lo de dentro.
+      31q. Animar el CSS de verdad (lo pide el usuario, 2026-10-17: trainalong.fit dibuja sus curvas con @keyframes al
+           abrirse). Ahora (31m) solo se pinta el estado final. Plan: (1) un reloj de animaciones con el tic de dashweb
+           (unos 10-20 por segundo mientras haya alguna viva) y las funciones de tiempo (linear, ease y cubic-bezier,
+           steps), delay, duración, vueltas, direction y fill-mode; (2) lo que no mueve la maqueta se aplica sobre los
+           dibujos ya colocados del elemento y se repinta solo su caja: opacity, color y background-color, transform;
+           (3) transitions (al cambiar :hover o las clases desde JavaScript); (4) lo que mueve la maqueta (width,
+           height, margin...) rehaciendo la maqueta a pocos fotogramas; (5) SVG (stroke-dashoffset, transform de sus
+           partes) volviendo a rasterizar el SVG en cada fotograma. Medir el coste en la máquina RTG.
       (El usuario, 2026-10-17: "mejor CSS 3". CSS 3 es el conjunto de módulos posteriores a CSS 2.1, que sigue siendo
       la base: el bloque 31 los va completando.)
       31j. ami64.com sale en blanco (averiguar); amigang.com, la cabecera rota; muylinux.com, el menú escondido sale
@@ -1906,4 +1914,16 @@ Formato:
 - Test `test_fuente_web` con Bitstream Vera Sans Mono (tests/pages/VeraMono.ttf, sin modificar, con su
   licencia en VeraMono.LICENSE): alto 24 a 20 px, monoespaciada de 12, un fichero que no es fuente da 0, y
   pintada pone tinta.
+- Base: 50/50.
+
+### 2026-10-17 — Tarea 31h, segundo paso (@font-face en las hojas; WOFF)
+- lib/css.dash lee cada @font-face como una `CaraFuente` (familia en minúsculas y sin comillas, src, peso
+  100-900 y estilo) y `css_fuente_src` elige del src el primero que se sabe leer: TrueType, OpenType o WOFF,
+  por su format() o por la extensión (sin contar ?...); ni woff2 ni local(). lib/estilo.dash deja completas las
+  url() de esos src (respecto a la hoja) y `estilo_caras` las junta todas.
+- lib/fuente_web.dash lee también WOFF 1.0 (rehace la fuente TrueType: cada tabla descomprimida con el inflate
+  de stb_image si vino con zlib).
+- El servidor de pruebas sirve /woff/<nombre>.woff hecho al vuelo del .ttf de tests/pages (no se guarda una
+  copia convertida de la fuente). `test_fuente_web` con WOFF y con dos @font-face.
+- Falta (paso 3): bajarlas al cargar la página y que la maqueta las use cuando el font-family las nombra.
 - Base: 50/50.

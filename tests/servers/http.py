@@ -112,6 +112,14 @@ class Handler(socketserver.StreamRequestHandler):
                 kind = kinds.get(os.path.splitext(f)[1], "text/html; charset=utf-8")
                 self.wfile.write(reply("200 OK", [("Content-Type", kind), ("Content-Length", str(len(data)))], data))
                 return
+        if path.startswith("/woff/"):      # the .ttf of tests/pages as WOFF 1.0, made now (not kept in the repo)
+            import os
+            f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages",
+                             os.path.splitext(os.path.basename(path))[0] + ".ttf")
+            if os.path.isfile(f):
+                data = woff(open(f, "rb").read())
+                self.wfile.write(reply("200 OK", [("Content-Type", "font/woff"), ("Content-Length", str(len(data)))], data))
+                return
         if path.split("?")[0] == "/eco":   # what the client sent, to check the request (and a POST's body)
             data = line.encode("latin-1") + body
             self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
@@ -120,6 +128,27 @@ class Handler(socketserver.StreamRequestHandler):
             self.wfile.write(reply("303 See Other", [("Location", "/eco?visto=1"), ("Content-Length", "0")]))
             return
         self.wfile.write(ROUTES.get(path, ROUTES["/no"]))
+
+
+def woff(ttf: bytes) -> bytes:
+    """A TrueType font as WOFF 1.0: the same tables, each one with zlib if that makes it smaller"""
+    import struct, zlib
+    flavor, n = struct.unpack(">IH", ttf[:6])
+    tablas = []
+    for i in range(n):
+        tag, suma, off, largo = struct.unpack(">4sIII", ttf[12 + 16 * i:28 + 16 * i])
+        tablas.append((tag, suma, ttf[off:off + largo]))
+    pad = lambda b: b + b"\0" * (-len(b) % 4)
+    total = 12 + 16 * n + sum(len(pad(t[2])) for t in tablas)
+    cuerpo, directorio = b"", b""
+    inicio = 44 + 20 * n
+    for tag, suma, datos in tablas:
+        z = zlib.compress(datos)
+        guardado = z if len(z) < len(datos) else datos
+        directorio += struct.pack(">4sIIII", tag, inicio + len(cuerpo), len(guardado), len(datos), suma)
+        cuerpo += pad(guardado)
+    largo = inicio + len(cuerpo)
+    return struct.pack(">4sIIHHIHHIIIII", b"wOFF", flavor, largo, n, 0, total, 1, 0, 0, 0, 0, 0, 0) + directorio + cuerpo
 
 
 def tls_context():

@@ -1,15 +1,18 @@
 # Test: lib/fuente_web.dash (tarea 31h): Bitstream Vera Sans Mono (tests/pages/VeraMono.ttf, su licencia al lado)
 # hecha TextFont del Amiga a 20 px de em: alto 24 (ascendente 19 + descendente 5), todas las letras del mismo
-# ancho (12), "abc" tres veces una, y un fichero que no es una fuente da 0. Y pintada: la W pone tinta.
+# ancho (12), "abc" tres veces una, y un fichero que no es una fuente da 0; en WOFF, igual. Y pintada: la W pone tinta.
 # emu-server: http.py 40853
 # memcheck
 # expect-out: fuente 24 12 true true
 # expect-out: nada 0
+# expect-out: woff 24 12
 # expect-out: tinta true
+# expect-out: caras 2: mi fuente 700 italic http://ejemplo.com/f/mi.woff | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/fuente_web.dash"
 import "../lib/http.dash"
+import "../lib/estilo.dash"
 
 Window W
     title "Fuente"
@@ -23,6 +26,12 @@ Main
     font_use(f)
     Print "fuente " + font_height() + " " + font_text_width("W") + " " + (font_text_width("i") == font_text_width("W")) + " " + (font_text_width("abc") == 3 * font_text_width("a"))
     Print "nada " + fuente_web("T:nada", 20)
+    # la misma en WOFF (el servidor la hace al vuelo con zlib)
+    http_a_fichero("http://127.0.0.1:40853/woff/VeraMono.woff", "T:VeraMono.woff", 10000)
+    g = fuente_web("T:VeraMono.woff", 20)
+    font_use(g)
+    Print "woff " + font_height() + " " + font_text_width("W")
+    fuente_web_liberar(g)
     W.open
     font_use(f)
     x0 = W.inner_left
@@ -43,4 +52,18 @@ Main
     Print "tinta " + tinta
     W.close
     fuente_web_liberar(f)
+    # @font-face en una hoja: familia, peso, estilo y, del src, el primero que se sabe leer (ni woff2 ni local)
+    c = "@font-face { font-family: 'Mi Fuente'; src: local('X'), url(/f/mi.woff2) format('woff2'), url(/f/mi.woff) format('woff'); font-weight: bold; font-style: italic }"
+    c = c + " @font-face { font-family: Otra; src: url(otra.ttf?v=2) }"
+    doc = dom_desde_html("<html><head><style>" + c + "</style></head><body>x</body></html>")
+    hojas = estilo_hojas(doc, "http://ejemplo.com/a/b.html")
+    caras = estilo_caras(hojas)
+    r = "caras " + caras.length + ":"
+    for cara in caras
+        if cara != caras[0]
+            r = r + " |"
+        end
+        r = r + " " + cara.familia + " " + cara.peso + " " + cara.estilo + " " + css_fuente_src(cara.src)
+    end
+    Print r
 end

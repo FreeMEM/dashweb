@@ -184,6 +184,11 @@ end
 
 func _estilo_agregar(h: Hojas, hoja: HojaCSS, base: Url, nivel: Int)
     # las url() relativas de una hoja son relativas a la hoja (no a la página): se dejan completas
+    if hoja.caras != nil
+        for c in hoja.caras
+            c.src = _css_absolutas(c.src, base)
+        end
+    end
     for regla in hoja.reglas
         for d in regla.declaraciones
             if str_find(d.valor, "url(") >= 0
@@ -198,6 +203,19 @@ func _estilo_agregar(h: Hojas, hoja: HojaCSS, base: Url, nivel: Int)
     end
     h.lista.push(hoja)
     h.autor.push(true)
+end
+
+# Los @font-face de todas las hojas, en orden
+func estilo_caras(h: Hojas) -> [CaraFuente]
+    var r: [CaraFuente] = []
+    for hoja in h.lista
+        if hoja.caras != nil
+            for c in hoja.caras
+                r.push(c)
+            end
+        end
+    end
+    return r
 end
 
 # El valor con cada url(x) relativa cambiada por la dirección completa respecto a base (data: y # se quedan)

@@ -1,4 +1,4 @@
-# Fuentes de la web (@font-face, tarea 31h): un TTF (o OTF con contornos TrueType) hecho TextFont del Amiga en
+# Fuentes de la web (@font-face, tarea 31h): un TTF (o OTF con contornos TrueType, o un WOFF 1.0 de ellos) hecho TextFont del Amiga en
 # memoria, con stb_truetype (third_party/stb, en build/img-lib/libimg.a: tools/build_img.sh). Los caracteres de
 # Latin-1 (32-255, los mismos puntos de Unicode) a un tamaño dado (el font-size: el em), en un plano de 1 bit
 # (sin suavizado: el pintor del Amiga pinta así). Lo devuelto vale para font_use, font_text_width... de Dash.
@@ -29,6 +29,49 @@ static UBYTE *_fw_leer(const char *fichero, LONG *largo) {
     Close(fh);
     *largo = n;
     return d;
+}
+
+extern int stbi_zlib_decode_buffer(char *obuffer, int olen, const char *ibuffer, int ilen);
+
+static ULONG _fw_u32(const UBYTE *p) { return ((ULONG)p[0] << 24) | ((ULONG)p[1] << 16) | ((ULONG)p[2] << 8) | p[3]; }
+static UWORD _fw_u16(const UBYTE *p) { return (UWORD)((p[0] << 8) | p[1]); }
+static void _fw_p32(UBYTE *p, ULONG v) { p[0] = v >> 24; p[1] = v >> 16; p[2] = v >> 8; p[3] = v; }
+static void _fw_p16(UBYTE *p, UWORD v) { p[0] = v >> 8; p[1] = v; }
+
+/* WOFF 1.0 a la fuente TrueType de dentro (cada tabla, descomprimida si vino con zlib); NULL si no se puede */
+static UBYTE *_fw_de_woff(const UBYTE *w, LONG largo, LONG *salida) {
+    UWORD n, i, potencia = 1, exponente = 0;
+    ULONG total, pos;
+    UBYTE *s;
+    if (largo < 44 || _fw_u32(w) != 0x774F4646) return NULL;
+    n = _fw_u16(w + 12);
+    total = _fw_u32(w + 16);
+    if (n == 0 || n > 200 || 44 + 20L * n > largo || total < 12 + 16UL * n || total > 16 * 1024 * 1024) return NULL;
+    if (!(s = (UBYTE *)AllocVec(total, MEMF_CLEAR))) return NULL;
+    while (potencia * 2 <= n) { potencia *= 2; exponente++; }
+    _fw_p32(s, _fw_u32(w + 4));
+    _fw_p16(s + 4, n);
+    _fw_p16(s + 6, potencia * 16);
+    _fw_p16(s + 8, exponente);
+    _fw_p16(s + 10, n * 16 - potencia * 16);
+    pos = 12 + 16UL * n;
+    for (i = 0; i < n; i++) {
+        const UBYTE *e = w + 44 + 20 * i;
+        ULONG off = _fw_u32(e + 4), comp = _fw_u32(e + 8), orig = _fw_u32(e + 12);
+        if (off + comp > (ULONG)largo || pos + orig > total) { FreeVec(s); return NULL; }
+        CopyMem((APTR)e, s + 12 + 16 * i, 4);
+        _fw_p32(s + 12 + 16 * i + 4, _fw_u32(e + 16));
+        _fw_p32(s + 12 + 16 * i + 8, pos);
+        _fw_p32(s + 12 + 16 * i + 12, orig);
+        if (comp < orig) {
+            if (stbi_zlib_decode_buffer((char *)s + pos, orig, (const char *)w + off, comp) != (int)orig) { FreeVec(s); return NULL; }
+        } else {
+            CopyMem((APTR)(w + off), s + pos, orig);
+        }
+        pos += (orig + 3) & ~3UL;
+    }
+    *salida = total;
+    return s;
 }
 
 #define _FW_LO 32
@@ -122,10 +165,17 @@ end
 # El TextFont de la fuente del fichero a tam px (el em); 0 si no se puede leer o no es una fuente TrueType
 @native(borrow) func fuente_web(fichero: String, tam: Int) -> Int
 """
-    LONG largo = 0;
-    UBYTE *d = _fw_leer((const char *)fichero, &largo);
+    LONG largo = 0, largo2 = 0;
+    UBYTE *d = _fw_leer((const char *)fichero, &largo), *t;
     struct TextFont *tf;
     if (!d) return 0;
+    if (largo >= 4 && _fw_u32(d) == 0x774F4646) {      /* "wOFF": la fuente de dentro */
+        t = _fw_de_woff(d, largo, &largo2);
+        FreeVec(d);
+        if (!t) return 0;
+        d = t;
+        largo = largo2;
+    }
     tf = _fw_crear(d, largo, tam);
     FreeVec(d);
     return (LONG)tf;
