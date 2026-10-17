@@ -1,0 +1,472 @@
+# CSS Animations de verdad (tarea 31q). Las animaciones de un elemento (sus propiedades animation-* con los
+# @keyframes de las hojas), en qué punto van en un instante (retardo, duración, vueltas, direction, fill-mode y
+# la función de tiempo: linear, ease..., cubic-bezier(), steps()) y el valor de una propiedad en ese punto,
+# interpolado entre sus fotogramas (números con sus unidades, dentro de transform también, y colores).
+#
+#   for a in animaciones_de(n, hojas)
+#       p = animacion_progreso(a, ms)            # -1 si en ese instante no hace nada
+#       v = animacion_valor(a, "opacity", p)     # "" si la animación no la toca
+
+import "estilo.dash"
+import "colores.dash"
+
+struct Animacion
+    nodo: Nodo
+    nombre: String
+    cuadros: [Fotograma]
+    duracion: Int = 0        # ms
+    retardo: Int = 0         # ms
+    vueltas: Int = 1000      # en milésimas; -1: infinitas
+    sentido: String = "normal"
+    relleno: String = "none"
+    curva: String = "ease"
+end
+
+# Las animaciones de n que tienen @keyframes (vacía si ninguna)
+func animaciones_de(n: Nodo, hojas: Hojas) -> [Animacion]
+    var r: [Animacion] = []
+    if n.tipo != DOM_ELEMENTO or hojas.cuadros == nil
+        return r
+    end
+    e = n.estilo
+    atajo = _val_de(e, "animation", _val_de(e, "-webkit-animation", ""))
+    var items: [String] = []
+    if atajo != "" and atajo != "none"
+        for item in css_partir(atajo, 44)
+            items.push(item)
+        end
+    end
+    nombres = _lista(e, "animation-name")
+    total = items.length
+    if nombres.length > total
+        total = nombres.length
+    end
+    i = 0
+    while i < total
+        var sin: [Fotograma] = []
+        a = Animacion(n, "", sin)
+        if i < items.length
+            _animacion_atajo(a, items[i])
+        end
+        _animacion_suelta(a, e, i)
+        if a.nombre != "" and a.nombre != "none" and hojas.cuadros.has(a.nombre)
+            a.cuadros = hojas.cuadros[a.nombre]
+            r.push(a)
+        end
+        i = i + 1
+    end
+    return r
+end
+
+func _val_de(e: {String: String}, p: String, defecto: String) -> String
+    if e.has(p)
+        return e[p]
+    end
+    return defecto
+end
+
+# Una propiedad animation-* suelta como lista (con comas, fuera de paréntesis)
+func _lista(e: {String: String}, p: String) -> [String]
+    var r: [String] = []
+    v = _val_de(e, p, _val_de(e, "-webkit-" + p, ""))
+    if v != ""
+        for t in css_partir(v, 44)
+            r.push(str_trim(t))
+        end
+    end
+    return r
+end
+
+# Una animación del atajo: el primer tiempo es la duración y el segundo el retardo; lo demás, por su forma
+func _animacion_atajo(a: Animacion, item: String)
+    tiempos = 0
+    for t in css_partir(str_trim(item), 32)
+        if t == ""
+            continue
+        end
+        c = str_code(t, 0)
+        if str_find(t, "(") >= 0
+            a.curva = t
+        elif ((c >= 48 and c <= 57) or c == 46 or c == 45) and (str_ends(t, "s") or str_ends(t, "ms"))
+            if tiempos == 0
+                a.duracion = _ms(t)
+            else
+                a.retardo = _ms(t)
+            end
+            tiempos = tiempos + 1
+        elif (c >= 48 and c <= 57) or c == 46
+            a.vueltas = _milesimas(t)
+        elif t == "infinite"
+            a.vueltas = -1
+        elif t == "forwards" or t == "backwards" or t == "both" or t == "none"
+            a.relleno = t
+        elif t == "normal" or t == "reverse" or t == "alternate" or t == "alternate-reverse"
+            a.sentido = t
+        elif t == "linear" or t == "ease" or t == "ease-in" or t == "ease-out" or t == "ease-in-out" or t == "step-start" or t == "step-end"
+            a.curva = t
+        elif t == "running" or t == "paused" or t == "initial" or t == "inherit"
+            continue
+        elif a.nombre == ""
+            a.nombre = t
+        end
+    end
+end
+
+# Las sueltas (animation-duration...) mandan sobre el atajo; la i-ésima de cada lista, en vuelta si es corta
+func _animacion_suelta(a: Animacion, e: {String: String}, i: Int)
+    l = _lista(e, "animation-name")
+    if l.length > 0
+        a.nombre = l[i % l.length]
+    end
+    l = _lista(e, "animation-duration")
+    if l.length > 0
+        a.duracion = _ms(l[i % l.length])
+    end
+    l = _lista(e, "animation-delay")
+    if l.length > 0
+        a.retardo = _ms(l[i % l.length])
+    end
+    l = _lista(e, "animation-iteration-count")
+    if l.length > 0
+        v = l[i % l.length]
+        if v == "infinite"
+            a.vueltas = -1
+        else
+            a.vueltas = _milesimas(v)
+        end
+    end
+    l = _lista(e, "animation-direction")
+    if l.length > 0
+        a.sentido = l[i % l.length]
+    end
+    l = _lista(e, "animation-fill-mode")
+    if l.length > 0
+        a.relleno = l[i % l.length]
+    end
+    l = _lista(e, "animation-timing-function")
+    if l.length > 0
+        a.curva = l[i % l.length]
+    end
+end
+
+# "1.5s", "200ms" -> ms
+func _ms(t: String) -> Int
+    if str_ends(t, "ms")
+        return _milesimas(t[:t.length - 2]) / 1000
+    end
+    if str_ends(t, "s")
+        return _milesimas(t[:t.length - 1])
+    end
+    return 0
+end
+
+# Un número (con signo y decimales) en milésimas
+func _milesimas(t: String) -> Int
+    a = str_trim(t)
+    signo = 1
+    if str_starts(a, "-")
+        signo = -1
+        a = a[1:]
+    end
+    p = str_find(a, ".")
+    if p < 0
+        return signo * Int(a) * 1000
+    end
+    dec = a[p + 1:]
+    while dec.length < 3
+        dec = dec + "0"
+    end
+    return signo * (Int("0" + a[:p]) * 1000 + Int(dec[:3]))
+end
+
+# En qué punto de sus fotogramas (0-1000) va a los ms dados; -1 si entonces no hace nada (antes de empezar
+# sin backwards, o acabada sin forwards)
+func animacion_progreso(a: Animacion, ms: Int) -> Int
+    if a.duracion <= 0
+        return -1
+    end
+    t = ms - a.retardo
+    vuelta = 0
+    parte = 0
+    if t < 0
+        if a.relleno != "backwards" and a.relleno != "both"
+            return -1
+        end
+    elif a.vueltas >= 0 and t * 10 >= a.vueltas / 100 * a.duracion
+        # acabada: donde termina la última vuelta
+        if a.relleno != "forwards" and a.relleno != "both"
+            return -1
+        end
+        vuelta = a.vueltas / 1000
+        parte = a.vueltas % 1000
+        if parte == 0 and vuelta > 0
+            vuelta = vuelta - 1
+            parte = 1000
+        end
+    else
+        vuelta = t / a.duracion
+        parte = (t % a.duracion) * 1000 / a.duracion
+    end
+    al_reves = a.sentido == "reverse" or (a.sentido == "alternate" and vuelta % 2 == 1) or (a.sentido == "alternate-reverse" and vuelta % 2 == 0)
+    if al_reves
+        parte = 1000 - parte
+    end
+    return animacion_curva(a.curva, parte)
+end
+
+# La función de tiempo en x (0-1000)
+func animacion_curva(curva: String, x: Int) -> Int
+    c = str_lower(str_trim(curva))
+    if c == "linear"
+        return x
+    elif c == "ease"
+        return _bezier(250, 100, 250, 1000, x)
+    elif c == "ease-in"
+        return _bezier(420, 0, 1000, 1000, x)
+    elif c == "ease-out"
+        return _bezier(0, 0, 580, 1000, x)
+    elif c == "ease-in-out"
+        return _bezier(420, 0, 580, 1000, x)
+    elif c == "step-start"
+        return _pasos(1, true, x)
+    elif c == "step-end"
+        return _pasos(1, false, x)
+    end
+    p = str_find(c, "(")
+    if p > 0 and str_ends(c, ")")
+        args = css_partir(c[p + 1:c.length - 1], 44)
+        if str_starts(c, "cubic-bezier") and args.length == 4
+            return _bezier(_milesimas(args[0]), _milesimas(args[1]), _milesimas(args[2]), _milesimas(args[3]), x)
+        elif str_starts(c, "steps") and args.length >= 1
+            al_empezar = args.length > 1 and (str_trim(args[1]) == "start" or str_trim(args[1]) == "jump-start")
+            return _pasos(Int(str_trim(args[0])), al_empezar, x)
+        end
+    end
+    return x
+end
+
+func _pasos(n: Int, al_empezar: Bool, x: Int) -> Int
+    if n < 1
+        return x
+    end
+    paso = x * n / 1000
+    if al_empezar and x * n % 1000 != 0
+        paso = paso + 1
+    elif al_empezar and x == 0
+        paso = 0
+    end
+    if paso > n
+        paso = n
+    end
+    return paso * 1000 / n
+end
+
+# cubic-bezier(x1, y1, x2, y2) en x, todo por mil: el t de la curva con ese x (por bisección) y su y
+func _bezier(x1: Int, y1: Int, x2: Int, y2: Int, x: Int) -> Int
+    if x <= 0
+        return 0
+    elif x >= 1000
+        return 1000
+    end
+    bajo = 0
+    alto = 1000
+    for k in (1..14)
+        t = (bajo + alto) / 2
+        if _bezier_eje(x1, x2, t) < x
+            bajo = t
+        else
+            alto = t
+        end
+    end
+    return _bezier_eje(y1, y2, (bajo + alto) / 2)
+end
+
+# 3(1-t)^2 t p1 + 3(1-t) t^2 p2 + t^3, por mil
+func _bezier_eje(p1: Int, p2: Int, t: Int) -> Int
+    u = 1000 - t
+    a = u * u / 1000 * t / 1000 * 3 * p1 / 1000
+    b = u * t / 1000 * t / 1000 * 3 * p2 / 1000
+    c = t * t / 1000 * t / 1000
+    return a + b + c
+end
+
+# El valor de una propiedad en el punto p (0-1000): entre los dos fotogramas que la tienen alrededor (sin
+# fotograma en 0 o en 1000, el valor del propio elemento); "" si la animación no la toca
+func animacion_valor(a: Animacion, propiedad: String, p: Int) -> String
+    antes_pos = -1
+    antes = ""
+    despues_pos = -1
+    despues = ""
+    toca = false
+    for f in a.cuadros
+        v = _decl_valor(f.decl, propiedad)
+        if v == ""
+            continue
+        end
+        toca = true
+        if f.pos <= p
+            antes_pos = f.pos
+            antes = v
+        elif despues_pos < 0
+            despues_pos = f.pos
+            despues = v
+        end
+    end
+    if not toca
+        return ""
+    end
+    propio = _val_de(a.nodo.estilo, propiedad, "")
+    if antes_pos < 0
+        antes_pos = 0
+        antes = propio
+    end
+    if despues_pos < 0
+        despues_pos = 1000
+        despues = propio
+    end
+    if despues_pos <= antes_pos or antes == despues
+        return antes
+    end
+    if antes == ""
+        return despues
+    elif despues == ""
+        return antes
+    end
+    return animacion_mezcla(antes, despues, (p - antes_pos) * 1000 / (despues_pos - antes_pos))
+end
+
+func _decl_valor(decl: [Declaracion], propiedad: String) -> String
+    r = ""
+    for d in decl
+        if d.propiedad == propiedad
+            r = d.valor
+        end
+    end
+    return r
+end
+
+# Entre dos valores, a q (0-1000) del primero al segundo: colores por sus canales; si no, los números que
+# lleven (con el mismo texto alrededor: "translateX(-20px)" y "translateX(0px)"); si no casan, el primero
+# hasta la mitad y el segundo después
+func animacion_mezcla(a: String, b: String, q: Int) -> String
+    ca = css_color_opaco(a)
+    cb = css_color_opaco(b)
+    if ca >= 0 and cb >= 0 and not _empieza_numero(a) and not _empieza_numero(b)
+        aa = css_alfa(a)
+        ab = css_alfa(b)
+        r = _entre(ca / 65536 % 256, cb / 65536 % 256, q)
+        g = _entre(ca / 256 % 256, cb / 256 % 256, q)
+        bb = _entre(ca % 256, cb % 256, q)
+        al = _entre(aa, ab, q)
+        if al >= 255
+            return "rgb(" + r + ", " + g + ", " + bb + ")"
+        end
+        return "rgba(" + r + ", " + g + ", " + bb + ", " + _texto_milesimas(al * 1000 / 255) + ")"
+    end
+    var na: [Int] = []
+    var nb: [Int] = []
+    fa = _sin_numeros(a, na)
+    fb = _sin_numeros(b, nb)
+    if fa != fb or na.length != nb.length or na.length == 0
+        if q < 500
+            return a
+        end
+        return b
+    end
+    # se rehace a con los números mezclados
+    r = ""
+    k = 0
+    i = 0
+    while i < a.length
+        if _numero_en(a, i)
+            j = _fin_numero(a, i)
+            r = r + _texto_milesimas(_entre(na[k], nb[k], q))
+            k = k + 1
+            i = j
+        else
+            r = r + a[i:i + 1]
+            i = i + 1
+        end
+    end
+    return r
+end
+
+func _entre(x: Int, y: Int, q: Int) -> Int
+    return x + (y - x) * q / 1000
+end
+
+func _empieza_numero(v: String) -> Bool
+    return v.length > 0 and _numero_en(v, 0)
+end
+
+# ¿Empieza un número en i? (un dígito, o un punto, o un signo delante de ellos, sin letra justo antes)
+func _numero_en(v: String, i: Int) -> Bool
+    if i > 0
+        p = str_code(v, i - 1)
+        if (p >= 65 and p <= 90) or (p >= 97 and p <= 122) or p == 45 or p == 95 or (p >= 48 and p <= 57)
+            return false
+        end
+    end
+    c = str_code(v, i)
+    if c >= 48 and c <= 57
+        return true
+    end
+    if (c == 46 or c == 45 or c == 43) and i + 1 < v.length
+        d = str_code(v, i + 1)
+        if d >= 48 and d <= 57
+            return true
+        end
+        if c != 46 and d == 46 and i + 2 < v.length
+            e = str_code(v, i + 2)
+            return e >= 48 and e <= 57
+        end
+    end
+    return false
+end
+
+func _fin_numero(v: String, i: Int) -> Int
+    j = i + 1
+    while j < v.length and ((str_code(v, j) >= 48 and str_code(v, j) <= 57) or str_code(v, j) == 46)
+        j = j + 1
+    end
+    return j
+end
+
+# El valor con cada número cambiado por "#" (para ver si dos casan); los números, en milésimas, a nums
+func _sin_numeros(v: String, nums: [Int]) -> String
+    r = ""
+    i = 0
+    while i < v.length
+        if _numero_en(v, i)
+            j = _fin_numero(v, i)
+            nums.push(_milesimas(v[i:j]))
+            r = r + "#"
+            i = j
+        else
+            r = r + v[i:i + 1]
+            i = i + 1
+        end
+    end
+    return r
+end
+
+# Milésimas como número de CSS: -15000 -> "-15", 250 -> "0.25"
+func _texto_milesimas(m: Int) -> String
+    signo = ""
+    x = m
+    if x < 0
+        signo = "-"
+        x = 0 - x
+    end
+    r = signo + (x / 1000)
+    d = x % 1000
+    if d == 0
+        return r
+    end
+    t = "" + (1000 + d)
+    t = t[1:]
+    while str_ends(t, "0")
+        t = t[:t.length - 1]
+    end
+    return r + "." + t
+end

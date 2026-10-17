@@ -1954,3 +1954,17 @@ Formato:
   (en dashweb-w faltaba stb_truetype.h y dashweb no compilaba: la comparación salió sin capturas de dashweb).
 - Comprobado contra Chrome (d2c4778): amigang ya sale con las letras de Google Fonts (el menú en mayúsculas de
   Muli, el logo); freemem.space, parecida. Sigue en amigang la imagen de la cabecera, más grande que en Chrome.
+
+### 2026-10-17 — Tarea 31q, primer paso (el cálculo de las animaciones)
+- lib/css.dash guarda ahora todos los fotogramas de cada @keyframes (`Fotograma`: sitio por mil y
+  declaraciones, en orden; "0%, 100%" da dos) y lib/estilo.dash los junta en `Hojas.cuadros`.
+- lib/animacion.dash (nuevo): `animaciones_de(nodo, hojas)` lee animation (y -webkit-) y las sueltas
+  animation-name, -duration, -delay, -iteration-count, -direction, -fill-mode, -timing-function (listas con
+  comas, en vuelta si son cortas); `animacion_progreso(a, ms)` dice en qué punto (0-1000) va: nada antes del
+  retardo sin backwards ni acabada sin forwards, direction con sus vueltas, y la función de tiempo (linear, ease,
+  ease-in/out, cubic-bezier por bisección en enteros, steps y step-start/end); `animacion_valor(a, propiedad, p)`
+  interpola entre los dos fotogramas que la tienen (sin fotograma en 0 o 1000, el valor del propio elemento):
+  colores por canales (y su alfa) y, si no, los números de dentro con el mismo texto alrededor (opacity,
+  translateX(-20px), stroke-dashoffset...).
+- Test `test_animacion`. Falta: aplicarlo a lo dibujado y el reloj (paso 2).
+- Base: 51/51.

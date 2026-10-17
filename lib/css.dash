@@ -69,12 +69,20 @@ struct CaraFuente
     estilo: String
 end
 
+# Un fotograma de un @keyframes: su sitio (0-1000, por mil) y sus declaraciones
+struct Fotograma
+    pos: Int
+    decl: [Declaracion]
+end
+
 struct HojaCSS
     reglas: [Regla]
     importes: [String]
     caras: [CaraFuente] = nil
     # @keyframes: el nombre -> las declaraciones de su último fotograma (to o 100 %); "nombre 0", las del primero
     fotogramas: {String: [Declaracion]} = nil
+    # @keyframes: el nombre -> todos sus fotogramas, en orden (lib/animacion.dash, para animar de verdad)
+    cuadros: {String: [Fotograma]} = nil
 end
 
 # Sin comentarios /* ... */
@@ -643,6 +651,7 @@ func _css_fotogramas(hoja: HojaCSS, cabeza: String, cuerpo: String)
     end
     var ultimo: [Declaracion] = []
     var primero: [Declaracion] = []
+    var todos: [Fotograma] = []
     i = 0
     while i < cuerpo.length
         llave = _css_buscar(cuerpo, 123, i)
@@ -653,6 +662,22 @@ func _css_fotogramas(hoja: HojaCSS, cabeza: String, cuerpo: String)
         var decl: [Declaracion] = css_declaraciones(cuerpo[llave + 1:cierre])
         for sel in css_partir(cuerpo[i:llave], 44)
             t = str_lower(str_trim(sel))
+            pos = -1
+            if t == "from"
+                pos = 0
+            elif t == "to"
+                pos = 1000
+            elif str_ends(t, "%")
+                pos = _css_decimal_por(str_trim(t[:t.length - 1]), 10)
+            end
+            if pos >= 0 and pos <= 1000
+                # en su sitio (de menor a mayor)
+                k = todos.length
+                while k > 0 and todos[k - 1].pos > pos
+                    k = k - 1
+                end
+                todos.insert(k, Fotograma(pos, decl))
+            end
             if t == "to" or t == "100%"
                 for d in decl
                     ultimo.push(d)
@@ -671,6 +696,11 @@ func _css_fotogramas(hoja: HojaCSS, cabeza: String, cuerpo: String)
     end
     hoja.fotogramas[nombre] = ultimo
     hoja.fotogramas[nombre + " 0"] = primero
+    if hoja.cuadros == nil
+        var c: {String: [Fotograma]} = {}
+        hoja.cuadros = c
+    end
+    hoja.cuadros[nombre] = todos
 end
 
 # ¿Vale esta lista de medios para la pantalla? Se mira como la página de ahora (css_vista: ancho y alto

@@ -113,6 +113,7 @@ struct Hojas
     # elemento y WordPress unas 60 que se heredan; copiarlas en cada nodo era lo que más costaba)
     vars_usadas: {String: Int} = nil
     fotogramas: {String: [Declaracion]} = nil   # los @keyframes de todas las hojas (el último de un nombre manda)
+    cuadros: {String: [Fotograma]} = nil        # y todos sus fotogramas (lib/animacion.dash)
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -733,6 +734,15 @@ func _estilo_indexar(h: Hojas)
         end
     end
     h.fotogramas = fotogramas
+    var cuadros: {String: [Fotograma]} = {}
+    for hoja in h.lista
+        if hoja.cuadros != nil
+            for k in hoja.cuadros.keys()
+                cuadros[k] = hoja.cuadros[k]
+            end
+        end
+    end
+    h.cuadros = cuadros
     h.indice_ancho = css_vista_ancho()
 end
 
