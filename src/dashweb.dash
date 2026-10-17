@@ -44,6 +44,8 @@ const ID_COMPLETA_CERRADA = 91
 const MAX_VENTANAS = 4
 const FICHERO_MARCADORES = "PROGDIR:dashweb.marcadores"
 const FICHERO_PREFERENCIAS = "PROGDIR:dashweb.prefs"
+# Las cookies que duran más que la sesión (lib/cookies.dash), de una vez para otra
+const FICHERO_COOKIES = "PROGDIR:dashweb.cookies"
 
 # Una ventana del navegador y lo que tiene
 struct Ventana
@@ -775,6 +777,7 @@ end
 Main
     # las conexiones siguen abiertas para los recursos del mismo servidor (sin volver a negociar TLS)
     http_seguir = true
+    cookies_cargar(FICHERO_COOKIES)
     if mui_app_begin("dashweb", "DASHWEB") == 0
         Print "dashweb necesita MUI (3.8 o 5) y un 68020"
     else
@@ -968,6 +971,7 @@ Main
             end
         end
         http_cerrar_libres()
+        cookies_guardar(FICHERO_COOKIES)
         mui_app_end()
     end
 end

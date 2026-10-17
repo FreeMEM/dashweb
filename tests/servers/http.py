@@ -59,12 +59,15 @@ class Handler(socketserver.StreamRequestHandler):
         length = 0
         seguir = False
         self.acepta = ""
+        self.galletas = ""
         while True:
             header = self.rfile.readline()
             if header in (b"\r\n", b"\n", b""):
                 break
             if header.lower().startswith(b"content-length:"):
                 length = int(header.split(b":", 1)[1])
+            if header.lower().startswith(b"cookie:"):
+                self.galletas = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().startswith(b"accept-encoding:"):
                 self.acepta = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().replace(b" ", b"").startswith(b"connection:keep-alive"):
@@ -153,6 +156,25 @@ class Handler(socketserver.StreamRequestHandler):
                 self.wfile.write(reply("200 OK", cabeceras, raw=raw))
             else:
                 self.wfile.write(reply("200 OK", cabeceras + [("Content-Length", str(len(data)))], data))
+            return
+        if path == "/galletas/dar":     # cookies: one for the session, one that lasts, one for another path, a
+            cab = [("Content-Length", "2"),  # Secure one (not over http) and a redirect that sets one more
+                   ("Set-Cookie", "sesion=abc; Path=/"),
+                   ("Set-Cookie", "dura=1; Path=/; Expires=Wed, 21 Oct 2099 07:28:00 GMT; HttpOnly"),
+                   ("Set-Cookie", "otra=2; Path=/otra"),
+                   ("Set-Cookie", "segura=3; Path=/; Secure")]
+            self.wfile.write(reply("200 OK", cab, b"ok"))
+            return
+        if path == "/galletas/borrar":  # Max-Age=0 removes one
+            self.wfile.write(reply("200 OK", [("Content-Length", "2"), ("Set-Cookie", "sesion=; Max-Age=0; Path=/")], b"ok"))
+            return
+        if path == "/galletas/salto":   # a redirect that sets a cookie on the way
+            self.wfile.write(reply("302 Found", [("Location", "/galletas/ver"), ("Content-Length", "0"),
+                                                 ("Set-Cookie", "salto=si; Path=/")]))
+            return
+        if path.startswith("/galletas/ver") or path.startswith("/otra"):     # the Cookie header the client sent
+            data = self.galletas.encode("latin-1")
+            self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
             return
         if path == "/acepta":       # the Accept-Encoding the client sent
             data = self.acepta.encode("latin-1")

@@ -1,0 +1,50 @@
+# Test: lib/cookies.dash y las cookies de lib/http.dash (tarea 35a). Fechas de Expires; dominio, ruta, Secure,
+# HttpOnly y caducidad; document.cookie (pone una y lee sin las HttpOnly); Set-Cookie de verdad desde el servidor (varias en una respuesta, una en una redirección),
+# Max-Age=0 que borra, document.cookie sin las HttpOnly, y guardar y cargar las que duran.
+# emu-server: http.py 40869
+# memcheck
+# expect-out: fechas: 1784618880 940490880 -1 2147483000
+# expect-out: dominio: a=1; b=2 a=1; b=2 b=2 [] []
+# expect-out: ruta y secure: r=1; s=1 [] r=1; s=1 [r=1] r=1
+# expect-out: servidor: [sesion=abc; dura=1] [otra=2; sesion=abc; dura=1] [sesion=abc; dura=1; salto=si]
+# expect-out: borrar: [dura=1; salto=si] js: [salto=si]
+# expect-out: guardadas: true 1 [dura=1]
+# expect-out: js: [dura=1; js=1] [js=1]
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+
+Main
+    Print "fechas: " + cookies_fecha("Fri, 21 Jul 2026 07:28:00 GMT") + " " + cookies_fecha("Wednesday, 21-Oct-99 07:28:00 GMT") + " " + cookies_fecha("mañana") + " " + cookies_fecha("Wed, 21 Oct 2099 07:28:00 GMT")
+    cookies_recibir(url_parse("http://www.ejemplo.org/"), "a=1")
+    cookies_recibir(url_parse("http://www.ejemplo.org/"), "b=2; Domain=.ejemplo.org")
+    cookies_recibir(url_parse("http://www.ejemplo.org/"), "c=3; Domain=otro.org")
+    cookies_recibir(url_parse("http://www.ejemplo.org/"), "d=4; Domain=org")
+    Print "dominio: " + cookies_para(url_parse("http://www.ejemplo.org/x")) + " " + cookies_para(url_parse("https://www.ejemplo.org/")) + " " + cookies_para(url_parse("http://sub.ejemplo.org/")) + " [" + cookies_para(url_parse("http://otro.org/")) + "] [" + cookies_para(url_parse("http://ejemplo.com/")) + "]"
+    var nada: [Cookie] = []
+    cookies_todas = nada
+    cookies_recibir(url_parse("https://r.org/a/b/c"), "r=1")
+    cookies_recibir(url_parse("https://r.org/"), "s=1; Path=/a/b; Secure")
+    Print "ruta y secure: " + cookies_para(url_parse("https://r.org/a/b/x")) + " [" + cookies_para(url_parse("https://r.org/a/bc")) + "] " + cookies_para(url_parse("https://r.org/a/b/c/d")) + " [" + cookies_para(url_parse("http://r.org/a/b/x")) + "] " + cookies_para(url_parse("http://r.org/a/b/"))
+    var otra: [Cookie] = []
+    cookies_todas = otra
+    base = "http://127.0.0.1:40869"
+    http_get(base + "/galletas/dar", 10000)
+    a = http_get(base + "/galletas/ver", 10000).cuerpo
+    b = http_get(base + "/otra/x", 10000).cuerpo
+    c = http_get(base + "/galletas/salto", 10000).cuerpo
+    Print "servidor: [" + a + "] [" + b + "] [" + c + "]"
+    http_get(base + "/galletas/borrar", 10000)
+    Print "borrar: [" + http_get(base + "/galletas/ver", 10000).cuerpo + "] js: [" + cookies_js(url_parse(base + "/")) + "]"
+    g = cookies_guardar("T:galletas")
+    var vacia: [Cookie] = []
+    cookies_todas = vacia
+    cookies_cargar("T:galletas")
+    Print "guardadas: " + g + " " + cookies_todas.length + " [" + cookies_para(url_parse(base + "/")) + "]"
+    doc = dom_desde_html("<body><script>document.cookie = 'js=1; path=/'; var visto = document.cookie;</script></body>")
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    jsdom_ejecutar_scripts(js, doc, base + "/pagina.html")
+    Print "js: [" + cookies_para(url_parse(base + "/")) + "] [" + js_evaluar(js, "visto", "x") + "]"
+    js_liberar(js)
+end

@@ -2211,3 +2211,22 @@ Formato:
   - Sin bloqueo (lo publicado, c60f2d0): 0 de 14 más, 0 de 24 en total (28,4-34,2 s). Con bloqueo, 6 de 59. Con un
     10 % por carga, 24 limpias seguidas saldrían 8 de cada 100 veces: sin bloqueo se puede dar por estable en
     freemem.space. El fallo de QuickJS sigue sin encontrar (pendiente, antes de volver a encender el bloqueo).
+
+### 2026-10-18 — Tarea 35a (cookies HTTP)
+- lib/cookies.dash (nuevo): el tarro de cookies (RFC 6265, lo que usan las webs). Set-Cookie con Domain (el host o
+  un padre suyo con punto; sin Domain, solo ese host), Path (por defecto, la carpeta de la petición), Expires
+  (fechas de los tres formatos; dos cifras: 70-99 son 19xx) y Max-Age (gana a Expires; 0 o menos borra), Secure
+  (solo se recibe y se manda por https) y HttpOnly (document.cookie no la ve ni la pisa). La misma (nombre,
+  dominio, ruta) se reemplaza. Se mandan las de ruta más larga primero. Hasta 300. La hora: DateStamp del Amiga
+  (`cookies_ahora`, segundos desde 1970); un Int llega hasta 2038 (lo que caduca después, en enero de 2038).
+- lib/http.dash: cada Set-Cookie va a `Respuesta.set_cookies` (no se juntan con comas: Expires lleva una), al
+  tarro al leer la respuesta (también en las redirecciones: un inicio de sesión que redirige), y la cabecera
+  Cookie en cada petición.
+- document.cookie (lib/jsdom_preludio.js): lee y pone en el mismo tarro (`__dashweb_galletas`,
+  `__dashweb_galleta`), sin las HttpOnly. Antes era un diccionario solo del JavaScript.
+- dashweb guarda las que duran en PROGDIR:dashweb.cookies al salir y las carga al empezar.
+- Test nuevo `test_cookies` (servidor: /galletas/dar, /galletas/borrar, /galletas/salto, /galletas/ver).
+- Pendiente: el usuario no tiene aún forma de ver ni borrar las cookies (una página dashweb:cookies).
+- Base: la batería dio 45/54 con la otra sesión pasando la suya de dashweb a la vez (mismos puertos: el test de
+  conexiones vio la 4.ª en vez de la 1.ª); las que fallaron, solas y con D54/D55 ya en la rama dashweb de Dash,
+  9/9; test_cookies, 1/1. Cerrado un lineas.py mío (40841) que llevaba suelto desde el día 17.

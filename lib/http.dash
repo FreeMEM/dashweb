@@ -25,6 +25,7 @@ import "url.dash"
 import "red.dash"
 import "texto.dash"
 import "traza.dash"
+import "cookies.dash"
 
 @link "../build/img-lib/libimg.a"
 
@@ -57,6 +58,7 @@ struct Respuesta
     error: String
     bytes: Int        # bytes escritos en el fichero (http_a_fichero)
     version_11: Bool = false   # HTTP/1.1 (la conexión puede seguir abierta tras la respuesta)
+    set_cookies: [String] = nil  # cada Set-Cookie (no se pueden juntar con comas: Expires lleva una)
 end
 
 func _respuesta_vacia(url: String) -> Respuesta
@@ -99,7 +101,20 @@ func _http_una(u: Url, espera_ms: Int, fichero: String) -> Respuesta
         return r
     end
     _http_leer(c, r, fichero)
+    _http_cookies(u, r)
     return r
+end
+
+# Las Set-Cookie de la respuesta, al tarro (lib/cookies.dash)
+func _http_cookies(u: Url, r: Respuesta)
+    if r.set_cookies == nil
+        return
+    end
+    for v in r.set_cookies
+        cookies_recibir(u, v)
+    end
+    var nada: [String] = nil
+    r.set_cookies = nada
 end
 
 # Conecta y manda la petición; nil (con r.error) si no se pudo
@@ -161,6 +176,10 @@ func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente
         peticion = peticion + "keep-alive"
     else
         peticion = peticion + "close"
+    end
+    galletas = cookies_para(u)
+    if galletas != ""
+        peticion = peticion + "\r\nCookie: " + galletas
     end
     if metodo == "POST"
         peticion = peticion + "\r\nContent-Type: " + tipo + "\r\nContent-Length: " + cuerpo.length
@@ -233,6 +252,13 @@ func _leer_cabeceras(c: Conexion, r: Respuesta)
         if p > 0
             nombre = str_lower(str_trim(linea[:p]))
             valor = str_trim(linea[p + 1:])
+            if nombre == "set-cookie"
+                if r.set_cookies == nil
+                    var l: [String] = []
+                    r.set_cookies = l
+                end
+                r.set_cookies.push(valor)
+            end
             if r.cabeceras.has(nombre)
                 r.cabeceras[nombre] = r.cabeceras[nombre] + ", " + valor
             else
@@ -589,6 +615,7 @@ func http_avanzar(c: Carga) -> Bool
         return false
     end
     _http_leer_respuesta(c.conexion, c.respuesta, c.fichero)
+    _http_cookies(c.actual, c.respuesta)
     r = c.respuesta
     _http_soltar(c.conexion, r, n < 0)
     redireccion = r.estado == 301 or r.estado == 302 or r.estado == 303 or r.estado == 307 or r.estado == 308
