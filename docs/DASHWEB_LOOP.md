@@ -335,7 +335,10 @@ tarea, con el estilo de Dash.
       esperar y con límites; datatypes solo para lo demás.
 - [x] 29b. **SVG.** Logos e iconos en SVG (muchas webs): un subconjunto (path, rect, circle, fill/stroke) dibujado
       con gfx_ o rasterizado a RGB (nanosvg, zlib) al tamaño en que se ve.
-- [ ] 29c. **Decodificar sin parar la interfaz.** Hoy una imagen se decodifica entera en imagenes_avanzar (la
+- [ ] 28i. **Lo que le falta al JavaScript de las webs de hoy.** commodoremalacca.club (Next.js), probado a mano
+      por el usuario el 2026-10-17: "ReferenceError: 'TextEncoder' is not defined" en su webpack. TextEncoder y
+      TextDecoder (UTF-8) en jsdom; luego, lo siguiente que pida esa página.
+- [x] 29c. **Decodificar sin parar la interfaz.** Hoy una imagen se decodifica entera en imagenes_avanzar (la
       ventana no responde mientras): por trozos (TJpgDec por bloques, libwebp incremental) o en otra tarea.
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
       paquete LHA con instrucciones de instalación (MUI 5, AmiSSL 5, pila TCP/IP).
@@ -1504,3 +1507,24 @@ Formato:
 - dashweb escribe en la salida cuánto tarda una página entera, con sus imágenes ("entera en N ms").
 - Medido en la máquina RTG con https://freemem.space/ (dos veces cada uno): con conexiones abiertas 46,5 y
   44,9 s; sin ellas 50,0 y 51,7 s: un 10 % menos. Base: 36/36 (y 36/36 con memcheck en la batería de la otra sesión).
+
+### 2026-10-17 — Tarea 29c (imágenes decodificadas en otro proceso)
+- Con D47 de Dash (`task_start_with`, rama `tareas`, ya en `dashweb`): `lib/imagen_dec.dash` decodifica en otro
+  proceso (`imagen_empezar`, `imagen_lista`, `imagen_acabar`), con prioridad -1 y 256 KB de pila. El C de los
+  decodificadores solo usa memoria de exec y el malloc de libnix (con semáforo). La imagen de pantalla
+  (image_from_rgb) se hace luego en el programa. Si no se puede crear el proceso, se decodifica como antes.
+- `lib/imagenes.dash`: cada imagen pasa por bajándose → llegada → decodificándose; hasta 4 a la vez.
+- Encontrado midiendo: cada imagen que llegaba volvía a maquetar la página entera (freemem.space: ~1,4 s cada
+  vez en la máquina RTG). Ahora (`documento_imagenes`) solo se maqueta si la imagen le pone tamaño a su `<img>`
+  (si ya lo tenía, basta con repintar) y, mientras siguen llegando, como mucho cada 2 s desde la anterior.
+  También sirve sin otro proceso: 45 → 41,6 s.
+- Medido en la máquina RTG con https://freemem.space/ (la página entera, con sus imágenes):
+  sin otro proceso 41,6 y 41,6 s; en otro proceso, uno a la vez 51,8 y 50,2 s; cuatro a la vez 46,7 s
+  (prioridad -1) y 45,3 s (prioridad 0). Se queda en cuatro a la vez con prioridad -1: algo más lento que sin
+  otro proceso, pero la ventana responde mientras se decodifican.
+- Fallo de Dash encontrado y arreglado por la otra sesión: una función privada pasada por su nombre a
+  task_start daba "is private to module" (ac3884a).
+- `image_from_rgb` necesita picture.datatype V43: en AmigaOS 3.1 devuelve 0 (y dashweb usa los datatypes);
+  `test_imagen_dec` mira lo decodificado por la tarea sin pasarlo a pantalla (`imagen_acabar_probar`).
+- Prueba a mano del usuario en una ventana del emulador: commodoremalacca.club (Next.js) pide TextEncoder, que
+  no tenemos: tarea 28i. Base: 36/36.

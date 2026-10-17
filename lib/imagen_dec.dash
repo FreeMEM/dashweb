@@ -254,21 +254,55 @@ static _ImgDec *_imgdec_stb(UBYTE *datos, LONG largo, LONG maxw, LONG maxh) {
     _imgdec_reducir(img, k);
     return img;
 }
-"""
-end
 
-@native(borrow) func _imgdec(fichero: String, maxw: Int, maxh: Int) -> Int
-"""
+/* El fichero decodificado (NULL si no es de estos formatos). Solo C, memoria de exec y el malloc de libnix
+   (con su semáforo): vale también en otro proceso (_imgdec_tarea) */
+static _ImgDec *_imgdec_hacer(const char *fichero, LONG maxw, LONG maxh) {
     LONG largo = 0;
-    UBYTE *datos = _imgdec_fichero(fichero, &largo);
+    UBYTE *datos = _imgdec_fichero((STRPTR)fichero, &largo);
     _ImgDec *img = NULL;
-    if (!datos) return 0;
+    if (!datos) return NULL;
     if (largo > 2 && datos[0] == 0xFF && datos[1] == 0xD8) img = _imgdec_jpeg(datos, largo, maxw, maxh);
     else if (largo > 12 && !memcmp(datos, "RIFF", 4) && !memcmp(datos + 8, "WEBP", 4)) img = _imgdec_webp(datos, largo, maxw, maxh);
     else if (_imgdec_es_svg(datos, largo)) img = _imgdec_svg(datos, largo, maxw, maxh);
     if (!img) img = _imgdec_stb(datos, largo, maxw, maxh);
     FreeVec(datos);
-    return (LONG)img;
+    return img;
+}
+
+/* Lo que necesita la tarea que decodifica: su propia copia del nombre */
+typedef struct { LONG maxw, maxh; char fichero[1]; } _ImgDecPedido;
+"""
+end
+
+@native(borrow) func _imgdec(fichero: String, maxw: Int, maxh: Int) -> Int
+"""
+    return (LONG)_imgdec_hacer((const char *)fichero, maxw, maxh);
+"""
+end
+
+@native(borrow) func _imgdec_pedido(fichero: String, maxw: Int, maxh: Int) -> Int
+"""
+    _ImgDecPedido *q = (_ImgDecPedido *)AllocVec(sizeof(_ImgDecPedido) + strlen((const char *)fichero), MEMF_ANY);
+    if (!q) return 0;
+    q->maxw = maxw;
+    q->maxh = maxh;
+    strcpy(q->fichero, (const char *)fichero);
+    return (LONG)q;
+"""
+end
+
+@native func _imgdec_pedido_liberar(q: Int)
+"""
+    if (q) FreeVec((APTR)q);
+"""
+end
+
+# La función de la tarea (task_start): en otro proceso, solo C
+@native func _imgdec_tarea(q: Int) -> Int
+"""
+    _ImgDecPedido *p = (_ImgDecPedido *)q;
+    return (LONG)_imgdec_hacer(p->fichero, p->maxw, p->maxh);
 """
 end
 
@@ -317,10 +351,72 @@ func imagen_decodificar(fichero: String, maxw: Int, maxh: Int) -> Int
     return img
 end
 
+# === En otro proceso (la ventana sigue respondiendo mientras) ===
+
+struct Decodificando
+    tarea: Int
+    pedido: Int
+end
+
+# Empieza a decodificar el fichero en otro proceso, con prioridad -1 (avanza cuando el programa espera);
+# nil si no se pudo empezar (entonces, imagen_decodificar)
+func imagen_empezar(fichero: String, maxw: Int, maxh: Int) -> Decodificando
+    var nada: Decodificando = nil
+    q = _imgdec_pedido(fichero, maxw, maxh)
+    if q == 0
+        return nada
+    end
+    t = task_start_with(_imgdec_tarea, q, IMAGEN_PILA, -1)
+    if t == 0
+        _imgdec_pedido_liberar(q)
+        return nada
+    end
+    return Decodificando(t, q)
+end
+
+# Los decodificadores (stb_image, nanosvg, libwebp) piden bastante pila
+const IMAGEN_PILA = 262144
+
+# ¿Ya ha terminado? (no espera)
+func imagen_lista(d: Decodificando) -> Bool
+    return task_done(d.tarea)
+end
+
+# La imagen (como imagen_decodificar: 0 si el formato no es de estos, o si picture.datatype es anterior a
+# V43); espera si aún no ha terminado
+func imagen_acabar(d: Decodificando) -> Int
+    r = _imagen_terminar(d)
+    if r == 0
+        return 0
+    end
+    img = image_from_rgb(_imgdec_pixeles(r), _imgdec_ancho(r), _imgdec_alto(r), _imgdec_alfa(r))
+    _imgdec_liberar(r)
+    return img
+end
+
+# Lo decodificado por la tarea (_ImgDec, 0 si nada), con la tarea ya liberada
+func _imagen_terminar(d: Decodificando) -> Int
+    r = task_result(d.tarea)
+    task_free(d.tarea)
+    _imgdec_pedido_liberar(d.pedido)
+    d.tarea = 0
+    d.pedido = 0
+    return r
+end
+
+# Para las pruebas, como imagen_probar con lo que decodificó la tarea
+func imagen_acabar_probar(d: Decodificando, x: Int, y: Int) -> String
+    return _imgdec_texto(_imagen_terminar(d), x, y)
+end
+
 # Para las pruebas: "ancho x alto alfa=0/1 r,g,b" del píxel (x, y) de lo decodificado (sin pasarlo a la
 # pantalla); "no" si no se puede
 func imagen_probar(fichero: String, maxw: Int, maxh: Int, x: Int, y: Int) -> String
-    d = _imgdec(fichero, maxw, maxh)
+    return _imgdec_texto(_imgdec(fichero, maxw, maxh), x, y)
+end
+
+# (y lo libera)
+func _imgdec_texto(d: Int, x: Int, y: Int) -> String
     if d == 0
         return "no"
     end

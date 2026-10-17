@@ -42,6 +42,7 @@ struct Imagenes
     # src -> el tamaño mayor al que se ve en la última maqueta (ancho * 65536 + alto; imagenes_vista):
     # una <img> con width y height se decodifica a ese tamaño y no al de sus atributos
     vistas: {String: Int} = nil
+    cambiados: Int = 0          # <img> a los que una imagen llegada les ha puesto tamaño (cambia la maqueta)
 end
 
 struct Pedida
@@ -52,6 +53,8 @@ struct Pedida
     maxw: Int = 1280            # se decodifica reducida hasta lo que quepa en maxw x maxh (sin bajar de ahí)
     maxh: Int = 1024
     con_medidas: Bool = false   # una <img> con width y height (su tamaño en la página no depende de la imagen)
+    llegada: Bool = false       # ya está en su fichero: espera su turno para decodificarse
+    dec: Decodificando = nil    # decodificándose en otro proceso (lib/imagen_dec.dash)
 end
 
 # Una imagen grande no se decodifica entera si el HTML ya dice a qué tamaño se ve (width y height)
@@ -59,6 +62,8 @@ const IMAGEN_MAX_ANCHO = 1280
 const IMAGEN_MAX_ALTO = 1024
 
 const IMAGENES_A_LA_VEZ = 4
+# Decodificando a la vez, cada una en su proceso (con una sola, freemem.space tardaba unos 5 s más)
+const IMAGENES_DECODIFICANDO = 4
 
 func imagenes_nuevas() -> Imagenes
     var por_src: {String: Int} = {}
@@ -183,46 +188,88 @@ func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
     end
 end
 
-# Avanza las descargas sin esperar; cuántas imágenes llegaron ahora (su tamaño ya está en los <img>)
+# Avanza las descargas y las decodificaciones sin esperar; cuántas imágenes llegaron ahora (su tamaño ya
+# está en los <img>). Cada imagen: se baja a su fichero (hasta IMAGENES_A_LA_VEZ a la vez) y se decodifica en
+# otro proceso (hasta IMAGENES_DECODIFICANDO a la vez): la ventana no se para mientras.
 func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
     llegadas = 0
     activas = 0
+    decodificando = 0
     i = 0
     while i < im.cola.length
         p = im.cola[i]
-        if p.carga == nil and activas < IMAGENES_A_LA_VEZ
-            p.carga = http_empezar_a_fichero(p.direccion, p.fichero, 15000)
-        end
-        if p.carga != nil
-            if http_avanzar(p.carga)
-                r = p.carga.respuesta
-                img = 0
-                if r.error == "" and r.estado >= 200 and r.estado < 300
-                    maxw = p.maxw
-                    maxh = p.maxh
-                    if p.con_medidas and im.vistas != nil and im.vistas.has(p.src)
-                        # al tamaño al que se ve (una foto de 820x480 en una casilla de 225x220)
-                        v = im.vistas[p.src]
-                        if v / 65536 >= 16 and v % 65536 >= 16 and v / 65536 < maxw and v % 65536 < maxh
-                            maxw = v / 65536
-                            maxh = v % 65536
-                        end
-                    end
-                    img = imagen_cargar_a(p.fichero, maxw, maxh)
+        if p.dec != nil
+            if imagen_lista(p.dec)
+                img = imagen_acabar(p.dec)
+                if img == 0
+                    img = image_load(p.fichero)      # otro formato: los datatypes
                 end
-                im.por_src[p.src] = img
-                if img != 0
-                    _imagenes_tamano_de(doc, p.src, img)
-                    llegadas = llegadas + 1      # (un fondo también: hay que volver a pintar)
+                if _imagen_llegada(im, doc, p, img)
+                    llegadas = llegadas + 1
                 end
                 im.cola.remove(i)
                 continue
             end
-            activas = activas + 1
+            decodificando = decodificando + 1
+        elif p.llegada
+            if decodificando < IMAGENES_DECODIFICANDO
+                _imagen_tamano_final(im, p)
+                p.dec = imagen_empezar(p.fichero, p.maxw, p.maxh)
+                if p.dec == nil
+                    # sin otro proceso: aquí mismo
+                    if _imagen_llegada(im, doc, p, imagen_cargar_a(p.fichero, p.maxw, p.maxh))
+                        llegadas = llegadas + 1
+                    end
+                    im.cola.remove(i)
+                    continue
+                end
+                decodificando = decodificando + 1
+            end
+        else
+            if p.carga == nil and activas < IMAGENES_A_LA_VEZ
+                p.carga = http_empezar_a_fichero(p.direccion, p.fichero, 15000)
+            end
+            if p.carga != nil
+                if http_avanzar(p.carga)
+                    r = p.carga.respuesta
+                    var sin: Carga = nil
+                    p.carga = sin
+                    if r.error == "" and r.estado >= 200 and r.estado < 300
+                        p.llegada = true
+                        continue                     # (a decodificarse, en esta misma vuelta si le toca)
+                    end
+                    im.por_src[p.src] = 0
+                    im.cola.remove(i)
+                    continue
+                end
+                activas = activas + 1
+            end
         end
         i = i + 1
     end
     return llegadas
+end
+
+# Hasta dónde decodificarla: al tamaño al que se ve si el HTML lo fija (una foto de 820x480 en una casilla
+# de 225x220)
+func _imagen_tamano_final(im: Imagenes, p: Pedida)
+    if p.con_medidas and im.vistas != nil and im.vistas.has(p.src)
+        v = im.vistas[p.src]
+        if v / 65536 >= 16 and v % 65536 >= 16 and v / 65536 < p.maxw and v % 65536 < p.maxh
+            p.maxw = v / 65536
+            p.maxh = v % 65536
+        end
+    end
+end
+
+# La imagen ya decodificada, a su sitio; true si hay imagen (hay que volver a pintar: también un fondo)
+func _imagen_llegada(im: Imagenes, doc: Nodo, p: Pedida, img: Int) -> Bool
+    im.por_src[p.src] = img
+    if img == 0
+        return false
+    end
+    _imagenes_tamano_de(im, doc, p.src, img)
+    return true
 end
 
 # El tamaño al que se ve una imagen en la página (el mayor, si sale varias veces)
@@ -251,16 +298,18 @@ func imagenes_pendientes(im: Imagenes) -> Int
     return im.cola.length
 end
 
-# width/height de todos los <img src> con esa imagen
-func _imagenes_tamano_de(n: Nodo, src: String, img: Int)
+# width/height de todos los <img src> con esa imagen (los que no lo tenían: cuentan en im.cambiados)
+func _imagenes_tamano_de(im: Imagenes, n: Nodo, src: String, img: Int)
     if n == nil
         return
     end
     if n.tipo == DOM_ELEMENTO and n.nombre == "img" and dom_img_src(n) == src
-        _imagen_tamano(n, img)
+        if _imagen_tamano(n, img)
+            im.cambiados = im.cambiados + 1
+        end
     end
     for h in n.hijos
-        _imagenes_tamano_de(h, src, img)
+        _imagenes_tamano_de(im, h, src, img)
     end
 end
 
@@ -317,15 +366,15 @@ func _imagen_traer(im: Imagenes, base: Url, src: String) -> Int
     return imagen_cargar(ruta)
 end
 
-# width/height que faltan, con el tamaño real de la imagen
-func _imagen_tamano(n: Nodo, img: Int)
+# width/height que faltan, con el tamaño real de la imagen; true si les faltaba
+func _imagen_tamano(n: Nodo, img: Int) -> Bool
     if img == 0
-        return
+        return false
     end
     w = Int(dom_atributo(n, "width"))
     h = Int(dom_atributo(n, "height"))
     if w > 0 and h > 0
-        return
+        return false
     end
     rw = image_width(img)
     rh = image_height(img)
@@ -339,6 +388,7 @@ func _imagen_tamano(n: Nodo, img: Int)
     end
     _poner_atributo(n, "width", "" + w)
     _poner_atributo(n, "height", "" + h)
+    return true
 end
 
 func _poner_atributo(n: Nodo, nombre: String, valor: String)
@@ -371,6 +421,9 @@ func imagenes_liberar(im: Imagenes)
     for p in im.cola
         if p.carga != nil
             http_cancelar(p.carga)
+        end
+        if p.dec != nil
+            image_free(imagen_acabar(p.dec))      # (espera a que acabe su proceso)
         end
     end
     im.cola.clear()
