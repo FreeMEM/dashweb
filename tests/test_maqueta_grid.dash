@@ -1,0 +1,74 @@
+# Test: grid (tarea 31d). Contenedores display: grid de 600 px (fondo gris) con cajas de colores: cada caja con
+# su id, x,y relativos a su contenedor y ancho x alto. Comprobado a mano con la especificación.
+# memcheck
+# expect-out: a 0,0 200x20
+# expect-out: b 200,0 400x20
+# expect-out: c 0,20 200x20
+# expect-out: d 0,0 100x10
+# expect-out: e 110,0 380x10
+# expect-out: f 500,0 100x10
+# expect-out: g 0,0 290x30
+# expect-out: h 310,0 290x10
+# expect-out: i 0,50 290x10
+# expect-out: j 0,0 600x10
+# expect-out: k 0,10 150x40
+# expect-out: l 150,10 450x40
+# expect-out: m 0,50 600x10
+# expect-out: n 0,0 150x10
+# expect-out: o 150,0 150x10
+# expect-out: p 300,0 150x10
+# expect-out: q 450,0 150x10
+# expect-out: r 0,10 150x10
+# expect-out: s 200,0 200x10
+# expect-out: t 0,0 200x10
+# expect-out: u 400,0 200x10
+# expect-out: v 0,0 300x30
+# expect-out: w 300,0 300x30
+# expect-out: x 50,0 100x10
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+func caja(id: String, color: String, estilo: String) -> String
+    return "<div id=" + id + " style='background:" + color + ";" + estilo + "'></div>"
+end
+
+func rejilla(estilo: String, dentro: String) -> String
+    return "<div class=g style='display:grid;background:#eee;" + estilo + "'>" + dentro + "</div>"
+end
+
+Main
+    h = "<html><body style='margin:0'>"
+    # 1fr 2fr, dos filas automáticas (lo que piden sus cajas)
+    h = h + rejilla("grid-template-columns:1fr 2fr", caja("a", "red", "height:20px") + caja("b", "blue", "height:20px") + caja("c", "green", "height:20px"))
+    # fijas y fr con gap
+    h = h + rejilla("grid-template-columns:100px 1fr 100px;column-gap:10px", caja("d", "red", "height:10px") + caja("e", "blue", "height:10px") + caja("f", "green", "height:10px"))
+    # gap en los dos ejes; una fila mide lo que la caja más alta
+    h = h + rejilla("grid-template-columns:repeat(2, 1fr);gap:20px", caja("g", "red", "height:30px") + caja("h", "blue", "height:10px") + caja("i", "green", "height:10px"))
+    # áreas
+    h = h + rejilla("grid-template-columns:150px 1fr;grid-template-areas:\"cab cab\" \"lado cuerpo\" \"pie pie\"", caja("j", "red", "grid-area:cab;height:10px") + caja("k", "blue", "grid-area:lado;height:40px") + caja("l", "green", "grid-area:cuerpo") + caja("m", "black", "grid-area:pie;height:10px"))
+    # repeat(auto-fill, minmax(150px, 1fr)): 4 columnas de 150
+    h = h + rejilla("grid-template-columns:repeat(auto-fill, minmax(150px, 1fr))", caja("n", "red", "height:10px") + caja("o", "blue", "height:10px") + caja("p", "green", "height:10px") + caja("q", "black", "height:10px") + caja("r", "gray", "height:10px"))
+    # colocación explícita: columna 2, luego la 1 y la 3 (-1 es la última línea)
+    h = h + rejilla("grid-template-columns:repeat(3, 1fr)", caja("s", "red", "grid-column:2;height:10px") + caja("t", "blue", "grid-column:1 / 2;height:10px") + caja("u", "green", "grid-column:3 / -1;height:10px"))
+    # stretch: la caja sin alto toma el de su fila
+    h = h + rejilla("grid-template-columns:1fr 1fr", caja("v", "red", "height:30px") + caja("w", "blue", ""))
+    # justify-self center
+    h = h + rejilla("grid-template-columns:200px", caja("x", "red", "width:100px;height:10px;justify-self:center"))
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    p = maquetar(doc, 600)
+    cx = 0
+    cy = 0
+    for d in p.dibujos
+        if d.tipo == D_RECT and d.nodo != nil
+            if dom_atributo(d.nodo, "class") == "g"
+                cx = d.x
+                cy = d.y
+            elif dom_atributo(d.nodo, "id") != ""
+                Print dom_atributo(d.nodo, "id") + " " + (d.x - cx) + "," + (d.y - cy) + " " + d.ancho + "x" + d.alto
+            end
+        end
+    end
+end

@@ -131,7 +131,8 @@ func _estilo_leer_navegador() -> HojaCSS
     c = c + "fieldset, legend, details, summary, menu, dir, noscript { display: block } "
     c = c + "head, script, style, title, meta, link, base, template, [hidden] { display: none } "
     c = c + "li { display: list-item } table { display: table } tr { display: table-row } "
-    c = c + "td, th { display: table-cell; padding: 1px } thead, tbody, tfoot { display: table-row-group } "
+    c = c + "td, th { display: table-cell; padding: 1px; vertical-align: middle } thead, tbody, tfoot { display: table-row-group } "
+    c = c + "table { border-spacing: 2px; border-collapse: separate } caption { text-align: center } "
     c = c + "body { margin: 8px } p, dl, blockquote, pre, ul, ol, figure { margin-top: 1em; margin-bottom: 1em } "
     c = c + "h1 { font-size: 2em; margin: 0.67em 0; font-weight: bold } "
     c = c + "h2 { font-size: 1.5em; margin: 0.83em 0; font-weight: bold } "
@@ -1016,10 +1017,15 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {S
         end
     end
     var ganadoras: {String: Candidata} = nil
-    if dom_tiene_atributo(n, "style")
+    pistas = _pistas_html(n)
+    if dom_tiene_atributo(n, "style") or pistas.length > 0
         var propias: {String: Candidata} = {}
         ganadoras = propias
         _declarar_todas(cumplidas, ganadoras)
+        # los atributos de presentación (width, bgcolor, align...): de autor, pero por debajo de cualquier regla
+        for d in pistas
+            _declarar(ganadoras, d, true, -1, -1)
+        end
         for d in css_declaraciones(dom_atributo(n, "style"))
             _declarar(ganadoras, d, true, 1000000, 1000000)
         end
@@ -1045,6 +1051,9 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {S
         e["display"] = "none"
     end
     n.estilo = e
+    if n.nombre == "html" and e.has("font-size")
+        estilo_rem = estilo_px(e["font-size"], 0, 0)       # 1rem: el font-size de <html>
+    end
     n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "before"), "::before")
     n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "after"), "::after")
     _antepasados_cambiar(n, 1)
@@ -1430,6 +1439,11 @@ func estilo_px(v: String, em_px: Int, cien: Int) -> Int
     while n > i and str_code(v, n - 1) == 32
         n = n - 1
     end
+    # calc(), min(), max(), clamp() (empiezan por letra; lo demás que empieza por letra, como auto, vale 0)
+    if i < n and (str_code(v, i) == 99 or str_code(v, i) == 109 or str_code(v, i) == 67 or str_code(v, i) == 77)
+        l = Calc(v[i:n], 0, em_px, cien)
+        return _calc_suma(l).v / 100
+    end
     signo = 1
     if i < n and str_code(v, i) == 45
         signo = -1
@@ -1467,8 +1481,25 @@ func estilo_px(v: String, em_px: Int, cien: Int) -> Int
         end
         if k == 2 and a == 112 and b == 120
             r = valor / 100
-        elif (k == 2 and a == 101 and b == 109) or (k == 3 and a == 114 and b == 101 and _minuscula(str_code(v, i + 2)) == 109)
+        elif k == 2 and a == 101 and b == 109
             r = valor * em_px / 100
+        elif k == 3 and a == 114 and b == 101 and _minuscula(str_code(v, i + 2)) == 109
+            r = valor * estilo_rem / 100
+        elif k == 2 and a == 118 and b == 119
+            r = valor * estilo_vw / 10000
+        elif k == 2 and a == 118 and b == 104
+            r = valor * estilo_vh / 10000
+        elif k == 4 and a == 118 and b == 109
+            menor = estilo_vw
+            if estilo_vh < menor
+                menor = estilo_vh
+            end
+            if _minuscula(str_code(v, i + 2)) == 97
+                menor = estilo_vw + estilo_vh - menor
+            end
+            r = valor * menor / 10000
+        elif k == 2 and a == 99 and b == 104
+            r = valor * em_px / 200
         elif k == 2 and a == 101 and b == 120
             r = valor * em_px / 200
         elif k == 1 and a == 37
@@ -1488,4 +1519,347 @@ func estilo_px(v: String, em_px: Int, cien: Int) -> Int
         end
     end
     return signo * r
+end
+
+# === calc(), min(), max(), clamp() (CSS Values 4) ===
+# En centésimas de píxel. Una longitud (px, em, rem, %, vw...) pasa a px; un número sin unidad multiplica o
+# divide. El tanto por ciento es de cien (lo mismo que en estilo_px).
+
+# Lo que mide el sitio donde se ve la página (vw, vh: lo pone la maqueta) y 1rem (el font-size de <html>)
+var estilo_vw: Int = 940
+var estilo_vh: Int = 614
+var estilo_rem: Int = ESTILO_MEDIUM
+
+struct Calc
+    expr: String
+    i: Int
+    em: Int
+    cien: Int
+end
+
+struct CalcValor
+    v: Int              # px x 100, o el número x 100 si no tiene unidad
+    unidad: Bool
+end
+
+func _calc_blancos(l: Calc)
+    while l.i < l.expr.length and (str_code(l.expr, l.i) == 32 or str_code(l.expr, l.i) == 9 or str_code(l.expr, l.i) == 10)
+        l.i = l.i + 1
+    end
+end
+
+func _calc_suma(l: Calc) -> CalcValor
+    a = _calc_producto(l)
+    while true
+        _calc_blancos(l)
+        if l.i >= l.expr.length
+            break
+        end
+        c = str_code(l.expr, l.i)
+        if c != 43 and c != 45
+            break
+        end
+        l.i = l.i + 1
+        b = _calc_producto(l)
+        if c == 43
+            a.v = a.v + b.v
+        else
+            a.v = a.v - b.v
+        end
+        a.unidad = a.unidad or b.unidad
+    end
+    return a
+end
+
+func _calc_producto(l: Calc) -> CalcValor
+    a = _calc_factor(l)
+    while true
+        _calc_blancos(l)
+        if l.i >= l.expr.length
+            break
+        end
+        c = str_code(l.expr, l.i)
+        if c != 42 and c != 47
+            break
+        end
+        l.i = l.i + 1
+        b = _calc_factor(l)
+        if c == 42
+            # uno de los dos es un número
+            a = CalcValor(a.v * b.v / 100, a.unidad or b.unidad)
+        elif b.v != 0
+            a = CalcValor(a.v * 100 / b.v, a.unidad)
+        end
+    end
+    return a
+end
+
+func _calc_factor(l: Calc) -> CalcValor
+    _calc_blancos(l)
+    if l.i >= l.expr.length
+        return CalcValor(0, false)
+    end
+    c = str_code(l.expr, l.i)
+    if c == 40
+        l.i = l.i + 1
+        r = _calc_suma(l)
+        _calc_cerrar(l)
+        return r
+    end
+    if (c >= 97 and c <= 122) or (c >= 65 and c <= 90)
+        # una función: calc( min( max( clamp( (otra cosa: 0)
+        p = str_find_from(l.expr, "(", l.i)
+        if p < 0
+            l.i = l.expr.length
+            return CalcValor(0, false)
+        end
+        nombre = str_lower(l.expr[l.i:p])
+        l.i = p + 1
+        var args: [CalcValor] = []
+        while true
+            args.push(_calc_suma(l))
+            _calc_blancos(l)
+            if l.i < l.expr.length and str_code(l.expr, l.i) == 44
+                l.i = l.i + 1
+            else
+                break
+            end
+        end
+        _calc_cerrar(l)
+        r = args[0]
+        if nombre == "min" or nombre == "-webkit-min"
+            for a in args
+                if a.v < r.v
+                    r = a
+                end
+            end
+        elif nombre == "max"
+            for a in args
+                if a.v > r.v
+                    r = a
+                end
+            end
+        elif nombre == "clamp" and args.length == 3
+            r = args[1]
+            if r.v > args[2].v
+                r = args[2]
+            end
+            if r.v < args[0].v
+                r = args[0]
+            end
+        end
+        return r
+    end
+    # un número con su unidad
+    ini = l.i
+    if c == 43 or c == 45
+        l.i = l.i + 1
+    end
+    while l.i < l.expr.length
+        d = str_code(l.expr, l.i)
+        if not ((d >= 48 and d <= 57) or d == 46 or (d >= 97 and d <= 122) or (d >= 65 and d <= 90) or d == 37)
+            break
+        end
+        l.i = l.i + 1
+    end
+    t = l.expr[ini:l.i]
+    u = str_lower(t)
+    con_unidad = str_ends(u, "%") or str_ends(u, "px") or str_ends(u, "em") or str_ends(u, "rem") or str_ends(u, "vw") or str_ends(u, "vh") or str_ends(u, "vmin") or str_ends(u, "vmax") or str_ends(u, "ch") or str_ends(u, "ex") or str_ends(u, "pt") or str_ends(u, "pc") or str_ends(u, "in") or str_ends(u, "cm") or str_ends(u, "mm")
+    if con_unidad
+        # en centésimas: la misma conversión que fuera de calc, con el valor x 100
+        return CalcValor(estilo_px(_calc_por_cien(t), l.em, l.cien), true)
+    end
+    return CalcValor(estilo_px(_calc_por_cien(t), 0, 0), false)
+end
+
+func _calc_cerrar(l: Calc)
+    _calc_blancos(l)
+    if l.i < l.expr.length and str_code(l.expr, l.i) == 41
+        l.i = l.i + 1
+    end
+end
+
+# "1.5rem" -> "150rem" (para que estilo_px dé centésimas)
+func _calc_por_cien(t: String) -> String
+    i = 0
+    if i < t.length and (str_code(t, i) == 45 or str_code(t, i) == 43)
+        i = i + 1
+    end
+    entero = ""
+    while i < t.length and str_code(t, i) >= 48 and str_code(t, i) <= 57
+        entero = entero + t[i]
+        i = i + 1
+    end
+    frac = ""
+    if i < t.length and str_code(t, i) == 46
+        i = i + 1
+        while i < t.length and str_code(t, i) >= 48 and str_code(t, i) <= 57
+            if frac.length < 2
+                frac = frac + t[i]
+            end
+            i = i + 1
+        end
+    end
+    while frac.length < 2
+        frac = frac + "0"
+    end
+    signo = ""
+    if t.length > 0 and str_code(t, 0) == 45
+        signo = "-"
+    end
+    if entero == ""
+        entero = "0"
+    end
+    return signo + entero + frac + t[i:]
+end
+
+# === Atributos de presentación de HTML (HTML, "Rendering": las pistas de presentación) ===
+
+# "100" -> "100px"; "50%" se queda; otra cosa: ""
+func _html_largo(v: String) -> String
+    x = str_trim(v)
+    if x == ""
+        return ""
+    end
+    c = str_code(x, 0)
+    if not (c >= 48 and c <= 57)
+        return ""
+    end
+    if str_ends(x, "%")
+        return x
+    end
+    i = 0
+    while i < x.length and str_code(x, i) >= 48 and str_code(x, i) <= 57
+        i = i + 1
+    end
+    return x[:i] + "px"
+end
+
+func _pista(r: [Declaracion], p: String, v: String)
+    if v != ""
+        r.push(Declaracion(p, v, false))
+    end
+end
+
+# La tabla de una celda o fila (para cellpadding y border)
+func _tabla_de(n: Nodo) -> Nodo
+    p = n.padre
+    while p != nil
+        if p.tipo == DOM_ELEMENTO and p.nombre == "table"
+            return p
+        end
+        p = p.padre
+    end
+    var nada: Nodo = nil
+    return nada
+end
+
+func _pistas_html(n: Nodo) -> [Declaracion]
+    var r: [Declaracion] = []
+    if n.atributos.length == 0 and n.nombre != "td" and n.nombre != "th"
+        return r
+    end
+    nombre = n.nombre
+    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "col" or nombre == "colgroup" or nombre == "hr" or nombre == "iframe" or nombre == "embed" or nombre == "object" or nombre == "canvas"
+        _pista(r, "width", _html_largo(dom_atributo(n, "width")))
+    end
+    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "tr" or nombre == "iframe" or nombre == "embed" or nombre == "object" or nombre == "canvas"
+        _pista(r, "height", _html_largo(dom_atributo(n, "height")))
+    end
+    if nombre == "body" or nombre == "table" or nombre == "tr" or nombre == "td" or nombre == "th" or nombre == "thead" or nombre == "tbody" or nombre == "tfoot"
+        _pista(r, "background-color", str_trim(dom_atributo(n, "bgcolor")))
+        if dom_atributo(n, "background") != ""
+            _pista(r, "background-image", "url(" + dom_atributo(n, "background") + ")")
+        end
+    end
+    if nombre == "body"
+        _pista(r, "color", str_trim(dom_atributo(n, "text")))
+    end
+    al = str_lower(str_trim(dom_atributo(n, "align")))
+    if al != ""
+        if nombre == "table"
+            if al == "center"
+                _pista(r, "margin-left", "auto")
+                _pista(r, "margin-right", "auto")
+            elif al == "left" or al == "right"
+                _pista(r, "float", al)
+            end
+        elif nombre == "img" or nombre == "iframe" or nombre == "object" or nombre == "embed"
+            if al == "left" or al == "right"
+                _pista(r, "float", al)
+            end
+        elif al == "left" or al == "right" or al == "center" or al == "justify"
+            _pista(r, "text-align", al)
+        end
+    end
+    va = str_lower(str_trim(dom_atributo(n, "valign")))
+    if va != ""
+        _pista(r, "vertical-align", va)
+    end
+    if nombre == "table"
+        b = dom_atributo(n, "border")
+        if dom_tiene_atributo(n, "border")
+            px = _html_largo(b)
+            if b == ""
+                px = "1px"
+            end
+            if px != "0px" and px != ""
+                _pista(r, "border-top-width", px)
+                _pista(r, "border-right-width", px)
+                _pista(r, "border-bottom-width", px)
+                _pista(r, "border-left-width", px)
+                for lado in ["top", "right", "bottom", "left"]
+                    _pista(r, "border-" + lado + "-style", "outset")
+                    _pista(r, "border-" + lado + "-color", "gray")
+                end
+            end
+        end
+        _pista(r, "border-spacing", _html_largo(dom_atributo(n, "cellspacing")))
+    end
+    if nombre == "td" or nombre == "th"
+        tabla = _tabla_de(n)
+        if tabla != nil
+            cp = _html_largo(dom_atributo(tabla, "cellpadding"))
+            if cp != ""
+                for lado in ["top", "right", "bottom", "left"]
+                    _pista(r, "padding-" + lado, cp)
+                end
+            end
+            if dom_tiene_atributo(tabla, "border") and dom_atributo(tabla, "border") != "0"
+                for lado in ["top", "right", "bottom", "left"]
+                    _pista(r, "border-" + lado + "-width", "1px")
+                    _pista(r, "border-" + lado + "-style", "inset")
+                    _pista(r, "border-" + lado + "-color", "gray")
+                end
+            end
+        end
+        if dom_tiene_atributo(n, "nowrap")
+            _pista(r, "white-space", "nowrap")
+        end
+    end
+    if nombre == "font"
+        _pista(r, "color", str_trim(dom_atributo(n, "color")))
+        _pista(r, "font-family", str_trim(dom_atributo(n, "face")))
+        tam = str_trim(dom_atributo(n, "size"))
+        if tam != ""
+            # 1..7 (o +n/-n desde 3): xx-small .. xxx-large
+            k = 3
+            if str_starts(tam, "+")
+                k = 3 + Int(tam[1:])
+            elif str_starts(tam, "-")
+                k = 3 - Int(tam[1:])
+            else
+                k = Int(tam)
+            end
+            tamanos = ["x-small", "x-small", "small", "medium", "large", "x-large", "xx-large", "xx-large"]
+            if k < 1
+                k = 1
+            end
+            if k > 7
+                k = 7
+            end
+            _pista(r, "font-size", tamanos[k])
+        end
+    end
+    return r
 end

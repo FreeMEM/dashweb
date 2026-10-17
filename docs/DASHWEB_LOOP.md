@@ -350,14 +350,16 @@ tarea, con el estilo de Dash.
            batería: son webs de terceros).
       [x] 31b. Flexbox (CSS Flexible Box Layout 1): flex-direction, flex-wrap, flex-grow/shrink/basis, justify-content,
            align-items/self/content, order, gap, márgenes auto, inline-flex, mínimos automáticos.
-      31c. calc(), min(), max(), clamp() y las unidades que faltan (vw, vh, vmin, vmax, ch, ex; rem y em en todo).
-      31d. Grid (CSS Grid 1): grid-template-columns/rows (fr, repeat, minmax, auto-fill/fit), áreas, gap, colocación
+      [x] 31c. calc(), min(), max(), clamp() y las unidades que faltan (vw, vh, vmin, vmax, ch, ex; rem y em en todo).
+      [x] 31d. Grid (CSS Grid 1): grid-template-columns/rows (fr, repeat, minmax, auto-fill/fit), áreas, gap, colocación
            automática y explícita, alineación.
-      31e. Apilado y recorte: z-index (contextos de apilado), overflow (hidden, auto, scroll: recorte), position
+      [x] 31e. Apilado y recorte: z-index (contextos de apilado), overflow (hidden, auto, scroll: recorte), position
            sticky.
-      31f. border-radius de verdad (esquinas redondeadas con su radio, también en fondos e imágenes), box-shadow.
-      31g. vertical-align, tablas completas (colspan/rowspan, anchos automáticos), aspect-ratio, object-fit.
+      [x] 31f. border-radius de verdad (esquinas redondeadas con su radio, también en fondos e imágenes), box-shadow.
+      [x] 31g. vertical-align, tablas completas (colspan/rowspan, anchos automáticos), aspect-ratio, object-fit.
       31h. @font-face (fuentes de la web: woff/woff2/ttf) y font-weight/style reales.
+      31j. ami64.com sale en blanco (averiguar); amigang.com, la cabecera rota; muylinux.com, el menú escondido sale
+           a la vista; dpms.freemem.space, la imagen de fondo enorme (primera comparación, 2026-10-17).
       31i. SVG dentro de la página (<svg> con sus hijos, <use href="#icono"> de un sprite): los iconos y logos de
            casi todas las webs de la lista salen como cuadraditos vacíos (xataka.com, la primera comparación).
       Webs de prueba (del usuario): https://trainalong.fit/ https://meneame.net https://xataka.com
@@ -1614,3 +1616,49 @@ Formato:
 - D49 encargado (fallo de Dash): una variable con el [String] que devuelve una función perdía el tipo de sus
   elementos en un for (en `_flex_atajo`, rodeado con `var partes: [String]`). Arreglado en la rama `tipolista`.
 - Base: 38/38.
+
+### 2026-10-17 — Primera comparación con Chrome (13 webs)
+- Casi igual: freemem.space, amigastore.eu. Cerca pero sin iconos ni logo (SVG dentro de la página, 31i):
+  xataka.com, meneame.net (Chrome tapa la página con el aviso de cookies). Sin el fondo y el texto grande del bloque
+  principal: commodoremalacca.club, trainalong.fit. Tablas con las columnas mal: aminet.net (31g). amigang.com
+  (cabecera), muylinux.com (logo, menú escondido a la vista), dpms.freemem.space (fondo enorme), ami64.com (en
+  blanco): 31j. amigaworld.net: Chrome no la cargó a tiempo. amiga.abime.net: las dos se quedan en su pantalla
+  antirobots (Anubis). Mosaicos enviados al usuario.
+
+### 2026-10-17 — Tareas 31c a 31f (calc y unidades; grid; z-index y overflow; border-radius y box-shadow)
+- 31c (`lib/estilo.dash`): calc(), min(), max() y clamp() (anidados, con paréntesis, + - * /, en centésimas de
+  píxel) dentro de estilo_px, solo cuando el valor empieza por letra (lo normal sigue igual de rápido). rem es
+  ahora el font-size de <html> (antes valía como em). vw, vh, vmin, vmax (de la zona de la página: estilo_vw lo
+  pone maquetar, estilo_vh dashweb) y ch. Test `test_estilo_calc`.
+- 31d (`lib/maqueta.dash`, `_grid`): CSS Grid 1: pistas (px, %, fr, auto, min-content, max-content, minmax,
+  fit-content, repeat con auto-fill/auto-fit), grid-template-areas, colocación explícita (números, negativos,
+  span, áreas, grid-column/row/area) y automática (row y column, sin dense), pistas implícitas, tamaño de las
+  pistas (lo que piden los elementos, el libre hasta los límites, las fr sin bajar de su base, las auto
+  estiradas), gap, justify/align-content y justify/align-self (stretch vuelve a maquetar). Test
+  `test_maqueta_grid` (24 cajas en 8 casos; un fallo de verdad encontrado: justify-self con width fijado).
+- 31e: z-index (cada elemento posicionado con z-index pone su capa a todo lo suyo; la página se ordena por
+  capas al final, estable) y overflow hidden/clip/auto/scroll (lo de dentro lleva su recorte, también anidado,
+  y el pintor pinta solo ahí). position: sticky sigue en su sitio (como relative). Test `test_maqueta_capas`.
+- 31f: border-radius de verdad (1 a 4 radios, px/em/%; D_REDONDO: el pintor rellena fila a fila en las
+  esquinas, o solo el anillo si es un borde; con transparencia y recorte) y box-shadow (la primera no inset:
+  desplazada y con su extensión, más clara si es difuminada; redondeada si la caja lo es). En
+  `test_maqueta_capas` (píxeles de la esquina, el medio y el borde).
+- D49 (Dash, listas devueltas por funciones) fusionada; el rodeo de `_flex_atajo` ya no hace falta.
+
+### 2026-10-17 — Tarea 31g (tablas, atributos de presentación, aspect-ratio, object-fit)
+- Tablas según CSS 2.1 (17.5): rejilla con colspan y rowspan (también rowspan=0), anchos automáticos (mínimo y
+  máximo de cada columna por su contenido o su width; las celdas de varias columnas reparten lo que les falta; la
+  tabla reparte entre mínimo y máximo, o lo que sobra en proporción a las columnas sin ancho fijado),
+  table-layout: fixed, border-spacing (0 con border-collapse), caption, alto de las filas (rowspan: lo que falta a
+  la última), fondo de las filas y vertical-align de las celdas (middle por omisión, top, bottom: la celda se
+  vuelve a maquetar con el alto de su área y su contenido baja; sus fondos y bordes no). Antes: anchos iguales.
+- Atributos de presentación de HTML (la parte "Rendering" de HTML), como CSS de autor que pierde con cualquier
+  regla: width/height, bgcolor, background, align (tabla centrada o flotante; texto), valign, border, cellspacing,
+  cellpadding (de su tabla), nowrap, text de body, y color/face/size de <font>. En la hoja del navegador:
+  border-spacing 2px, vertical-align middle en las celdas.
+- `_ancho_flotante` (lo que mide el contenido, para flex, grid y tablas) cuenta ahora las cajas de los elementos
+  con width fijado (antes solo el contenido: un <div> de ancho fijo con fondo medía 0).
+- aspect-ratio (con el alto sin fijar) y object-fit (contain, cover, scale-down) en las imágenes.
+- Test `test_maqueta_tabla` (16 cajas en 7 casos). test_maqueta: su tabla ahora se ajusta al contenido y lleva
+  border-spacing (como Chrome): sus líneas esperadas, al día. Base: 42/42 (test_http_seguir falló una vez por
+  servidores de pruebas huérfanos de una batería parada a mano; sin ellos, pasa).

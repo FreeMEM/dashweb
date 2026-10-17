@@ -232,6 +232,7 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         return
     end
     if w.actual.pagina == nil or w.actual.ancho != ancho
+        estilo_vh = alto           # (vh: el alto de donde se ve la página)
         documento_maquetar(w.actual, ancho)
         mui_timer(1, ID_RANGO)
     end

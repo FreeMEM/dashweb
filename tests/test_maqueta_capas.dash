@@ -1,0 +1,55 @@
+# Test: z-index y overflow (tarea 31e). Tres cajas posicionadas que se tapan: con z-index 2, 1 y -1 se pintan
+# en el orden -1, 1, 2 (la de -1, debajo del fondo del contenedor, que no está posicionado). overflow:hidden:
+# una caja de 50 px dentro de otra de 20 px de alto no se ve más abajo de los 20 px (se pinta en una ventana y se
+# leen los lápices: rojo dentro, el fondo debajo). border-radius (tarea 31f): una caja roja de 60x40 con radio
+# 20: la esquina de arriba a la izquierda es del fondo, el medio rojo; con borde de 4 px, el centro sin rellenar.
+# memcheck
+# expect-out: orden: menos uno dos
+# expect-out: dentro rojo: true
+# expect-out: debajo rojo: false
+# expect-out: esquina rojo: false (medio true)
+# expect-out: borde: true true false
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/pintor.dash"
+
+Window W
+    title "Capas"
+    width 300
+    height 160
+end
+
+Main
+    h = "<html><body style='margin:0;background:#fff'>"
+    h = h + "<div style='position:relative;height:40px'>"
+    h = h + "<div id=dos style='position:absolute;left:0;top:0;width:30px;height:30px;background:red;z-index:2'></div>"
+    h = h + "<div id=uno style='position:absolute;left:10px;top:10px;width:30px;height:30px;background:blue;z-index:1'></div>"
+    h = h + "<div id=menos style='position:absolute;left:20px;top:20px;width:30px;height:30px;background:green;z-index:-1'></div>"
+    h = h + "</div>"
+    h = h + "<div style='height:20px;overflow:hidden;background:#fff'><div style='height:50px;background:red'></div></div>"
+    h = h + "<div style='margin-left:150px;width:60px;height:40px;background:red;border-radius:20px'></div>"
+    h = h + "<div style='margin-left:150px;width:52px;height:32px;border:4px solid red;border-radius:12px'></div>"
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    p = maquetar(doc, 280)
+    orden = ""
+    for d in p.dibujos
+        if d.tipo == D_RECT and d.nodo != nil and dom_atributo(d.nodo, "id") != ""
+            orden = orden + " " + dom_atributo(d.nodo, "id")
+        end
+    end
+    Print "orden:" + orden
+    W.open
+    x0 = W.inner_left
+    y0 = W.inner_top
+    pintar(p, nil, 0, x0, y0, 280, 140)
+    rojo = gfx_pixel_read(x0 + 5, y0 + 5)
+    Print "dentro rojo: " + (gfx_pixel_read(x0 + 100, y0 + 50) == rojo)
+    Print "debajo rojo: " + (gfx_pixel_read(x0 + 100, y0 + 70) == rojo)
+    # la caja redondeada: y de 60 a 99 (40 + 20 de las de antes), x de 150 a 209
+    Print "esquina rojo: " + (gfx_pixel_read(x0 + 151, y0 + 61) == rojo) + " (medio " + (gfx_pixel_read(x0 + 180, y0 + 80) == rojo) + ")"
+    # la del borde: y de 100 a 139
+    Print "borde: " + (gfx_pixel_read(x0 + 152, y0 + 120) == rojo) + " " + (gfx_pixel_read(x0 + 180, y0 + 101) == rojo) + " " + (gfx_pixel_read(x0 + 180, y0 + 120) == rojo)
+    W.close
+end

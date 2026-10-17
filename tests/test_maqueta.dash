@@ -16,21 +16,21 @@
 # expect-out: R 34,100 4x4 c=0
 # expect-out: T 44,119 [p] c=0 e=0
 # expect-out: T 24,119 [1.] c=0 e=0
-# expect-out: T 5,143 [c1] c=0 e=0
-# expect-out: T 81,143 [c2] c=0 e=0
-# expect-out: R 4,153 152x16 c=ffff00
-# expect-out: T 7,157 [k] c=0 e=0
-# expect-out: R 4,153 152x1 c=ff
-# expect-out: R 4,168 152x1 c=ff
-# expect-out: R 4,153 1x16 c=ff
-# expect-out: R 155,153 1x16 c=ff
-# expect-out: T 4,183 [a  b] c=0 e=0
-# expect-out: T 4,193 [c] c=0 e=0
-# expect-out: I 4,216 10x12 f.png
-# expect-out: T 4,236 [aaaa bbbb cccc ] c=0 e=0
-# expect-out: T 4,246 [dddd] c=ee e=1 ->y.html
-# expect-out: T 36,246 [.] c=0 e=0
-# expect-out: alto 265 fondo ffffff
+# expect-out: T 7,145 [c1] c=0 e=0
+# expect-out: T 27,145 [c2] c=0 e=0
+# expect-out: R 4,157 152x16 c=ffff00
+# expect-out: T 7,161 [k] c=0 e=0
+# expect-out: R 4,157 152x1 c=ff
+# expect-out: R 4,172 152x1 c=ff
+# expect-out: R 4,157 1x16 c=ff
+# expect-out: R 155,157 1x16 c=ff
+# expect-out: T 4,187 [a  b] c=0 e=0
+# expect-out: T 4,197 [c] c=0 e=0
+# expect-out: I 4,220 10x12 f.png
+# expect-out: T 4,240 [aaaa bbbb cccc ] c=0 e=0
+# expect-out: T 4,250 [dddd] c=ee e=1 ->y.html
+# expect-out: T 36,250 [.] c=0 e=0
+# expect-out: alto 269 fondo ffffff
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"

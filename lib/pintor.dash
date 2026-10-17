@@ -36,8 +36,30 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         end
         y = y0 + d.y - desde
         x = x0 + d.x
+        # lo visible: la zona, o su recorte (overflow) dentro de ella
+        cx0 = x0
+        cy0 = y0
+        cx1 = derecha
+        cy1 = abajo
+        if d.recorte
+            if x0 + d.rx0 > cx0
+                cx0 = x0 + d.rx0
+            end
+            if y0 + d.ry0 - desde > cy0
+                cy0 = y0 + d.ry0 - desde
+            end
+            if x0 + d.rx1 < cx1
+                cx1 = x0 + d.rx1
+            end
+            if y0 + d.ry1 - desde < cy1
+                cy1 = y0 + d.ry1 - desde
+            end
+            if cx0 > cx1 or cy0 > cy1
+                continue
+            end
+        end
         if d.tipo == D_TEXTO
-            if y >= y0 and y + d.alto - 1 <= abajo and x <= derecha
+            if y >= cy0 and y + d.alto - 1 <= cy1 and x <= cx1 and x + d.ancho > cx0
                 font_use(d.fuente)
                 font_style(d.estilo)
                 gfx_pen(_lapiz(d.color))
@@ -53,26 +75,28 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                     gfx_text_at(x, y + font_baseline(), d.texto)
                 end
             end
+        elif d.tipo == D_REDONDO
+            _redondo_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_RECT and d.espaciado > 0
-            _mezcla_recortada(x, y, d.ancho, d.alto, x0, y0, derecha, abajo, d.color, d.espaciado)
+            _mezcla_recortada(x, y, d.ancho, d.alto, cx0, cy0, cx1, cy1, d.color, d.espaciado)
         elif d.tipo == D_RECT or d.tipo == D_LINEA
-            _rect_recortado(x, y, d.ancho, d.alto, x0, y0, derecha, abajo, _lapiz(d.color))
+            _rect_recortado(x, y, d.ancho, d.alto, cx0, cy0, cx1, cy1, _lapiz(d.color))
         elif d.tipo == D_CONTROL
-            _control_pintar(d, x, y, x0, y0, derecha, abajo)
+            _control_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_ICONO
-            if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
+            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
                 _icono_pintar(d, x, y)
             end
         elif d.tipo == D_ELIPSE
-            if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
+            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
                 _elipse_pintar(d, x, y)
             end
         elif d.tipo == D_VIDEO
-            _video_dibujo(d, im, x, y, x0, y0, derecha, abajo)
+            _video_dibujo(d, im, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_DEGRADADO
-            _degradado_pintar(d, x, y, x0, y0, derecha, abajo)
+            _degradado_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_TRAZO
-            if y >= y0 and y + d.alto - 1 <= abajo and x + d.ancho - 1 <= derecha
+            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
                 gfx_pen(_lapiz(d.color))
                 g = d.fuente
                 if g < 1
@@ -87,22 +111,25 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                 end
             end
         elif d.tipo == D_FONDO and im != nil
-            _fondo_pintar(im, d, x, y, x0, y0, derecha, abajo)
+            _fondo_pintar(im, d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_IMAGEN
             img = 0
+            if im != nil and d.nodo != nil and _imagen_ajustada(im, d, x, y, cx0, cy0, cx1, cy1)
+                continue
+            end
             if im != nil
                 img = imagenes_a_tamano(im, d.texto, d.ancho, d.alto)
             end
             if img != 0
-                _imagen_recortada(img, x, y, d.ancho, d.alto, x0, y0, derecha, abajo)
+                _imagen_recortada(img, x, y, d.ancho, d.alto, cx0, cy0, cx1, cy1)
                 continue
             end
             # sin imagen: su hueco con un marco gris
             gris = _lapiz(12632256)
-            _rect_recortado(x, y, d.ancho, 1, x0, y0, derecha, abajo, gris)
-            _rect_recortado(x, y + d.alto - 1, d.ancho, 1, x0, y0, derecha, abajo, gris)
-            _rect_recortado(x, y, 1, d.alto, x0, y0, derecha, abajo, gris)
-            _rect_recortado(x + d.ancho - 1, y, 1, d.alto, x0, y0, derecha, abajo, gris)
+            _rect_recortado(x, y, d.ancho, 1, cx0, cy0, cx1, cy1, gris)
+            _rect_recortado(x, y + d.alto - 1, d.ancho, 1, cx0, cy0, cx1, cy1, gris)
+            _rect_recortado(x, y, 1, d.alto, cx0, cy0, cx1, cy1, gris)
+            _rect_recortado(x + d.ancho - 1, y, 1, d.alto, cx0, cy0, cx1, cy1, gris)
         end
     end
     font_style(0)
@@ -727,4 +754,183 @@ func pintar_videos(p: Pagina, desde: Int, x0: Int, y0: Int, ancho: Int, alto: In
             _video_dibujo(d, sin, x0 + d.x, y0 + d.y - desde, x0, y0, x0 + ancho - 1, y0 + alto - 1)
         end
     end
+end
+
+# === Cajas con las esquinas redondeadas (border-radius) ===
+
+func _raiz(n: Int) -> Int
+    if n <= 0
+        return 0
+    end
+    r = n
+    s = (r + 1) / 2
+    while s < r
+        r = s
+        s = (r + n / r) / 2
+    end
+    return r
+end
+
+# Cuánto entra la esquina de radio r en la fila f contada desde su borde (0: la fila del borde)
+func _entra(r: Int, f: Int) -> Int
+    if r <= 0 or f >= r
+        return 0
+    end
+    dy = r - f
+    return r - _raiz(r * r - dy * dy + r)
+end
+
+# Lo que entran los lados izquierdo y derecho en la fila f de una caja de alto h con esos radios
+func _entra_izq(tl: Int, bl: Int, h: Int, f: Int) -> Int
+    if f < tl
+        return _entra(tl, f)
+    end
+    if f >= h - bl
+        return _entra(bl, h - 1 - f)
+    end
+    return 0
+end
+
+func _tramo(x0: Int, x1: Int, y: Int, cx0: Int, cy0: Int, cx1: Int, cy1: Int, lapiz: Int, rgb: Int, alfa: Int)
+    if y < cy0 or y > cy1
+        return
+    end
+    a = x0
+    b = x1
+    if a < cx0
+        a = cx0
+    end
+    if b > cx1
+        b = cx1
+    end
+    if a > b
+        return
+    end
+    if alfa > 0
+        gfx_blend_rect(a, y, b, y, rgb, alfa)
+    else
+        gfx_pen(lapiz)
+        gfx_rect(a, y, b, y)
+    end
+end
+
+# Rellena (estilo 0) o el borde de estilo px; fila a fila en las esquinas, de una vez en el medio
+func _redondo_pintar(d: Dibujo, x: Int, y: Int, cx0: Int, cy0: Int, cx1: Int, cy1: Int)
+    tl = (d.radio / 16777216) % 256
+    tr = (d.radio / 65536) % 256
+    br = (d.radio / 256) % 256
+    bl = d.radio % 256
+    w = d.ancho
+    h = d.alto
+    if w <= 0 or h <= 0
+        return
+    end
+    lapiz = _lapiz(d.color)
+    alfa = d.espaciado
+    arriba = tl
+    if tr > arriba
+        arriba = tr
+    end
+    abajo_r = bl
+    if br > abajo_r
+        abajo_r = br
+    end
+    g = d.estilo
+    f = -1
+    while f < h - 1
+        f = f + 1
+        yy = y + f
+        if yy < cy0 or yy > cy1
+            continue
+        end
+        if f >= arriba and f < h - abajo_r and (g == 0 or (f >= g and f < h - g))
+            # el medio: de una vez
+            if g == 0
+                hasta = h - abajo_r - 1
+                if y + hasta > cy1
+                    hasta = cy1 - y
+                end
+                if alfa > 0
+                    _mezcla_recortada(x, yy, w, hasta - f + 1, cx0, cy0, cx1, cy1, d.color, alfa)
+                else
+                    _rect_recortado(x, yy, w, hasta - f + 1, cx0, cy0, cx1, cy1, lapiz)
+                end
+                f = hasta
+                continue
+            end
+            _tramo(x, x + g - 1, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
+            _tramo(x + w - g, x + w - 1, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
+            continue
+        end
+        izq = _entra_izq(tl, bl, h, f)
+        der = _entra_izq(tr, br, h, f)
+        if g == 0 or f < g or f >= h - g
+            _tramo(x + izq, x + w - 1 - der, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
+        else
+            # el borde: de fuera a la curva de dentro (radios menos el grosor)
+            ii = g + _entra_izq(tl - g, bl - g, h - 2 * g, f - g)
+            id = g + _entra_izq(tr - g, br - g, h - 2 * g, f - g)
+            _tramo(x + izq, x + ii - 1, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
+            _tramo(x + w - id, x + w - 1 - der, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
+        end
+    end
+end
+
+# object-fit: contain (cabe entera, centrada) o cover (llena la caja, centrada y recortada); false si es fill (lo
+# de siempre: estirada a la caja) o no se sabe
+func _imagen_ajustada(im: Imagenes, d: Dibujo, x: Int, y: Int, cx0: Int, cy0: Int, cx1: Int, cy1: Int) -> Bool
+    of = ""
+    if d.nodo.estilo.has("object-fit")
+        of = d.nodo.estilo["object-fit"]
+    end
+    if of != "contain" and of != "cover" and of != "scale-down"
+        return false
+    end
+    orig = imagenes_cargada(im, d.texto)
+    if orig == 0 or d.ancho <= 0 or d.alto <= 0
+        return false
+    end
+    iw = image_width(orig)
+    ih = image_height(orig)
+    if iw <= 0 or ih <= 0
+        return false
+    end
+    cubrir = of == "cover"
+    sw = d.ancho
+    sh = ih * d.ancho / iw
+    if (cubrir and sh < d.alto) or (not cubrir and sh > d.alto)
+        sh = d.alto
+        sw = iw * d.alto / ih
+    end
+    if of == "scale-down" and (sw > iw or sh > ih)
+        sw = iw
+        sh = ih
+    end
+    if sw < 1 or sh < 1
+        return false
+    end
+    a = cx0
+    if x > a
+        a = x
+    end
+    b = cy0
+    if y > b
+        b = y
+    end
+    c = cx1
+    if x + d.ancho - 1 < c
+        c = x + d.ancho - 1
+    end
+    e = cy1
+    if y + d.alto - 1 < e
+        e = y + d.alto - 1
+    end
+    if a > c or b > e
+        return true
+    end
+    img = imagenes_a_tamano(im, d.texto, sw, sh)
+    if img != 0
+        _imagen_recortada(img, x + (d.ancho - sw) / 2, y + (d.alto - sh) / 2, sw, sh, a, b, c, e)
+    end
+    return true
 end

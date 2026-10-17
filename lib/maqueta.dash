@@ -27,6 +27,9 @@ const D_FONDO = 6        # la imagen de fondo de una caja (texto: su dirección)
 const D_ELIPSE = 8       # una caja redonda (border-radius: 50 %): estilo, el grosor del borde (0: rellena)
 const D_DEGRADADO = 10   # un linear-gradient de fondo: color/estilo, el primer color y su alfa (0-255);
                          # fuente/espaciado, el último; texto "v" (de arriba abajo) o "h" (de izquierda a derecha)
+const D_REDONDO = 12     # una caja con las esquinas redondeadas (border-radius): radio, los cuatro radios (1 byte
+                         # cada uno: arriba-izq, arriba-der, abajo-der, abajo-izq); estilo, el grosor del borde
+                         # (0: rellena); espaciado > 0: con esa opacidad
 const D_VIDEO = 11       # un vídeo (<video>): texto, su dirección; nodo, el elemento (lib/videos.dash lo pinta)
 const D_TRAZO = 9        # una barra girada 45 grados (transform: rotate): estilo 0 de arriba a la izquierda
                          # abajo a la derecha, 1 de abajo a la izquierda arriba a la derecha; fuente, su grosor
@@ -48,6 +51,13 @@ struct Dibujo
     enlace: String
     nodo: Nodo = nil     # el elemento que lo puso (para saber qué hay bajo un clic)
     espaciado: Int = 0   # letter-spacing: px de más detrás de cada letra (el pintor las pone una a una)
+    radio: Int = 0       # D_REDONDO: los cuatro radios
+    capa: Int = 0        # z-index del contexto de apilado donde está (se pintan de menor a mayor)
+    recorte: Bool = false   # overflow: solo se pinta lo que cae en rx0..rx1, ry0..ry1 (coordenadas de página)
+    rx0: Int = 0
+    ry0: Int = 0
+    rx1: Int = 0
+    ry1: Int = 0
 end
 
 struct Pagina
@@ -248,6 +258,7 @@ var _fuentes_abiertas: {String: Int} = {}
 var _topaz: Int = 0
 
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
+    estilo_vw = ancho              # (vw: el ancho de donde se ve la página)
     var dibujos: [Dibujo] = []
     p = Pagina(dibujos, ancho, 0, 16777215)
     if _topaz == 0
@@ -265,7 +276,51 @@ func maquetar(doc: Nodo, ancho: Int) -> Pagina
         end
     end
     p.alto = _bloque(m, html, 0, 0, ancho)
+    _por_capas(p)
     return p
+end
+
+# z-index: los dibujos de menor a mayor capa, sin cambiar el orden dentro de cada una
+func _por_capas(p: Pagina)
+    hay = false
+    for d in p.dibujos
+        if d.capa != 0
+            hay = true
+            break
+        end
+    end
+    if not hay
+        return
+    end
+    var capas: [Int] = []
+    var vistas: {String: Bool} = {}
+    for d in p.dibujos
+        if not vistas.has("" + d.capa)
+            vistas["" + d.capa] = true
+            capas.push(d.capa)
+        end
+    end
+    # (pocas capas: inserción)
+    i = 1
+    while i < capas.length
+        j = i
+        while j > 0 and capas[j - 1] > capas[j]
+            c = capas[j - 1]
+            capas[j - 1] = capas[j]
+            capas[j] = c
+            j = j - 1
+        end
+        i = i + 1
+    end
+    var orden: [Dibujo] = []
+    for c in capas
+        for d in p.dibujos
+            if d.capa == c
+                orden.push(d)
+            end
+        end
+    end
+    p.dibujos = orden
 end
 
 # Coloca un elemento de bloque en (x, y) con ese ancho; devuelve el alto que ocupa, márgenes incluidos
@@ -282,6 +337,15 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if n.estilo.has("transform") and n.estilo["transform"] != "none"
         _transformar(m, n.estilo["transform"], antes)
     end
+    # z-index en un elemento posicionado: un contexto de apilado con todo lo suyo (el de fuera manda)
+    if n.estilo.has("z-index") and n.estilo["z-index"] != "auto" and _val(n.estilo, "position", "static") != "static"
+        z = Int(n.estilo["z-index"])
+        i = antes
+        while i < m.pagina.dibujos.length
+            m.pagina.dibujos[i].capa = z
+            i = i + 1
+        end
+    end
     if _invisible(n)
         # ocupa su sitio pero no se pinta (visibility: hidden, opacity: 0)
         while m.pagina.dibujos.length > antes
@@ -297,6 +361,7 @@ end
 
 func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
     e = n.estilo
+    inicio = m.pagina.dibujos.length
     mt = _px(e, "margin-top", contenedor)
     mb = _px(e, "margin-bottom", contenedor)
     ml = _px(e, "margin-left", contenedor)
@@ -348,6 +413,19 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             fondo = -1
         end
     end
+    # box-shadow (la primera que no es inset), debajo del fondo
+    var sombra: Dibujo = nil
+    sombra_v = [0, 0, 0, 0]
+    if e.has("box-shadow") and e["box-shadow"] != "none"
+        sombra = _sombra(e["box-shadow"], estilo_px(_val(e, "font-size", "16px"), 0, 0), sombra_v)
+        if sombra != nil
+            sombra.x = x + ml + sombra_v[0] - sombra_v[3]
+            sombra.y = y + mt + sombra_v[1] - sombra_v[3]
+            sombra.ancho = interior + bl + br + pl + pr + sombra_v[3] * 2
+            sombra.nodo = n
+            m.pagina.dibujos.push(sombra)
+        end
+    end
     var caja_fondo: Dibujo = nil
     if fondo >= 0
         caja_fondo = _dibujo(D_RECT, x + ml, y + mt, interior + bl + br + pl + pr, 0, fondo)
@@ -377,7 +455,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     alto = 0
     if e["display"] == "table"
         alto = _tabla(m, n, cx, cy, interior)
-    elif e["display"] == "flex" or e["display"] == "inline-flex"
+    elif e["display"] == "flex" or e["display"] == "inline-flex" or e["display"] == "grid" or e["display"] == "inline-grid"
         # el alto del contenido si está fijado (lo necesitan las columnas y el estirado de una línea)
         alto_fijo = -1
         if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
@@ -389,7 +467,11 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
                 alto_fijo = 0
             end
         end
-        alto = _flex(m, n, cx, cy, interior, alto_fijo)
+        if e["display"] == "grid" or e["display"] == "inline-grid"
+            alto = _grid(m, n, cx, cy, interior, alto_fijo)
+        else
+            alto = _flex(m, n, cx, cy, interior, alto_fijo)
+        end
     else
         alto = _contenido(m, n, cx, cy, interior)
     end
@@ -400,6 +482,16 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         alto = _px(e, "height", 0)
         if e.has("box-sizing") and e["box-sizing"] == "border-box"
             alto = alto - bt - bb - pt - pb
+        end
+    end
+    # aspect-ratio con el alto sin fijar: el alto que da la proporción con el ancho (o el contenido, si es más)
+    if e.has("aspect-ratio") and e["aspect-ratio"] != "auto" and _val(e, "height", "auto") == "auto"
+        proporcion = _proporcion(e["aspect-ratio"])
+        if proporcion > 0
+            por_ancho = interior * 1000 / proporcion
+            if alto < por_ancho
+                alto = por_ancho
+            end
         end
     end
     if e.has("min-height") and not str_ends(e["min-height"], "%")
@@ -422,10 +514,26 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     end
     alto_caja = bt + pt + alto + pb + bb
     redonda = _redonda(e, interior + bl + br + pl + pr, alto_caja)
+    radios = 0
+    if not redonda
+        radios = _radios(e, interior + bl + br + pl + pr, alto_caja)
+    end
+    if sombra != nil
+        sombra.alto = alto_caja + sombra_v[3] * 2
+        if radios != 0
+            sombra.radio = radios
+            sombra.tipo = D_REDONDO
+            sombra.estilo = 0
+        end
+    end
     if caja_fondo != nil
         caja_fondo.alto = alto_caja
         if redonda
             caja_fondo.tipo = D_ELIPSE
+            caja_fondo.estilo = 0
+        elif radios != 0
+            caja_fondo.tipo = D_REDONDO
+            caja_fondo.radio = radios
             caja_fondo.estilo = 0
         end
     end
@@ -440,10 +548,69 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         borde.estilo = bt
         borde.nodo = n
         m.pagina.dibujos.push(borde)
+    elif radios != 0 and bt > 0 and bt == br and bt == bb and bt == bl and _val(e, "border-top-style", "none") != "none"
+        borde = _dibujo(D_REDONDO, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, _color_borde(e, "top"))
+        borde.estilo = bt
+        borde.radio = radios
+        borde.nodo = n
+        m.pagina.dibujos.push(borde)
     else
+        k = m.pagina.dibujos.length
         _bordes(m, e, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, bt, br, bb, bl)
+        # (los bordes son de esta caja: las celdas de una tabla mueven su contenido sin sus bordes)
+        while k < m.pagina.dibujos.length
+            if m.pagina.dibujos[k].nodo == nil
+                m.pagina.dibujos[k].nodo = n
+            end
+            k = k + 1
+        end
+    end
+    # overflow (hidden, clip, auto, scroll): lo de dentro, recortado a su caja
+    if _recorta(e)
+        _recortar(m, inicio, x + ml, y + mt, x + ml + interior + bl + br + pl + pr - 1, y + mt + alto_caja - 1)
     end
     return mt + alto_caja + mb
+end
+
+func _recorta(e: {String: String}) -> Bool
+    for p in ["overflow", "overflow-x", "overflow-y"]
+        if e.has(p)
+            v = e[p]
+            if v == "hidden" or v == "clip" or v == "auto" or v == "scroll"
+                return true
+            end
+        end
+    end
+    return false
+end
+
+# Los dibujos desde inicio, recortados a x0..x1, y0..y1 (con el recorte que ya tuvieran)
+func _recortar(m: Maquetador, inicio: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    i = inicio
+    while i < m.pagina.dibujos.length
+        d = m.pagina.dibujos[i]
+        if not d.recorte
+            d.recorte = true
+            d.rx0 = x0
+            d.ry0 = y0
+            d.rx1 = x1
+            d.ry1 = y1
+        else
+            if x0 > d.rx0
+                d.rx0 = x0
+            end
+            if y0 > d.ry0
+                d.ry0 = y0
+            end
+            if x1 < d.rx1
+                d.rx1 = x1
+            end
+            if y1 < d.ry1
+                d.ry1 = y1
+            end
+        end
+        i = i + 1
+    end
 end
 
 # linear-gradient(...), también con prefijo (-webkit-, -moz-, -o-: la sintaxis vieja)
@@ -695,7 +862,7 @@ end
 # Un inline-block que lleva bloques dentro o tiene width o height: se maqueta como un bloque. Con el
 # texto del padre centrado o a la derecha va en la línea (una pieza); si no, flota a la izquierda.
 func _caja_en_linea(n: Nodo) -> Bool
-    if n.estilo["display"] == "inline-block" or n.estilo["display"] == "inline-flex"
+    if n.estilo["display"] == "inline-block" or n.estilo["display"] == "inline-flex" or n.estilo["display"] == "inline-grid"
         if (n.estilo.has("width") and n.estilo["width"] != "auto") or (n.estilo.has("height") and n.estilo["height"] != "auto")
             return true
         end
@@ -843,7 +1010,15 @@ func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
     i = antes
     while i < m.pagina.dibujos.length
         d = m.pagina.dibujos[i]
-        if d.tipo != D_RECT and d.tipo != D_LINEA
+        # el contenido cuenta siempre; las cajas (fondos, bordes) solo las de un elemento con width fijado (las
+        # demás se estiran a lo que haya)
+        decoracion = d.tipo == D_RECT or d.tipo == D_LINEA or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE
+        cuenta = not decoracion
+        if decoracion and d.nodo != nil and d.nodo != h
+            w = _val(d.nodo.estilo, "width", "auto")
+            cuenta = w != "auto" and not str_ends(w, "%")
+        end
+        if cuenta
             if d.x + d.ancho > derecha
                 derecha = d.x + d.ancho
             end
@@ -1092,7 +1267,7 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
-    if (e["display"] == "inline-block" or e["display"] == "inline-flex") and not (e.has("float") and (e["float"] == "left" or e["float"] == "right"))
+    if (e["display"] == "inline-block" or e["display"] == "inline-flex" or e["display"] == "inline-grid") and not (e.has("float") and (e["float"] == "left" or e["float"] == "right"))
         _pieza_caja(m, n, piezas, enlace)
         return
     end
@@ -1582,31 +1757,303 @@ func _color_borde(e: {String: String}, lado: String) -> Int
 end
 
 # Tabla sencilla: filas una debajo de otra, celdas del mismo ancho
+# Una tabla (CSS 2.1, 17.5): la rejilla con colspan y rowspan, el ancho de las columnas (automático: el mínimo y
+# el máximo de su contenido o su width; table-layout: fixed con la primera fila), border-spacing (0 con
+# border-collapse), el alto de las filas, el fondo de las filas y vertical-align en cada celda (middle por omisión).
+# Cada celda se maqueta en 0,0 y sus dibujos se mueven a su sitio.
+struct Celda
+    nodo: Nodo
+    fila: Int
+    col: Int
+    filas: Int = 1
+    cols: Int = 1
+    alto: Int = 0
+    ancho: Int = 0
+    dibujos: [Dibujo] = nil
+end
+
 func _tabla(m: Maquetador, t: Nodo, x: Int, y: Int, ancho: Int) -> Int
+    e = t.estilo
+    esp = 0
+    if _val(e, "border-collapse", "separate") != "collapse"
+        partes = css_partir(str_trim(_val(e, "border-spacing", "0")), 32)
+        esp = estilo_px(partes[0], estilo_px(_val(e, "font-size", "16px"), 0, 0), ancho)
+    end
+    cy = y
+    for h in t.hijos
+        if h.tipo == DOM_ELEMENTO and h.nombre == "caption" and not _oculto(h)
+            cy = cy + _bloque(m, h, x, cy, ancho)
+        end
+    end
     var filas: [Nodo] = []
     _filas(t, filas)
-    cy = y
-    for fila in filas
-        var celdas: [Nodo] = []
-        for c in fila.hijos
-            if c.tipo == DOM_ELEMENTO and (c.nombre == "td" or c.nombre == "th") and not _oculto(c)
-                celdas.push(c)
+    var celdas: [Celda] = []
+    var ocupado: {String: Bool} = {}
+    ncols = 0
+    for r in (0..filas.length - 1)
+        c = 0
+        for h in filas[r].hijos
+            if h.tipo != DOM_ELEMENTO or (h.nombre != "td" and h.nombre != "th") or _oculto(h)
+                continue
+            end
+            while ocupado.has("" + r + "," + c)
+                c = c + 1
+            end
+            cs = Int(dom_atributo(h, "colspan"))
+            if cs < 1 or cs > 1000
+                cs = 1
+            end
+            rs = Int(dom_atributo(h, "rowspan"))
+            if dom_atributo(h, "rowspan") == "0" or r + rs > filas.length
+                rs = filas.length - r
+            end
+            if rs < 1
+                rs = 1
+            end
+            cel = Celda(h, r, c, rs, cs)
+            celdas.push(cel)
+            for i in (r..r + rs - 1)
+                for j in (c..c + cs - 1)
+                    ocupado["" + i + "," + j] = true
+                end
+            end
+            c = c + cs
+            if c > ncols
+                ncols = c
             end
         end
-        if celdas.length == 0
-            continue
-        end
-        ancho_celda = ancho / celdas.length
-        alto_fila = 0
-        for i in (0..celdas.length - 1)
-            h = _bloque(m, celdas[i], x + i * ancho_celda, cy, ancho_celda)
-            if h > alto_fila
-                alto_fila = h
-            end
-        end
-        cy = cy + alto_fila
     end
-    return cy - y
+    if ncols == 0 or celdas.length == 0
+        return cy - y
+    end
+    # ancho de las columnas
+    var minc: [Int] = []
+    var maxc: [Int] = []
+    var fija: [Bool] = []
+    for i in (0..ncols - 1)
+        minc.push(0)
+        maxc.push(0)
+        fija.push(false)
+    end
+    fijo = _val(e, "table-layout", "auto") == "fixed" and _val(e, "width", "auto") != "auto"
+    for span in (1..ncols)
+        for cel in celdas
+            if cel.cols != span or (fijo and cel.fila > 0)
+                continue
+            end
+            ce = cel.nodo.estilo
+            con_ancho = _val(ce, "width", "auto") != "auto"
+            mn = 0
+            mx = 0
+            if con_ancho
+                mn = _ancho_flotante(m, cel.nodo, ancho)
+                mx = mn
+                if not fijo
+                    # el contenido no cabe en menos que su mínimo
+                    minimo = _ancho_flotante(m, cel.nodo, 1)
+                    if minimo > mn
+                        mn = minimo
+                        mx = minimo
+                    end
+                end
+            elif not fijo
+                mn = _ancho_flotante(m, cel.nodo, 1)
+                mx = _ancho_flotante(m, cel.nodo, FLEX_GRANDE)
+            end
+            if span == 1
+                if mn > minc[cel.col]
+                    minc[cel.col] = mn
+                end
+                if mx > maxc[cel.col]
+                    maxc[cel.col] = mx
+                end
+                if con_ancho
+                    fija[cel.col] = true
+                end
+            else
+                tiene_n = esp * (span - 1)
+                tiene_x = esp * (span - 1)
+                for j in (cel.col..cel.col + span - 1)
+                    tiene_n = tiene_n + minc[j]
+                    tiene_x = tiene_x + maxc[j]
+                end
+                if mn > tiene_n
+                    for j in (cel.col..cel.col + span - 1)
+                        minc[j] = minc[j] + (mn - tiene_n + span - 1) / span
+                    end
+                end
+                if mx > tiene_x
+                    for j in (cel.col..cel.col + span - 1)
+                        maxc[j] = maxc[j] + (mx - tiene_x + span - 1) / span
+                    end
+                end
+            end
+        end
+    end
+    suma_min = 0
+    suma_max = 0
+    for i in (0..ncols - 1)
+        if maxc[i] < minc[i]
+            maxc[i] = minc[i]
+        end
+        suma_min = suma_min + minc[i]
+        suma_max = suma_max + maxc[i]
+    end
+    disponible = ancho - esp * (ncols + 1)
+    ancho_tabla = disponible
+    con_ancho_tabla = _val(e, "width", "auto") != "auto"
+    if not con_ancho_tabla and suma_max < ancho_tabla
+        ancho_tabla = suma_max
+    end
+    var anchos: [Int] = []
+    if fijo
+        # fixed: las columnas con ancho de la primera fila, el resto a partes iguales
+        resto = ancho_tabla
+        libres = 0
+        for i in (0..ncols - 1)
+            if fija[i] or maxc[i] > 0
+                resto = resto - maxc[i]
+            else
+                libres = libres + 1
+            end
+        end
+        for i in (0..ncols - 1)
+            if fija[i] or maxc[i] > 0
+                anchos.push(maxc[i])
+            elif libres > 0 and resto > 0
+                anchos.push(resto / libres)
+            else
+                anchos.push(0)
+            end
+        end
+    elif ancho_tabla <= suma_min
+        for i in (0..ncols - 1)
+            anchos.push(minc[i])
+        end
+    elif ancho_tabla <= suma_max
+        for i in (0..ncols - 1)
+            if suma_max > suma_min
+                anchos.push(minc[i] + (maxc[i] - minc[i]) * (ancho_tabla - suma_min) / (suma_max - suma_min))
+            else
+                anchos.push(minc[i])
+            end
+        end
+    else
+        # sobra: a las columnas sin ancho fijado, en proporción a su máximo (o a todas)
+        extra = ancho_tabla - suma_max
+        base = 0
+        for i in (0..ncols - 1)
+            if not fija[i]
+                base = base + maxc[i]
+            end
+        end
+        todas = base == 0
+        if todas
+            base = suma_max
+        end
+        for i in (0..ncols - 1)
+            a = maxc[i]
+            if todas or not fija[i]
+                if base > 0
+                    a = a + extra * maxc[i] / base
+                else
+                    a = a + extra / ncols
+                end
+            end
+            anchos.push(a)
+        end
+    end
+    var xs: [Int] = []
+    px = x + esp
+    for i in (0..ncols - 1)
+        xs.push(px)
+        px = px + anchos[i] + esp
+    end
+    # cada celda a su ancho: su alto
+    for cel in celdas
+        w = esp * (cel.cols - 1)
+        for j in (cel.col..cel.col + cel.cols - 1)
+            w = w + anchos[j]
+        end
+        cel.ancho = w
+        fh = FlexHijo(cel.nodo)
+        cel.alto = _flex_maquetar(m, fh, w, ancho, -1, -1)
+        cel.dibujos = fh.dibujos
+    end
+    var altos: [Int] = []
+    for r in (0..filas.length - 1)
+        a = 0
+        fe = filas[r].estilo
+        if _val(fe, "height", "auto") != "auto" and not str_ends(_val(fe, "height", ""), "%")
+            a = _px(fe, "height", 0)
+        end
+        altos.push(a)
+    end
+    for cel in celdas
+        if cel.filas == 1 and cel.alto > altos[cel.fila]
+            altos[cel.fila] = cel.alto
+        end
+    end
+    for cel in celdas
+        if cel.filas > 1
+            tiene = esp * (cel.filas - 1)
+            for i in (cel.fila..cel.fila + cel.filas - 1)
+                tiene = tiene + altos[i]
+            end
+            if cel.alto > tiene
+                ultima = cel.fila + cel.filas - 1
+                altos[ultima] = altos[ultima] + cel.alto - tiene
+            end
+        end
+    end
+    var ys: [Int] = []
+    py = cy + esp
+    for r in (0..filas.length - 1)
+        ys.push(py)
+        # el fondo de la fila, debajo de sus celdas
+        fe = filas[r].estilo
+        if fe.has("background-color") and css_alfa(fe["background-color"]) > 0
+            fondo = _dibujo(D_RECT, x + esp, py, px - x - esp * 2 + esp, altos[r], css_color_opaco(fe["background-color"]))
+            fondo.nodo = filas[r]
+            m.pagina.dibujos.push(fondo)
+        end
+        py = py + altos[r] + esp
+    end
+    # a su sitio, con vertical-align
+    for cel in celdas
+        area = esp * (cel.filas - 1)
+        for i in (cel.fila..cel.fila + cel.filas - 1)
+            area = area + altos[i]
+        end
+        ce = cel.nodo.estilo
+        desplazar = 0
+        if area > cel.alto
+            mv = _px(ce, "margin-top", ancho) + _px(ce, "margin-bottom", ancho)
+            bpv = _borde(ce, "top") + _borde(ce, "bottom") + _px(ce, "padding-top", ancho) + _px(ce, "padding-bottom", ancho)
+            natural = cel.alto
+            fh = FlexHijo(cel.nodo)
+            _flex_maquetar(m, fh, cel.ancho, ancho, -1, area - mv - bpv)
+            cel.dibujos = fh.dibujos
+            va = _val(ce, "vertical-align", "middle")
+            if va == "middle"
+                desplazar = (area - natural) / 2
+            elif va == "bottom"
+                desplazar = area - natural
+            end
+        end
+        dx = xs[cel.col]
+        dy = ys[cel.fila]
+        for d in cel.dibujos
+            d.x = d.x + dx
+            d.y = d.y + dy
+            decoracion = d.nodo == cel.nodo and (d.tipo == D_RECT or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE or d.tipo == D_LINEA)
+            if not decoracion
+                d.y = d.y + desplazar
+            end
+            m.pagina.dibujos.push(d)
+        end
+    end
+    return py - y
 end
 
 func _filas(n: Nodo, filas: [Nodo])
@@ -2296,4 +2743,973 @@ func _flex(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, alto_fijo: Int) -
         return total_cruz
     end
     return tam_principal
+end
+
+# === Grid (CSS Grid Layout 1) ===
+# Pistas (grid-template-columns/rows: px, %, fr, auto, min-content, max-content, minmax(), fit-content(),
+# repeat() con auto-fill/auto-fit; los nombres de línea se saltan), áreas (grid-template-areas), colocación
+# explícita (números, negativos, span, nombres de área) y automática (grid-auto-flow row o column), pistas
+# implícitas (grid-auto-rows/columns), tamaño de las pistas (lo que pide el contenido de los elementos de una
+# pista, el espacio que sobra hasta su límite, y las fr con lo que queda), gap, justify/align-content de las
+# pistas y justify/align-self de cada elemento (stretch vuelve a maquetar con el alto del área). Como en flex,
+# cada elemento se maqueta en 0,0 y sus dibujos se mueven a su sitio.
+
+const PISTA_FIJA = 0
+const PISTA_AUTO = 1
+const PISTA_MIN = 2      # min-content
+const PISTA_MAX = 3      # max-content
+const PISTA_FR = 4
+
+struct Pista
+    tmin: Int = 1
+    vmin: Int = 0
+    tmax: Int = 1
+    vmax: Int = 0        # px, o fr x 1000
+    base: Int = 0
+    limite: Int = -1     # -1: infinito
+    pos: Int = 0
+end
+
+struct GridHijo
+    nodo: Nodo
+    f0: Int = -1         # filas [f0, f1) y columnas [c0, c1); -1: aún sin sitio
+    f1: Int = -1
+    c0: Int = -1
+    c1: Int = -1
+    span_f: Int = 1
+    span_c: Int = 1
+    dibujos: [Dibujo] = nil
+    alto: Int = 0        # exterior (márgenes incluidos), maquetado al ancho de su área
+    ancho_ext: Int = 0
+    minimo: Int = -1     # contribuciones de ancho (exteriores), cuando hacen falta
+    maximo: Int = -1
+end
+
+# Una medida de pista: "100px", "1fr", "auto", "min-content", "max-content", "20%"; total: el 100 % (-1: no se
+# sabe: auto)
+func _pista_medida(t: String, total: Int, e: {String: String}) -> [Int]
+    x = str_lower(str_trim(t))
+    if x == "auto" or x == ""
+        return [PISTA_AUTO, 0]
+    elif x == "min-content"
+        return [PISTA_MIN, 0]
+    elif x == "max-content"
+        return [PISTA_MAX, 0]
+    elif str_ends(x, "fr")
+        return [PISTA_FR, _mil(x[:x.length - 2])]
+    elif str_ends(x, "%") and total < 0
+        return [PISTA_AUTO, 0]
+    end
+    return [PISTA_FIJA, estilo_px(x, estilo_px(_val(e, "font-size", "16px"), 0, 0), total)]
+end
+
+func _pista_de(t: String, total: Int, e: {String: String}) -> Pista
+    x = str_lower(str_trim(t))
+    p = Pista()
+    if str_starts(x, "minmax(") and str_ends(x, ")")
+        partes = css_partir(x[7:x.length - 1], 44)
+        if partes.length == 2
+            a = _pista_medida(partes[0], total, e)
+            b = _pista_medida(partes[1], total, e)
+            p.tmin = a[0]
+            p.vmin = a[1]
+            p.tmax = b[0]
+            p.vmax = b[1]
+            if p.tmin == PISTA_FR
+                p.tmin = PISTA_AUTO
+            end
+            return p
+        end
+    end
+    if str_starts(x, "fit-content(") and str_ends(x, ")")
+        # como minmax(auto, max-content) sin pasar del límite
+        p.tmin = PISTA_AUTO
+        p.tmax = PISTA_FIJA
+        p.vmax = estilo_px(x[12:x.length - 1], 16, total)
+        return p
+    end
+    a = _pista_medida(x, total, e)
+    p.tmin = a[0]
+    p.vmin = a[1]
+    p.tmax = a[0]
+    p.vmax = a[1]
+    if a[0] == PISTA_FR
+        p.tmin = PISTA_AUTO
+    end
+    return p
+end
+
+# grid-template-columns/rows en pistas; total: el tamaño del contenedor en ese eje (-1: no se sabe)
+func _grid_pistas(v: String, total: Int, gap: Int, e: {String: String}) -> [Pista]
+    var r: [Pista] = []
+    x = str_trim(v)
+    if x == "" or x == "none"
+        return r
+    end
+    for t in css_partir(x, 32)
+        tt = str_trim(t)
+        if tt == "" or str_starts(tt, "[")
+            continue
+        end
+        if str_starts(str_lower(tt), "repeat(") and str_ends(tt, ")")
+            dentro = tt[7:tt.length - 1]
+            coma = str_find(dentro, ",")
+            if coma < 0
+                continue
+            end
+            cuantas_t = str_lower(str_trim(dentro[:coma]))
+            var trozo: [Pista] = _grid_pistas(dentro[coma + 1:], total, gap, e)
+            if trozo.length == 0
+                continue
+            end
+            veces = 1
+            if cuantas_t == "auto-fill" or cuantas_t == "auto-fit"
+                # tantas como quepan (con el tamaño fijo de cada una, o su mínimo fijo)
+                mide = 0
+                for p in trozo
+                    if p.tmax == PISTA_FIJA
+                        mide = mide + p.vmax
+                    elif p.tmin == PISTA_FIJA
+                        mide = mide + p.vmin
+                    end
+                end
+                mide = mide + gap * trozo.length
+                if total > 0 and mide > 0
+                    veces = (total + gap) / mide
+                end
+                if veces < 1
+                    veces = 1
+                end
+            else
+                veces = Int(cuantas_t)
+            end
+            for k in (1..veces)
+                for p in trozo
+                    q = Pista(p.tmin, p.vmin, p.tmax, p.vmax)
+                    r.push(q)
+                end
+            end
+        else
+            r.push(_pista_de(tt, total, e))
+        end
+    end
+    return r
+end
+
+# grid-template-areas: nombre -> [f0, f1, c0, c1]
+func _grid_areas(v: String) -> {String: [Int]}
+    var r: {String: [Int]} = {}
+    fila = 0
+    i = 0
+    while i < v.length
+        if str_code(v, i) == 34 or str_code(v, i) == 39
+            q = str_code(v, i)
+            j = i + 1
+            while j < v.length and str_code(v, j) != q
+                j = j + 1
+            end
+            col = 0
+            for nombre in css_partir(str_trim(v[i + 1:j]), 32)
+                nn = str_trim(nombre)
+                if nn == ""
+                    continue
+                end
+                if not str_starts(nn, ".")
+                    if r.has(nn)
+                        a = r[nn]
+                        if fila + 1 > a[1]
+                            a[1] = fila + 1
+                        end
+                        if col + 1 > a[3]
+                            a[3] = col + 1
+                        end
+                    else
+                        r[nn] = [fila, fila + 1, col, col + 1]
+                    end
+                end
+                col = col + 1
+            end
+            fila = fila + 1
+            i = j + 1
+        else
+            i = i + 1
+        end
+    end
+    return r
+end
+
+# Una línea de grid-column/row-start/end: [línea (0..), span] ; línea -1: auto
+func _grid_linea(v: String, lineas: Int, areas: {String: [Int]}, fin: Bool, fila: Bool) -> [Int]
+    x = str_lower(str_trim(v))
+    if x == "" or x == "auto"
+        return [-1, 1]
+    end
+    if str_starts(x, "span")
+        n = Int(str_trim(x[4:]))
+        if n < 1
+            n = 1
+        end
+        return [-1, n]
+    end
+    if areas.has(x)
+        a = areas[x]
+        k = 0
+        if fila
+            k = 0
+        else
+            k = 2
+        end
+        if fin
+            return [a[k + 1], 1]
+        end
+        return [a[k], 1]
+    end
+    n = Int(x)
+    if n > 0
+        return [n - 1, 1]
+    elif n < 0
+        r = lineas + n
+        if r < 0
+            r = 0
+        end
+        return [r, 1]
+    end
+    return [-1, 1]
+end
+
+# El sitio de un elemento en un eje: [inicio, fin] (-1: auto) y su span
+func _grid_sitio(e: {String: String}, eje: String, lineas: Int, areas: {String: [Int]}, fila: Bool) -> [Int]
+    ini = _val(e, "grid-" + eje + "-start", "auto")
+    fin = _val(e, "grid-" + eje + "-end", "auto")
+    if e.has("grid-" + eje)
+        partes = css_partir(e["grid-" + eje], 47)
+        ini = str_trim(partes[0])
+        fin = "auto"
+        if partes.length > 1
+            fin = str_trim(partes[1])
+        elif areas.has(str_lower(ini))
+            fin = ini
+        end
+    end
+    if e.has("grid-area")
+        partes = css_partir(e["grid-area"], 47)
+        if partes.length == 1
+            ini = str_trim(partes[0])
+            fin = ini
+        else
+            k = 0
+            if not fila
+                k = 1
+            end
+            if partes.length > k
+                ini = str_trim(partes[k])
+            end
+            if partes.length > k + 2
+                fin = str_trim(partes[k + 2])
+            end
+        end
+    end
+    a = _grid_linea(ini, lineas, areas, false, fila)
+    b = _grid_linea(fin, lineas, areas, true, fila)
+    if a[0] >= 0 and b[0] >= 0
+        if b[0] <= a[0]
+            return [a[0], a[0] + 1, 1]
+        end
+        return [a[0], b[0], b[0] - a[0]]
+    end
+    span = a[1]
+    if b[1] > span
+        span = b[1]
+    end
+    if a[0] >= 0
+        return [a[0], a[0] + span, span]
+    end
+    if b[0] >= 0
+        i = b[0] - span
+        if i < 0
+            i = 0
+        end
+        return [i, b[0], span]
+    end
+    return [-1, -1, span]
+end
+
+func _grid_libre(ocupado: {String: Bool}, f0: Int, f1: Int, c0: Int, c1: Int) -> Bool
+    for f in (f0..f1 - 1)
+        for c in (c0..c1 - 1)
+            if ocupado.has("" + f + "," + c)
+                return false
+            end
+        end
+    end
+    return true
+end
+
+func _grid_ocupar(ocupado: {String: Bool}, it: GridHijo)
+    for f in (it.f0..it.f1 - 1)
+        for c in (it.c0..it.c1 - 1)
+            ocupado["" + f + "," + c] = true
+        end
+    end
+end
+
+# Tamaño de las pistas de un eje (12.3-12.7, simplificado): base y límite de cada una por su tipo y por lo que
+# piden los elementos de una sola pista (los de varias reparten lo que les falta), el espacio libre hasta los
+# límites, las fr con lo que queda y las auto estiradas (justify/align-content normal)
+func _grid_medir(pistas: [Pista], items: [GridHijo], columnas: Bool, total: Int, gap: Int, estirar: Bool, m: Maquetador)
+    n = pistas.length
+    for p in pistas
+        p.base = 0
+        p.limite = -1
+        if p.tmin == PISTA_FIJA
+            p.base = p.vmin
+        end
+        if p.tmax == PISTA_FIJA
+            p.limite = p.vmax
+            if p.limite < p.base
+                p.limite = p.base
+            end
+        end
+    end
+    # lo que piden los elementos
+    for span in (1..n)
+        for it in items
+            i0 = it.c0
+            i1 = it.c1
+            if not columnas
+                i0 = it.f0
+                i1 = it.f1
+            end
+            if i1 - i0 != span
+                continue
+            end
+            con_fr = false
+            intrinseca = false
+            for k in (i0..i1 - 1)
+                if pistas[k].tmax == PISTA_FR
+                    con_fr = true
+                end
+                if pistas[k].tmin != PISTA_FIJA or pistas[k].tmax != PISTA_FIJA
+                    intrinseca = true
+                end
+            end
+            if not intrinseca or (con_fr and span > 1)
+                continue
+            end
+            pide_min = 0
+            pide_max = 0
+            if columnas
+                if it.minimo < 0
+                    it.minimo = _ancho_flotante(m, it.nodo, 1)
+                    it.maximo = _ancho_flotante(m, it.nodo, FLEX_GRANDE)
+                end
+                pide_min = it.minimo
+                pide_max = it.maximo
+            else
+                pide_min = it.alto
+                pide_max = it.alto
+            end
+            # lo que ya tienen sus pistas (con los huecos de en medio)
+            tiene_b = gap * (span - 1)
+            tiene_l = gap * (span - 1)
+            for k in (i0..i1 - 1)
+                tiene_b = tiene_b + pistas[k].base
+                if pistas[k].limite >= 0
+                    tiene_l = tiene_l + pistas[k].limite
+                else
+                    tiene_l = tiene_l + pistas[k].base
+                end
+            end
+            # el mínimo a las pistas intrínsecas (auto, min-content, max-content), a partes iguales
+            cuantas = 0
+            for k in (i0..i1 - 1)
+                if pistas[k].tmin != PISTA_FIJA
+                    cuantas = cuantas + 1
+                end
+            end
+            pide = pide_min
+            for k in (i0..i1 - 1)
+                if pistas[k].tmin == PISTA_MAX
+                    pide = pide_max
+                end
+            end
+            if cuantas > 0 and pide > tiene_b
+                extra = (pide - tiene_b + cuantas - 1) / cuantas
+                for k in (i0..i1 - 1)
+                    if pistas[k].tmin != PISTA_FIJA
+                        pistas[k].base = pistas[k].base + extra
+                    end
+                end
+            end
+            # el máximo a las pistas con límite intrínseco
+            cuantas = 0
+            for k in (i0..i1 - 1)
+                if pistas[k].tmax == PISTA_AUTO or pistas[k].tmax == PISTA_MAX or pistas[k].tmax == PISTA_MIN
+                    cuantas = cuantas + 1
+                end
+            end
+            pide = pide_max
+            if cuantas > 0
+                ya = gap * (span - 1)
+                for k in (i0..i1 - 1)
+                    if pistas[k].limite >= 0
+                        ya = ya + pistas[k].limite
+                    else
+                        ya = ya + pistas[k].base
+                    end
+                end
+                for k in (i0..i1 - 1)
+                    tk = pistas[k].tmax
+                    if tk == PISTA_AUTO or tk == PISTA_MAX or tk == PISTA_MIN
+                        if pistas[k].limite < 0
+                            pistas[k].limite = pistas[k].base
+                        end
+                        if pide > ya
+                            pistas[k].limite = pistas[k].limite + (pide - ya + cuantas - 1) / cuantas
+                        end
+                        if tk == PISTA_MIN and pistas[k].limite > pistas[k].base
+                            pistas[k].limite = pistas[k].base
+                        end
+                    end
+                end
+            end
+        end
+    end
+    for p in pistas
+        if p.tmax != PISTA_FR and p.limite >= 0 and p.limite < p.base
+            p.limite = p.base
+        end
+        if p.tmax != PISTA_FR and p.limite < 0
+            p.limite = p.base
+        end
+    end
+    if total < 0
+        return
+    end
+    # el espacio libre, hasta los límites, a partes iguales
+    usado = gap * (n - 1)
+    for p in pistas
+        usado = usado + p.base
+    end
+    libre = total - usado
+    vueltas = 0
+    while libre > 0 and vueltas < 10
+        vueltas = vueltas + 1
+        cuantas = 0
+        for p in pistas
+            if p.tmax != PISTA_FR and p.base < p.limite
+                cuantas = cuantas + 1
+            end
+        end
+        if cuantas == 0
+            break
+        end
+        parte = libre / cuantas
+        if parte < 1
+            parte = 1
+        end
+        for p in pistas
+            if libre > 0 and p.tmax != PISTA_FR and p.base < p.limite
+                d = p.limite - p.base
+                if d > parte
+                    d = parte
+                end
+                if d > libre
+                    d = libre
+                end
+                p.base = p.base + d
+                libre = libre - d
+            end
+        end
+    end
+    # las fr: lo que queda, en proporción (sin bajar de su base)
+    suma_fr = 0
+    for p in pistas
+        if p.tmax == PISTA_FR
+            suma_fr = suma_fr + p.vmax
+        end
+    end
+    if suma_fr > 0
+        quedan = total - gap * (n - 1)
+        for p in pistas
+            if p.tmax != PISTA_FR
+                quedan = quedan - p.base
+            end
+        end
+        # las fr cuya base es mayor que su parte se quedan con su base (y se vuelve a repartir)
+        var fija: [Bool] = []
+        for p in pistas
+            fija.push(false)
+        end
+        vueltas = 0
+        while vueltas < 10
+            vueltas = vueltas + 1
+            resto = quedan
+            sf = 0
+            for k in (0..n - 1)
+                if pistas[k].tmax == PISTA_FR
+                    if fija[k]
+                        resto = resto - pistas[k].base
+                    else
+                        sf = sf + pistas[k].vmax
+                    end
+                end
+            end
+            if sf == 0
+                break
+            end
+            if sf < 1000
+                sf = 1000
+            end
+            cambio = false
+            for k in (0..n - 1)
+                if pistas[k].tmax == PISTA_FR and not fija[k]
+                    t = resto * pistas[k].vmax / sf
+                    if t < pistas[k].base
+                        fija[k] = true
+                        cambio = true
+                    end
+                end
+            end
+            if not cambio
+                for k in (0..n - 1)
+                    if pistas[k].tmax == PISTA_FR and not fija[k]
+                        t = resto * pistas[k].vmax / sf
+                        if t < 0
+                            t = 0
+                        end
+                        pistas[k].base = t
+                    end
+                end
+                break
+            end
+        end
+        libre = 0
+    else
+        usado = gap * (n - 1)
+        for p in pistas
+            usado = usado + p.base
+        end
+        libre = total - usado
+    end
+    # las auto se estiran con lo que sobre
+    if estirar and libre > 0
+        cuantas = 0
+        for p in pistas
+            if p.tmax == PISTA_AUTO
+                cuantas = cuantas + 1
+            end
+        end
+        if cuantas > 0
+            for p in pistas
+                if p.tmax == PISTA_AUTO
+                    p.base = p.base + libre / cuantas
+                end
+            end
+        end
+    end
+end
+
+# Dónde empieza cada pista con justify/align-content; devuelve el tamaño total
+func _grid_colocar(pistas: [Pista], total: Int, gap: Int, alineacion: String) -> Int
+    n = pistas.length
+    usado = gap * (n - 1)
+    for p in pistas
+        usado = usado + p.base
+    end
+    inicio = 0
+    entre = gap
+    libre = total - usado
+    if total >= 0 and libre > 0
+        if alineacion == "center"
+            inicio = libre / 2
+        elif alineacion == "end" or alineacion == "flex-end"
+            inicio = libre
+        elif alineacion == "space-between" and n > 1
+            entre = gap + libre / (n - 1)
+        elif alineacion == "space-around"
+            inicio = libre / (n * 2)
+            entre = gap + libre / n
+        elif alineacion == "space-evenly"
+            inicio = libre / (n + 1)
+            entre = gap + libre / (n + 1)
+        end
+    end
+    pos = inicio
+    for p in pistas
+        p.pos = pos
+        pos = pos + p.base + entre
+    end
+    if n == 0
+        return 0
+    end
+    return pistas[n - 1].pos + pistas[n - 1].base
+end
+
+func _grid_pista_auto(v: String, total: Int, e: {String: String}) -> Pista
+    var ps: [Pista] = _grid_pistas(v, total, 0, e)
+    if ps.length == 0
+        return Pista()
+    end
+    return Pista(ps[0].tmin, ps[0].vmin, ps[0].tmax, ps[0].vmax)
+end
+
+# Coloca el contenido grid de n en (x, y) con ese ancho (alto_fijo: el alto del contenido, o -1); su alto
+func _grid(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, alto_fijo: Int) -> Int
+    e = n.estilo
+    gap_f = 0
+    gap_c = 0
+    if _val(e, "row-gap", "normal") != "normal"
+        gap_f = _px(e, "row-gap", ancho)
+    end
+    if _val(e, "column-gap", "normal") != "normal"
+        gap_c = _px(e, "column-gap", ancho)
+    end
+    var cols: [Pista] = _grid_pistas(_val(e, "grid-template-columns", "none"), ancho, gap_c, e)
+    var filas: [Pista] = _grid_pistas(_val(e, "grid-template-rows", "none"), alto_fijo, gap_f, e)
+    areas = _grid_areas(_val(e, "grid-template-areas", ""))
+    for nombre in areas.keys()
+        a = areas[nombre]
+        while filas.length < a[1]
+            filas.push(_grid_pista_auto(_val(e, "grid-auto-rows", "auto"), alto_fijo, e))
+        end
+        while cols.length < a[3]
+            cols.push(_grid_pista_auto(_val(e, "grid-auto-columns", "auto"), ancho, e))
+        end
+    end
+    explicitas_c = cols.length
+    explicitas_f = filas.length
+    por_columnas = str_starts(_val(e, "grid-auto-flow", "row"), "column")
+    var items: [GridHijo] = []
+    for h in _flex_hijos(n)
+        it = GridHijo(h)
+        sc = _grid_sitio(h.estilo, "column", explicitas_c + 1, areas, false)
+        sf = _grid_sitio(h.estilo, "row", explicitas_f + 1, areas, true)
+        it.c0 = sc[0]
+        it.c1 = sc[1]
+        it.span_c = sc[2]
+        it.f0 = sf[0]
+        it.f1 = sf[1]
+        it.span_f = sf[2]
+        items.push(it)
+    end
+    if items.length == 0
+        return 0
+    end
+    # colocación: primero los que tienen sitio, luego los demás por orden (sin dense)
+    var ocupado: {String: Bool} = {}
+    ancho_rejilla = explicitas_c
+    if ancho_rejilla < 1
+        ancho_rejilla = 1
+    end
+    alto_rejilla = explicitas_f
+    if alto_rejilla < 1
+        alto_rejilla = 1
+    end
+    for it in items
+        if it.c0 >= 0 and it.f0 >= 0
+            _grid_ocupar(ocupado, it)
+        end
+    end
+    cf = 0
+    cc = 0
+    for it in items
+        if it.c0 >= 0 and it.f0 >= 0
+            continue
+        end
+        if not por_columnas
+            if it.span_c > ancho_rejilla and it.c0 < 0
+                ancho_rejilla = it.span_c
+            end
+            if it.f0 >= 0
+                c = 0
+                while not _grid_libre(ocupado, it.f0, it.f1, c, c + it.span_c)
+                    c = c + 1
+                end
+                it.c0 = c
+                it.c1 = c + it.span_c
+            elif it.c0 >= 0
+                f = cf
+                while not _grid_libre(ocupado, f, f + it.span_f, it.c0, it.c1)
+                    f = f + 1
+                end
+                it.f0 = f
+                it.f1 = f + it.span_f
+                cf = f
+            else
+                vueltas = 0
+                while vueltas < 10000
+                    vueltas = vueltas + 1
+                    if cc + it.span_c > ancho_rejilla
+                        cc = 0
+                        cf = cf + 1
+                    end
+                    if _grid_libre(ocupado, cf, cf + it.span_f, cc, cc + it.span_c)
+                        break
+                    end
+                    cc = cc + 1
+                end
+                it.f0 = cf
+                it.f1 = cf + it.span_f
+                it.c0 = cc
+                it.c1 = cc + it.span_c
+                cc = cc + it.span_c
+            end
+        else
+            if it.span_f > alto_rejilla and it.f0 < 0
+                alto_rejilla = it.span_f
+            end
+            if it.c0 >= 0
+                f = 0
+                while not _grid_libre(ocupado, f, f + it.span_f, it.c0, it.c1)
+                    f = f + 1
+                end
+                it.f0 = f
+                it.f1 = f + it.span_f
+            elif it.f0 >= 0
+                c = cc
+                while not _grid_libre(ocupado, it.f0, it.f1, c, c + it.span_c)
+                    c = c + 1
+                end
+                it.c0 = c
+                it.c1 = c + it.span_c
+                cc = c
+            else
+                vueltas = 0
+                while vueltas < 10000
+                    vueltas = vueltas + 1
+                    if cf + it.span_f > alto_rejilla
+                        cf = 0
+                        cc = cc + 1
+                    end
+                    if _grid_libre(ocupado, cf, cf + it.span_f, cc, cc + it.span_c)
+                        break
+                    end
+                    cf = cf + 1
+                end
+                it.f0 = cf
+                it.f1 = cf + it.span_f
+                it.c0 = cc
+                it.c1 = cc + it.span_c
+                cf = cf + it.span_f
+            end
+        end
+        _grid_ocupar(ocupado, it)
+    end
+    # pistas implícitas
+    for it in items
+        while cols.length < it.c1
+            cols.push(_grid_pista_auto(_val(e, "grid-auto-columns", "auto"), ancho, e))
+        end
+        while filas.length < it.f1
+            filas.push(_grid_pista_auto(_val(e, "grid-auto-rows", "auto"), alto_fijo, e))
+        end
+    end
+    # auto-fit: las columnas repetidas que quedan vacías miden 0 (aquí: las del final sin nadie)
+    if str_find(_val(e, "grid-template-columns", ""), "auto-fit") >= 0
+        ultima = 0
+        for it in items
+            if it.c1 > ultima
+                ultima = it.c1
+            end
+        end
+        while cols.length > ultima and cols.length > 0
+            cols.pop()
+        end
+    end
+    # columnas
+    jc = _val(e, "justify-content", "normal")
+    _grid_medir(cols, items, true, ancho, gap_c, jc == "normal" or jc == "stretch", m)
+    _grid_colocar(cols, ancho, gap_c, jc)
+    # cada elemento maquetado al ancho de su área (o al suyo si no se estira): su alto
+    ji = _val(e, "justify-items", "normal")
+    for it in items
+        area = cols[it.c1 - 1].pos + cols[it.c1 - 1].base - cols[it.c0].pos
+        js = _val(it.nodo.estilo, "justify-self", "auto")
+        if js == "auto"
+            js = ji
+        end
+        # stretch (normal) con width auto: el área entera; con width, o con otra alineación: lo suyo
+        w = area
+        if _val(it.nodo.estilo, "width", "auto") != "auto" or (js != "normal" and js != "stretch")
+            w = _ancho_flotante(m, it.nodo, area)
+            if w > area
+                w = area
+            end
+        end
+        it.ancho_ext = w
+        fh = FlexHijo(it.nodo)
+        it.alto = _flex_maquetar(m, fh, w, area, -1, -1)
+        it.dibujos = fh.dibujos
+    end
+    # filas
+    ac = _val(e, "align-content", "normal")
+    _grid_medir(filas, items, false, alto_fijo, gap_f, ac == "normal" or ac == "stretch", m)
+    total_f = _grid_colocar(filas, alto_fijo, gap_f, ac)
+    # cada uno en su área: stretch con el alto del área, o start/center/end
+    ai = _val(e, "align-items", "normal")
+    for it in items
+        area_x = cols[it.c0].pos
+        area_w = cols[it.c1 - 1].pos + cols[it.c1 - 1].base - area_x
+        area_y = filas[it.f0].pos
+        area_h = filas[it.f1 - 1].pos + filas[it.f1 - 1].base - area_y
+        al = _val(it.nodo.estilo, "align-self", "auto")
+        if al == "auto"
+            al = ai
+        end
+        ne = it.nodo.estilo
+        if (al == "normal" or al == "stretch") and _val(ne, "height", "auto") == "auto" and it.alto != area_h
+            mv = _px(ne, "margin-top", area_w) + _px(ne, "margin-bottom", area_w)
+            bpv = _borde(ne, "top") + _borde(ne, "bottom") + _px(ne, "padding-top", area_w) + _px(ne, "padding-bottom", area_w)
+            h = area_h - mv - bpv
+            if h >= 0
+                fh = FlexHijo(it.nodo)
+                it.alto = _flex_maquetar(m, fh, it.ancho_ext, area_w, it.ancho_ext - _px(ne, "margin-left", area_w) - _px(ne, "margin-right", area_w) - _borde(ne, "left") - _borde(ne, "right") - _px(ne, "padding-left", area_w) - _px(ne, "padding-right", area_w), h)
+                it.dibujos = fh.dibujos
+            end
+        end
+        dy = area_y
+        if al == "center"
+            dy = area_y + (area_h - it.alto) / 2
+        elif al == "end" or al == "flex-end" or al == "self-end"
+            dy = area_y + area_h - it.alto
+        end
+        js = _val(ne, "justify-self", "auto")
+        if js == "auto"
+            js = _val(e, "justify-items", "normal")
+        end
+        dx = area_x
+        if js == "center"
+            dx = area_x + (area_w - it.ancho_ext) / 2
+        elif js == "end" or js == "right" or js == "flex-end"
+            dx = area_x + area_w - it.ancho_ext
+        end
+        for d in it.dibujos
+            d.x = d.x + x + dx
+            d.y = d.y + y + dy
+            m.pagina.dibujos.push(d)
+        end
+    end
+    if alto_fijo >= 0
+        return alto_fijo
+    end
+    return total_f
+end
+
+# border-radius (1 a 4 valores, px, em o %; la parte de después de / se salta): los cuatro radios en un Int (un
+# byte cada uno, sin pasar de la mitad del lado menor); 0 si no hay
+func _radios(e: {String: String}, ancho: Int, alto: Int) -> Int
+    v = _val(e, "border-radius", "")
+    if v == "" or v == "0" or v == "0px"
+        return 0
+    end
+    p = str_find(v, "/")
+    if p >= 0
+        v = v[:p]
+    end
+    var t: [String] = []
+    for x in css_partir(str_trim(v), 32)
+        if str_trim(x) != ""
+            t.push(str_trim(x))
+        end
+    end
+    if t.length == 0
+        return 0
+    end
+    while t.length < 4
+        if t.length == 1
+            t.push(t[0])
+        elif t.length == 2
+            t.push(t[0])
+        else
+            t.push(t[1])
+        end
+    end
+    menor = ancho
+    if alto < menor
+        menor = alto
+    end
+    em = estilo_px(_val(e, "font-size", "16px"), 0, 0)
+    r = 0
+    for k in (0..3)
+        x = estilo_px(t[k], em, menor)
+        if x > menor / 2
+            x = menor / 2
+        end
+        if x > 255
+            x = 255
+        end
+        if x < 0
+            x = 0
+        end
+        r = r * 256 + x
+    end
+    return r
+end
+
+# box-shadow: la primera sombra que no es inset: un rectángulo semitransparente (con difuminado, más claro);
+# v: [x, y, difuminado, extensión]
+func _sombra(valor: String, em: Int, v: [Int]) -> Dibujo
+    var nada: Dibujo = nil
+    for una in css_partir(valor, 44)
+        if str_find(una, "inset") >= 0
+            continue
+        end
+        var largos: [Int] = []
+        color = "rgba(0,0,0,0.3)"
+        for t in css_partir(str_trim(una), 32)
+            tt = str_trim(t)
+            if tt == ""
+                continue
+            end
+            c = str_code(tt, 0)
+            if (c >= 48 and c <= 57) or c == 45 or c == 46
+                largos.push(estilo_px(tt, em, 0))
+            else
+                color = tt
+            end
+        end
+        if largos.length < 2
+            continue
+        end
+        for k in (0..3)
+            if k < largos.length
+                v[k] = largos[k]
+            else
+                v[k] = 0
+            end
+        end
+        rgb = css_color_opaco(color)
+        if rgb < 0
+            return nada
+        end
+        alfa = css_alfa(color)
+        if v[2] > 0
+            alfa = alfa * 3 / 5      # difuminada: más clara
+        end
+        if alfa <= 0
+            return nada
+        end
+        d = _dibujo(D_RECT, 0, 0, 0, 0, rgb)
+        if alfa < 255
+            d.espaciado = alfa
+        end
+        return d
+    end
+    return nada
+end
+
+# aspect-ratio: "16 / 9", "1.5", "auto 4/3": ancho/alto x 1000 (0 si no se entiende)
+func _proporcion(v: String) -> Int
+    x = str_replace(str_lower(v), "auto", "")
+    p = str_find(x, "/")
+    if p < 0
+        return _mil(str_trim(x))
+    end
+    a = _mil(str_trim(x[:p]))
+    b = _mil(str_trim(x[p + 1:]))
+    if b <= 0
+        return 0
+    end
+    return a * 1000 / b
 end

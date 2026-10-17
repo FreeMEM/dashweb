@@ -1,0 +1,67 @@
+# Test: tablas (tarea 31g) y atributos de presentación de HTML. Cada caja con id: x,y respecto a su tabla (fondo
+# gris) y ancho x alto. Celdas con cajas de tamaño fijo, sin relleno ni separación salvo donde se dice:
+# 1) tabla de 400 con columnas de máximo 100 y 50: lo que sobra, en proporción (266 y 133);
+# 2) colspan de una caja de 300 sobre dos columnas de 50: cada columna 150;
+# 3) rowspan de 40 sobre filas de 10: la última crece a 30 (y su caja de 10 va en medio);
+# 4) vertical-align middle (por omisión): la caja de 10 en una fila de 40 baja 15; top no baja;
+# 5) border-spacing 4px; 6) <table width=200 cellpadding=5 cellspacing=0>. Y aspect-ratio: 200 de ancho con 2/1.
+# memcheck
+# expect-out: a1 0,0 266x10
+# expect-out: a2 266,0 133x10
+# expect-out: b1 0,0 300x10
+# expect-out: b2 0,10 150x10
+# expect-out: b3 150,10 150x10
+# expect-out: c1 0,0 50x40
+# expect-out: c2 50,0 50x10
+# expect-out: c3 50,20 50x10
+# expect-out: d1 0,0 50x40
+# expect-out: d2 50,15 50x10
+# expect-out: d3 100,0 50x10
+# expect-out: e1 4,4 50x10
+# expect-out: e2 58,4 50x10
+# expect-out: f0 0,0 200x20
+# expect-out: f1 5,5 50x10
+# expect-out: g1 0,0 200x100
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+func caja(id: String, w: Int, h: Int) -> String
+    return "<div id=" + id + " style='background:red;width:" + w + "px;height:" + h + "px'></div>"
+end
+
+func tabla(estilo: String, dentro: String) -> String
+    return "<table class=t style='background:#eee;border-spacing:0;" + estilo + "'>" + dentro + "</table>"
+end
+
+func td(dentro: String) -> String
+    return "<td style='padding:0'>" + dentro + "</td>"
+end
+
+Main
+    h = "<html><body style='margin:0'>"
+    h = h + tabla("width:400px", "<tr><td style='padding:0;background:blue' id=a1>" + caja("x1", 100, 10) + "</td><td style='padding:0;background:blue' id=a2>" + caja("x2", 50, 10) + "</td></tr>")
+    h = h + tabla("", "<tr><td colspan=2 style='padding:0;background:blue' id=b1>" + caja("y1", 300, 10) + "</td></tr><tr><td style='padding:0;background:blue' id=b2>" + caja("y2", 50, 10) + "</td><td style='padding:0;background:blue' id=b3>" + caja("y3", 50, 10) + "</td></tr>")
+    h = h + tabla("", "<tr>" + str_replace(td(caja("c1", 50, 40)), "<td style", "<td rowspan=2 style") + td(caja("c2", 50, 10)) + "</tr><tr>" + td(caja("c3", 50, 10)) + "</tr>")
+    h = h + tabla("", "<tr>" + td(caja("d1", 50, 40)) + td(caja("d2", 50, 10)) + "<td style='padding:0;vertical-align:top'>" + caja("d3", 50, 10) + "</td></tr>")
+    h = h + tabla("border-spacing:4px", "<tr>" + td(caja("e1", 50, 10)) + td(caja("e2", 50, 10)) + "</tr>")
+    h = h + "<table class=t width=200 cellpadding=5 cellspacing=0 style='background:#eee'><tr><td id=f0 style='background:blue'>" + caja("f1", 50, 10) + "</td></tr></table>"
+    h = h + "<div class=t style='background:#eee;width:200px'><div id=g1 style='background:red;aspect-ratio:2 / 1'></div></div>"
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    p = maquetar(doc, 600)
+    cx = 0
+    cy = 0
+    for d in p.dibujos
+        if d.tipo == D_RECT and d.nodo != nil
+            id = dom_atributo(d.nodo, "id")
+            if dom_atributo(d.nodo, "class") == "t"
+                cx = d.x
+                cy = d.y
+            elif id != "" and not str_starts(id, "x") and not str_starts(id, "y")
+                Print id + " " + (d.x - cx) + "," + (d.y - cy) + " " + d.ancho + "x" + d.alto
+            end
+        end
+    end
+end

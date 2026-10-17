@@ -1,0 +1,25 @@
+# Test: calc(), min(), max(), clamp() y las unidades vw, vh, vmin, vmax, ch y rem (tarea 31c), con estilo_px:
+# 100 % = 600 px, 1em = 16 px, la página de 600x400 y 1rem = el font-size de <html> (20px en la página de abajo).
+# memcheck
+# expect-out: 580 25 200 32 142 580 0
+# expect-out: 60 200 400 160 600 8 30 28
+# expect-out: 30 40 24
+# expect-out: rem: 30px
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/estilo.dash"
+
+func px(v: String) -> String
+    return "" + estilo_px(v, 16, 600)
+end
+
+Main
+    estilo_vw = 600
+    estilo_vh = 400
+    doc = dom_desde_html("<html style='font-size:20px'><body><p style='font-size:1.5rem'>x</p></body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    Print px("calc(100% - 20px)") + " " + px("calc(2 * 10px + 5px)") + " " + px("min(50%, 200px)") + " " + px("max(10px, 2em)") + " " + px("calc((100% - 3 * 10px) / 4)") + " " + px("calc(100% - min(20px, 5%))") + " " + px("auto")
+    Print px("10vw") + " " + px("50vh") + " " + px("100vh") + " " + px("40vmin") + " " + px("100vmax") + " " + px("1ch") + " " + px("1.5rem") + " " + px("calc(1.5em + 4px)")
+    Print px("clamp(1rem, 5vw, 3rem)") + " " + px("clamp(2rem, 1vw, 3rem)") + " " + px("CALC(1.5 * 1em)")
+    Print "rem: " + dom_buscar(doc, "p").estilo["font-size"]
+end
