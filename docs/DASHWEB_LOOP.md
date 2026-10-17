@@ -1796,3 +1796,16 @@ Formato:
 - Comparación de hoy (commodoremalacca, dpms, muylinux, xataka) con la versión de la 31p: muylinux ya tiene su logo;
   xataka sigue sin logo ni menú, y muylinux sin las noticias (lozad.js: falta NodeList en JavaScript, bloque 32).
 - Base: 49/49.
+
+### 2026-10-17 — Tarea 31j, tercer arreglo (xataka.com: el logo)
+- El logo de xataka es el fondo SVG de un <a> con `display: inline-block; width: 100%; height: 100%` dentro de
+  un h1 de 160x84. dashweb no resolvía ningún height en %: la caja del fondo medía 0. Ahora `_bloque_en` lleva el
+  alto fijo del contenido de la caja que maqueta (`_alto_definido`: height en px, o en % de otro fijo) y un
+  height en % de un hijo sale de él (CSS 2.1, 10.5), también en flex y grid (alto_fijo). El de html y body
+  sigue sin fijarse (cambiaría el alto de la página entera).
+- El menú de xataka (flex con overflow: hidden y 20 px de alto) sigue sin salir: queda para otra vuelta.
+- Casos nuevos en `test_maqueta_transform` (uno directo y otro encadenado).
+- Base: 49/49.
+- Comprobado en la máquina RTG contra Chrome (versión be47543): commodoremalacca ya tiene la capa azul con el
+  título blanco legible, y dpms el logo a 50 px y el cartel en su sitio. Falta en dpms: el título "Posadas Party
+  2026" sale como una caja blanca (texto con degradado: background-clip: text) y el fondo de estrellas (Three.js).

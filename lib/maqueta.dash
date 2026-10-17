@@ -259,6 +259,7 @@ var _topaz: Int = 0
 
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
     estilo_vw = ancho              # (vw: el ancho de donde se ve la página)
+    _alto_definido = -1
     var dibujos: [Dibujo] = []
     p = Pagina(dibujos, ancho, 0, 16777215)
     if _topaz == 0
@@ -360,6 +361,10 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     return r
 end
 
+# El alto del contenido de la caja que se está maquetando, si es fijo (height en px, o en % de otro fijo); -1 si
+# no. Con él se resuelve un height en % (CSS 2.1, 10.5); el de html y body no se fija (como antes)
+var _alto_definido: Int = -1
+
 func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
     e = n.estilo
     inicio = m.pagina.dibujos.length
@@ -453,12 +458,34 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     end
     cx = x + ml + bl + pl
     cy = y + mt + bt + pt
+    # height en %: del alto del contenedor, si es fijo (_alto_definido); los hijos ven el de esta caja
+    alto_pct = -1
+    if e.has("height") and str_ends(e["height"], "%") and _alto_definido >= 0
+        alto_pct = _px(e, "height", _alto_definido)
+        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            alto_pct = alto_pct - bt - bb - pt - pb
+        end
+        if alto_pct < 0
+            alto_pct = 0
+        end
+    end
+    antes_definido = _alto_definido
+    _alto_definido = alto_pct
+    if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
+        _alto_definido = _px(e, "height", 0)
+        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            _alto_definido = _alto_definido - bt - bb - pt - pb
+        end
+        if _alto_definido < 0
+            _alto_definido = 0
+        end
+    end
     alto = 0
     if e["display"] == "table"
         alto = _tabla(m, n, cx, cy, interior)
     elif e["display"] == "flex" or e["display"] == "inline-flex" or e["display"] == "grid" or e["display"] == "inline-grid"
         # el alto del contenido si está fijado (lo necesitan las columnas y el estirado de una línea)
-        alto_fijo = -1
+        alto_fijo = alto_pct
         if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
             alto_fijo = _px(e, "height", 0)
             if e.has("box-sizing") and e["box-sizing"] == "border-box"
@@ -475,6 +502,10 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         end
     else
         alto = _contenido(m, n, cx, cy, interior)
+    end
+    _alto_definido = antes_definido
+    if alto_pct >= 0
+        alto = alto_pct
     end
     if e["display"] == "list-item"
         _marca(m, n, cx, cy)
