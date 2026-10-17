@@ -257,13 +257,7 @@ func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
         end
         texto = http_texto(r)
     else
-        ruta = direccion
-        if u.esquema == "file"
-            ruta = u.ruta
-            if str_starts(ruta, "/")
-                ruta = ruta[1:]
-            end
-        end
+        ruta = url_fichero(direccion)
         leido = file_read_text(ruta)
         if leido == nil
             return

@@ -549,13 +549,7 @@ func _jsdom_traer(direccion: String) -> String
         end
         return http_texto(r)
     end
-    ruta = direccion
-    if u.esquema == "file"
-        ruta = u.ruta
-        if str_starts(ruta, "/")
-            ruta = ruta[1:]
-        end
-    end
+    ruta = url_fichero(direccion)
     t = file_read_text(ruta)
     if t == nil
         return ""

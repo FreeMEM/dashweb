@@ -297,3 +297,74 @@ func url_codificar(t: String) -> String
     end
     return r
 end
+
+# La ruta del Amiga de una dirección file: (otra cosa queda igual). Como NetSurf, el primer trozo es el volumen:
+# file:///Programs/Web/a.html = Programs:Web/a.html; también file:///DH0:a.html, file://Work/a.html y
+# file://localhost/Work/a.html. Sin "/" (file:///a.html) es relativa al directorio actual. Los %XX se deshacen
+# (y los de UTF-8 pasan a Latin-1).
+func url_fichero(direccion: String) -> String
+    if not str_starts(str_lower(direccion), "file:")
+        return direccion
+    end
+    u = url_parse(direccion)
+    ruta = u.ruta
+    if u.host != "" and u.host != "localhost"
+        ruta = "/" + u.host + ruta
+    end
+    while str_starts(ruta, "/")
+        ruta = ruta[1:]
+    end
+    barra = str_find(ruta, "/")
+    if str_find(ruta, ":") < 0 and barra > 0
+        ruta = ruta[:barra] + ":" + ruta[barra + 1:]
+    end
+    return _url_deshacer(ruta)
+end
+
+func _url_hex(c: Int) -> Int
+    if c >= 48 and c <= 57
+        return c - 48
+    elif c >= 65 and c <= 70
+        return c - 55
+    elif c >= 97 and c <= 102
+        return c - 87
+    end
+    return -1
+end
+
+func _url_deshacer(t: String) -> String
+    if str_find(t, "%") < 0
+        return t
+    end
+    r = ""
+    i = 0
+    n = t.length
+    previo = -1
+    while i < n
+        c = str_code(t, i)
+        if c == 37 and i + 2 < n and _url_hex(str_code(t, i + 1)) >= 0 and _url_hex(str_code(t, i + 2)) >= 0
+            c = _url_hex(str_code(t, i + 1)) * 16 + _url_hex(str_code(t, i + 2))
+            i = i + 3
+        else
+            i = i + 1
+        end
+        if previo >= 0
+            if c >= 128 and c < 192
+                r = r + str_char((previo % 32) * 64 + c % 64)
+                previo = -1
+                continue
+            end
+            r = r + str_char(previo)
+            previo = -1
+        end
+        if c == 194 or c == 195
+            previo = c
+        else
+            r = r + str_char(c)
+        end
+    end
+    if previo >= 0
+        r = r + str_char(previo)
+    end
+    return r
+end

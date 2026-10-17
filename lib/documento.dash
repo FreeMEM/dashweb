@@ -34,6 +34,7 @@ struct Documento
     sin_maquetar: Int = 0      # imágenes llegadas que cambian la maqueta (su <img> no tenía tamaño)
     sin_pintar: Int = 0        # imágenes llegadas que aún no se han pintado
     pintada: Int = 0           # time_ms del último repintado por imágenes
+    remaquetada: Bool = false  # documento_imagenes volvió a maquetar (hay que repintar sí o sí)
 end
 
 # Las imágenes que llegan se pintan juntas: mientras siguen llegando, como mucho cada tanto (pintar
@@ -53,7 +54,7 @@ func documento_texto(direccion: String, d: Documento) -> String
         d.direccion = r.url
         return http_texto(r)
     end
-    t = file_read_text(direccion)
+    t = file_read_text(url_fichero(direccion))
     if t == nil
         d.error = "no se puede leer " + direccion
         return "<title>Error</title><h1>No se pudo abrir</h1><p>" + direccion + "</p>"
@@ -269,11 +270,32 @@ func documento_imagenes(d: Documento) -> Bool
     if d.sin_maquetar > 0 and d.ancho > 0
         d.pagina = maquetar(d.doc, d.ancho)
         _documento_vistas(d)
+        d.remaquetada = true
     end
     d.sin_maquetar = 0
     d.sin_pintar = 0
     d.pintada = time_ms()
     return true
+end
+
+# Tras documento_imagenes: ¿hay que repintar lo que se ve (la página desde "desde", alto px)? Sí si se volvió a
+# maquetar, si ya no falta ninguna o si alguna de las llegadas se dibuja ahí; las de más abajo se verán al
+# desplazar (en freemem.space la página entera se repintaba 22 veces mientras llegaban)
+func documento_imagenes_visibles(d: Documento, desde: Int, alto: Int) -> Bool
+    r = d.remaquetada or imagenes_pendientes(d.im) == 0 or d.pagina == nil or d.im.recien == nil
+    if not r
+        hasta = desde + alto
+        for dib in d.pagina.dibujos
+            if (dib.tipo == D_IMAGEN or dib.tipo == D_FONDO) and dib.y < hasta and dib.y + dib.alto > desde and d.im.recien.has(dib.texto)
+                r = true
+                break
+            end
+        end
+    end
+    d.remaquetada = false
+    var nada: {String: Int} = nil
+    d.im.recien = nada
+    return r
 end
 
 func documento_liberar(d: Documento)

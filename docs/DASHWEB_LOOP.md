@@ -373,6 +373,25 @@ tarea, con el estilo de Dash.
           medir con `tools/medir_visor.py --perfil` (tabla de tiempo por función de ./dash --profile) en las webs de
           la lista y atacar lo que más pese (cascada, maqueta repetida al llegar imágenes y fuentes, pintado entero,
           JavaScript, TLS), midiendo antes y después.
+          33b. gzip (lo pregunta el usuario, 2026-10-17): lib/http.dash pide `Accept-Encoding: identity`, así que todo
+               llega sin comprimir (la portada de freemem.space: 91 KB frente a 15 KB con gzip). Pedir gzip y
+               deflate y descomprimir con el inflate de stb_image (ya va en libimg.a); medir antes y después, y
+               apuntar dónde se va la espera (Main propio 80 %: red, TLS o temporizadores).
+      36. HTML5 de verdad con Hubbub (el usuario, 2026-10-17, señala https://www.netsurf-browser.org/projects/hubbub/ y el código en https://github.com/netsurf-browser/libhubbub, con https://github.com/netsurf-browser/libparserutils;
+          va detrás de la línea de tiempo de la carga de la tarea 33, antes que la 35): el analizador de NetSurf
+          (C, licencia MIT, con libparserutils, también MIT; ya funciona en AmigaOS 3 dentro de NetSurf) en
+          third_party/, compilado a una librería como libimg.a. Su árbol se construye por funciones de vuelta
+          (crear elemento, añadir hijo, mover hijos...): el lado de C apunta las operaciones en una lista con números
+          de nodo y Dash la repite creando los Nodo de lib/dom.dash (nada de punteros de C dentro del DOM). Trae lo
+          que falta: etiquetas mal anidadas (adoption agency), contenido suelto en tablas (foster parenting), los
+          modos de inserción, todas las entidades y el juego de caracteres de <meta charset>. Comprobar con los
+          tests de html5lib (tree-construction) unos cuantos casos en el emulador, medir velocidad y memoria
+          contra lib/html.dash + lib/dom.dash en las webs de la lista, y dejar el viejo solo si Hubbub no cabe.
+      35. Lo que le falta frente a NetSurf (tabla del usuario, 2026-10-17), por este orden: (a) cookies HTTP
+          (Set-Cookie y Cookie por dominio y ruta, Secure, caducidad; las mismas que document.cookie; guardadas en
+          PROGDIR: entre sesiones); (b) estabilidad: Next.js lo deja sin memoria y se cierra (medir qué se come la
+          memoria y fallar con un aviso, nunca cerrarse); (c) descargas (lo que no es una página se guarda con un
+          requester de ficheros), guardar la página y la imagen; (d) imprimir (printer.device, la vista pintada).
       31q. Animar el CSS de verdad (lo pide el usuario, 2026-10-17: trainalong.fit dibuja sus curvas con @keyframes al
            abrirse). Ahora (31m) solo se pinta el estado final. Plan: (1) un reloj de animaciones con el tic de dashweb
            (unos 10-20 por segundo mientras haya alguna viva) y las funciones de tiempo (linear, ease y cubic-bezier,
@@ -2044,3 +2063,31 @@ Formato:
 - Para que el usuario lo pruebe en su CoffinOS (Amiberry): el paquete en ~/Amiberry/LHA, montado en
   Configurations/coffin.uae como Traspaso: (copia de la configuración en coffin.uae.antes-traspaso).
 - Sin probar aún en un Amiga: los iconos y el guion.
+
+### 2026-10-17 — Tarea 33, medida con D51
+- Con D51 (mezcla por bloques en el runtime de Dash, e7c81d0 de la rama dashweb) y el arreglo de los selectores,
+  sin el de las imágenes que no se ven: freemem.space entera en 47 s (antes 128 s). `_mezcla_recortada` baja de
+  29,9 % a 0,4 % y `_degradado_pintar` de 6,9 % a 0,2 %. Ahora casi todo es espera (Main propio 80 %: red y
+  temporizadores); de lo demás, red y TLS 5,7 %, JavaScript 3,3 %, decodificar imágenes 2,6 %, la cascada 3,1 %.
+
+### 2026-10-17 — Direcciones file:// como las de NetSurf
+- El usuario abrió en CoffinOS `file:///Programs/Network/NetSurf/Resources/en/welcome.html` y salió «Inserte
+  volumen file»: el documento leía la dirección tal cual, y las hojas, scripts e imágenes solo quitaban la "/"
+  (`Programs/Network/...`, relativa). Ahora `url_fichero` (lib/url.dash) da la ruta del Amiga: el primer trozo es
+  el volumen (`Programs:Network/...`, como NetSurf), sigue valiendo `file:///DH0:a.html`, admite
+  `file://localhost/` y `file://Volumen/`, y deshace los %XX (los de UTF-8 a Latin-1). La usan documento,
+  estilo, recursos, jsdom e imágenes (eran cuatro copias del mismo código). Casos nuevos en `test_url`.
+- Arreglado también `test_documento_tipo` (dos variables con el mismo nombre: la batería anterior dio 51/52).
+- Base (con el repintado de solo lo visible): 52/52.
+
+### 2026-10-17 — Tarea 33b (gzip)
+- lib/http.dash pide `Accept-Encoding: gzip, deflate` para los textos (lo que va a un fichero, identity: imágenes,
+  vídeo y fuentes ya vienen comprimidos y http_parcial necesita los bytes tal cual). El cuerpo comprimido se junta
+  en bytes (`Bytes`, `red_juntar` en lib/red.dash: un texto cambiaría sus bytes 0) y se descomprime con el inflate
+  de stb_image (`_http_inflar`: gzip con su cabecera, deflate con zlib o sin cabecera). Test nuevo
+  `test_http_gzip` (servidor: /comprimido/<modo> y /acepta), con y sin esperar, también en trozos.
+- Medida: freemem.space entera en 47,0 s (antes 47,1 s). `red_recibir_ya` baja de 3,4 % a 2,9 % del perfil, pero
+  el total no cambia: los bytes no eran el freno. Ojo al leer los perfiles: cubren los 200 s de la medida, así
+  que el 80 % de Main es sobre todo la espera después de cargar. En los 47 s de carga lo que pesa es: JavaScript
+  ~8 s, recibir (TLS) ~7 s, decodificar imágenes ~6 s, abrir conexiones (TLS) ~5 s, la cascada ~7 s. Que el
+  total no se mueva ni un poco apunta a algo que espera un tiempo fijo: siguiente, una línea de tiempo de la carga.

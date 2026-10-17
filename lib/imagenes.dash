@@ -46,6 +46,7 @@ struct Imagenes
     # una <img> con width y height se decodifica a ese tamaño y no al de sus atributos
     vistas: {String: Int} = nil
     cambiados: Int = 0          # <img> a los que una imagen llegada les ha puesto tamaño (cambia la maqueta)
+    recien: {String: Int} = nil # los src llegados desde el último repintado (para no repintar si no se ven)
 end
 
 struct Pedida
@@ -283,6 +284,11 @@ func _imagen_llegada(im: Imagenes, doc: Nodo, p: Pedida, img: Int) -> Bool
     if img == 0
         return false
     end
+    if im.recien == nil
+        var r: {String: Int} = {}
+        im.recien = r
+    end
+    im.recien[p.src] = 1
     _imagenes_tamano_de(im, doc, p.src, img)
     return true
 end
@@ -398,13 +404,7 @@ func _imagen_traer(im: Imagenes, base: Url, src: String) -> Int
         end
         return imagen_cargar(fichero)
     end
-    ruta = direccion
-    if u.esquema == "file"
-        ruta = u.ruta
-        if str_starts(ruta, "/")
-            ruta = ruta[1:]
-        end
-    end
+    ruta = url_fichero(direccion)
     return imagen_cargar(ruta)
 end
 

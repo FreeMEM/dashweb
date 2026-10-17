@@ -53,13 +53,7 @@ func recursos_pedir(r: Recursos, direccion: String, es_css: Bool, nivel: Int)
         r.cola.push(Pedido(direccion, es_css, nivel, sin))
         return
     end
-    ruta = direccion
-    if u.esquema == "file"
-        ruta = u.ruta
-        if str_starts(ruta, "/")
-            ruta = ruta[1:]
-        end
-    end
+    ruta = url_fichero(direccion)
     t = file_read_text(ruta)
     if t == nil
         r.traidos[direccion] = ""

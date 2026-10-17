@@ -476,7 +476,7 @@ end
 # Un tic: cargas, imágenes y temporizadores de una ventana
 func tic(w: Ventana)
     avanzar_carga(w)
-    if w.actual != nil and documento_imagenes(w.actual)
+    if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
         ajustar_barra(w)
         mui_canvas_redraw(w.v.pagina)
     end

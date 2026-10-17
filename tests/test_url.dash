@@ -50,6 +50,7 @@
 # expect-out: http:g
 # expect-out: http://ejemplo.org/
 # expect-out: http://otro.net/x/y.html
+# expect-out: ficheros: Programs:Network/NetSurf/welcome.html|DH0:pagina.html|Work:a b/A.html|work:x|a.html|pages/x.html|233
 
 import "../lib/url.dash"
 
@@ -119,4 +120,5 @@ Main
     e = url_parse("http://Ejemplo.org")
     prueba(e, "/")
     prueba(url_parse("http://otro.net/x/"), "y.html")
+    Print "ficheros: " + url_fichero("file:///Programs/Network/NetSurf/welcome.html") + "|" + url_fichero("file:///DH0:pagina.html") + "|" + url_fichero("file://localhost/Work/a%20b/%41.html") + "|" + url_fichero("FILE://work/x") + "|" + url_fichero("file:///a.html") + "|" + url_fichero("pages/x.html") + "|" + str_code(url_fichero("file:///W/%C3%A9"), 2)
 end

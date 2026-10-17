@@ -4,6 +4,7 @@
 # memcheck
 # expect-out: imagen: dec_base.jpg http://127.0.0.1:40858/pages/dec_base.jpg #0e0e0e
 # expect-out: html: true
+# expect-out: visibles: true false true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -20,4 +21,19 @@ Main
     r2 = http_get("http://127.0.0.1:40858/pages/prueba.html", 10000)
     d2 = documento_empezar("http://127.0.0.1:40858/pages/prueba.html", r2)
     Print "html: " + (dom_buscar(d2.doc, "img") == nil or dom_atributo(dom_buscar(d2.doc, "img"), "src") != "http://127.0.0.1:40858/pages/prueba.html")
+    # repintar al llegar imágenes solo si alguna se ve (o se volvió a maquetar, o ya no falta ninguna)
+    d3 = documento_html("http://x/", "<body style='margin:0'><img src=arriba.png width=10 height=10><div style='height:2000px'></div><img src=abajo.png width=10 height=10></body>")
+    documento_maquetar(d3, 300)
+    var sin: Carga = nil
+    d3.im.cola.push(Pedida("otra.png", "otra.png", "T:x", sin))
+    var v1: {String: Int} = {"arriba.png": 1}
+    d3.im.recien = v1
+    a = documento_imagenes_visibles(d3, 0, 400)
+    var v2: {String: Int} = {"abajo.png": 1}
+    d3.im.recien = v2
+    b = documento_imagenes_visibles(d3, 0, 400)
+    d3.im.recien = v2
+    d3.remaquetada = true
+    c = documento_imagenes_visibles(d3, 0, 400)
+    Print "visibles: " + a + " " + b + " " + c
 end
