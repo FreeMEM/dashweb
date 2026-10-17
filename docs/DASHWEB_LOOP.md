@@ -2230,3 +2230,12 @@ Formato:
 - Base: la batería dio 45/54 con la otra sesión pasando la suya de dashweb a la vez (mismos puertos: el test de
   conexiones vio la 4.ª en vez de la 1.ª); las que fallaron, solas y con D54/D55 ya en la rama dashweb de Dash,
   9/9; test_cookies, 1/1. Cerrado un lineas.py mío (40841) que llevaba suelto desde el día 17.
+
+### 2026-10-18 — Medida con D54 y D55
+- Con D54 (image_from_rgb en RTG con p96WritePixelArray) y D55 (sesión TLS guardada por servidor) en la rama
+  dashweb de Dash: freemem.space entera en 28,8 y 29,1 s (antes 28,4-34,2 s): sin cambio que se note, la página
+  sale igual. D55 solo ahorra si se abre primero una conexión a cada servidor y las demás esperan a su primera
+  lectura (dashweb abre hasta 4+4 a la vez); con TLS 1.3 la reanudación repite el intercambio de claves y el
+  ahorro es pequeño (9,0 -> 7,9 s por conexión en el A1200): no se ha hecho.
+- Lo siguiente que más pesaría: el fallo del recolector de QuickJS (para volver a quitar los scripts de rastreo,
+  ~6 s en freemem.space), el primer estilo (3,7 s) y las maquetas (1 s cada una).
