@@ -1,0 +1,42 @@
+# Test: gzip y deflate en lib/http.dash (tarea 33b). Los textos se piden comprimidos (Accept-Encoding: gzip,
+# deflate) y lo que va a un fichero no (identity). 64 KB de texto UTF-8 en gzip (con nombre de fichero en la
+# cabecera), gzip en trozos (chunked), deflate con zlib y deflate sin cabecera, esperando y sin esperar; al final,
+# en Latin-1 ("café").
+# emu-server: http.py 40868
+# memcheck
+# expect-out: acepta: [gzip, deflate] [identity]
+# expect-out: gzip: 200 64894 caf? []
+# expect-out: gzip_chunked: 200 64894 caf? []
+# expect-out: deflate: 200 64894 caf? []
+# expect-out: deflate_crudo: 200 64894 caf? []
+# expect-out: sin esperar: 200 64894 233 []
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/http.dash"
+
+@native(borrow) func esperar(ticks: Int)
+"""
+    Delay(ticks);
+"""
+end
+
+func ver(r: Respuesta) -> String
+    t = http_texto(r)
+    return "" + r.estado + " " + t.length + " " + t[t.length - 4:t.length - 1] + "? [" + r.error + "]"
+end
+
+Main
+    base = "http://127.0.0.1:40868"
+    r = http_get(base + "/acepta", 10000)
+    f = http_a_fichero(base + "/acepta", "T:acepta", 10000)
+    Print "acepta: [" + r.cuerpo + "] [" + file_read_text("T:acepta") + "]"
+    for modo in ["gzip", "gzip_chunked", "deflate", "deflate_crudo"]
+        Print modo + ": " + ver(http_get(base + "/comprimido/" + modo, 10000))
+    end
+    c = http_empezar(base + "/comprimido/gzip_chunked", 10000)
+    while not http_avanzar(c)
+        esperar(2)
+    end
+    t = http_texto(c.respuesta)
+    Print "sin esperar: " + c.respuesta.estado + " " + t.length + " " + str_code(t, t.length - 1) + " [" + c.respuesta.error + "]"
+end

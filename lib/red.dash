@@ -342,6 +342,62 @@ func red_copiar(c: Conexion, f: Int, n: Int) -> Int
     return hechos
 end
 
+# Bytes sueltos que crecen (un cuerpo comprimido, que no puede pasar por un texto: tiene bytes 0)
+struct Bytes
+    buf: Int = 0
+    n: Int = 0
+    cap: Int = 0
+end
+
+func bytes_meter(b: Bytes, origen: Int, n: Int) -> Bool
+    if b.n + n > b.cap
+        cap = (b.n + n) * 2 + 4096
+        nuevo = buffer_alloc(cap)
+        if nuevo == 0
+            return false
+        end
+        if b.buf != 0
+            buffer_copy(nuevo, 0, b.buf, 0, b.n)
+            buffer_free(b.buf)
+        end
+        b.buf = nuevo
+        b.cap = cap
+    end
+    buffer_copy(b.buf, b.n, origen, 0, n)
+    b.n = b.n + n
+    return true
+end
+
+func bytes_liberar(b: Bytes)
+    if b.buf != 0
+        buffer_free(b.buf)
+    end
+    b.buf = 0
+    b.n = 0
+    b.cap = 0
+end
+
+# Como red_copiar, pero al final de b
+func red_juntar(c: Conexion, b: Bytes, n: Int) -> Int
+    hechos = 0
+    while n < 0 or hechos < n
+        if c.fin == c.ini and not _red_traer(c)
+            break
+        end
+        toma = c.fin - c.ini
+        if n >= 0 and toma > n - hechos
+            toma = n - hechos
+        end
+        if not bytes_meter(b, c.buf + c.ini, toma)
+            c.error = "sin memoria"
+            break
+        end
+        c.ini = c.ini + toma
+        hechos = hechos + toma
+    end
+    return hechos
+end
+
 func red_cerrar(c: Conexion)
     if c.buf != 0
         buffer_free(c.buf)

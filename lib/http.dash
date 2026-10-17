@@ -25,6 +25,15 @@ import "url.dash"
 import "red.dash"
 import "texto.dash"
 
+@link "../build/img-lib/libimg.a"
+
+@c
+"""
+extern char *stbi_zlib_decode_malloc_guesssize_headerflag(const char *buffer, int len, int initial_size, int *outlen, int parse_header);
+static LONG _http_inflado = 0;
+"""
+end
+
 const HTTP_MAX_REDIRECCIONES = 5
 const HTTP_AGENTE = "dashweb/0.1 (AmigaOS)"
 
@@ -84,7 +93,7 @@ end
 
 func _http_una(u: Url, espera_ms: Int, fichero: String) -> Respuesta
     r = _respuesta_vacia(url_text(u))
-    c = _http_conectar(u, espera_ms, r)
+    c = _http_conectar(u, espera_ms, r, fichero == "")
     if c == nil
         return r
     end
@@ -93,12 +102,12 @@ func _http_una(u: Url, espera_ms: Int, fichero: String) -> Respuesta
 end
 
 # Conecta y manda la petición; nil (con r.error) si no se pudo
-func _http_conectar(u: Url, espera_ms: Int, r: Respuesta) -> Conexion
-    return _http_conectar_con(u, espera_ms, r, "GET", "", "")
+func _http_conectar(u: Url, espera_ms: Int, r: Respuesta, comprimir: Bool) -> Conexion
+    return _http_conectar_con(u, espera_ms, r, "GET", "", "", comprimir)
 end
 
 # Con método y cuerpo (POST: el cuerpo y su Content-Type)
-func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cuerpo: String, tipo: String) -> Conexion
+func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cuerpo: String, tipo: String, comprimir: Bool) -> Conexion
     var c: Conexion = nil
     if u.esquema != "http" and u.esquema != "https"
         r.error = "esquema no admitido: " + u.esquema
@@ -114,7 +123,7 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
         var nada: Conexion = nil
         return nada
     end
-    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, "", false))
+    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, "", false, comprimir))
         r.error = c.error
         red_cerrar(c)
         var nada: Conexion = nil
@@ -123,8 +132,9 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
     return c
 end
 
-# agente: el User-Agent ("" el de dashweb; YouTube contesta según el cliente que dice ser)
-func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente: String, seguir: Bool) -> String
+# agente: el User-Agent ("" el de dashweb; YouTube contesta según el cliente que dice ser). comprimir: pide gzip
+# (HTML, CSS y JS ocupan de 4 a 6 veces menos); lo que va a un fichero (imágenes, vídeo, fuentes) llega tal cual
+func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente: String, seguir: Bool, comprimir: Bool) -> String
     ruta = u.ruta
     if ruta == ""
         ruta = "/"
@@ -141,7 +151,11 @@ func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente
         ua = agente
     end
     peticion = metodo + " " + ruta + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: " + ua
-    peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: "
+    codificacion = "identity"
+    if comprimir
+        codificacion = "gzip, deflate"
+    end
+    peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: " + codificacion + "\r\nConnection: "
     if seguir
         peticion = peticion + "keep-alive"
     else
@@ -260,15 +274,26 @@ func _leer_cuerpo(c: Conexion, r: Respuesta, f: Int)
     if r.estado == 204 or r.estado == 304 or (r.estado >= 100 and r.estado < 200)
         return
     end
+    var b: Bytes = nil
+    if f == 0 and r.cabeceras.has("content-encoding")
+        ce = str_lower(str_trim(r.cabeceras["content-encoding"]))
+        if ce == "gzip" or ce == "x-gzip" or ce == "deflate"
+            b = Bytes()
+        end
+    end
     codificacion = ""
     if r.cabeceras.has("transfer-encoding")
         codificacion = str_lower(r.cabeceras["transfer-encoding"])
     end
     if str_find(codificacion, "chunked") >= 0
-        _leer_chunked(c, r, f)
+        _leer_chunked(c, r, f, b)
     elif r.cabeceras.has("content-length")
         n = Int(r.cabeceras["content-length"])
-        if f != 0
+        if b != nil
+            if red_juntar(c, b, n) < n
+                r.error = "cuerpo cortado"
+            end
+        elif f != 0
             r.bytes = red_copiar(c, f, n)
             if r.bytes < n
                 r.error = "cuerpo cortado"
@@ -279,15 +304,70 @@ func _leer_cuerpo(c: Conexion, r: Respuesta, f: Int)
                 r.error = "cuerpo cortado"
             end
         end
+    elif b != nil
+        red_juntar(c, b, -1)
     elif f != 0
         r.bytes = red_copiar(c, f, -1)
     else
         r.cuerpo = red_leer_todo(c)
     end
+    if b != nil
+        if r.error == ""
+            p = _http_inflar(b.buf, b.n)
+            if p == 0
+                r.error = "no se pudo descomprimir"
+            else
+                r.cuerpo = str_from_buffer(p, 0, _http_inflados())
+                _http_soltar_inflado(p)
+            end
+        end
+        bytes_liberar(b)
+    end
+end
+
+# Un cuerpo gzip (RFC 1952) o deflate (zlib, RFC 1950, o sin cabecera) descomprimido con el inflate de
+# stb_image: un bloque de malloc (_http_soltar_inflado) con _http_inflados() bytes; 0 si no se puede
+@native(borrow) func _http_inflar(datos: Int, n: Int) -> Int
+"""
+    const UBYTE *p = (const UBYTE *)datos;
+    LONG i;
+    int largo = 0;
+    char *r = NULL;
+    UBYTE fl;
+    _http_inflado = 0;
+    if (!p || n <= 0) return 0;
+    if (n >= 18 && p[0] == 0x1f && p[1] == 0x8b && p[2] == 8) {
+        fl = p[3];
+        i = 10;
+        if (fl & 4) i += 2 + (p[10] | (p[11] << 8));
+        if (fl & 8) { while (i < n && p[i]) i++; i++; }
+        if (fl & 16) { while (i < n && p[i]) i++; i++; }
+        if (fl & 2) i += 2;
+        if (i >= n) return 0;
+        r = stbi_zlib_decode_malloc_guesssize_headerflag((const char *)p + i, n - i, n * 4 + 1024, &largo, 0);
+    } else {
+        r = stbi_zlib_decode_malloc_guesssize_headerflag((const char *)p, n, n * 4 + 1024, &largo, 1);
+        if (!r) r = stbi_zlib_decode_malloc_guesssize_headerflag((const char *)p, n, n * 4 + 1024, &largo, 0);
+    }
+    if (r) _http_inflado = largo;
+    return (LONG)r;
+"""
+end
+
+@native(borrow) func _http_inflados() -> Int
+"""
+    return _http_inflado;
+"""
+end
+
+@native(borrow) func _http_soltar_inflado(p: Int)
+"""
+    free((void *)p);
+"""
 end
 
 # Trozos: tamaño en hexadecimal, datos, salto; un trozo de tamaño 0 termina
-func _leer_chunked(c: Conexion, r: Respuesta, f: Int)
+func _leer_chunked(c: Conexion, r: Respuesta, f: Int, b: Bytes)
     cuerpo = ""
     linea = red_leer_linea(c)
     while linea != nil
@@ -302,7 +382,9 @@ func _leer_chunked(c: Conexion, r: Respuesta, f: Int)
             return
         end
         llegados = 0
-        if f != 0
+        if b != nil
+            llegados = red_juntar(c, b, n)
+        elif f != 0
             llegados = red_copiar(c, f, n)
             r.bytes = r.bytes + llegados
         else
@@ -446,7 +528,7 @@ func http_avanzar(c: Carga) -> Bool
         end
     end
     if not c.enviada
-        if not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo, c.agente, http_seguir))
+        if not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo, c.agente, http_seguir, c.fichero == ""))
             if c.reusada
                 _carga_otra_conexion(c)
                 return false

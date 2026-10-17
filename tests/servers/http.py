@@ -8,6 +8,7 @@ import sys
 
 PORT = int(sys.argv[1])
 CAFE = "café".encode("utf-8")
+LARGO = ("".join(f"linea {i} de dashweb\n" for i in range(3000)) + "café").encode("utf-8")
 BINARIO = bytes(i * 7 % 256 for i in range(20000))     # every byte value, 0 included
 
 
@@ -57,12 +58,15 @@ class Handler(socketserver.StreamRequestHandler):
         self.peticiones += 1
         length = 0
         seguir = False
+        self.acepta = ""
         while True:
             header = self.rfile.readline()
             if header in (b"\r\n", b"\n", b""):
                 break
             if header.lower().startswith(b"content-length:"):
                 length = int(header.split(b":", 1)[1])
+            if header.lower().startswith(b"accept-encoding:"):
+                self.acepta = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().replace(b" ", b"").startswith(b"connection:keep-alive"):
                 seguir = True
         body = self.rfile.read(length) if length else b""
@@ -123,6 +127,35 @@ class Handler(socketserver.StreamRequestHandler):
                 return
         if path.split("?")[0] == "/eco":   # what the client sent, to check the request (and a POST's body)
             data = line.encode("latin-1") + body
+            self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
+            return
+        if path.startswith("/comprimido/"):     # LARGO compressed as asked (gzip, gzip_chunked, deflate,
+            import gzip                         # deflate_crudo) if the request accepts gzip; if not, as is
+            import zlib
+            modo = path.split("/")[2]
+            data, cabeceras = LARGO, [("Content-Type", "text/plain; charset=utf-8")]
+            if "gzip" in self.acepta:
+                if modo.startswith("gzip"):
+                    data = gzip.compress(LARGO, mtime=0)
+                    data = data[:3] + bytes([data[3] | 8]) + data[4:10] + b"largo.txt\0" + data[10:]   # with FNAME
+                    cabeceras.append(("Content-Encoding", "gzip"))
+                elif modo == "deflate":
+                    data = zlib.compress(LARGO)
+                    cabeceras.append(("Content-Encoding", "deflate"))
+                else:
+                    o = zlib.compressobj(wbits=-15)
+                    data = o.compress(LARGO) + o.flush()
+                    cabeceras.append(("Content-Encoding", "deflate"))
+            if modo == "gzip_chunked":
+                cabeceras.append(("Transfer-Encoding", "chunked"))
+                raw = b"".join(b"%X\r\n" % len(data[i:i + 700]) + data[i:i + 700] + b"\r\n"
+                               for i in range(0, len(data), 700)) + b"0\r\n\r\n"
+                self.wfile.write(reply("200 OK", cabeceras, raw=raw))
+            else:
+                self.wfile.write(reply("200 OK", cabeceras + [("Content-Length", str(len(data)))], data))
+            return
+        if path == "/acepta":       # the Accept-Encoding the client sent
+            data = self.acepta.encode("latin-1")
             self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
             return
         if path == "/tras_post" and line.startswith("POST"):   # 303 to a GET, as after a form
