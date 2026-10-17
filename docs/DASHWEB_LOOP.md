@@ -1881,3 +1881,12 @@ Formato:
   em a 16 px).
 - Caso nuevo en `test_estilo_capas`.
 - Base: 49/49.
+
+### 2026-10-17 — Tarea 31j, décimo arreglo (imágenes y SVG absolutos; position: fixed)
+- trainalong pinta su curva de fondo con un <svg class="trazos"> en position: fixed (right: -8vw; bottom: -6vh;
+  width: min(1100px, 120vw)). Traza: salía como un bloque de 940x0. Una <img> o un <svg> con position absolute o
+  fixed se maquetaba como un bloque sin contenido (no salía nunca); ahora `_absoluto_imagen` lo pone a su tamaño
+  (el del CSS, o el suyo, con la proporción) en su sitio, con su z-index. Y position: fixed va respecto a la
+  ventana (0, 0, estilo_vw x estilo_vh: la de arriba del todo; al desplazar la página no se queda quieto).
+- Casos nuevos en `test_maqueta_transform`.
+- Base: 49/49 (con D50 en Dash, 3dff061).

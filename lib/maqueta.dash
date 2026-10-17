@@ -1258,8 +1258,19 @@ end
 # Un elemento con position absolute (o fixed) dentro de la caja (cx, cy, cw, ch): top/left/right/
 # bottom; sin left ni right, a la izquierda; sin top ni bottom, arriba. El ancho: left y right, su
 # width, o lo que mide su contenido.
-func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, pl: Int, pt: Int)
+func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, pl: Int, pt: Int)
     e = n.estilo
+    cx = cx0
+    cy = cy0
+    cw = cw0
+    ch = ch0
+    # position: fixed va respecto a la ventana (la de arriba del todo: la página no se mueve al pintarla)
+    if _val(e, "position", "absolute") == "fixed"
+        cx = 0
+        cy = 0
+        cw = estilo_vw
+        ch = estilo_vh
+    end
     tiene_l = e.has("left") and e["left"] != "auto"
     tiene_r = e.has("right") and e["right"] != "auto"
     tiene_t = e.has("top") and e["top"] != "auto" and e["top"] != "inherit"
@@ -1289,6 +1300,11 @@ func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, pl: I
         ax = cx + cw - r - w
     elif not tiene_l
         ax = cx + pl         # sin left ni right: donde estaría (al principio del contenido)
+    end
+    # una imagen o un <svg> (la curva de trainalong): a su tamaño (el del CSS o el suyo), en su sitio
+    if n.nombre == "img" or n.nombre == "svg"
+        _absoluto_imagen(m, n, cx, cy, cw, ch, ax, pt)
+        return
     end
     # un vídeo con position absolute (WordPress: el iframe de YouTube llena una caja con la proporción hecha en
     # CSS): su recuadro sale de left/right/top/bottom y del width/height en % del contenedor
@@ -1394,6 +1410,56 @@ func _relativo(m: Maquetador, n: Nodo, antes: Int, contenedor: Int)
         _mover(m.pagina.dibujos[i], rx, ry)
         i = i + 1
     end
+end
+
+func _absoluto_imagen(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, ax: Int, pt: Int)
+    e = n.estilo
+    src = ""
+    iw = 0
+    ih = 0
+    if n.nombre == "svg"
+        src = dom_atributo(n, "data-dashweb-svg")
+        iw = svg_ancho(n)
+        ih = svg_alto(n)
+    else
+        src = dom_img_src(n)
+        w0 = Int(dom_atributo(n, "width"))
+        h0 = Int(dom_atributo(n, "height"))
+        if w0 <= 0
+            w0 = 16
+        end
+        if h0 <= 0
+            h0 = 16
+        end
+        previo = m.ancho_linea
+        m.ancho_linea = cw
+        medida = _img_medida(m, e, w0, h0)
+        m.ancho_linea = previo
+        iw = medida[0]
+        ih = medida[1]
+    end
+    if src == "" or iw <= 0 or ih <= 0
+        return
+    end
+    x = ax
+    if _val(e, "left", "auto") != "auto"
+        x = cx + _px(e, "left", cw)
+    elif _val(e, "right", "auto") != "auto"
+        x = cx + cw - _px(e, "right", cw) - iw
+    end
+    y = cy + pt
+    if _val(e, "top", "auto") != "auto"
+        y = cy + _px(e, "top", ch)
+    elif _val(e, "bottom", "auto") != "auto"
+        y = cy + ch - _px(e, "bottom", ch) - ih
+    end
+    d = _dibujo(D_IMAGEN, x, y, iw, ih, 0)
+    d.texto = src
+    d.nodo = n
+    if _val(e, "z-index", "auto") != "auto"
+        d.capa = Int(e["z-index"])
+    end
+    m.pagina.dibujos.push(d)
 end
 
 # Mueve un dibujo y, si va recortado (overflow), su zona de recorte con él (está en coordenadas de página)
