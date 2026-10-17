@@ -1867,3 +1867,7 @@ Formato:
   se quedan como están.
 - Caso nuevo en `test_estilo_capas`.
 - Base: 49/49.
+- Comprobado contra Chrome (f589209): el logo SVG de xataka ya sale, pero sobre un cuadro negro (sin su
+  transparencia). Sospecha en el runtime de Dash: `_dash_image_scale` escala la máscara con el BytesPerRow del
+  bitmap de colores, que en RTG (16 bits) no es el de la máscara de 1 bit. Encargado a la otra sesión (D50).
+  trainalong: igual que antes (le faltan la curva de fondo y sus letras de @font-face).
