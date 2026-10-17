@@ -1890,3 +1890,6 @@ Formato:
   ventana (0, 0, estilo_vw x estilo_vh: la de arriba del todo; al desplazar la página no se queda quieto).
 - Casos nuevos en `test_maqueta_transform`.
 - Base: 49/49 (con D50 en Dash, 3dff061).
+- Comprobado contra Chrome (29231ab, con D50): xataka ya tiene su logo SVG con transparencia, como Chrome;
+  amigang, su menú en una fila sobre la cabecera oscura (sin el título "Amiga Community", que queda tapado);
+  trainalong, la curva (solo la de lima, rayada, y más arriba que en Chrome: falta la segunda y su sitio exacto).
