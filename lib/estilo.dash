@@ -335,6 +335,79 @@ func _cumple_pseudo(n: Nodo, p: String) -> Bool
             end
         end
         return true
+    elif str_starts(p, "nth-last-of-type(")
+        return _nth(p[17:p.length - 1], _posicion(n, true, true))
+    elif str_starts(p, "is(") or str_starts(p, "where(") or str_starts(p, "matches(") or str_starts(p, "-webkit-any(") or str_starts(p, "-moz-any(")
+        # alguno de la lista (Selectors 4)
+        q = str_find(p, "(")
+        for parte in css_partir(p[q + 1:p.length - 1], 44)
+            sel = css_selector(parte)
+            if sel != nil and estilo_cumple(n, sel)
+                return true
+            end
+        end
+        return false
+    elif str_starts(p, "has(")
+        for parte in css_partir(p[4:p.length - 1], 44)
+            if _tiene(n, str_trim(parte))
+                return true
+            end
+        end
+        return false
+    end
+    return false
+end
+
+# :has(): un selector relativo a n (> hijo, + hermano siguiente, ~ hermanos siguientes, o descendiente)
+func _tiene(n: Nodo, relativo: String) -> Bool
+    comb = " "
+    s = relativo
+    if str_starts(s, ">") or str_starts(s, "+") or str_starts(s, "~")
+        comb = s[:1]
+        s = str_trim(s[1:])
+    end
+    sel = css_selector(s)
+    if sel == nil
+        return false
+    end
+    if comb == ">"
+        for h in n.hijos
+            if h.tipo == DOM_ELEMENTO and estilo_cumple(h, sel)
+                return true
+            end
+        end
+        return false
+    end
+    if comb == "+" or comb == "~"
+        p = n.padre
+        if p == nil
+            return false
+        end
+        visto = false
+        for h in p.hijos
+            if h == n
+                visto = true
+            elif visto and h.tipo == DOM_ELEMENTO
+                if estilo_cumple(h, sel)
+                    return true
+                end
+                if comb == "+"
+                    return false
+                end
+            end
+        end
+        return false
+    end
+    return _tiene_debajo(n, sel)
+end
+
+func _tiene_debajo(n: Nodo, sel: Selector) -> Bool
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO
+            if estilo_cumple(h, sel) or _tiene_debajo(h, sel)
+                return true
+            end
+        end
     end
     return false
 end
@@ -348,8 +421,24 @@ func css_pseudo_conocida(p: String) -> Bool
     if p == "checked" or p == "disabled" or p == "enabled" or p == "first-of-type" or p == "last-of-type" or p == "only-of-type"
         return true
     end
-    if str_starts(p, "nth-child(") or str_starts(p, "nth-last-child(") or str_starts(p, "nth-of-type(")
+    if str_starts(p, "nth-child(") or str_starts(p, "nth-last-child(") or str_starts(p, "nth-of-type(") or str_starts(p, "nth-last-of-type(")
         return true
+    end
+    if str_starts(p, "is(") or str_starts(p, "where(") or str_starts(p, "matches(") or str_starts(p, "-webkit-any(") or str_starts(p, "-moz-any(") or str_starts(p, "has(")
+        # (como con :not: lo de dentro tiene que poder cumplirse; en :has, sin su combinador)
+        q = str_find(p, "(")
+        alguna = false
+        for parte in css_partir(p[q + 1:p.length - 1], 44)
+            a = str_trim(parte)
+            while a != "" and (str_starts(a, ">") or str_starts(a, "+") or str_starts(a, "~"))
+                a = str_trim(a[1:])
+            end
+            sel = css_selector(a)
+            if sel != nil and estilo_puede_cumplirse(sel)
+                alguna = true
+            end
+        end
+        return alguna
     end
     if str_starts(p, "not(")
         for parte in css_partir(p[4:p.length - 1], 44)

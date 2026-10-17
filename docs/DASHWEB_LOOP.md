@@ -358,7 +358,7 @@ tarea, con el estilo de Dash.
       [x] 31f. border-radius de verdad (esquinas redondeadas con su radio, también en fondos e imágenes), box-shadow.
       [x] 31g. vertical-align, tablas completas (colspan/rowspan, anchos automáticos), aspect-ratio, object-fit.
       31h. @font-face (fuentes de la web: woff/woff2/ttf) y font-weight/style reales.
-      31k. Selectors 4: :is(), :where(), :has(), :not() con listas (ami64.com usa :is() en querySelector).
+      [x] 31k. Selectors 4: :is(), :where(), :has(), :not() con listas (ami64.com usa :is() en querySelector).
       31l. Transforms completo: translate con %, scale, rotate de cualquier ángulo (en cajas e imágenes).
       31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
       31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
@@ -383,6 +383,10 @@ tarea, con el estilo de Dash.
       32b. URL y URLSearchParams, FormData, Blob (lo básico), crypto.getRandomValues y randomUUID.
       32c. <script type="module"> e import estáticos (traídos con la red de dashweb), import() dinámico.
       32d. customElements (define, connectedCallback) y los observadores de verdad (MutationObserver al menos).
+      32f. Intl (QuickJS no lo trae): toLocaleString de números y fechas, Intl.NumberFormat, DateTimeFormat,
+           Collator, PluralRules y Segmenter básicos (es y en), en el preludio.
+      32g. Fallos de QuickJS que salgan con las webs de la lista: arreglados en C (parches pequeños, anotados en
+           third_party/quickjs, con su test) y avisados a su autor.
       32e. Canvas 2D (lo básico: rectángulos, texto, imágenes) sobre la zona de dibujo.
 - [ ] 28j. **Next.js sin agotar la memoria.** Con ReadableStream (escrita en el preludio como
       __dashweb_ReadableStream, sin poner), el JavaScript de commodoremalacca.club sigue (React montando la página) y
@@ -1690,3 +1694,14 @@ Formato:
   tamaño de CSS, de sus atributos o, sin nada, 300x150 (con viewBox, el alto en proporción).
 - Test `test_svg_pagina` (el SVG generado, lo que decodifica nanosvg de un rectángulo y de un icono de sprite, y
   su sitio en la maqueta). Base: 43/43.
+
+### 2026-10-17 — Tarea 31k (Selectors 4)
+- `:is()` (y sus alias :matches, :-webkit-any, :-moz-any), `:where()`, `:has()` con selectores relativos (> hijo,
+  + hermano siguiente, ~ hermanos siguientes, o descendiente) y `:nth-last-of-type()`; `:not()` ya aceptaba listas.
+  Especificidad de Selectors 4: :where cuenta 0; :is, :not y :has, la de su argumento más específico. También en
+  querySelector (lo que pedía ami64.com). Test `test_selectores4`.
+- Pregunta del usuario: ¿el problema de JavaScript es QuickJS? No: el lenguaje está completo (ES2023); lo que falta
+  son las APIs del navegador (bloque 32). Traducir QuickJS a Dash (69.000 líneas de C) se descarta: meses de trabajo,
+  más lento y con fallos nuevos, para tener lo mismo; QuickJS sigue como librería de C y lo de alrededor, en Dash.
+  Orden decidido por el usuario: primero el bloque 31, luego el 32.
+- Base: 44/44.

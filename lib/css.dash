@@ -277,7 +277,28 @@ func css_selector(texto: String) -> Selector
                 tipos = tipos + 1
             else
                 actual.pseudo.push(nombre)
-                clases = clases + 1
+                # :where() no cuenta; :is(), :not(), :has() cuentan lo de su argumento más específico (Selectors 4)
+                if str_starts(nombre, "where(")
+                    clases = clases
+                elif str_starts(nombre, "is(") or str_starts(nombre, "not(") or str_starts(nombre, "has(") or str_starts(nombre, "matches(") or str_starts(nombre, "-webkit-any(")
+                    mayor = 0
+                    q = str_find(nombre, "(")
+                    for arg in css_partir(nombre[q + 1:nombre.length - 1], 44)
+                        a = str_trim(arg)
+                        while a != "" and (str_starts(a, ">") or str_starts(a, "+") or str_starts(a, "~"))
+                            a = str_trim(a[1:])
+                        end
+                        sa = css_selector(a)
+                        if sa != nil and sa.especificidad > mayor
+                            mayor = sa.especificidad
+                        end
+                    end
+                    ids = ids + mayor / 10000
+                    clases = clases + (mayor / 100) % 100
+                    tipos = tipos + mayor % 100
+                else
+                    clases = clases + 1
+                end
             end
             vacio = false
             i = j

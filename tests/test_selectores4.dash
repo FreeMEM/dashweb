@@ -1,0 +1,40 @@
+# Test: Selectors 4 (tarea 31k): :is(), :where(), :has() (> + ~ y descendiente), :not() con lista,
+# :nth-last-of-type(); su especificidad (:where cuenta 0, :is la de su argumento más específico) y
+# querySelectorAll con :is() desde JavaScript (ami64.com lo usa).
+# memcheck
+# expect-out: :is(.x, #c): a c
+# expect-out: div:has(> p): a
+# expect-out: div:has(span): c
+# expect-out: li:has(+ li): e f
+# expect-out: li:has(~ li.g): e f
+# expect-out: p:not(.y, .z): b
+# expect-out: li:nth-last-of-type(1): g
+# expect-out: :where(.x) p: b
+# expect-out: especificidad: 1 10001 101 100
+# expect-out: js: 2 1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+
+func ids(n: Nodo, sel: Selector) -> String
+    r = ""
+    if n.tipo == DOM_ELEMENTO and dom_atributo(n, "id") != "" and estilo_cumple(n, sel)
+        r = " " + dom_atributo(n, "id")
+    end
+    for h in n.hijos
+        r = r + ids(h, sel)
+    end
+    return r
+end
+
+Main
+    doc = dom_desde_html("<html><body><div id=a class=x><p id=b>hola</p></div><div id=c><span id=d></span></div><ul><li id=e></li><li id=f></li><li id=g class=g></li></ul></body></html>")
+    for s in [":is(.x, #c)", "div:has(> p)", "div:has(span)", "li:has(+ li)", "li:has(~ li.g)", "p:not(.y, .z)", "li:nth-last-of-type(1)", ":where(.x) p"]
+        Print s + ":" + ids(doc, css_selector(s))
+    end
+    Print "especificidad: " + css_selector(":where(#a) p").especificidad + " " + css_selector(":is(#a) p").especificidad + " " + css_selector("p:is(.x, div)").especificidad + " " + css_selector(":where(*):has(.a, .b)").especificidad
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    Print "js: " + js_evaluar(js, "document.querySelectorAll(':is(#a, #c)').length + ' ' + document.querySelectorAll('div:has(> p)').length", "t.js")
+    js_liberar(js)
+end
