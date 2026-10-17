@@ -1871,3 +1871,13 @@ Formato:
   transparencia). Sospecha en el runtime de Dash: `_dash_image_scale` escala la máscara con el BytesPerRow del
   bitmap de colores, que en RTG (16 bits) no es el de la máscara de 1 bit. Encargado a la otra sesión (D50).
   trainalong: igual que antes (le faltan la curva de fondo y sus letras de @font-face).
+
+### 2026-10-17 — Tarea 31j, noveno arreglo (los @media con un rango; el menú de amigang)
+- Traza de amigang (tools/traza.py): en la columna del menú quedaba el botón del menú del móvil (541 px) y el menú
+  se encogía a 176 px. Ese botón se esconde con `@media (min-width:768px) and (max-width:1023px)`, pero al leer
+  la hoja `_css_media_posible` tiraba los @media que no valen con ningún ancho de 320, 640, 1024 y 1920, y un rango
+  de tableta no contiene ninguno: sus reglas se perdían a cualquier ancho. Afecta a cualquier web con un rango
+  así (Bootstrap md, WordPress...). Ahora se prueban también los anchos que nombra la consulta (y el de al lado;
+  em a 16 px).
+- Caso nuevo en `test_estilo_capas`.
+- Base: 49/49.

@@ -645,8 +645,33 @@ end
 
 # ¿Puede valer con algún ancho? (print, no: esas reglas ni se guardan)
 func _css_media_posible(medios: String) -> Bool
+    # se prueba con unos anchos típicos y con los que nombra la consulta (y el de al lado): un rango como
+    # (min-width: 768px) and (max-width: 1023px) no contiene ninguno de los típicos
+    var anchos: [Int] = [320, 640, 1024, 1920]
+    i = 0
+    while i < medios.length
+        c = str_code(medios, i)
+        if c >= 48 and c <= 57
+            j = i
+            while j < medios.length and str_code(medios, j) >= 48 and str_code(medios, j) <= 57
+                j = j + 1
+            end
+            v = Int(medios[i:j])
+            if j + 1 < medios.length and str_code(medios, j) == 101 and str_code(medios, j + 1) == 109
+                v = v * 16
+            end
+            anchos.push(v)
+            anchos.push(v + 1)
+            if v > 0
+                anchos.push(v - 1)
+            end
+            i = j
+        else
+            i = i + 1
+        end
+    end
     antes = css_ancho
-    for ancho in [320, 640, 1024, 1920]
+    for ancho in anchos
         css_ancho = ancho
         if _css_media_pantalla(medios)
             css_ancho = antes

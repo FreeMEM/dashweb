@@ -4,6 +4,7 @@
 # memcheck
 # expect-out: a red b green c red d black e red f red g red h red i red
 # expect-out: fondo url("http://ejemplo.com/a/img/f.png") url(data:image/png;base64,AAA)
+# expect-out: rango none
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/estilo.dash"
@@ -20,11 +21,13 @@ Main
     c = c + "@supports (display: flex) and (not (-webkit-box-reflect: below)) { #f { color: red } } "
     c = c + "@supports selector(:has(a)) { #g { color: red } } "
     c = c + "@layer { #h { color: blue } } #h { color: red } #i { color: blue }"
+    c = c + " @media (min-width:768px) and (max-width:1023px) { #r { display: none } }"
     c = c + " #f1 { background-image: url(img/f.png) } #f2 { background-image: url(data:image/png;base64,AAA) }"
     h = "<html><head><style>" + c + "</style></head><body>"
     h = h + "<div id=a class=rojo>x</div><p id=b>x</p><p id=c>x</p><p id=d>x</p><p id=e>x</p><p id=f>x</p><p id=g>x</p>"
-    h = h + "<p id=h>x</p><p id=i style='color:red'>x</p><p id=f1>x</p><p id=f2>x</p></body></html>"
+    h = h + "<p id=h>x</p><p id=i style='color:red'>x</p><p id=r>x</p><p id=f1>x</p><p id=f2>x</p></body></html>"
     doc = dom_desde_html(h)
+    css_vista(940, 600)
     estilo_aplicar(doc, estilo_hojas(doc, "http://ejemplo.com/a/b.html"))
     r = ""
     for id in ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
@@ -33,4 +36,6 @@ Main
     Print str_trim(r)
     # las url() relativas, completas respecto a la hoja (aquí, la página); data: tal cual
     Print "fondo " + dom_por_id(doc, "f1").estilo["background-image"] + " " + dom_por_id(doc, "f2").estilo["background-image"]
+    # un @media con un rango (768-1023) que no contiene ninguno de los anchos típicos: se guarda y vale a 940
+    Print "rango " + dom_por_id(doc, "r").estilo["display"]
 end
