@@ -1,0 +1,41 @@
+# Test: Animations (tarea 31m): sin animar, se pinta el estado en que se queda la animación. Con
+# animation-fill-mode forwards o both y un número finito de vueltas, valen las propiedades del último fotograma
+# (to o 100 %; con alternate y un número par de vueltas, el primero); sin forwards, infinita o con !important
+# en la regla, el estilo de siempre. También @-webkit-keyframes, -webkit-animation, las propiedades sueltas
+# animation-* y cubic-bezier() (con comas) dentro del atajo.
+# memcheck
+# expect-out: a 1 b 0 c 0 d red
+# expect-out: e 10px f 1 g 1 h 0
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/estilo.dash"
+
+func ver(doc: Nodo, id: String, p: String) -> String
+    n = dom_por_id(doc, id)
+    if n == nil or not n.estilo.has(p)
+        return id + " -"
+    end
+    return id + " " + n.estilo[p]
+end
+
+Main
+    c = "@keyframes aparece { from { opacity: 0 } 50% { opacity: .5 } to { opacity: 1; } } "
+    c = c + "@keyframes color { 0% { color: red } 100% { color: blue } } "
+    c = c + "@-webkit-keyframes ancho { to { width: 10px } } "
+    c = c + "div { opacity: 0 } "
+    c = c + "#a { animation: aparece 1s ease-out forwards } #b { animation: aparece 1s } "
+    c = c + "#c { animation: aparece 1s infinite forwards } #d { animation: color 1s 2 alternate both } "
+    c = c + "#e { -webkit-animation: ancho 1s forwards } "
+    c = c + "#f { animation-name: aparece; animation-duration: 1s; animation-fill-mode: forwards } "
+    c = c + "#g { animation: 1s cubic-bezier(0.1, 0.7, 1, 0.1) 0.2s aparece forwards } "
+    c = c + "#h { opacity: 0 !important; animation: aparece 1s forwards }"
+    h = "<html><head><style>" + c + "</style></head><body>"
+    for id in ["a", "b", "c", "d", "e", "f", "g", "h"]
+        h = h + "<div id=" + id + ">x</div>"
+    end
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    Print ver(doc, "a", "opacity") + " " + ver(doc, "b", "opacity") + " " + ver(doc, "c", "opacity") + " " + ver(doc, "d", "color")
+    Print ver(doc, "e", "width") + " " + ver(doc, "f", "opacity") + " " + ver(doc, "g", "opacity") + " " + ver(doc, "h", "opacity")
+end

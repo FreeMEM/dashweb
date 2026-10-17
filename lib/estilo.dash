@@ -112,6 +112,7 @@ struct Hojas
     # las propiedades --x que algún var() nombra: las demás no se guardan (Tailwind declara unas 45 en cada
     # elemento y WordPress unas 60 que se heredan; copiarlas en cada nodo era lo que más costaba)
     vars_usadas: {String: Int} = nil
+    fotogramas: {String: [Declaracion]} = nil   # los @keyframes de todas las hojas (el último de un nombre manda)
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -673,6 +674,15 @@ func _estilo_indexar(h: Hojas)
         end
     end
     h.vars_usadas = usadas
+    var fotogramas: {String: [Declaracion]} = {}
+    for hoja in h.lista
+        if hoja.fotogramas != nil
+            for k in hoja.fotogramas.keys()
+                fotogramas[k] = hoja.fotogramas[k]
+            end
+        end
+    end
+    h.fotogramas = fotogramas
     h.indice_ancho = css_vista_ancho()
 end
 
@@ -1134,6 +1144,20 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {S
             end
         end
     end
+    if ganadoras.has("animation") or ganadoras.has("animation-name") or ganadoras.has("-webkit-animation")
+        final = _animacion_final(ganadoras, hojas)
+        if final.length > 0
+            # sobre una copia: las ganadoras pueden estar compartidas con otros elementos (_ganadoras_hechas)
+            var con: {String: Candidata} = {}
+            for k in ganadoras.keys()
+                con[k] = ganadoras[k]
+            end
+            for d in final
+                _declarar(con, Declaracion(d.propiedad, d.valor, false), true, 2000000, 2000000)
+            end
+            ganadoras = con
+        end
+    end
     e = _calcular(ganadoras, padre, padre_vars, "inline")
     vars = _calc_vars
     if _oculto_a_la_vista(e)
@@ -1150,6 +1174,120 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {S
         _estilo_nodo(h, hojas, e, vars)
     end
     _antepasados_cambiar(n, -1)
+end
+
+# CSS Animations sin animar: lo que deja puesto la animación al acabar. Solo con animation-fill-mode forwards o
+# both y un número finito de vueltas (si no, al acabar vuelve el estilo de siempre o no acaba nunca): las
+# declaraciones de su último fotograma, o del primero si acaba al revés (reverse, alternate con vueltas pares,
+# alternate-reverse con impares). Van por encima de todo lo que no es !important.
+func _animacion_final(g: {String: Candidata}, hojas: Hojas) -> [Declaracion]
+    var r: [Declaracion] = []
+    if hojas.fotogramas == nil or hojas.fotogramas.length == 0
+        return r
+    end
+    var nombres: [String] = []
+    var rellenos: [String] = []
+    var vueltas: [String] = []
+    var sentidos: [String] = []
+    atajo = ""
+    if g.has("animation")
+        atajo = g["animation"].valor
+    elif g.has("-webkit-animation")
+        atajo = g["-webkit-animation"].valor
+    end
+    if atajo != ""
+        for item in css_partir(atajo, 44)
+            nombre = ""
+            relleno = "none"
+            cuantas = "1"
+            sentido = "normal"
+            for t in _palabras(item)
+                c = str_code(t, 0)
+                if str_find(t, "(") >= 0
+                    continue
+                elif (c >= 48 and c <= 57) or c == 46
+                    if not str_ends(t, "s")
+                        cuantas = t
+                    end
+                elif t == "infinite"
+                    cuantas = t
+                elif t == "forwards" or t == "backwards" or t == "both" or t == "none"
+                    relleno = t
+                elif t == "normal" or t == "reverse" or t == "alternate" or t == "alternate-reverse"
+                    sentido = t
+                elif t == "ease" or t == "linear" or t == "ease-in" or t == "ease-out" or t == "ease-in-out" or t == "step-start" or t == "step-end" or t == "running" or t == "paused" or t == "initial" or t == "inherit"
+                    continue
+                elif nombre == "" and not str_starts(t, "-")
+                    nombre = t
+                elif nombre == "" and c == 45 and t.length > 1 and not ((str_code(t, 1) >= 48 and str_code(t, 1) <= 57) or str_code(t, 1) == 46)
+                    nombre = t
+                end
+            end
+            nombres.push(nombre)
+            rellenos.push(relleno)
+            vueltas.push(cuantas)
+            sentidos.push(sentido)
+        end
+    end
+    _animacion_lista(g, "animation-name", nombres)
+    _animacion_lista(g, "animation-fill-mode", rellenos)
+    _animacion_lista(g, "animation-iteration-count", vueltas)
+    _animacion_lista(g, "animation-direction", sentidos)
+    i = 0
+    while i < nombres.length
+        nombre = nombres[i]
+        relleno = "none"
+        if rellenos.length > 0
+            relleno = rellenos[i % rellenos.length]
+        end
+        cuantas = "1"
+        if vueltas.length > 0
+            cuantas = vueltas[i % vueltas.length]
+        end
+        sentido = "normal"
+        if sentidos.length > 0
+            sentido = sentidos[i % sentidos.length]
+        end
+        if (relleno == "forwards" or relleno == "both") and cuantas != "infinite" and nombre != "" and nombre != "none"
+            n = estilo_px(cuantas, 0, 0)
+            al_reves = sentido == "reverse" or (sentido == "alternate" and n % 2 == 0) or (sentido == "alternate-reverse" and n % 2 == 1)
+            clave = nombre
+            if al_reves
+                clave = nombre + " 0"
+            end
+            if hojas.fotogramas.has(clave)
+                var fotograma: [Declaracion] = hojas.fotogramas[clave]
+                for d in fotograma
+                    r.push(d)
+                end
+            end
+        end
+        i = i + 1
+    end
+    return r
+end
+
+# Una propiedad animation-* suelta (lista con comas) sustituye a lo que dijo el atajo
+func _animacion_lista(g: {String: Candidata}, p: String, lista: [String])
+    v = ""
+    if g.has(p)
+        v = g[p].valor
+    elif g.has("-webkit-" + p)
+        v = g["-webkit-" + p].valor
+    end
+    if v == ""
+        return
+    end
+    partes = css_partir(v, 44)
+    i = 0
+    while i < partes.length
+        if i < lista.length
+            lista[i] = str_trim(partes[i])
+        else
+            lista.push(str_trim(partes[i]))
+        end
+        i = i + 1
+    end
 end
 
 # Lo heredado del padre y encima lo propio; var() resuelto; font-size en px. Las --x quedan en _calc_vars:

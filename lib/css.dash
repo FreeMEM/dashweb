@@ -63,6 +63,8 @@ end
 struct HojaCSS
     reglas: [Regla]
     importes: [String]
+    # @keyframes: el nombre -> las declaraciones de su último fotograma (to o 100 %); "nombre 0", las del primero
+    fotogramas: {String: [Declaracion]} = nil
 end
 
 # Sin comentarios /* ... */
@@ -391,6 +393,9 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
             else
                 cierre = _css_cierre(s, llave)
                 cabeza = str_lower(str_trim(s[i:llave]))
+                if str_find(cabeza, "keyframes") >= 0 and str_find(cabeza, "keyframes") < 16
+                    _css_fotogramas(hoja, str_trim(s[i:llave]), s[llave + 1:cierre])
+                end
                 if str_starts(cabeza, "@media") and _css_media_posible(cabeza[6:])
                     var dentro: [String] = []
                     if medios != nil
@@ -425,6 +430,49 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
         end
     end
     return orden
+end
+
+# Un @keyframes (o @-webkit-keyframes...): se guardan su primer y su último fotograma (lib/estilo.dash pinta el
+# estado en que se queda la animación)
+func _css_fotogramas(hoja: HojaCSS, cabeza: String, cuerpo: String)
+    p = _css_buscar(cabeza, 32, 0)
+    if p < 0
+        return
+    end
+    nombre = str_trim(cabeza[p + 1:])
+    if nombre.length >= 2 and (str_starts(nombre, "\"") or str_starts(nombre, "'"))
+        nombre = nombre[1:nombre.length - 1]
+    end
+    var ultimo: [Declaracion] = []
+    var primero: [Declaracion] = []
+    i = 0
+    while i < cuerpo.length
+        llave = _css_buscar(cuerpo, 123, i)
+        if llave < 0
+            break
+        end
+        cierre = _css_cierre(cuerpo, llave)
+        var decl: [Declaracion] = css_declaraciones(cuerpo[llave + 1:cierre])
+        for sel in css_partir(cuerpo[i:llave], 44)
+            t = str_lower(str_trim(sel))
+            if t == "to" or t == "100%"
+                for d in decl
+                    ultimo.push(d)
+                end
+            elif t == "from" or t == "0%"
+                for d in decl
+                    primero.push(d)
+                end
+            end
+        end
+        i = cierre + 1
+    end
+    if hoja.fotogramas == nil
+        var f: {String: [Declaracion]} = {}
+        hoja.fotogramas = f
+    end
+    hoja.fotogramas[nombre] = ultimo
+    hoja.fotogramas[nombre + " 0"] = primero
 end
 
 # ¿Vale esta lista de medios para la pantalla? Se mira como la página de ahora (css_vista: ancho y alto

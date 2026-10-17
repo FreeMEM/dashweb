@@ -360,7 +360,7 @@ tarea, con el estilo de Dash.
       31h. @font-face (fuentes de la web: woff/woff2/ttf) y font-weight/style reales.
       [x] 31k. Selectors 4: :is(), :where(), :has(), :not() con listas (ami64.com usa :is() en querySelector).
       [x] 31l. Transforms completo: translate con %, scale, rotate de cualquier ángulo (en cajas e imágenes).
-      31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
+      [x] 31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
       31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
       31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
       (El usuario, 2026-10-17: "mejor CSS 3". CSS 3 es el conjunto de módulos posteriores a CSS 2.1, que sigue siendo
@@ -1718,3 +1718,15 @@ Formato:
   una barra sola se gira al múltiplo de 45 más cercano, como antes. skew y los giros 3D se ignoran.
 - Test `test_maqueta_transform` (9 casos).
 - Base: 45/45.
+
+### 2026-10-17 — Tarea 31m (Animations: el estado final)
+- dashweb no anima: pinta lo que la animación deja puesto. lib/css.dash guarda de cada @keyframes (y
+  @-webkit-/-moz-keyframes) su último fotograma (to o 100 %) y el primero (from o 0 %); lib/estilo.dash junta los de
+  todas las hojas (el último de un nombre manda) y, en un elemento con animation (o -webkit-animation, o las
+  sueltas animation-name, -fill-mode, -iteration-count, -direction), si el fill-mode es forwards o both y las
+  vueltas son finitas, declara las del fotograma final por encima de todo lo que no es !important (sobre una
+  copia: las ganadoras se comparten entre elementos). Con reverse, alternate y vueltas pares o alternate-reverse
+  e impares acaba en el primero. Es el caso de las webs que ponen opacity: 0 y una animación de aparecer.
+- Transitions: sin cambios de estado no hay nada que hacer (el estilo de siempre es el final).
+- Test `test_estilo_animacion` (8 casos, con cubic-bezier() con comas dentro del atajo).
+- Base: 46/46.
