@@ -423,6 +423,19 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             fondo = -1
         end
     end
+    # opacity entre 0 y 1: el fondo, mezclado (lo de dentro se pinta entero: el pintor no mezcla texto)
+    if fondo >= 0 and e.has("opacity") and e["opacity"] != "1"
+        o = e["opacity"]
+        mil = 1000
+        if str_ends(o, "%")
+            mil = _mil(o[:o.length - 1]) / 100
+        else
+            mil = _mil(o)
+        end
+        if mil >= 0 and mil < 1000
+            alfa_fondo = alfa_fondo * mil / 1000
+        end
+    end
     # background-clip: text: el fondo solo se ve dentro de las letras (las pinta _palabras con su color)
     recorta_texto = _clip_texto(e)
     if recorta_texto
@@ -1312,10 +1325,21 @@ func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, pl: I
     end
     # con top y bottom y sin height, su alto es el hueco entre los dos (una capa que tapa su contenedor: inset 0);
     # se pone un height de un momento y se quita después (el estilo se vuelve a usar al maquetar otra vez)
-    estirado = tiene_t and tiene_b and not (e.has("height") and e["height"] != "auto")
+    # (y un height en %: del alto del contenedor, que en un absoluto ya se sabe)
+    alto_css = _val(e, "height", "auto")
+    estirado = tiene_t and tiene_b and alto_css == "auto"
     if estirado
         h = ch - _px(e, "top", ch) - _px(e, "bottom", ch) - _px(e, "margin-top", cw) - _px(e, "margin-bottom", cw)
         if _val(e, "box-sizing", "content-box") != "border-box"
+            h = h - _borde(e, "top") - _borde(e, "bottom") - _px(e, "padding-top", cw) - _px(e, "padding-bottom", cw)
+        end
+        if h < 0
+            h = 0
+        end
+        e["height"] = "" + h + "px"
+    elif str_ends(alto_css, "%")
+        h = _px(e, "height", ch)
+        if _val(e, "box-sizing", "content-box") == "border-box"
             h = h - _borde(e, "top") - _borde(e, "bottom") - _px(e, "padding-top", cw) - _px(e, "padding-bottom", cw)
         end
         if h < 0
@@ -1328,6 +1352,8 @@ func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, pl: I
     alto = _bloque_de(m, n, ax, cy, w, cw)
     if estirado
         e.remove("height")
+    elif str_ends(alto_css, "%")
+        e["height"] = alto_css
     end
     dy = 0
     if tiene_t

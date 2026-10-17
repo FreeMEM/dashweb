@@ -1847,3 +1847,12 @@ Formato:
   tramo de líneas de una caja, no solo en el primero (una caja con texto, un bloque y más texto sangra los dos).
 - Caso nuevo en `test_maqueta_texto3`.
 - Base: 49/49.
+
+### 2026-10-17 — Tarea 31j, séptimo arreglo (amigang: la capa oscura de la cabecera)
+- El tema Mesmerize oscurece la imagen de la cabecera con un ::before en position: absolute, width/height 100 %,
+  fondo negro y opacity: 0.78; el menú blanco va encima. Dos fallos: un absoluto con height en % medía 0 (en un
+  absoluto el alto del contenedor ya se sabe: ahora sale de él, como top/bottom), y opacity entre 0 y 1 no se
+  aplicaba. Ahora la opacidad de una caja mezcla su fondo (el rectángulo con espaciado = alfa; el pintor no
+  mezcla texto ni imágenes: lo de dentro se pinta entero).
+- Caso nuevo en `test_maqueta_transform`.
+- Base: 49/49.
