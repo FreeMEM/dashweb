@@ -364,6 +364,11 @@ tarea, con el estilo de Dash.
       [x] 31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
       [x] 31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
       [x] 31p. @supports y @layer (Conditional 3 y Cascade 5): antes se perdía todo lo de dentro.
+      33. RENDIMIENTO (lo pide el usuario, 2026-10-17: "está relento"; pasa delante de lo demás). freemem.space tarda
+          105-120 s en la máquina RTG (68040 con JIT: medido que el JIT va, sin él todo tarda 2-2,5 veces). Primero
+          medir con `tools/medir_visor.py --perfil` (tabla de tiempo por función de ./dash --profile) en las webs de
+          la lista y atacar lo que más pese (cascada, maqueta repetida al llegar imágenes y fuentes, pintado entero,
+          JavaScript, TLS), midiendo antes y después.
       31q. Animar el CSS de verdad (lo pide el usuario, 2026-10-17: trainalong.fit dibuja sus curvas con @keyframes al
            abrirse). Ahora (31m) solo se pinta el estado final. Plan: (1) un reloj de animaciones con el tic de dashweb
            (unos 10-20 por segundo mientras haya alguna viva) y las funciones de tiempo (linear, ease y cubic-bezier,
@@ -1980,3 +1985,32 @@ Formato:
   (opacity 0 y una animación a 1 con forwards), sí.
 - Casos nuevos en `test_animacion`. Falta (b): el reloj en dashweb y repintar solo lo que cambia.
 - Base: 51/51.
+
+### 2026-10-17 — Una imagen abierta sola (lo vio el usuario)
+- Al pulsar en una foto que enlaza a su .jpg, dashweb pintaba los bytes del JPEG como texto: todo lo que llegaba
+  se trataba como HTML. Ahora lib/documento.dash mira el Content-Type (o, sin él, la extensión): una imagen da una
+  página que la muestra centrada sobre fondo oscuro (como Chrome), con su nombre de título; un vídeo, un
+  <video controls>; text/plain, un <pre>. El servidor de pruebas da image/jpeg, text/plain y font/ttf.
+- Test `test_documento_tipo`.
+- Comparado el artículo https://freemem.space/s4a-robotica-para-ninos/ con Chrome a 940 px: la foto del texto sale
+  a su tamaño (500x375), pero faltaba la foto destacada de arriba. Una <img> (o <svg>) con display: block no se
+  dibujaba nunca (se maquetaba como una caja sin contenido): ahora `_imagen_en_bloque` la pone como una línea con
+  ella (con el enlace del <a> de fuera). Caso nuevo en `test_maqueta_transform`. En la ventana más ancha del
+  usuario la foto del texto salía a 904x578: sin reproducir aún (a 940 px va bien).
+- Base: 52/52.
+
+### 2026-10-17 — Tarea 33, primera medida (perfil de freemem.space)
+- `medir_visor --perfil` con freemem.space en la máquina RTG (128 s): sin contar la espera, lo que más pesa es
+  pintar: `_mezcla_recortada` (gfx_blend_rect: cajas con fondo semitransparente) 29,9 % con solo 46 llamadas y
+  `_degradado_pintar` (gfx_gradient_rect) 6,9 %; la cascada de CSS (`_estilo_nodo`) un 8 %; JavaScript un 3 %;
+  red y TLS un 5 %. Causa: en pantallas de color directo el runtime de Dash mezcla píxel a píxel (una lectura y
+  una escritura de la librería por píxel). Encargado a la otra sesión (D51): mezcla por bloques con
+  p96ReadPixelArray/p96WritePixelArray. Siguiente: medir cuántas veces se maqueta y se pinta la página entera.
+
+### 2026-10-17 — El paquete y la versión alfa
+- tools/paquete.sh mete ya todas las licencias de lo que va dentro (libwebp, nanosvg, MintVID, TJpgDec y la
+  nota de stb, además de dashweb, QuickJS y fdlibm). El LEEME dice lo que de verdad hace falta: AmigaOS 3.2 (o
+  3.5/3.9: las imágenes usan picture.datatype V43), un 68020 con FPU o un 040/060, memoria Fast (decenas de MB
+  para las webs de hoy), MUI, una pila TCP/IP y AmiSSL; y el indicador nuevo y la barra de progreso.
+- El usuario quiere publicar una alfa en GitHub: v0.1.0-alfa (pre-release sobre dev, con dashweb.lha), después
+  del arreglo de velocidad de la mezcla (D51), medido.

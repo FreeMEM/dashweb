@@ -21,6 +21,7 @@
 # expect-out: capa2 W 280 60 alfa 198
 # expect-out: abs 255 X 20 10
 # expect-out: fija 3 4 10 10
+# expect-out: bloque 50 20
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -53,6 +54,8 @@ Main
     # (una imagen absoluta, con right/bottom; otra fixed: respecto a la ventana, no a su padre)
     h = h + "<div style='position:relative;height:50px'><img id=abs src=z.png width=20 height=10 style='position:absolute;right:5px;bottom:5px'></div>"
     h = h + "<div style='margin-top:30px'><img id=fija src=f.png width=10 height=10 style='position:fixed;left:3px;top:4px'></div>"
+    # (una <img> con display: block también se dibuja)
+    h = h + "<img id=bloque src=b.png width=50 height=20 style='display:block'>"
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
@@ -60,6 +63,8 @@ Main
     for d in p.dibujos
         if d.tipo == D_IMAGEN and d.nodo != nil and dom_atributo(d.nodo, "id") == "abs"
             Print "abs " + d.x + " X " + d.ancho + " " + d.alto
+        elif d.tipo == D_IMAGEN and d.nodo != nil and dom_atributo(d.nodo, "id") == "bloque"
+            Print "bloque " + d.ancho + " " + d.alto
         elif d.tipo == D_IMAGEN and d.nodo != nil and dom_atributo(d.nodo, "id") == "fija"
             Print "fija " + d.x + " " + d.y + " " + d.ancho + " " + d.alto
         elif d.tipo == D_IMAGEN

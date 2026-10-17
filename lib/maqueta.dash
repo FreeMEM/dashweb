@@ -546,6 +546,9 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         else
             alto = _flex(m, n, cx, cy, interior, alto_fijo)
         end
+    elif n.nombre == "img" or n.nombre == "svg"
+        # una imagen con display: block (la destacada de WordPress...): una línea con ella
+        alto = _imagen_en_bloque(m, n, cx, cy, interior)
     else
         alto = _contenido(m, n, cx, cy, interior)
     end
@@ -1516,6 +1519,29 @@ func _absoluto_imagen(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int
         d.capa = Int(e["z-index"])
     end
     m.pagina.dibujos.push(d)
+end
+
+func _imagen_en_bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
+    enlace = ""
+    a = n.padre
+    while a != nil
+        if a.tipo == DOM_ELEMENTO and a.nombre == "a" and dom_tiene_atributo(a, "href")
+            enlace = dom_atributo(a, "href")
+            break
+        end
+        a = a.padre
+    end
+    var piezas: [Pieza] = []
+    previo = m.ancho_linea
+    m.ancho_linea = ancho
+    m.blanco = 0
+    _piezas(m, n, n.estilo, piezas, enlace)
+    for p in piezas
+        p.espacio = 0
+    end
+    alto = _lineas(m, piezas, x, y, ancho, n.estilo)
+    m.ancho_linea = previo
+    return alto
 end
 
 # Lo mismo para quien anima la página (lib/animacion.dash)

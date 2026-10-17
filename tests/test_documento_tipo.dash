@@ -1,0 +1,23 @@
+# Test: lib/documento.dash con algo que no es HTML. Una imagen abierta sola (Content-Type image/jpeg) da una página
+# que la muestra (como Chrome: centrada sobre fondo oscuro), con su nombre de título; un HTML, el HTML.
+# emu-server: http.py 40858
+# memcheck
+# expect-out: imagen: dec_base.jpg http://127.0.0.1:40858/pages/dec_base.jpg #0e0e0e
+# expect-out: html: true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+Main
+    r = http_get("http://127.0.0.1:40858/pages/dec_base.jpg", 10000)
+    d = documento_empezar("http://127.0.0.1:40858/pages/dec_base.jpg", r)
+    while not documento_avanzar(d)
+        time_delay(1)
+    end
+    img = dom_buscar(d.doc, "img")
+    cuerpo = dom_buscar(d.doc, "body")
+    Print "imagen: " + jsdom_titulo(d.doc) + " " + dom_atributo(img, "src") + " " + cuerpo.estilo["background-color"]
+    r2 = http_get("http://127.0.0.1:40858/pages/prueba.html", 10000)
+    d2 = documento_empezar("http://127.0.0.1:40858/pages/prueba.html", r2)
+    Print "html: " + (dom_buscar(d2.doc, "img") == nil or dom_atributo(dom_buscar(d2.doc, "img"), "src") != "http://127.0.0.1:40858/pages/prueba.html")
+end

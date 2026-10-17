@@ -82,7 +82,7 @@ func documento_desde_respuesta(direccion: String, r: Respuesta) -> Documento
         return documento_desde_html(d, "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>", t0)
     end
     d.direccion = r.url
-    return documento_desde_html(d, http_texto(r), t0)
+    return documento_desde_html(d, _documento_de_tipo(r), t0)
 end
 
 # Sin esperar: el árbol de la respuesta y los recursos (CSS, <script src>) pedidos; documento_avanzar en
@@ -99,7 +99,7 @@ func documento_empezar(direccion: String, r: Respuesta) -> Documento
         texto = "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>"
     else
         d.direccion = r.url
-        texto = http_texto(r)
+        texto = _documento_de_tipo(r)
     end
     d.bytes = texto.length
     d.doc = dom_desde_html(texto)
@@ -107,6 +107,45 @@ func documento_empezar(direccion: String, r: Respuesta) -> Documento
     recursos_del_documento(d.recursos, d.doc, d.direccion)
     d.ms = time_ms() - t0
     return d
+end
+
+# El HTML de lo que llegó: una imagen o un vídeo abiertos solos van en una página que los muestra (como Chrome:
+# centrada sobre fondo oscuro), el texto plano en un <pre>; lo demás es HTML
+func _documento_de_tipo(r: Respuesta) -> String
+    tipo = str_lower(r.tipo)
+    if tipo == ""
+        # sin Content-Type: por la extensión
+        e = str_lower(r.url)
+        q = str_find(e, "?")
+        if q >= 0
+            e = e[:q]
+        end
+        if str_ends(e, ".jpg") or str_ends(e, ".jpeg") or str_ends(e, ".png") or str_ends(e, ".gif") or str_ends(e, ".webp") or str_ends(e, ".bmp") or str_ends(e, ".svg")
+            tipo = "image/"
+        end
+    end
+    nombre = r.url
+    barra = nombre.length - 1
+    while barra >= 0 and str_code(nombre, barra) != 47
+        barra = barra - 1
+    end
+    if barra >= 0
+        nombre = nombre[barra + 1:]
+    end
+    src = str_replace(str_replace(r.url, "\"", "%22"), "<", "%3C")
+    if str_starts(tipo, "image/")
+        h = "<html><head><title>" + nombre + "</title></head>"
+        h = h + "<body style='margin:0;background:#0e0e0e;display:flex;align-items:center;justify-content:center;min-height:100vh'>"
+        return h + "<img src=\"" + src + "\" style='max-width:100%'></body></html>"
+    elif str_starts(tipo, "video/")
+        h = "<html><head><title>" + nombre + "</title></head>"
+        h = h + "<body style='margin:0;background:#0e0e0e;display:flex;align-items:center;justify-content:center;min-height:100vh'>"
+        return h + "<video src=\"" + src + "\" controls style='max-width:100%'></video></body></html>"
+    elif tipo == "text/plain"
+        t = str_replace(str_replace(str_replace(http_texto(r), "&", "&amp;"), "<", "&lt;"), ">", "&gt;")
+        return "<html><head><title>" + nombre + "</title></head><body><pre style='white-space:pre-wrap'>" + t + "</pre></body></html>"
+    end
+    return http_texto(r)
 end
 
 func documento_avanzar(d: Documento) -> Bool
