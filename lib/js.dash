@@ -18,6 +18,9 @@
 @c
 """
 /* lib/js.dash: a QuickJS runtime and context, and the last exception as Latin-1 */
+
+/* The most memory one page's JavaScript may take */
+#define JS_MEMORIA (48L * 1024 * 1024)
 typedef struct _JsMotorS {
     JSRuntime *rt;
     JSContext *ctx;
@@ -116,6 +119,9 @@ end
     m->rt = JS_NewRuntime();
     if (m->rt) {
         JS_SetMaxStackSize(m->rt, 192 * 1024);     /* of the 256 KB of @stack */
+        /* a page whose JavaScript wants more gets "out of memory" in its script, instead of leaving the whole
+           Amiga without memory (Next.js on commodoremalacca.club took the 128 MB of the RTG machine) */
+        JS_SetMemoryLimit(m->rt, JS_MEMORIA);
         m->ctx = JS_NewContext(m->rt);
     }
     if (!m->ctx) {

@@ -335,9 +335,15 @@ tarea, con el estilo de Dash.
       esperar y con límites; datatypes solo para lo demás.
 - [x] 29b. **SVG.** Logos e iconos en SVG (muchas webs): un subconjunto (path, rect, circle, fill/stroke) dibujado
       con gfx_ o rasterizado a RGB (nanosvg, zlib) al tamaño en que se ve.
-- [ ] 28i. **Lo que le falta al JavaScript de las webs de hoy.** commodoremalacca.club (Next.js), probado a mano
+- [x] 28i. **Lo que le falta al JavaScript de las webs de hoy.** commodoremalacca.club (Next.js), probado a mano
       por el usuario el 2026-10-17: "ReferenceError: 'TextEncoder' is not defined" en su webpack. TextEncoder y
       TextDecoder (UTF-8) en jsdom; luego, lo siguiente que pida esa página.
+- [ ] 28j. **Next.js sin agotar la memoria.** Con ReadableStream (escrita en el preludio como
+      __dashweb_ReadableStream, sin poner), el JavaScript de commodoremalacca.club sigue (React montando la página) y
+      deja el Amiga sin memoria (malloc falla: no es QuickJS, que ya tiene tope de 48 MB) y dashweb se cierra; salen
+      también excepciones "null". Averiguar qué crece (¿el DOM de Dash?) y ponerle freno; luego poner ReadableStream.
+- [ ] 28k. **commodoremalacca.club como en Chrome.** Su portada sale con el texto blanco sobre fondo claro (falta el
+      fondo oscuro del bloque principal) y el botón redondeado "Ver Eventos" dibujado como una elipse.
 - [x] 29c. **Decodificar sin parar la interfaz.** Hoy una imagen se decodifica entera en imagenes_avanzar (la
       ventana no responde mientras): por trozos (TJpgDec por bloques, libwebp incremental) o en otra tarea.
 - [x] 23. **Repaso final.** Tamaño, memoria, tiempos en la configuración objetivo, documentación,
@@ -1528,3 +1534,16 @@ Formato:
   `test_imagen_dec` mira lo decodificado por la tarea sin pasarlo a pantalla (`imagen_acabar_probar`).
 - Prueba a mano del usuario en una ventana del emulador: commodoremalacca.club (Next.js) pide TextEncoder, que
   no tenemos: tarea 28i. Base: 36/36.
+
+### 2026-10-17 — Tarea 28i (TextEncoder, TextDecoder)
+- En el preludio de jsdom: TextEncoder (encode, encodeInto) y TextDecoder (UTF-8 con BOM, stream y fatal, como
+  el estándar de WHATWG; también UTF-16LE y Latin-1). Sin listas intermedias: dos pasadas sobre Uint8Array (la
+  primera versión, byte a byte en una lista, se quedó sin memoria con los datos de una página de Next.js).
+  Comprobados en el PC contra los de Node: casos a mano, 3000 secuencias de bytes al azar, 2000 textos al azar con
+  encodeInto en destinos de 0 a 5 bytes, y trozos partidos al azar con stream: todo igual.
+- commodoremalacca.club (Next.js) pedía después ReadableStream. Escrita (cola, lectores con promesas, pull, for
+  await), pero con ella el JavaScript sigue y deja el Amiga sin memoria y dashweb se cierra: se queda sin poner
+  (tarea 28j) y la página se sigue viendo como antes (entera en 57,7 s).
+- lib/js.dash: tope de memoria de 48 MB para el JavaScript de una página (JS_SetMemoryLimit): si lo pasa, su
+  script recibe "out of memory" en vez de dejar sin memoria al Amiga.
+- Test `test_jsdom_texto`. Apuntado lo que se ve mal en esa portada: tarea 28k. Base: 37/37.
