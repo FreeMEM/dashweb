@@ -59,6 +59,13 @@ struct Dibujo
     ry0: Int = 0
     rx1: Int = 0
     ry1: Int = 0
+    # animaciones (lib/animacion.dash): el elemento animado que lo dibujó (o uno de sus antepasados), dónde
+    # estaba antes de animarse y si la animación lo esconde ahora (opacity)
+    anim: Nodo = nil
+    base: Bool = false
+    bx: Int = 0
+    by: Int = 0
+    velado: Bool = false
 end
 
 struct Pagina
@@ -345,6 +352,16 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     t = _transformacion(n.estilo)
     if t != ""
         _transformar(m, n, t, antes)
+    end
+    # con animation: lo dibujado se marca con el elemento (lib/animacion.dash lo mueve en cada fotograma)
+    if n.estilo.has("animation") or n.estilo.has("animation-name") or n.estilo.has("-webkit-animation")
+        k = antes
+        while k < m.pagina.dibujos.length
+            if m.pagina.dibujos[k].anim == nil
+                m.pagina.dibujos[k].anim = n
+            end
+            k = k + 1
+        end
     end
     # position: relative: se desplaza lo dibujado (left o right, top o bottom) sin mover a los demás (CSS 2.1, 9.4.3)
     if _val(n.estilo, "position", "static") == "relative"
@@ -1057,6 +1074,38 @@ func _girar_barra(d: Dibujo, giro: Int)
     end
 end
 
+# Lo que desplaza un transform (sus translate, translateX/Y y translate3d; % de una caja de ancho x alto); los
+# demás (scale, rotate...) no cuentan aquí: para las animaciones (lib/animacion.dash)
+func maqueta_desplazamiento(t: String, ancho: Int, alto: Int, em: Int) -> [Int]
+    dx = 0
+    dy = 0
+    resto = str_lower(t)
+    while true
+        p = str_find(resto, "(")
+        if p < 0
+            break
+        end
+        c = _cierre(resto, p)
+        if c < 0
+            break
+        end
+        f = str_trim(resto[:p])
+        args = _transform_args(resto[p + 1:c])
+        resto = resto[c + 1:]
+        if f == "translatex" and args.length > 0
+            dx = dx + estilo_px(args[0], em, ancho)
+        elif f == "translatey" and args.length > 0
+            dy = dy + estilo_px(args[0], em, alto)
+        elif (f == "translate" or f == "translate3d") and args.length > 0
+            dx = dx + estilo_px(args[0], em, ancho)
+            if args.length > 1
+                dy = dy + estilo_px(args[1], em, alto)
+            end
+        end
+    end
+    return [dx, dy]
+end
+
 # El paréntesis que cierra el abierto en p (con calc() y otros dentro); -1 si no hay
 func _cierre(v: String, p: Int) -> Int
     nivel = 0
@@ -1467,6 +1516,11 @@ func _absoluto_imagen(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int
         d.capa = Int(e["z-index"])
     end
     m.pagina.dibujos.push(d)
+end
+
+# Lo mismo para quien anima la página (lib/animacion.dash)
+func maqueta_mover(d: Dibujo, dx: Int, dy: Int)
+    _mover(d, dx, dy)
 end
 
 # Mueve un dibujo y, si va recortado (overflow), su zona de recorte con él (está en coordenadas de página)

@@ -31,7 +31,7 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
     derecha = x0 + ancho - 1
     abajo = y0 + alto - 1
     for d in p.dibujos
-        if d.y + d.alto <= desde or d.y >= hasta
+        if d.y + d.alto <= desde or d.y >= hasta or d.velado
             continue
         end
         y = y0 + d.y - desde

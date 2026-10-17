@@ -1968,3 +1968,15 @@ Formato:
   translateX(-20px), stroke-dashoffset...).
 - Test `test_animacion`. Falta: aplicarlo a lo dibujado y el reloj (paso 2).
 - Base: 51/51.
+
+### 2026-10-17 — Tarea 31q, segundo paso (a): las animaciones sobre lo dibujado
+- La maqueta marca lo que dibuja un elemento con animation (`Dibujo.anim`; el más de dentro se queda el suyo) y
+  `maqueta_desplazamiento` da lo que mueven los translate de un transform (% de la caja del elemento).
+- lib/animacion.dash: `animaciones_pagina(página, hojas)` junta las de los elementos marcados; `animar(página,
+  animaciones, ms)` es un fotograma: guarda la primera vez dónde estaba cada dibujo (bx, by), mueve lo de cada
+  elemento lo que digan sus translate en ese instante (con su recorte) y lo vela si su opacity baja de 0,5 (el
+  pintor no pinta lo velado: no mezcla texto); dice si queda alguna viva.
+- Un elemento que la 31m deja con opacity 0 (acaba invisible) no se dibuja y no se anima: lo normal, aparecer
+  (opacity 0 y una animación a 1 con forwards), sí.
+- Casos nuevos en `test_animacion`. Falta (b): el reloj en dashweb y repintar solo lo que cambia.
+- Base: 51/51.

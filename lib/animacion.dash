@@ -7,7 +7,7 @@
 #       p = animacion_progreso(a, ms)            # -1 si en ese instante no hace nada
 #       v = animacion_valor(a, "opacity", p)     # "" si la animación no la toca
 
-import "estilo.dash"
+import "maqueta.dash"
 import "colores.dash"
 
 struct Animacion
@@ -20,6 +20,10 @@ struct Animacion
     sentido: String = "normal"
     relleno: String = "none"
     curva: String = "ease"
+    # en el último fotograma pintado (animar): lo que mueve y si esconde
+    dx: Int = 0
+    dy: Int = 0
+    velado: Bool = false
 end
 
 # Las animaciones de n que tienen @keyframes (vacía si ninguna)
@@ -469,4 +473,107 @@ func _texto_milesimas(m: Int) -> String
         t = t[:t.length - 1]
     end
     return r + "." + t
+end
+
+# === En la página ===
+
+# Las animaciones de los elementos animados de la página (los que marcó la maqueta en Dibujo.anim)
+func animaciones_pagina(p: Pagina, hojas: Hojas) -> [Animacion]
+    var r: [Animacion] = []
+    var vistos: [Nodo] = []
+    for d in p.dibujos
+        if d.anim != nil
+            nuevo = true
+            for v in vistos
+                if v == d.anim
+                    nuevo = false
+                    break
+                end
+            end
+            if nuevo
+                vistos.push(d.anim)
+                for a in animaciones_de(d.anim, hojas)
+                    r.push(a)
+                end
+            end
+        end
+    end
+    return r
+end
+
+# Un fotograma: a los ms dados (desde que empezó la página) mueve lo dibujado de cada elemento animado (sus
+# translate) y lo esconde si su opacity baja de 0,5 (el pintor no mezcla texto); true si alguna sigue viva (hace
+# falta otro fotograma)
+func animar(p: Pagina, anims: [Animacion], ms: Int) -> Bool
+    viva = false
+    # dónde estaba cada dibujo antes de animarse, y la caja de cada elemento (para los %)
+    for d in p.dibujos
+        if d.anim != nil and not d.base
+            d.base = true
+            d.bx = d.x
+            d.by = d.y
+        end
+    end
+    for a in anims
+        a.dx = 0
+        a.dy = 0
+        a.velado = false
+        prog = animacion_progreso(a, ms)
+        if a.vueltas < 0 or ms < a.retardo + a.vueltas / 100 * a.duracion / 10
+            viva = true
+        end
+        if prog < 0
+            continue
+        end
+        t = animacion_valor(a, "transform", prog)
+        if t != ""
+            x0 = 1000000
+            x1 = -1000000
+            y0 = 1000000
+            y1 = -1000000
+            for d in p.dibujos
+                if d.anim == a.nodo
+                    if d.bx < x0
+                        x0 = d.bx
+                    end
+                    if d.bx + d.ancho > x1
+                        x1 = d.bx + d.ancho
+                    end
+                    if d.by < y0
+                        y0 = d.by
+                    end
+                    if d.by + d.alto > y1
+                        y1 = d.by + d.alto
+                    end
+                end
+            end
+            em = estilo_px(_val_de(a.nodo.estilo, "font-size", "16px"), 0, 0)
+            mueve = maqueta_desplazamiento(t, x1 - x0, y1 - y0, em)
+            a.dx = mueve[0]
+            a.dy = mueve[1]
+        end
+        o = animacion_valor(a, "opacity", prog)
+        if o != ""
+            a.velado = _milesimas(o) < 500
+        end
+    end
+    for d in p.dibujos
+        if d.anim != nil
+            dx = 0
+            dy = 0
+            velado = false
+            for a in anims
+                if a.nodo == d.anim
+                    dx = dx + a.dx
+                    dy = dy + a.dy
+                    if a.velado
+                        velado = true
+                    end
+                end
+            end
+            maqueta_mover(d, d.bx + dx - d.x, d.by + dy - d.y)
+            d.velado = velado
+        end
+    end
+    return viva
 end
