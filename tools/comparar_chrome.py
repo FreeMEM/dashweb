@@ -38,9 +38,14 @@ def chrome(url: str, destino: Path) -> bool:
         print("sin Chrome (google-chrome-stable, chromium o $CHROME)", file=sys.stderr)
         return False
     with tempfile.TemporaryDirectory(prefix="comparar_chrome_") as perfil:
-        r = subprocess.run([exe, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run",
-                            f"--user-data-dir={perfil}", f"--window-size={ANCHO},{ALTO}",
-                            f"--screenshot={destino}", url], capture_output=True, text=True, timeout=120)
+        try:
+            # (virtual-time-budget: no esperar para siempre a una página que nunca acaba de cargar)
+            r = subprocess.run([exe, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run",
+                                f"--user-data-dir={perfil}", f"--window-size={ANCHO},{ALTO}",
+                                "--virtual-time-budget=20000", f"--screenshot={destino}", url],
+                               capture_output=True, text=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            return False
     return r.returncode == 0 and destino.exists()
 
 

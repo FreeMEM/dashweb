@@ -358,6 +358,8 @@ tarea, con el estilo de Dash.
       31f. border-radius de verdad (esquinas redondeadas con su radio, también en fondos e imágenes), box-shadow.
       31g. vertical-align, tablas completas (colspan/rowspan, anchos automáticos), aspect-ratio, object-fit.
       31h. @font-face (fuentes de la web: woff/woff2/ttf) y font-weight/style reales.
+      31i. SVG dentro de la página (<svg> con sus hijos, <use href="#icono"> de un sprite): los iconos y logos de
+           casi todas las webs de la lista salen como cuadraditos vacíos (xataka.com, la primera comparación).
       Webs de prueba (del usuario): https://trainalong.fit/ https://meneame.net https://xataka.com
       https://dpms.freemem.space https://commodoremalacca.club https://www.muylinux.com/ https://amigaworld.net/
       https://www.ami64.com/ https://amigastore.eu/es/ https://aminet.net/ https://amiga.abime.net/
