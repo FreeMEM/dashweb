@@ -1828,3 +1828,22 @@ Formato:
   no en un <span> relativo.
 - Casos nuevos en `test_maqueta_transform`.
 - Base: 49/49.
+- Tercera comparación con Chrome, las 13 webs (versión 5cf086e, 4 grupos a la vez: 12 min en vez de 35; mosaicos
+  enviados al usuario). Mejor que en la segunda: muylinux ya tiene sus noticias, xataka su menú, commodoremalacca
+  su capa azul, dpms su logo y su título. Pendiente: el logo de xataka sale como texto "Xataka" (falta
+  text-indent negativo y su fondo SVG); amigang, el menú encima de la cabecera; ami64 en blanco (Wix, JavaScript);
+  meneame y muylinux sin el aviso de cookies (lo pone JavaScript); trainalong sin la curva (SVG de fondo) ni sus
+  letras (@font-face, 31h). Velocidad: la configuración de la máquina RTG ya es la más rápida (JIT a tope; la
+  caché del JIT al máximo, el JIT de la FPU y sin sonido dieron lo mismo en tools/bench_js.py).
+- Un emulador para el usuario (ventana, para usar dashweb a mano) hecho con `medir_visor --guardar` se cerraba solo
+  a los pocos segundos: medir_visor compila con DASH_TEST_AUTOCLOSE = --segundos (el visor se cierra solo). Para
+  uno interactivo hay que compilar sin esa variable (`./dash src/dashweb.dash -o p0`). No era un fallo de dashweb.
+
+### 2026-10-17 — Tarea 31j, sexto arreglo (text-indent; el logo de xataka)
+- text-indent no estaba implementado: `_lineas` desplaza la primera línea (px, em o % del ancho) y le quita ese
+  ancho al partirla; negativo, la saca por la izquierda (con text-align: center se centra en lo que queda, como
+  Chrome: -9999px sigue fuera). Es la forma clásica de esconder el texto de un logo que se pinta como fondo (xataka:
+  "Xataka" encima de su SVG). Se hereda (también a los inline-block, como en los navegadores). Se aplica en cada
+  tramo de líneas de una caja, no solo en el primero (una caja con texto, un bloque y más texto sangra los dos).
+- Caso nuevo en `test_maqueta_texto3`.
+- Base: 49/49.

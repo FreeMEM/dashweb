@@ -2016,9 +2016,16 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
     if _partir_palabras(e)
         piezas = _palabras_partidas(todas, ancho)
     end
+    # text-indent: la primera línea empieza tanto más a la derecha (o a la izquierda, si es negativo: -9999px
+    # esconde el texto de un logo que se pinta como fondo) y tiene ese ancho menos
+    sangria = 0
+    if e.has("text-indent") and e["text-indent"] != "0" and e["text-indent"] != "0px"
+        sangria = estilo_px(e["text-indent"], estilo_px(_val(e, "font-size", "16px"), 0, 0), ancho)
+    end
     for p in piezas
         if p.salto
-            cy = cy + _poner_linea(m, linea, x, cy, ancho, e, p.alto)
+            cy = cy + _poner_linea(m, linea, x + sangria, cy, ancho - sangria, e, p.alto)
+            sangria = 0
             linea.clear()
             ocupado = 0
             continue
@@ -2027,7 +2034,7 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
         if linea.length == 0
             hueco = 0
         end
-        if linea.length > 0 and ocupado + hueco + p.ancho > ancho
+        if linea.length > 0 and ocupado + hueco + p.ancho > ancho - sangria
             # se corta antes de la última pieza no pegada: las pegadas pasan juntas a la siguiente
             k = linea.length
             if p.pegada
@@ -2041,7 +2048,8 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
                 while linea.length > k
                     resto.insert(0, linea.pop())
                 end
-                cy = cy + _poner_linea(m, linea, x, cy, ancho, e, 0)
+                cy = cy + _poner_linea(m, linea, x + sangria, cy, ancho - sangria, e, 0)
+                sangria = 0
                 linea.clear()
                 ocupado = 0
                 for r in resto
@@ -2062,7 +2070,7 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
         ocupado = ocupado + hueco + p.ancho
     end
     if linea.length > 0
-        cy = cy + _poner_linea(m, linea, x, cy, ancho, e, 0)
+        cy = cy + _poner_linea(m, linea, x + sangria, cy, ancho - sangria, e, 0)
     end
     return cy - y
 end

@@ -9,6 +9,7 @@
 # expect-out: puntos aaaa...
 # expect-out: sombra 1 2
 # expect-out: clip 16753920 0
+# expect-out: sangria 20 true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -38,6 +39,7 @@ Main
     h = h + "<div id=d style='width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>aaaa bbbb cccc dddd</div>"
     h = h + "<div id=e style='text-shadow:1px 2px 0 red'>sombra</div>"
     h = h + "<div id=f style='background:linear-gradient(135deg, #fff 0%, #ffa500 50%, #fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text'>titulo</div>"
+    h = h + "<div id=g style='text-indent:20px'>uno</div><div id=h style='text-indent:-9999px;text-align:center'>oculto</div>"
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
@@ -79,4 +81,15 @@ Main
         end
     end
     Print "clip " + color + " " + fondos
+    # text-indent: la primera línea desplazada; con -9999px (y centrada) fuera de la página
+    xg = -1
+    xh = 0
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and d.nodo != nil and dom_atributo(d.nodo, "id") == "g"
+            xg = d.x
+        elif d.tipo == D_TEXTO and d.nodo != nil and dom_atributo(d.nodo, "id") == "h"
+            xh = d.x
+        end
+    end
+    Print "sangria " + xg + " " + (xh + 100 < 0)
 end
