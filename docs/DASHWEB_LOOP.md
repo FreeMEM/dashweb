@@ -1856,3 +1856,14 @@ Formato:
   mezcla texto ni imágenes: lo de dentro se pinta entero).
 - Caso nuevo en `test_maqueta_transform`.
 - Base: 49/49.
+- Comprobado contra Chrome (35c6fca): xataka ya esconde el texto del logo y amigang tiene la capa oscura; el menú
+  de amigang sigue desordenado (queda pendiente) y el logo SVG de xataka seguía sin verse: ver el arreglo siguiente.
+
+### 2026-10-17 — Tarea 31j, octavo arreglo (las url() de las hojas externas)
+- Las url() de una hoja se resolvían contra la página, no contra la hoja: `url(images/head-brand-logo.svg)` en
+  img.weblogssl.com/css/xataka/... se pedía a www.xataka.com/images/... (404). Afecta a cualquier web con
+  imágenes de fondo con rutas relativas en una hoja externa. Ahora `_estilo_agregar` reescribe las url()
+  relativas de cada hoja (también las de @import, con su propia dirección) a direcciones completas; data: y #
+  se quedan como están.
+- Caso nuevo en `test_estilo_capas`.
+- Base: 49/49.

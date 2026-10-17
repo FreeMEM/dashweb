@@ -3,6 +3,7 @@
 # pinta, not, and, or, paréntesis y selector().
 # memcheck
 # expect-out: a red b green c red d black e red f red g red h red i red
+# expect-out: fondo url("http://ejemplo.com/a/img/f.png") url(data:image/png;base64,AAA)
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/estilo.dash"
@@ -19,14 +20,17 @@ Main
     c = c + "@supports (display: flex) and (not (-webkit-box-reflect: below)) { #f { color: red } } "
     c = c + "@supports selector(:has(a)) { #g { color: red } } "
     c = c + "@layer { #h { color: blue } } #h { color: red } #i { color: blue }"
+    c = c + " #f1 { background-image: url(img/f.png) } #f2 { background-image: url(data:image/png;base64,AAA) }"
     h = "<html><head><style>" + c + "</style></head><body>"
     h = h + "<div id=a class=rojo>x</div><p id=b>x</p><p id=c>x</p><p id=d>x</p><p id=e>x</p><p id=f>x</p><p id=g>x</p>"
-    h = h + "<p id=h>x</p><p id=i style='color:red'>x</p></body></html>"
+    h = h + "<p id=h>x</p><p id=i style='color:red'>x</p><p id=f1>x</p><p id=f2>x</p></body></html>"
     doc = dom_desde_html(h)
-    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    estilo_aplicar(doc, estilo_hojas(doc, "http://ejemplo.com/a/b.html"))
     r = ""
     for id in ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
         r = r + " " + id + " " + dom_por_id(doc, id).estilo["color"]
     end
     Print str_trim(r)
+    # las url() relativas, completas respecto a la hoja (aquí, la página); data: tal cual
+    Print "fondo " + dom_por_id(doc, "f1").estilo["background-image"] + " " + dom_por_id(doc, "f2").estilo["background-image"]
 end

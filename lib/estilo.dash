@@ -183,6 +183,14 @@ func _estilo_recoger(h: Hojas, n: Nodo, base: Url)
 end
 
 func _estilo_agregar(h: Hojas, hoja: HojaCSS, base: Url, nivel: Int)
+    # las url() relativas de una hoja son relativas a la hoja (no a la página): se dejan completas
+    for regla in hoja.reglas
+        for d in regla.declaraciones
+            if str_find(d.valor, "url(") >= 0
+                d.valor = _css_absolutas(d.valor, base)
+            end
+        end
+    end
     if nivel < 4
         for imp in hoja.importes
             _estilo_cargar(h, url_text(url_resolve(base, imp)), nivel + 1)
@@ -190,6 +198,29 @@ func _estilo_agregar(h: Hojas, hoja: HojaCSS, base: Url, nivel: Int)
     end
     h.lista.push(hoja)
     h.autor.push(true)
+end
+
+# El valor con cada url(x) relativa cambiada por la dirección completa respecto a base (data: y # se quedan)
+func _css_absolutas(valor: String, base: Url) -> String
+    r = ""
+    resto = valor
+    p = str_find(resto, "url(")
+    while p >= 0
+        c = str_find_from(resto, ")", p)
+        if c < 0
+            break
+        end
+        dentro = css_url(resto[p:c + 1])
+        r = r + resto[:p]
+        if dentro == "" or str_starts(dentro, "data:") or str_starts(dentro, "#")
+            r = r + resto[p:c + 1]
+        else
+            r = r + "url(\"" + url_text(url_resolve(base, dentro)) + "\")"
+        end
+        resto = resto[c + 1:]
+        p = str_find(resto, "url(")
+    end
+    return r + resto
 end
 
 # Una hoja por URL: http(s), o un fichero (file: o una ruta del Amiga)
