@@ -2032,3 +2032,15 @@ Formato:
   solo pide repintar si alguna de ellas se dibuja en lo que se ve, si se volvió a maquetar
   (`Documento.remaquetada`) o si ya no falta ninguna; las de más abajo se ven al desplazar. Caso nuevo en
   `test_documento_tipo`.
+
+### 2026-10-17 — Tarea 34 (instalador e iconos)
+- tools/iconos_wb.py hace los iconos de Workbench (.info clásicos, DiskObject con dos planos: los 4 colores del
+  Workbench, de 3.0 a 3.2) del cajón, dashweb y el visor (herramientas, pila 64 KB), el LEEME (proyecto, se abre
+  con SYS:Utilities/MultiView) e Instalar (proyecto del Installer, APPNAME=dashweb).
+- paquete/Instalar: guion del Installer del sistema (3.1 a 3.2): avisa (y deja seguir) si falta FPU, MUI,
+  AmiSSL, bsdsocket.library o picture.datatype V43, pregunta dónde y copia el cajón con sus iconos.
+- tools/paquete.sh: los iconos, el instalador y el LEEME en Latin-1 (el Installer y MultiView no leen UTF-8);
+  tools/lha_lh0.py acepta varias rutas (el cajón y su dashweb.info al lado). build/dashweb.lha: 5,7 MB.
+- Para que el usuario lo pruebe en su CoffinOS (Amiberry): el paquete en ~/Amiberry/LHA, montado en
+  Configurations/coffin.uae como Traspaso: (copia de la configuración en coffin.uae.antes-traspaso).
+- Sin probar aún en un Amiga: los iconos y el guion.
