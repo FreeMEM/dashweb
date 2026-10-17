@@ -31,7 +31,76 @@ struct Nodo
     pseudo_despues: Nodo = nil
     clases_cache: [String] = nil   # dom_clases y dom_id: el atributo class partido y el id, la primera vez que
     id_cache: String = nil         # se piden (dom_olvidar_atributos al cambiar un atributo)
+    vars: {String: String} = nil   # las propiedades --x que le llegan a sus hijos (lib/estilo.dash)
+    toques: [Toque] = nil          # en el documento: lo que ha cambiado el JavaScript (lib/jsdom.dash)
 end
+
+# Un cambio del JavaScript, apuntado en el documento para rehacer después solo el estilo al que afecta
+# (estilo_aplicar_partes)
+const TOQUE_TODO = 0           # demasiados: todo
+const TOQUE_ATRIBUTO = 1       # nodo: el elemento; nombre, antes y despues: el atributo y sus valores
+const TOQUE_CONTENIDO = 2      # nodo: el elemento al que le han cambiado todos los hijos (textContent, innerHTML)
+const TOQUE_ENTRA = 3          # nodo: el que acaba de entrar en el árbol
+const TOQUE_SALE = 4           # nodo: el padre del que ha salido
+const TOQUE_VECINO = 5         # nodo: un hermano del que ha entrado o salido
+const DOM_TOQUES_MAX = 200
+
+struct Toque
+    tipo: Int
+    nodo: Nodo
+    nombre: String
+    antes: String
+    despues: String
+end
+
+# Apunta un cambio en el documento de n (si n está en uno)
+func dom_apuntar(n: Nodo, tipo: Int, nombre: String, antes: String, despues: String)
+    if n == nil
+        return
+    end
+    doc = n
+    while doc.padre != nil
+        doc = doc.padre
+    end
+    if doc.tipo != DOM_DOCUMENTO
+        return
+    end
+    if doc.toques == nil
+        var l: [Toque] = []
+        doc.toques = l
+    end
+    if doc.toques.length < DOM_TOQUES_MAX
+        doc.toques.push(Toque(tipo, n, nombre, antes, despues))
+    elif doc.toques.length == DOM_TOQUES_MAX
+        doc.toques.push(Toque(TOQUE_TODO, n, "", "", ""))
+    end
+end
+
+# El elemento hermano de al lado (antes o después); nil si no hay
+func dom_hermano_elemento(n: Nodo, despues: Bool) -> Nodo
+    var nadie: Nodo = nil
+    if n.padre == nil
+        return nadie
+    end
+    hs = n.padre.hijos
+    i = 0
+    while i < hs.length and hs[i] != n
+        i = i + 1
+    end
+    paso = -1
+    if despues
+        paso = 1
+    end
+    i = i + paso
+    while i >= 0 and i < hs.length
+        if hs[i].tipo == DOM_ELEMENTO
+            return hs[i]
+        end
+        i = i + paso
+    end
+    return nadie
+end
+
 
 # Las clases del elemento (class="a  b\tc" -> a, b, c), partidas una vez
 func dom_clases(n: Nodo) -> [String]

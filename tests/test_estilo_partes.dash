@@ -1,0 +1,70 @@
+# Test: estilo_aplicar_partes (tarea 33): tras los cambios del JavaScript (clases, un nodo nuevo delante de otro,
+# una variable de CSS que cambia en un antecesor) se rehace solo lo que cuelga de los nodos cambiados, y el
+# resultado es el mismo que rehaciendo todo. Con un :has() en las hojas no se puede (false); un cambio en <html>
+# tampoco.
+# memcheck
+# expect-out: toques 7, por partes true
+# expect-out: p1 red p2 blue nuevo green l1 black v #654321 o none
+# expect-out: iguales true
+# expect-out: body: por partes true, l2 orange
+# expect-out: iguales true
+# expect-out: con :has false; en html false; una clase que nadie nombra en body true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+
+func foto(n: Nodo) -> String
+    r = ""
+    if n.tipo == DOM_ELEMENTO
+        r = n.nombre + "#" + dom_id(n) + "." + dom_atributo(n, "class") + "=" + n.estilo["color"] + "/" + n.estilo["display"] + ";"
+    end
+    for h in n.hijos
+        r = r + foto(h)
+    end
+    return r
+end
+
+func color(doc: Nodo, id: String) -> String
+    return id + " " + dom_por_id(doc, id).estilo["color"]
+end
+
+Main
+    css = "<style>.a p { color: red } .b + p { color: blue } li:first-child { color: green } :root { --c: #123456 }"
+    css = css + " .v { color: var(--c) } .x { --c: #654321 } div.oculto { display: none } .z li { color: orange } .z { margin: 1px }</style>"
+    h = css + "<body><div id=d1><p id=p1>uno</p><p id=p2>dos</p></div><ul id=u><li id=l1>a</li><li id=l2>b</li></ul>"
+    h = h + "<div id=d2><span class=v id=v>v</span></div></body>"
+    doc = dom_desde_html(h)
+    hojas = estilo_hojas(doc, "file:///x.html")
+    estilo_aplicar(doc, hojas)
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    c = "var $ = function (i) { return document.getElementById(i) };"
+    c = c + "$('d1').className = 'a'; $('p1').className = 'b';"
+    c = c + "var li = document.createElement('li'); li.id = 'nuevo'; li.textContent = 'n'; $('u').insertBefore(li, $('l1'));"
+    c = c + "$('d2').className = 'x'; var o = document.createElement('div'); o.id = 'o'; o.className = 'oculto'; $('d2').appendChild(o);"
+    js_evaluar(js, c, "x")
+    tocados = doc.toques.length
+    parte = estilo_aplicar_partes(doc, hojas, doc.toques)
+    Print "toques " + tocados + ", por partes " + parte
+    antes = foto(doc)
+    Print color(doc, "p1") + " " + color(doc, "p2") + " " + color(doc, "nuevo") + " " + color(doc, "l1") + " " + color(doc, "v") + " o " + dom_por_id(doc, "o").estilo["display"]
+    estilo_aplicar(doc, hojas)
+    Print "iguales " + (antes == foto(doc))
+    # una clase en <body> que nombran ".z li" y ".z": body solo (cambia su margin: entonces todo lo suyo)
+    var nada: [Toque] = nil
+    doc.toques = nada
+    js_evaluar(js, "document.body.className = 'z'; document.getElementById('p2').setAttribute('data-x', '1')", "x")
+    parte = estilo_aplicar_partes(doc, hojas, doc.toques)
+    antes = foto(doc)
+    Print "body: por partes " + parte + ", " + color(doc, "l2")
+    estilo_aplicar(doc, hojas)
+    Print "iguales " + (antes == foto(doc))
+    js_liberar(js)
+    doc2 = dom_desde_html("<style>div:has(p) { color: red }</style><body><div id=d><p>x</p></div></body>")
+    hojas2 = estilo_hojas(doc2, "file:///y.html")
+    estilo_aplicar(doc2, hojas2)
+    var t2: [Toque] = [Toque(TOQUE_ENTRA, dom_por_id(doc2, "d"), "", "", "")]
+    var t3: [Toque] = [Toque(TOQUE_ATRIBUTO, dom_buscar(doc, "html"), "class", "", "a")]
+    var t4: [Toque] = [Toque(TOQUE_ATRIBUTO, dom_buscar(doc, "body"), "class", "", "js nada")]
+    Print "con :has " + estilo_aplicar_partes(doc2, hojas2, t2) + "; en html " + estilo_aplicar_partes(doc, hojas, t3) + "; una clase que nadie nombra en body " + estilo_aplicar_partes(doc, hojas, t4)
+end

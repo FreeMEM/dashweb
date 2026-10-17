@@ -166,6 +166,7 @@ func documento_avanzar(d: Documento) -> Bool
         jsdom_ejecutar_scripts_con(d.js, d.doc, d.direccion, traidos)
         d.cambios = jsdom_cambios(d.js)
     end
+    _documento_olvidar_tocados(d)
     traza("scripts hechos en " + (time_ms() - t0) + " ms: estilo")
     d.titulo = jsdom_titulo(d.doc)
     if d.titulo == ""
@@ -200,6 +201,7 @@ func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
         jsdom_ejecutar_scripts(d.js, d.doc, d.direccion)
         d.cambios = jsdom_cambios(d.js)
     end
+    _documento_olvidar_tocados(d)
     d.titulo = jsdom_titulo(d.doc)
     if d.titulo == ""
         d.titulo = d.direccion
@@ -249,14 +251,39 @@ func documento_al_dia(d: Documento) -> Bool
     t0 = time_ms()
     d.cambios = jsdom_cambios(d.js)
     d.titulo = jsdom_titulo(d.doc)
-    estilo_aplicar(d.doc, d.hojas)
+    toques = d.doc.toques
+    _documento_olvidar_tocados(d)
+    parte = toques != nil and estilo_aplicar_partes(d.doc, d.hojas, toques)
+    if not parte
+        estilo_aplicar(d.doc, d.hojas)
+    end
+    t1 = time_ms()
     imagenes_pedir(d.im, d.doc, d.direccion)
+    if traza_activa
+        traza("estilo en " + (t1 - t0) + " ms; buscar imágenes en " + (time_ms() - t1) + " ms")
+    end
     if d.ancho > 0
         d.pagina = maquetar(d.doc, d.ancho)
         _documento_vistas(d)
     end
-    traza("el JavaScript cambió la página: estilo y maqueta otra vez en " + (time_ms() - t0) + " ms")
+    if traza_activa
+        cuantos = 0
+        if toques != nil
+            cuantos = toques.length
+        end
+        de = "entero"
+        if parte
+            de = "de lo cambiado"
+        end
+        traza("el JavaScript hizo " + cuantos + " cambios: estilo (" + de + ") y maqueta otra vez en " + (time_ms() - t0) + " ms")
+    end
     return true
+end
+
+# Lo que cambió el JavaScript antes del estilo entero ya no hace falta apuntarlo
+func _documento_olvidar_tocados(d: Documento)
+    var nada: [Toque] = nil
+    d.doc.toques = nada
 end
 
 # Las imágenes que siguen llegando (sin esperar); true si llegó alguna y se volvió a maquetar

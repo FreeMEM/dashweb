@@ -2109,3 +2109,24 @@ Formato:
   el estilo solo de lo que cambió el JavaScript (~6 s); (2) WOFF2 (31h): Google Fonts lo da en trozos por
   alfabeto, ~25 KB por peso en vez de 325 KB; (3) el primer estilo (3,7 s); (4) image_from_rgb en el proceso
   principal (~6 s en total); (5) JavaScript (7 s).
+
+### 2026-10-17 — Tarea 33, el estilo solo de lo que cambia el JavaScript
+- Antes, cualquier cambio del JavaScript rehacía la cascada entera. Ahora lib/jsdom.dash apunta cada cambio en el
+  documento (`Toque` en lib/dom.dash: un atributo con su valor de antes y de después, un elemento que entra, sale,
+  sus vecinos, o los hijos cambiados de golpe) y `estilo_aplicar_partes` rehace solo lo que puede haber cambiado,
+  como las "invalidation sets" de los navegadores: al indexar las hojas se apunta qué clases, ids y atributos
+  nombra algún selector y, por cada uno que sale antes de la última parte, las claves de esa última parte
+  (".menu a" -> "a"). Una clase que nadie nombra no cambia nada; si la nombran, el elemento solo, y si su estilo
+  cambió, todo lo suyo; si no, solo los de debajo con alguna de esas claves. Con + o ~, todo el padre; con :has(),
+  todo. `_estilo_nodo` se parte en `_estilo_propio` (el elemento) y sus hijos; Nodo.vars guarda las --x de cada uno.
+- freemem.space: el JavaScript mete el sticky-header (6 cambios) y luego pone la clase sld-plus en <body>. La
+  cascada de esos cambios pasa de ~1,8 s y ~3 s a 0,15 s y 0,05 s; la página entera, de 44,7 s a 41,7 s. Lo que
+  queda de cada vuelta es maquetar otra vez y volver a buscar las imágenes (0,9 s y 2,5 s).
+- Dash: `x = d[k]` con d un diccionario de diccionarios pierde el tipo del valor (un `for k in x.keys()` da
+  claves Int y "Dictionary keys are Strings"): se declara `var x: {String: Int} = d[k]`.
+- Test nuevo `test_estilo_partes`: tras cambios de clases, un elemento nuevo delante de otro, una variable de CSS
+  y una clase en <body> que nombran ".z li" y ".z", lo hecho por partes es igual que rehacerlo todo.
+- Lo que entra directamente en <html> (el <div> con que se mide la barra de desplazamiento) ya no obliga a
+  rehacerlo todo aunque haya :nth-child en las hojas. La traza dice también cuánto tarda buscar las imágenes tras
+  cada cambio: en la segunda vuelta de freemem.space, 1,5 s (siguiente cosa a mirar).
+- Base: 54/54.

@@ -114,6 +114,17 @@ struct Hojas
     vars_usadas: {String: Int} = nil
     fotogramas: {String: [Declaracion]} = nil   # los @keyframes de todas las hojas (el último de un nombre manda)
     cuadros: {String: [Fotograma]} = nil        # y todos sus fotogramas (lib/animacion.dash)
+    # lo que nombran los selectores, para saber si un cambio del JavaScript toca algún estilo (estilo_aplicar_partes)
+    con_has: Bool = false              # algún selector usa :has() (un cambio puede tocar el estilo de los de arriba)
+    clases_usadas: {String: Int} = nil
+    ids_usados: {String: Int} = nil
+    atributos_usados: {String: Int} = nil
+    hermanos: Int = 0                  # 1: + o :first-child/:last-child; 2: ~, :nth-*, *-of-type, :only-child, :empty
+    hermanos_arriba: Bool = false      # algo de hermanos en una parte que no es la última ("li:first-child a", "h1 + p")
+    # por cada ".clase", "#id" o "[atributo" que sale antes de la última parte de algún selector: las claves (_clave)
+    # de esa última parte: si cambia en un elemento, solo pueden cambiar los de debajo que tengan una de ellas
+    invalida: {String: {String: Int}} = nil
+    invalida_hermanos: {String: Int} = nil     # los que salen en un selector con + o ~
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -687,7 +698,172 @@ func _clave(s: SelSimple) -> String
     return s.etiqueta
 end
 
+# Lo que nombra un selector: clases, ids, atributos, combinadores y pseudoclases de hermanos, :has()
+func _estilo_usos(h: Hojas, sel: Selector)
+    ultima = sel.partes.length - 1
+    clave = _clave(sel.partes[ultima].simple)
+    if clave == "*"
+        clave = ""
+    end
+    con_hermanos = false
+    for parte in sel.partes
+        if parte.combinador == CSS_ADYACENTE or parte.combinador == CSS_HERMANO
+            con_hermanos = true
+            h.hermanos_arriba = true
+        end
+    end
+    k = 0
+    for parte in sel.partes
+        rasgos = _estilo_rasgos(parte.simple)
+        for r in rasgos
+            if con_hermanos
+                h.invalida_hermanos[r] = 1
+            end
+            if k < ultima
+                if not h.invalida.has(r)
+                    var claves: {String: Int} = {}
+                    h.invalida[r] = claves
+                end
+                var claves_r: {String: Int} = h.invalida[r]
+                claves_r[clave] = 1
+            end
+        end
+        if k < ultima
+            for ps in parte.simple.pseudo
+                if ps == "first-child" or ps == "last-child" or ps == "only-child" or ps == "empty" or str_starts(ps, "nth-") or str_ends(ps, "-of-type")
+                    h.hermanos_arriba = true
+                end
+            end
+        end
+        k = k + 1
+    end
+    for parte in sel.partes
+        si = parte.simple
+        for c in si.clases
+            h.clases_usadas[c] = 1
+        end
+        if si.id != ""
+            h.ids_usados[si.id] = 1
+        end
+        for a in si.atributos
+            h.atributos_usados[a.nombre] = 1
+        end
+        if parte.combinador == CSS_ADYACENTE and h.hermanos < 1
+            h.hermanos = 1
+        elif parte.combinador == CSS_HERMANO
+            h.hermanos = 2
+        end
+        for ps in si.pseudo
+            if ps == "first-child" or ps == "last-child"
+                if h.hermanos < 1
+                    h.hermanos = 1
+                end
+            elif ps == "only-child" or ps == "empty" or str_starts(ps, "nth-") or str_ends(ps, "-of-type")
+                h.hermanos = 2
+            end
+            if str_find(ps, "(") >= 0
+                _estilo_usos_texto(h, ps)
+            end
+        end
+    end
+end
+
+# Dentro de :not(), :is(), :has()...: las .clases, #ids y [atributos] que aparecen, y si hay combinadores de hermanos
+func _estilo_usos_texto(h: Hojas, t: String)
+    if str_starts(t, "has(")
+        h.con_has = true
+    end
+    if str_find(t, "has(") >= 0
+        h.con_has = true
+    end
+    if str_find(t, "+") >= 0 or str_find(t, "~") >= 0 or str_find(t, "nth-") >= 0 or str_find(t, "child") >= 0 or str_find(t, "type") >= 0 or str_find(t, "empty") >= 0
+        h.hermanos = 2
+    end
+    n = t.length
+    i = 0
+    while i < n
+        c = str_code(t, i)
+        if c == 46 or c == 35 or c == 91
+            j = i + 1
+            while j < n and _estilo_letra(str_code(t, j))
+                j = j + 1
+            end
+            if j > i + 1
+                nombre = t[i + 1:j]
+                if c == 46
+                    h.clases_usadas[nombre] = 1
+                elif c == 35
+                    h.ids_usados[nombre] = 1
+                else
+                    h.atributos_usados[str_lower(nombre)] = 1
+                end
+            end
+            i = j
+        else
+            i = i + 1
+        end
+    end
+end
+
+# Las clases, el id y los atributos de una parte de un selector (".c", "#id", "[atr"), también los de dentro de
+# :not(), :is()...
+func _estilo_rasgos(si: SelSimple) -> [String]
+    var r: [String] = []
+    for c in si.clases
+        r.push("." + c)
+    end
+    if si.id != ""
+        r.push("#" + si.id)
+    end
+    for a in si.atributos
+        r.push("[" + a.nombre)
+    end
+    for ps in si.pseudo
+        if str_find(ps, "(") >= 0
+            n = ps.length
+            i = 0
+            while i < n
+                c = str_code(ps, i)
+                if c == 46 or c == 35 or c == 91
+                    j = i + 1
+                    while j < n and _estilo_letra(str_code(ps, j))
+                        j = j + 1
+                    end
+                    if j > i + 1
+                        if c == 91
+                            r.push("[" + str_lower(ps[i + 1:j]))
+                        else
+                            r.push(ps[i:j])
+                        end
+                    end
+                    i = j
+                else
+                    i = i + 1
+                end
+            end
+        end
+    end
+    return r
+end
+
+func _estilo_letra(c: Int) -> Bool
+    return (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == 45 or c == 95 or c >= 128
+end
+
 func _estilo_indexar(h: Hojas)
+    var cu: {String: Int} = {}
+    h.clases_usadas = cu
+    var iu: {String: Int} = {}
+    h.ids_usados = iu
+    var au: {String: Int} = {}
+    h.atributos_usados = au
+    h.hermanos = 0
+    h.hermanos_arriba = false
+    h.con_has = false
+    var inv: {String: {String: Int}} = {}
+    h.invalida = inv
+    var invh: {String: Int} = {}
+    h.invalida_hermanos = invh
     var indice: {String: [Entrada]} = {}
     var universales: [Entrada] = []
     var indice_pe: {String: [Entrada]} = {}
@@ -698,6 +874,7 @@ func _estilo_indexar(h: Hojas)
                 continue
             end
             for sel in regla.selectores
+                _estilo_usos(h, sel)
                 pe = _pseudo_elemento_de(sel)
                 if pe != ""
                     e = Entrada(sel, regla, h.autor[k])
@@ -1174,10 +1351,284 @@ func estilo_aplicar(doc: Nodo, hojas: Hojas)
     end
 end
 
+# Tras los cambios del JavaScript (Toque, apuntados en el documento por lib/jsdom.dash), el estilo solo de lo que
+# pueden haber cambiado (como las "invalidation sets" de los navegadores):
+# - una clase, id o atributo que ningún selector nombra: nada (salvo los de presentación: el elemento);
+# - si lo nombra: el elemento solo; si su estilo cambia, todo lo suyo; si no, solo los de debajo que tengan alguna
+#   de las claves de los selectores que lo nombran antes de su última parte (".menu a" -> los <a>); con + o ~,
+#   todos los hijos de su padre;
+# - el atributo style: el elemento solo, y todo lo suyo si cambia;
+# - un elemento que entra: él con todo lo suyo; sus vecinos (si hay + o :first-child), ellos solos;
+#   con ~ o :nth-child, todo el padre.
+# false si no se puede (:has() en las hojas, demasiados cambios, o hay que rehacer <html> entero): estilo_aplicar.
+func estilo_aplicar_partes(doc: Nodo, hojas: Hojas, toques: [Toque]) -> Bool
+    if hojas.con_has or hojas.indice == nil or hojas.indice_ancho != css_vista_ancho() or hojas.invalida == nil
+        if traza_activa
+            traza("estilo entero: :has() " + hojas.con_has)
+        end
+        return false
+    end
+    var limpios: {String: Int} = {}
+    _antepasados = limpios
+    _vars_usadas = hojas.vars_usadas
+    var hechas: {String: {String: Candidata}} = {}
+    _ganadoras_hechas = hechas
+    var hechos: [Nodo] = []
+    _partes_hechas = hechos
+    _partes_cuantas = 0
+    for t in toques
+        n = t.nodo
+        arriba = n
+        while arriba.padre != nil
+            arriba = arriba.padre
+        end
+        if arriba != doc
+            continue
+        end
+        if not _estilo_toque(t, hojas)
+            if traza_activa
+                traza("estilo entero: " + t.tipo + " " + t.nombre + " [" + t.antes + "] -> [" + t.despues + "] en " + t.nodo.nombre)
+            end
+            return false
+        end
+    end
+    if traza_activa
+        traza("estilo de " + _partes_cuantas + " partes (" + toques.length + " cambios)")
+    end
+    return true
+end
+
+var _partes_hechas: [Nodo] = nil
+var _partes_cuantas: Int = 0
+
+func _estilo_toque(t: Toque, hojas: Hojas) -> Bool
+    n = t.nodo
+    if t.tipo == TOQUE_TODO
+        return false
+    end
+    if n.tipo != DOM_ELEMENTO
+        return true
+    end
+    if t.tipo == TOQUE_ATRIBUTO
+        var rasgos: [String] = []
+        propio = t.nombre == "style" or str_find(" align background bgcolor border cellspacing cellpadding height text valign width hidden ", " " + t.nombre + " ") >= 0
+        if t.nombre == "class"
+            for c in _estilo_clases_distintas(t.antes, t.despues)
+                if hojas.clases_usadas.has(c)
+                    rasgos.push("." + c)
+                end
+            end
+        elif t.nombre == "id"
+            if t.antes != "" and hojas.ids_usados.has(t.antes)
+                rasgos.push("#" + t.antes)
+            end
+            if t.despues != "" and hojas.ids_usados.has(t.despues)
+                rasgos.push("#" + t.despues)
+            end
+        elif hojas.atributos_usados.has(t.nombre)
+            rasgos.push("[" + t.nombre)
+        end
+        if rasgos.length == 0 and not propio
+            return true
+        end
+        for r in rasgos
+            if hojas.invalida_hermanos.has(r)
+                return _estilo_subarbol(n.padre, hojas)
+            end
+        end
+        if _estilo_solo(n, hojas)
+            return _estilo_subarbol(n, hojas)
+        end
+        var claves: {String: Int} = {}
+        for r in rasgos
+            if hojas.invalida.has(r)
+                var de_r: {String: Int} = hojas.invalida[r]
+                for ck in de_r.keys()
+                    claves[ck] = 1
+                end
+            end
+        end
+        if claves.has("")
+            return _estilo_subarbol(n, hojas)
+        end
+        if claves.length > 0
+            _estilo_cadena(n.padre, 1)
+            _estilo_invalidar(n, hojas, claves)
+            _estilo_cadena(n.padre, -1)
+        end
+        return true
+    end
+    if t.tipo == TOQUE_CONTENIDO or t.tipo == TOQUE_SALE
+        # (los hijos nuevos se apuntan aparte: aquí solo cuentan :empty, :nth-child...)
+        if hojas.hermanos == 2 and n.nombre != "html"
+            return _estilo_subarbol(n, hojas)
+        end
+        return true
+    end
+    # (bajo <html> solo están head y body: un :nth-child que cuente ahí no tiene sentido; un elemento que entra
+    # directamente en <html>, como el <div> con que se mide la barra de desplazamiento, no mueve nada)
+    en_html = n.padre != nil and n.padre.nombre == "html"
+    if t.tipo == TOQUE_VECINO
+        if hojas.hermanos == 0
+            return true
+        end
+        if hojas.hermanos == 2 and not en_html
+            return _estilo_subarbol(n.padre, hojas)
+        end
+        if hojas.hermanos_arriba or _estilo_solo(n, hojas)
+            return _estilo_subarbol(n, hojas)
+        end
+        return true
+    end
+    # TOQUE_ENTRA
+    if hojas.hermanos == 2 and not en_html
+        return _estilo_subarbol(n.padre, hojas)
+    end
+    return _estilo_subarbol(n, hojas)
+end
+
+# Los antecesores de n (y n) en el filtro de antecesores (cuanto 1) o fuera (-1)
+func _estilo_cadena(n: Nodo, cuanto: Int)
+    p = n
+    while p != nil and p.tipo == DOM_ELEMENTO
+        _antepasados_cambiar(p, cuanto)
+        p = p.padre
+    end
+end
+
+# n con todo lo suyo; false si n es <html> (o no está bajo un elemento): entonces todo
+func _estilo_subarbol(n: Nodo, hojas: Hojas) -> Bool
+    if n == nil or n.tipo != DOM_ELEMENTO or n.nombre == "html" or n.padre == nil or n.padre.tipo != DOM_ELEMENTO
+        return false
+    end
+    # ya hecho (él o un antecesor)
+    p = n
+    while p != nil
+        for o in _partes_hechas
+            if o == p
+                return true
+            end
+        end
+        p = p.padre
+    end
+    _partes_hechas.push(n)
+    _partes_cuantas = _partes_cuantas + 1
+    _estilo_cadena(n.padre, 1)
+    _estilo_nodo(n, hojas, n.padre.estilo, _estilo_vars_de(n.padre))
+    _estilo_cadena(n.padre, -1)
+    return true
+end
+
+func _estilo_vars_de(n: Nodo) -> {String: String}
+    if n.vars == nil
+        var sin: {String: String} = {}
+        return sin
+    end
+    return n.vars
+end
+
+# El estilo de n solo, sin sus hijos; true si cambió (lo calculado o sus --x). <html> cuenta siempre como cambiado.
+func _estilo_solo(n: Nodo, hojas: Hojas) -> Bool
+    if n.padre == nil or n.padre.tipo != DOM_ELEMENTO
+        return true
+    end
+    viejo = n.estilo
+    viejas = n.vars
+    _partes_cuantas = _partes_cuantas + 1
+    _estilo_cadena(n.padre, 1)
+    _estilo_propio(n, hojas, n.padre.estilo, _estilo_vars_de(n.padre))
+    _estilo_cadena(n.padre, -1)
+    return not (_estilo_iguales(viejo, n.estilo) and _estilo_iguales(viejas, n.vars))
+end
+
+func _estilo_iguales(a: {String: String}, b: {String: String}) -> Bool
+    if a == nil or b == nil
+        return a == nil and b == nil
+    end
+    if a.length != b.length
+        return false
+    end
+    for k in a.keys()
+        if not b.has(k) or b[k] != a[k]
+            return false
+        end
+    end
+    return true
+end
+
+# Debajo de n (ya en el filtro de antecesores con los suyos): los que tienen alguna de las claves, con todo lo suyo
+func _estilo_invalidar(n: Nodo, hojas: Hojas, claves: {String: Int})
+    _antepasados_cambiar(n, 1)
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO
+            if _estilo_tiene_clave(h, claves)
+                _partes_cuantas = _partes_cuantas + 1
+                _estilo_nodo(h, hojas, n.estilo, _estilo_vars_de(n))
+            else
+                _estilo_invalidar(h, hojas, claves)
+            end
+        end
+    end
+    _antepasados_cambiar(n, -1)
+end
+
+func _estilo_tiene_clave(n: Nodo, claves: {String: Int}) -> Bool
+    if claves.has(n.nombre)
+        return true
+    end
+    id = dom_id(n)
+    if id != "" and claves.has("#" + id)
+        return true
+    end
+    for c in dom_clases(n)
+        if claves.has("." + c)
+            return true
+        end
+    end
+    return false
+end
+
+# Las clases que están en una lista y no en la otra
+func _estilo_clases_distintas(a: String, b: String) -> [String]
+    var r: [String] = []
+    la = _palabras(a)
+    lb = _palabras(b)
+    for c in la
+        if not _estilo_en(lb, c)
+            r.push(c)
+        end
+    end
+    for c in lb
+        if not _estilo_en(la, c)
+            r.push(c)
+        end
+    end
+    return r
+end
+
+func _estilo_en(l: [String], x: String) -> Bool
+    for y in l
+        if y == x
+            return true
+        end
+    end
+    return false
+end
+
 func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {String: String})
     if n.tipo != DOM_ELEMENTO
         return
     end
+    _estilo_propio(n, hojas, padre, padre_vars)
+    _antepasados_cambiar(n, 1)
+    for h in n.hijos
+        _estilo_nodo(h, hojas, n.estilo, n.vars)
+    end
+    _antepasados_cambiar(n, -1)
+end
+
+# El estilo de n (y de sus ::before y ::after), sin sus hijos
+func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {String: String})
     var cumplidas: [Entrada] = []
     _cumplidas(n, hojas.universales, cumplidas)
     if hojas.indice.has(n.nombre)
@@ -1241,16 +1692,12 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {S
         e["display"] = "none"
     end
     n.estilo = e
+    n.vars = vars
     if n.nombre == "html" and e.has("font-size")
         estilo_rem = estilo_px(e["font-size"], 0, 0)       # 1rem: el font-size de <html>
     end
     n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "before"), "::before")
     n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "after"), "::after")
-    _antepasados_cambiar(n, 1)
-    for h in n.hijos
-        _estilo_nodo(h, hojas, e, vars)
-    end
-    _antepasados_cambiar(n, -1)
 end
 
 # CSS Animations sin animar: lo que deja puesto la animación al acabar. Solo con animation-fill-mode forwards o
