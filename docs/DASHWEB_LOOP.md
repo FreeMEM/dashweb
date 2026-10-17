@@ -363,6 +363,7 @@ tarea, con el estilo de Dash.
       [x] 31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
       [x] 31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
       [x] 31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
+      [x] 31p. @supports y @layer (Conditional 3 y Cascade 5): antes se perdía todo lo de dentro.
       (El usuario, 2026-10-17: "mejor CSS 3". CSS 3 es el conjunto de módulos posteriores a CSS 2.1, que sigue siendo
       la base: el bloque 31 los va completando.)
       31j. ami64.com sale en blanco (averiguar); amigang.com, la cabecera rota; muylinux.com, el menú escondido sale
@@ -1755,3 +1756,24 @@ Formato:
 - Lo que no: white-space: pre-wrap y pre-line siguen como pre (no parten líneas largas); hyphens.
 - Test `test_maqueta_texto3`.
 - Base: 48/48.
+
+### 2026-10-17 — Tarea 31p (@supports y @layer)
+- Las reglas dentro de @supports y @layer se tiraban enteras (solo se entraba en @media). Ahora @supports evalúa
+  su condición ((propiedad: valor), not, and, or, paréntesis, selector()): una propiedad vale si está en la lista
+  de las que dashweb pinta (CSS_CONOCIDAS en lib/css.dash; display, salvo contents/ruby/math; las --x siempre;
+  las -webkit- y backdrop-filter, filter, mask... no). @layer (con nombre, anónimas, anidadas "a.b" y la
+  declaración "@layer a, b;") da a cada regla el puesto de su capa por orden de aparición; fuera de capas, 1000.
+  En la cascada la capa pesa más que la especificidad (especificidad + capa x 1.000.000; el atributo style pasa a
+  1.500.000.000 y las animaciones a 2.000.000.000). Las capas se reinician en cada documento.
+- Lo que no: con !important el orden de las capas no se invierte; @container sigue sin entrar (haría falta el
+  tamaño del contenedor al aplicar el estilo); @scope.
+- Test `test_estilo_capas` (9 casos). Mi primera versión del test esperaba mal: una regla p sin capa gana a una
+  clase en capa, como dice la especificación.
+- Base: 49/49.
+- Segunda comparación con Chrome (versión 4cc45c7, la de la 31g: sin SVG ni 31k-31p; mosaicos enviados al
+  usuario). Para la 31j: commodoremalacca.club sin la imagen de fondo del bloque principal (la primera línea del
+  título, blanca, no se ve) y el aviso de cookies no sale; dpms.freemem.space, un texto gigante ("amiga p", "POS")
+  en vez del cartel; muylinux.com, el logo tapado por círculos y sin las noticias; ami64.com en blanco (Wix);
+  amigang.com sin el menú y con la imagen de cabecera enorme; amiga.abime.net, el reto anti-bots de Anubis (la
+  imagen sin su tamaño); xataka.com sin logo ni iconos (SVG: la 31i ya los pone) y sin el menú. aminet.net,
+  amigastore.eu, amigaworld.net (Chrome no la cargó), trainalong.fit, meneame.net y freemem.space, parecidas a Chrome.

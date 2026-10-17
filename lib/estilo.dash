@@ -166,6 +166,7 @@ func estilo_hojas_con(doc: Nodo, base: String, traidas: {String: String}) -> Hoj
     var autor: [Bool] = [false]
     h = Hojas(lista, autor)
     h.traidas = traidas
+    css_capas_reiniciar()
     _estilo_recoger(h, doc, url_parse(base))
     return h
 end
@@ -743,7 +744,8 @@ func _declarar_entrada(e: Entrada, ganadoras: {String: Candidata})
     if r.expandidas == nil
         r.expandidas = _expandir(r.declaraciones)
     end
-    esp = e.sel.especificidad
+    # la capa (@layer) pesa más que la especificidad
+    esp = e.sel.especificidad + r.capa * 1000000
     for d in r.expandidas
         p = d.propiedad
         if _vars_usadas != nil and str_code(p, 0) == 45 and str_starts(p, "--") and not _vars_usadas.has(p)
@@ -1126,7 +1128,7 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {S
             _declarar(ganadoras, d, true, -1, -1)
         end
         for d in css_declaraciones(dom_atributo(n, "style"))
-            _declarar(ganadoras, d, true, 1000000, 1000000)
+            _declarar(ganadoras, d, true, 1500000000, 1000000)
         end
     else
         clave = ""
@@ -1153,7 +1155,7 @@ func _estilo_nodo(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: {S
                 con[k] = ganadoras[k]
             end
             for d in final
-                _declarar(con, Declaracion(d.propiedad, d.valor, false), true, 2000000, 2000000)
+                _declarar(con, Declaracion(d.propiedad, d.valor, false), true, 2000000000, 2000000)
             end
             ganadoras = con
         end

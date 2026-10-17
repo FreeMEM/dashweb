@@ -1,0 +1,32 @@
+# Test: @layer y @supports (tarea 31p). Capas: la que se declara después gana aunque su selector sea más débil;
+# lo de fuera de capas gana a todas; el atributo style, a todo. @supports: (propiedad: valor) con lo que dashweb
+# pinta, not, and, or, paréntesis y selector().
+# memcheck
+# expect-out: a red b green c red d black e red f red g red h red i red
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/estilo.dash"
+
+Main
+    c = "@layer base, utilidades; "
+    c = c + "@layer utilidades { .rojo { color: red } } "
+    c = c + "@layer base { #a { color: blue } #b { color: blue } } "
+    c = c + "p { color: green } #c, #d, #e, #f, #g, #h, #i { color: black } "
+    c = c + "@layer base { #a { color: blue } } "
+    c = c + "@supports (display: grid) { #c { color: red } } "
+    c = c + "@supports not (display: grid) { #d { color: red } } "
+    c = c + "@supports (backdrop-filter: blur(2px)) or (color: red) { #e { color: red } } "
+    c = c + "@supports (display: flex) and (not (-webkit-box-reflect: below)) { #f { color: red } } "
+    c = c + "@supports selector(:has(a)) { #g { color: red } } "
+    c = c + "@layer { #h { color: blue } } #h { color: red } #i { color: blue }"
+    h = "<html><head><style>" + c + "</style></head><body>"
+    h = h + "<div id=a class=rojo>x</div><p id=b>x</p><p id=c>x</p><p id=d>x</p><p id=e>x</p><p id=f>x</p><p id=g>x</p>"
+    h = h + "<p id=h>x</p><p id=i style='color:red'>x</p></body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    r = ""
+    for id in ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+        r = r + " " + id + " " + dom_por_id(doc, id).estilo["color"]
+    end
+    Print str_trim(r)
+end

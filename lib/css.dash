@@ -58,6 +58,7 @@ struct Regla
     medios: [String] = nil      # las condiciones de los @media que la rodean (nil: vale siempre)
     expandidas: [Declaracion] = nil   # las declaraciones con los atajos (margin, border...) ya partidos (lib/estilo.dash)
     con_content: Int = -1       # 1 si declara content (lib/estilo.dash: los ::before/::after sin él no se miran)
+    capa: Int = 1000            # @layer: el puesto de su capa (1000: fuera de capas, gana a todas)
 end
 
 struct HojaCSS
@@ -355,6 +356,107 @@ func _css_sel_atributo(t: String) -> SelAtributo
     return SelAtributo(nombre, op, valor)
 end
 
+# Cascade Layers (CSS Cascade 5): cada capa con nombre tiene su puesto, por orden de aparición en las hojas del
+# documento (css_capas_reiniciar al empezar uno); las reglas de fuera de capas van en el 1000 (ganan a todas)
+var _css_capas: {String: Int} = nil
+var _css_capa: Int = 1000
+var _css_capa_nombre: String = ""
+var _css_capas_anonimas: Int = 0
+
+func css_capas_reiniciar()
+    var capas: {String: Int} = {}
+    _css_capas = capas
+    _css_capa = 1000
+    _css_capa_nombre = ""
+    _css_capas_anonimas = 0
+end
+
+func _css_capa_completa(nombre: String) -> String
+    if _css_capa_nombre == ""
+        return nombre
+    end
+    return _css_capa_nombre + "." + nombre
+end
+
+func _css_capa_puesto(nombre: String) -> Int
+    if _css_capas == nil
+        css_capas_reiniciar()
+    end
+    if not _css_capas.has(nombre)
+        puesto = _css_capas.length
+        if puesto > 998
+            puesto = 998
+        end
+        _css_capas[nombre] = puesto
+    end
+    return _css_capas[nombre]
+end
+
+# @supports: (propiedad: valor), not, and, or, paréntesis y selector(); una propiedad vale si dashweb la pinta
+func _css_soporta(condicion: String) -> Bool
+    c = str_trim(condicion)
+    if str_starts(c, "not ") or str_starts(c, "not(")
+        return not _css_soporta(c[3:])
+    end
+    resultado = false
+    op = ""
+    primero = true
+    for t in css_partir(c, 32)
+        u = str_trim(t)
+        if u == ""
+            continue
+        elif u == "and" or u == "or"
+            op = u
+            continue
+        end
+        v = _css_soporta_uno(u)
+        if primero
+            resultado = v
+        elif op == "and"
+            resultado = resultado and v
+        else
+            resultado = resultado or v
+        end
+        primero = false
+    end
+    return resultado
+end
+
+func _css_soporta_uno(t: String) -> Bool
+    if str_starts(t, "selector(") and str_ends(t, ")")
+        return css_selector(t[9:t.length - 1]) != nil
+    end
+    if not (str_starts(t, "(") and str_ends(t, ")"))
+        return false
+    end
+    dentro = str_trim(t[1:t.length - 1])
+    if str_starts(dentro, "(") or str_starts(dentro, "not ") or str_starts(dentro, "not(") or str_starts(dentro, "selector(")
+        return _css_soporta(dentro)
+    end
+    p = str_find(dentro, ":")
+    if p < 0
+        return false
+    end
+    propiedad = str_trim(dentro[:p])
+    valor = str_trim(dentro[p + 1:])
+    if propiedad == "display"
+        return valor != "contents" and valor != "ruby" and valor != "math" and not str_starts(valor, "-")
+    end
+    if _css_conocidas == nil
+        var d: {String: Int} = {}
+        for q in css_partir(CSS_CONOCIDAS, 32)
+            if q != ""
+                d[q] = 1
+            end
+        end
+        _css_conocidas = d
+    end
+    return _css_conocidas.has(propiedad) or str_starts(propiedad, "--")
+end
+
+var _css_conocidas: {String: Int} = nil
+const CSS_CONOCIDAS = "color background background-color background-image background-size background-position background-repeat border border-top border-right border-bottom border-left border-width border-style border-color border-radius border-collapse border-spacing box-shadow box-sizing margin margin-top margin-right margin-bottom margin-left padding padding-top padding-right padding-bottom padding-left width height min-width min-height max-width max-height position top right bottom left inset z-index overflow overflow-x overflow-y float clear visibility opacity flex flex-direction flex-wrap flex-flow flex-grow flex-shrink flex-basis order justify-content align-items align-self align-content place-items place-content gap row-gap column-gap grid grid-template grid-template-columns grid-template-rows grid-template-areas grid-area grid-column grid-row grid-auto-flow grid-auto-rows grid-auto-columns aspect-ratio object-fit transform transform-origin translate rotate scale animation animation-name transition font font-family font-size font-weight font-style line-height letter-spacing word-spacing text-align text-decoration text-transform text-indent text-shadow text-overflow white-space overflow-wrap word-wrap word-break vertical-align list-style list-style-type content table-layout caption-side"
+
 # Hoja de estilo de un texto CSS; orden: número de la primera regla (para la cascada)
 func css_leer(texto: String, orden: Int) -> HojaCSS
     var reglas: [Regla] = []
@@ -388,6 +490,11 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
                 cabeza = str_trim(s[i:punto_coma])
                 if str_starts(str_lower(cabeza), "@import")
                     hoja.importes.push(_css_url(str_trim(cabeza[7:])))
+                elif str_starts(str_lower(cabeza), "@layer")
+                    # @layer a, b;: el orden de las capas
+                    for nombre in css_partir(cabeza[6:], 44)
+                        _css_capa_puesto(_css_capa_completa(str_trim(nombre)))
+                    end
                 end
                 i = punto_coma + 1
             else
@@ -395,6 +502,24 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
                 cabeza = str_lower(str_trim(s[i:llave]))
                 if str_find(cabeza, "keyframes") >= 0 and str_find(cabeza, "keyframes") < 16
                     _css_fotogramas(hoja, str_trim(s[i:llave]), s[llave + 1:cierre])
+                end
+                if str_starts(cabeza, "@supports")
+                    if _css_soporta(cabeza[9:])
+                        orden = _css_bloque(hoja, s[llave + 1:cierre], orden, medios)
+                    end
+                elif str_starts(cabeza, "@layer")
+                    nombre = str_trim(s[i + 6:llave])
+                    if nombre == ""
+                        _css_capas_anonimas = _css_capas_anonimas + 1
+                        nombre = "#" + _css_capas_anonimas
+                    end
+                    antes_capa = _css_capa
+                    antes_nombre = _css_capa_nombre
+                    _css_capa_nombre = _css_capa_completa(nombre)
+                    _css_capa = _css_capa_puesto(_css_capa_nombre)
+                    orden = _css_bloque(hoja, s[llave + 1:cierre], orden, medios)
+                    _css_capa = antes_capa
+                    _css_capa_nombre = antes_nombre
                 end
                 if str_starts(cabeza, "@media") and _css_media_posible(cabeza[6:])
                     var dentro: [String] = []
@@ -423,6 +548,7 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
             if selectores.length > 0
                 r = Regla(selectores, css_declaraciones(s[llave + 1:cierre]), orden)
                 r.medios = medios
+                r.capa = _css_capa
                 hoja.reglas.push(r)
                 orden = orden + 1
             end
