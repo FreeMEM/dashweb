@@ -1,0 +1,50 @@
+# Test: conexiones que siguen abiertas (keep-alive, tarea 28h). Con http_seguir, las cargas sin espera piden
+# "Connection: keep-alive" y, tras una respuesta entera, la conexión queda libre para la siguiente al mismo
+# servidor. El servidor dice en qué conexión y en qué petición de ella va cada /conexion ("c1 r4"). Una
+# respuesta chunked acaba con su trozo de tamaño 0 (sin esperar al cierre); una redirección sigue en la misma
+# conexión; si el servidor cierra una conexión libre, la siguiente petición abre otra; una respuesta que acaba
+# al cerrar no deja la conexión libre.
+# emu-server: http.py 40867
+# memcheck
+# expect-out: c1 r1
+# expect-out: [unodostres-cuatr]
+# expect-out: binario: 20000
+# expect-out: c1 r4
+# expect-out: hola
+# expect-out: c1 r7
+# expect-out: ok
+# expect-out: c2 r1
+# expect-out: cerrar: 5000
+# expect-out: c3 r1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/http.dash"
+
+const B = "http://127.0.0.1:40867"
+
+func traer(ruta: String) -> String
+    c = http_empezar(B + ruta, 10000)
+    while not http_avanzar(c)
+        time_delay(1)
+    end
+    if c.respuesta.error != ""
+        return "error: " + c.respuesta.error
+    end
+    return c.respuesta.cuerpo
+end
+
+Main
+    http_seguir = true
+    Print traer("/conexion")
+    Print "[" + traer("/chunked") + "]"
+    Print "binario: " + traer("/binario").length
+    Print traer("/conexion")
+    Print traer("/redir")
+    Print traer("/conexion")
+    # el servidor cierra tras esta: la siguiente abre otra conexión
+    Print traer("/cerrar_tras")
+    Print traer("/conexion")
+    Print "cerrar: " + traer("/cerrar").length
+    Print traer("/conexion")
+    http_cerrar_libres()
+end

@@ -38,18 +38,49 @@ ROUTES = {
 }
 
 
+CONEXIONES = [0]     # connections served so far (for /conexion)
+
+
 class Handler(socketserver.StreamRequestHandler):
     def handle(self):
+        # several requests on one connection while the client asks for it (Connection: keep-alive)
+        CONEXIONES[0] += 1
+        self.conexion = CONEXIONES[0]
+        self.peticiones = 0
+        while self.una():
+            pass
+
+    def una(self):
         line = self.rfile.readline().decode("latin-1")
+        if not line:
+            return False
+        self.peticiones += 1
         length = 0
+        seguir = False
         while True:
             header = self.rfile.readline()
             if header in (b"\r\n", b"\n", b""):
                 break
             if header.lower().startswith(b"content-length:"):
                 length = int(header.split(b":", 1)[1])
+            if header.lower().replace(b" ", b"").startswith(b"connection:keep-alive"):
+                seguir = True
         body = self.rfile.read(length) if length else b""
         path = line.split(" ")[1] if " " in line else "/"
+        if path == "/conexion":     # which connection and which request on it: "c2 r3"
+            data = f"c{self.conexion} r{self.peticiones}".encode()
+            self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
+            self.wfile.flush()
+            return seguir
+        if path == "/cerrar_tras":  # a length-delimited answer and then the server closes (an idle keep-alive)
+            self.wfile.write(reply("200 OK", [("Content-Length", "2")], b"ok"))
+            self.wfile.flush()
+            return False
+        self.responder(line, path, body)
+        self.wfile.flush()
+        return seguir and path != "/cerrar"     # (its body ends when the connection closes)
+
+    def responder(self, line, path, body):
         if path == "/cerrar":       # no length: the body ends when the connection closes
             self.wfile.write(b"HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\n" + b"z" * 5000)
             return

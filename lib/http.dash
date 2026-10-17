@@ -28,6 +28,14 @@ import "texto.dash"
 const HTTP_MAX_REDIRECCIONES = 5
 const HTTP_AGENTE = "dashweb/0.1 (AmigaOS)"
 
+# Conexiones que siguen abiertas tras una respuesta (keep-alive), para la siguiente petición al mismo servidor
+# sin volver a conectar ni negociar TLS. Solo las cargas sin espera (http_empezar...) y solo si el programa lo
+# pide: http_seguir = true, y http_cerrar_libres() al acabar.
+var http_seguir: Bool = false
+var _http_libres: [Conexion] = nil
+const HTTP_LIBRES_MAX = 8
+const HTTP_LIBRE_MS = 10000     # una conexión libre más vieja se cierra (el servidor ya la habrá cerrado)
+
 struct Respuesta
     estado: Int
     razon: String
@@ -38,6 +46,7 @@ struct Respuesta
     juego: String
     error: String
     bytes: Int        # bytes escritos en el fichero (http_a_fichero)
+    version_11: Bool = false   # HTTP/1.1 (la conexión puede seguir abierta tras la respuesta)
 end
 
 func _respuesta_vacia(url: String) -> Respuesta
@@ -105,7 +114,7 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
         var nada: Conexion = nil
         return nada
     end
-    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, ""))
+    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, "", false))
         r.error = c.error
         red_cerrar(c)
         var nada: Conexion = nil
@@ -115,7 +124,7 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
 end
 
 # agente: el User-Agent ("" el de dashweb; YouTube contesta según el cliente que dice ser)
-func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente: String) -> String
+func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente: String, seguir: Bool) -> String
     ruta = u.ruta
     if ruta == ""
         ruta = "/"
@@ -132,7 +141,12 @@ func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente
         ua = agente
     end
     peticion = metodo + " " + ruta + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: " + ua
-    peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close"
+    peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: "
+    if seguir
+        peticion = peticion + "keep-alive"
+    else
+        peticion = peticion + "close"
+    end
     if metodo == "POST"
         peticion = peticion + "\r\nContent-Type: " + tipo + "\r\nContent-Length: " + cuerpo.length
     end
@@ -141,6 +155,12 @@ end
 
 # Lee la respuesta (estado, cabeceras y cuerpo, a r.cuerpo o al fichero) y cierra la conexión
 func _http_leer(c: Conexion, r: Respuesta, fichero: String)
+    _http_leer_respuesta(c, r, fichero)
+    red_cerrar(c)
+end
+
+# Lo mismo sin cerrarla
+func _http_leer_respuesta(c: Conexion, r: Respuesta, fichero: String)
     _leer_estado(c, r)
     if r.error == ""
         _leer_cabeceras(c, r)
@@ -160,7 +180,6 @@ func _http_leer(c: Conexion, r: Respuesta, fichero: String)
             file_close(f)
         end
     end
-    red_cerrar(c)
 end
 
 # "HTTP/1.1 200 OK"
@@ -177,6 +196,7 @@ func _leer_estado(c: Conexion, r: Respuesta)
         r.error = "respuesta que no es HTTP"
         return
     end
+    r.version_11 = str_starts(linea, "HTTP/1.1")
     p = str_find(linea, " ")
     if p < 0
         r.error = "línea de estado rota"
@@ -324,6 +344,8 @@ struct Carga
     tipo: String = ""      # su Content-Type
     agente: String = ""    # el User-Agent, si no es el de dashweb (http_con_agente)
     cabecera: Int = -1     # bytes de la línea de estado y las cabeceras, cuando ya llegaron (http_parcial)
+    enviada: Bool = false  # la petición ya salió por la conexión
+    reusada: Bool = false  # la conexión venía de otra respuesta (si resulta cerrada, se abre otra)
 end
 
 func http_empezar(direccion: String, espera_ms: Int) -> Carga
@@ -368,6 +390,8 @@ func _carga_conectar(c: Carga)
     c.total = -1
     c.cabecera = -1
     c.ultimo = time_ms()
+    c.enviada = false
+    c.reusada = false
     u = c.actual
     if u.esquema != "http" and u.esquema != "https"
         c.respuesta.error = "esquema no admitido: " + u.esquema
@@ -375,6 +399,14 @@ func _carga_conectar(c: Carga)
         c.conexion = nada
         c.hecha = true
         return
+    end
+    if http_seguir
+        libre = _http_libre(u.host, url_port(u), u.esquema == "https")
+        if libre != nil
+            c.conexion = libre
+            c.reusada = true
+            return
+        end
     end
     c.conexion = red_abrir_empezar(u.host, url_port(u), u.esquema == "https", c.espera)
     if c.conexion.cerrada
@@ -406,12 +438,25 @@ func http_avanzar(c: Carga) -> Bool
         if abierta == 0
             return false
         end
-        if abierta < 0 or not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo, c.agente))
+        if abierta < 0
             c.respuesta.error = c.conexion.error
             red_cerrar(c.conexion)
             c.hecha = true
             return true
         end
+    end
+    if not c.enviada
+        if not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo, c.agente, http_seguir))
+            if c.reusada
+                _carga_otra_conexion(c)
+                return false
+            end
+            c.respuesta.error = c.conexion.error
+            red_cerrar(c.conexion)
+            c.hecha = true
+            return true
+        end
+        c.enviada = true
         c.ultimo = time_ms()
     end
     n = red_recibir_ya(c.conexion)
@@ -419,8 +464,20 @@ func http_avanzar(c: Carga) -> Bool
         c.ultimo = time_ms()
         n = red_recibir_ya(c.conexion)
     end
+    if n < 0 and c.reusada and red_pendientes(c.conexion) == 0
+        # el servidor había cerrado la conexión libre: otra vez, con una nueva
+        _carga_otra_conexion(c)
+        return false
+    end
     if c.total == -1
         c.total = _carga_total(c.conexion)
+    end
+    if c.total == -3
+        # chunked: entera cuando ha llegado el trozo de tamaño 0 y sus cabeceras finales
+        fin = _chunked_fin(c.conexion)
+        if fin > 0
+            c.total = fin
+        end
     end
     entera = n < 0 or (c.total > 0 and red_pendientes(c.conexion) >= c.total)
     if not entera
@@ -432,8 +489,9 @@ func http_avanzar(c: Carga) -> Bool
         end
         return false
     end
-    _http_leer(c.conexion, c.respuesta, c.fichero)
+    _http_leer_respuesta(c.conexion, c.respuesta, c.fichero)
     r = c.respuesta
+    _http_soltar(c.conexion, r, n < 0)
     redireccion = r.estado == 301 or r.estado == 302 or r.estado == 303 or r.estado == 307 or r.estado == 308
     if r.error == "" and redireccion and r.cabeceras.has("location")
         if c.redirecciones >= HTTP_MAX_REDIRECCIONES
@@ -524,15 +582,22 @@ func _carga_cabecera(c: Conexion) -> Int
 end
 
 # Cabeceras + Content-Length cuando ya llegaron las cabeceras: el tamaño de la respuesta entera;
-# -1 si aún no han llegado, -2 si no lo dicen (chunked, hasta el cierre)
+# -1 si aún no han llegado, -2 si no lo dicen (hasta el cierre), -3 chunked (_chunked_fin)
 func _carga_total(c: Conexion) -> Int
     n = red_pendientes(c)
     i = 0
     while i + 3 < n
         if buffer_get_byte(c.buf, c.ini + i) == 13 and buffer_get_byte(c.buf, c.ini + i + 1) == 10 and buffer_get_byte(c.buf, c.ini + i + 2) == 13 and buffer_get_byte(c.buf, c.ini + i + 3) == 10
             cabeceras = str_lower(str_from_buffer(c.buf, c.ini, i))
+            estado = Int(cabeceras[9:12])
+            if estado == 204 or estado == 304 or (estado >= 100 and estado < 200)
+                return i + 4          # sin cuerpo
+            end
+            if str_find(cabeceras, "\ntransfer-encoding:") >= 0 and str_find(cabeceras, "chunked") >= 0
+                return -3
+            end
             p = str_find(cabeceras, "\ncontent-length:")
-            if p < 0 or str_find(cabeceras, "chunked") >= 0
+            if p < 0
                 return -2
             end
             fin = str_find_from(cabeceras, "\r", p + 1)
@@ -546,3 +611,132 @@ func _carga_total(c: Conexion) -> Int
     return -1
 end
 
+
+# Una respuesta chunked: su tamaño entero (cabeceras, trozos, el de tamaño 0 y las cabeceras finales) si ya ha
+# llegado entera; -1 si aún no
+func _chunked_fin(c: Conexion) -> Int
+    n = red_pendientes(c)
+    p = _carga_cabecera(c)
+    if p < 0
+        return -1
+    end
+    while true
+        # la línea del tamaño, en hexadecimal (puede llevar ";extensiones")
+        e = _red_fin_de_linea(c, p, n)
+        if e < 0
+            return -1
+        end
+        tam = str_to_int(str_trim(str_from_buffer(c.buf, c.ini + p, e - p)), 16)
+        p = e + 2
+        if tam <= 0
+            # cabeceras finales, hasta una línea vacía
+            while true
+                e = _red_fin_de_linea(c, p, n)
+                if e < 0
+                    return -1
+                end
+                if e == p
+                    return p + 2
+                end
+                p = e + 2
+            end
+        end
+        p = p + tam + 2
+        if p > n
+            return -1
+        end
+    end
+    return -1
+end
+
+# Dónde está el \r\n que acaba la línea que empieza en p (bytes [p, n) de lo recibido); -1 si aún no ha llegado
+func _red_fin_de_linea(c: Conexion, p: Int, n: Int) -> Int
+    i = p
+    while i + 1 < n
+        if buffer_get_byte(c.buf, c.ini + i) == 13 and buffer_get_byte(c.buf, c.ini + i + 1) == 10
+            return i
+        end
+        i = i + 1
+    end
+    return -1
+end
+
+# === Conexiones que siguen abiertas ===
+
+# Tras leer una respuesta entera: la conexión se guarda para otra petición si se puede (HTTP/1.1, sin
+# "Connection: close", el servidor no la cerró y no sobró nada); si no, se cierra
+func _http_soltar(c: Conexion, r: Respuesta, cerrada: Bool)
+    seguir = http_seguir and not cerrada and not c.cerrada and r.error == "" and red_pendientes(c) == 0 and r.version_11
+    if seguir and r.cabeceras.has("connection") and str_find(str_lower(r.cabeceras["connection"]), "close") >= 0
+        seguir = false
+    end
+    if not seguir
+        red_cerrar(c)
+        return
+    end
+    if _http_libres == nil
+        var nuevas: [Conexion] = []
+        _http_libres = nuevas
+    end
+    if _http_libres.length >= HTTP_LIBRES_MAX
+        red_cerrar(_http_libres[0])
+        _http_libres.remove(0)
+    end
+    c.empezada = time_ms()        # (desde cuándo está libre)
+    _http_libres.push(c)
+end
+
+# Una conexión libre a ese servidor que siga abierta (se saca de la lista), o nil
+func _http_libre(host: String, puerto: Int, con_tls: Bool) -> Conexion
+    var nada: Conexion = nil
+    if _http_libres == nil
+        return nada
+    end
+    i = 0
+    while i < _http_libres.length
+        x = _http_libres[i]
+        if time_ms() - x.empezada > HTTP_LIBRE_MS
+            red_cerrar(x)
+            _http_libres.remove(i)
+            continue
+        end
+        if x.host == host and x.puerto == puerto and x.con_tls == con_tls
+            _http_libres.remove(i)
+            # si el servidor ya la cerró (o mandó algo sin pedirlo), no vale
+            if red_recibir_ya(x) != 0
+                red_cerrar(x)
+                continue
+            end
+            return x
+        end
+        i = i + 1
+    end
+    return nada
+end
+
+# La conexión reusada resultó cerrada: una nueva para la misma petición
+func _carga_otra_conexion(c: Carga)
+    red_cerrar(c.conexion)
+    u = c.actual
+    c.conexion = red_abrir_empezar(u.host, url_port(u), u.esquema == "https", c.espera)
+    c.reusada = false
+    c.enviada = false
+    c.ultimo = time_ms()
+    if c.conexion.cerrada
+        c.respuesta.error = c.conexion.error
+        c.hecha = true
+    end
+end
+
+# Cierra las conexiones libres (al acabar el programa)
+func http_cerrar_libres()
+    if _http_libres == nil
+        return
+    end
+    for x in _http_libres
+        red_cerrar(x)
+    end
+    _http_libres.clear()
+    var nada: [Conexion] = nil
+    _http_libres = nada
+end

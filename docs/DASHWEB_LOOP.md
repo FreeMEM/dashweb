@@ -326,7 +326,7 @@ tarea, con el estilo de Dash.
 - [x] 30f. **Vídeo: que empiece antes.** Reproducir mientras se baja (hoy espera el fichero entero).
 - [x] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
       objetivo): QuickJS 24 %. libqjs.a va sin FPU (fp-bit): compilarlo para 68020+FPU como dashweb.
-- [ ] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
+- [x] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
       recursos del mismo servidor.
 - [x] 29. **Imágenes con decodificadores propios.** Pregunta del usuario (2026-10-16): ¿son óptimos los datatypes? No:
       decodifican a tamaño completo (una foto de freemem.space no acabó en 5 min en la máquina RTG), sin límites de
@@ -1489,3 +1489,18 @@ Formato:
 - Medidas con FPU (68040 + JIT; Date.now va de 20 en 20 ms): fib20 60 ms, intloop100k 100, float20k 40,
   mathsin5k 60, strcat5k 80, arrjoin 100, objects5k 140, sort5k 200, json 200, regexp 60, map5k 220,
   closures 60, parse30k 420. Sin FPU no se pudo medir: su Date.now no funcionaba. Base: 35/35.
+
+### 2026-10-17 — Tarea 28h (conexiones que siguen abiertas)
+- `lib/http.dash`: con `http_seguir = true` (dashweb lo pone al empezar; `http_cerrar_libres()` al salir), las
+  cargas sin espera piden "Connection: keep-alive" y, tras una respuesta entera de HTTP/1.1 sin "Connection:
+  close", la conexión queda libre (hasta 8, 10 s como mucho) para la siguiente petición al mismo servidor y
+  puerto: sin conectar ni negociar TLS otra vez. Una conexión libre que el servidor ya cerró se descarta; si
+  se nota al mandar o al no recibir nada, la petición se repite en una nueva. Las peticiones que esperan
+  (http_get...) siguen con "Connection: close".
+- Respuestas que acaban sin cerrar: chunked termina con su trozo de tamaño 0 y sus cabeceras finales
+  (`_chunked_fin`); 204, 304 y 1xx no tienen cuerpo.
+- Servidor de pruebas: varias peticiones por conexión si se piden con keep-alive; `/conexion` ("c1 r4": qué
+  conexión y qué petición de ella) y `/cerrar_tras`. Test `test_http_seguir`.
+- dashweb escribe en la salida cuánto tarda una página entera, con sus imágenes ("entera en N ms").
+- Medido en la máquina RTG con https://freemem.space/ (dos veces cada uno): con conexiones abiertas 46,5 y
+  44,9 s; sin ellas 50,0 y 51,7 s: un 10 % menos. Base: 36/36 (y 36/36 con memcheck en la batería de la otra sesión).
