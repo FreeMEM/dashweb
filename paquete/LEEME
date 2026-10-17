@@ -9,6 +9,7 @@ Contenido
   dashweb       el navegador (MUI)
   visor         visor sin MUI: abre una página en una ventana normal (para probar)
   iconos/       los iconos de la barra de herramientas
+  Instalar      el instalador (para el Installer del sistema)
   LEEME         esto
   Licencias/    las de dashweb y de las librerías que lleva dentro: QuickJS (MIT),
                 fdlibm (Sun), libwebp (BSD), nanosvg (zlib), stb_image y
@@ -34,8 +35,11 @@ Necesita
 
 Instalar
 --------
-  Copiar el cajón dashweb donde se quiera (por ejemplo Work:dashweb). Los marcadores y
-  las preferencias se guardan junto al programa (dashweb.marcadores, dashweb.prefs).
+  Doble clic en el icono Instalar (usa el Installer del sistema): pregunta dónde
+  dejar el cajón dashweb, lo copia con sus iconos y avisa si falta algo de lo de
+  arriba. A mano: copiar el cajón dashweb donde se quiera (por ejemplo Work:). Los
+  marcadores y las preferencias se guardan junto al programa (dashweb.marcadores,
+  dashweb.prefs).
 
 Usar
 ----

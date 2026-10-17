@@ -364,6 +364,10 @@ tarea, con el estilo de Dash.
       [x] 31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
       [x] 31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
       [x] 31p. @supports y @layer (Conditional 3 y Cascade 5): antes se perdía todo lo de dentro.
+      34. Instalador e iconos (lo pide el usuario, 2026-10-17, para la alfa): iconos de Workbench (.info clásicos de 4
+          colores, de 3.0 a 3.2) para el cajón, dashweb, el visor, el LEEME y el instalador, hechos con un script; un
+          guion para el Installer del sistema que pregunte dónde instalar, copie el cajón y avise si faltan MUI,
+          AmiSSL o una pila TCP/IP. Probarlo en el emulador con el Installer del disco de AmigaOS 3.2.
       33. RENDIMIENTO (lo pide el usuario, 2026-10-17: "está relento"; pasa delante de lo demás). freemem.space tarda
           105-120 s en la máquina RTG (68040 con JIT: medido que el JIT va, sin él todo tarda 2-2,5 veces). Primero
           medir con `tools/medir_visor.py --perfil` (tabla de tiempo por función de ./dash --profile) en las webs de
@@ -2021,3 +2025,10 @@ Formato:
   vez por texto y las guarda. Del reparto de la carga (128 s): pintar ~70 % (la mezcla lenta, D51), estilo ~19 s
   (3 veces: la de JavaScript lo repite), imágenes ~15 s, red ~12 s, JavaScript ~7 s; maquetar, poco (5 veces).
 - Base: 52/52.
+
+### 2026-10-17 — Tarea 33, segundo arreglo (no repintar por imágenes que no se ven)
+- Mientras llegaban imágenes, la página entera se repintaba (22 veces en freemem.space, con sus mezclas). Ahora
+  lib/imagenes.dash apunta los src llegados (`Imagenes.recien`) y `documento_imagenes_visibles(d, desde, alto)`
+  solo pide repintar si alguna de ellas se dibuja en lo que se ve, si se volvió a maquetar
+  (`Documento.remaquetada`) o si ya no falta ninguna; las de más abajo se ven al desplazar. Caso nuevo en
+  `test_documento_tipo`.

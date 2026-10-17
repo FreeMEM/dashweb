@@ -3,6 +3,7 @@
 Amiga and lhasa read: Lhasa (the lha of Linux distributions) only extracts.
 
     tools/lha_lh0.py archivo.lha DIRECTORIO      # DIRECTORIO and everything in it, with its paths
+    tools/lha_lh0.py archivo.lha DIR DIR.info    # several: directories (whole) and files
 """
 import os
 import struct
@@ -35,17 +36,22 @@ def entry(name: str, data: bytes, mtime: float) -> bytes:
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) < 3:
         sys.exit(__doc__)
-    archive, top = sys.argv[1], sys.argv[2].rstrip("/")
-    base = os.path.dirname(top)
+    archive = sys.argv[1]
     out = b""
-    for root, dirs, files in os.walk(top):
-        dirs.sort()
-        for f in sorted(files):
-            path = os.path.join(root, f)
-            with open(path, "rb") as fh:
-                out += entry(os.path.relpath(path, base), fh.read(), os.path.getmtime(path))
+    for top in (t.rstrip("/") for t in sys.argv[2:]):
+        base = os.path.dirname(top)
+        if os.path.isfile(top):
+            with open(top, "rb") as fh:
+                out += entry(os.path.relpath(top, base), fh.read(), os.path.getmtime(top))
+            continue
+        for root, dirs, files in os.walk(top):
+            dirs.sort()
+            for f in sorted(files):
+                path = os.path.join(root, f)
+                with open(path, "rb") as fh:
+                    out += entry(os.path.relpath(path, base), fh.read(), os.path.getmtime(path))
     with open(archive, "wb") as fh:
         fh.write(out + b"\0")
 

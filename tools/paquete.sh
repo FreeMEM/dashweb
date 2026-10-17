@@ -1,5 +1,6 @@
 #!/bin/sh
-# El paquete de dashweb para el Amiga: build/dashweb.lha con el navegador (MUI) y sus iconos, el visor,
+# El paquete de dashweb para el Amiga: build/dashweb.lha con el navegador (MUI) y sus iconos, el visor, los
+# iconos de Workbench (tools/iconos_wb.py), el guion del Installer (paquete/Instalar),
 # paquete/LEEME y las licencias de dashweb y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py). Necesita el toolchain y Dash (DASH, por
 # defecto ~/Projects/FreeMEMLang-dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
 #
@@ -17,7 +18,11 @@ PYTHONPATH=$DASH ./dash "$R/src/dashweb.dash" -o "$B/dashweb/dashweb"
 PYTHONPATH=$DASH ./dash "$R/src/visor.dash" -o "$B/dashweb/visor"
 python3 "$R/tools/iconos.py" >/dev/null
 cp -r "$R/iconos" "$B/dashweb/iconos"   # la barra de herramientas (PROGDIR:iconos/)
-cp "$R/paquete/LEEME" "$B/dashweb/LEEME"
+# el LEEME y el guion del Installer en Latin-1 (MultiView y el Installer no leen UTF-8)
+iconv -f UTF-8 -t LATIN1 "$R/paquete/LEEME" > "$B/dashweb/LEEME"
+iconv -f UTF-8 -t LATIN1 "$R/paquete/Instalar" > "$B/dashweb/Instalar"
+# los iconos de Workbench: el del cajón (junto a él) y los de dentro
+python3 "$R/tools/iconos_wb.py" "$B"
 cp "$R/LICENSE" "$B/dashweb/Licencias/dashweb"
 cp "$R/third_party/quickjs/LICENSE" "$B/dashweb/Licencias/QuickJS"
 cp "$R/third_party/fdlibm/README.md" "$B/dashweb/Licencias/fdlibm"
@@ -29,6 +34,6 @@ printf '%s\n' "stb_image y stb_truetype (https://github.com/nothings/stb), de Se
     "(o MIT, a elegir; ver la cabecera de third_party/stb/*.h en el código de dashweb)." > "$B/dashweb/Licencias/stb"
 cd "$B"
 rm -f "$R/build/dashweb.lha"
-python3 "$R/tools/lha_lh0.py" "$R/build/dashweb.lha" dashweb   # Lhasa only extracts
+python3 "$R/tools/lha_lh0.py" "$R/build/dashweb.lha" dashweb dashweb.info   # Lhasa only extracts
 ls -l "$R/build/dashweb.lha"
 lha -l "$R/build/dashweb.lha" | tail -12

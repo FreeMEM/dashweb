@@ -1,0 +1,43 @@
+; Instalador de dashweb para el Installer del sistema (AmigaOS 3.1 a 3.2).
+; Copia el cajón dashweb (con sus iconos) donde se elija y avisa de lo que falta para usarlo.
+
+(set @app-name "dashweb")
+(set #avisos "")
+
+(welcome "Este programa instala dashweb, un navegador web para AmigaOS escrito en Dash.")
+
+; --- Lo que necesita (solo avisa: se instala igual) ---
+(if (= (database "fpu") "NOFPU")
+    (set #avisos (cat #avisos "- No hay FPU: dashweb necesita un 68881/68882 o un 68040/68060.\n")))
+(if (< (/ (getversion "exec.library" (resident)) 65536) 39)
+    (set #avisos (cat #avisos "- dashweb necesita AmigaOS 3.0 o superior.\n")))
+(if (not (exists "LIBS:muimaster.library"))
+    (set #avisos (cat #avisos "- Falta MUI (muimaster.library): https://muidev.de\n")))
+(if (not (exists "AmiSSL:" (noreq)))
+    (set #avisos (cat #avisos "- Falta AmiSSL 5 (sin él, no hay HTTPS): https://github.com/jens-maus/amissl\n")))
+(if (not (exists "LIBS:bsdsocket.library"))
+    (set #avisos (cat #avisos "- No se ve bsdsocket.library en LIBS: hace falta una pila TCP/IP (Roadshow, AmiTCP, Genesis, Miami) en marcha.\n")))
+(if (exists "SYS:Classes/DataTypes/picture.datatype")
+    (if (< (/ (getversion "SYS:Classes/DataTypes/picture.datatype") 65536) 43)
+        (set #avisos (cat #avisos "- picture.datatype es anterior a la 43 (AmigaOS 3.5): las páginas se verán sin imágenes.\n")))
+    (set #avisos (cat #avisos "- No se encuentra picture.datatype: las páginas se verán sin imágenes.\n")))
+(if (<> #avisos "")
+    (message (cat "Se instalará igual, pero ojo:\n\n" #avisos)))
+
+; --- Dónde ---
+(set #destino
+    (askdir
+        (prompt "¿Dónde instalo dashweb? Se creará ahí el cajón \"dashweb\".")
+        (help @askdir-help)
+        (default "Work:")))
+(set @default-dest (tackon #destino "dashweb"))
+
+; --- Copiar ---
+(makedir @default-dest (infos))
+(foreach "" "#?"
+    (if (and (<> @each-name "Instalar") (<> @each-name "Instalar.info"))
+        (if (= @each-type 2)
+            (copyfiles (source @each-name) (dest (tackon @default-dest @each-name)) (all) (infos))
+            (copyfiles (source @each-name) (dest @default-dest)))))
+
+(exit (cat "dashweb está en " @default-dest ".\n\nPara abrirlo: doble clic en su icono, o desde el Shell: dashweb http://aminet.net/"))
