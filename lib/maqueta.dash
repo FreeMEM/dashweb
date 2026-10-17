@@ -1210,6 +1210,14 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
+    if n.nombre == "svg"
+        # SVG dentro de la página: una imagen (lib/imagenes.dash lo escribe en un fichero), a su tamaño
+        img = Pieza(dom_atributo(n, "data-dashweb-svg"), svg_ancho(n), svg_alto(n), svg_alto(n), 0, 0, 0, false, enlace, m.blanco, false, true)
+        img.nodo = n
+        piezas.push(img)
+        m.blanco = 0
+        return
+    end
     if dom_es_video(n)
         # como en los navegadores: 300x150 si no dice más; width en px o en % (del ancho de la línea) y el
         # alto con la proporción de sus atributos

@@ -1,0 +1,38 @@
+# Test: SVG dentro de la página (tarea 31i). Un <svg> con viewBox y un rectángulo rojo, y un icono de un sprite
+# (<use href="#ic"> de un <symbol> con currentColor) en un <svg> azul por CSS. Se escribe el SVG que se genera
+# para el primero, lo que decodifica nanosvg de cada uno y su sitio en la maqueta.
+# memcheck
+# expect-out: <svg xmlns="http://www.w3.org/2000/svg" width="40" height="20" viewBox="0 0 4 2"><rect width="4" height="2" fill="red"></rect></svg>
+# expect-out: rojo: 40x20 alfa=true 255,0,0,255
+# expect-out: icono: 20x20 alfa=true 0,0,255,255
+# expect-out: imagen 40x20 T:dashweb_svg0.svg
+# expect-out: imagen 20x20 T:dashweb_svg1.svg
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/pintor.dash"
+
+Main
+    h = "<html><body style='margin:0;background:#fff'>"
+    h = h + "<svg width=40 height=20 viewBox='0 0 4 2'><rect width=4 height=2 fill=red /></svg>"
+    h = h + "<svg style='display:none'><symbol id=ic viewBox='0 0 10 10'><rect width=10 height=10 fill=currentColor /></symbol></svg>"
+    h = h + "<svg style='width:20px;height:20px;color:#0000ff'><use href='#ic'></use></svg>"
+    h = h + "<div style='width:10px;height:10px;background:#ff0000'></div><div style='width:10px;height:10px;background:#0000ff'></div>"
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    im = imagenes_nuevas()
+    imagenes_cargar(im, doc, "prueba.html")
+    Print file_read_text("T:dashweb_svg0.svg")
+    # lo que decodifica nanosvg de cada uno (en AmigaOS 3.1 no se puede pasar a la pantalla: picture.datatype V40)
+    Print "rojo: " + imagen_probar("T:dashweb_svg0.svg", 2000, 2000, 20, 10)
+    Print "icono: " + imagen_probar("T:dashweb_svg1.svg", 2000, 2000, 10, 10)
+    p = maquetar(doc, 280)
+    n = 0
+    for d in p.dibujos
+        if d.tipo == D_IMAGEN
+            n = n + 1
+            Print "imagen " + d.ancho + "x" + d.alto + " " + d.texto
+        end
+    end
+    imagenes_liberar(im)
+end

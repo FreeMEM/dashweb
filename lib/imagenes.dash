@@ -18,6 +18,8 @@ import "http.dash"
 import "dom.dash"
 import "css.dash"
 import "imagen_dec.dash"
+import "estilo.dash"
+import "colores.dash"
 
 # Una imagen de un fichero: decodificada aquí (lib/imagen_dec.dash, reducida a lo que cabe en una
 # pantalla grande) y, si no se puede (otro formato, AmigaOS 3.1), con los datatypes
@@ -152,6 +154,10 @@ end
 func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
     _imagenes_pedir_fondo(im, n, base)
     _imagenes_pedir_cartel(im, n, base)
+    if n.tipo == DOM_ELEMENTO and n.nombre == "svg"
+        _imagenes_svg(im, n)
+        return
+    end
     if n.tipo == DOM_ELEMENTO and n.nombre == "img"
         src = dom_img_src(n)
         if src != "" and im.por_src.has(src)
@@ -318,6 +324,10 @@ func imagenes_cargar(im: Imagenes, doc: Nodo, base: String)
 end
 
 func _imagenes_recorrer(im: Imagenes, n: Nodo, base: Url)
+    if n.tipo == DOM_ELEMENTO and n.nombre == "svg"
+        _imagenes_svg(im, n)
+        return
+    end
     fondo = imagenes_fondo(n, base)
     if fondo != "" and not im.por_src.has(fondo)
         im.por_src[fondo] = _imagen_traer(im, base, fondo)
@@ -447,4 +457,204 @@ func imagenes_cargada(im: Imagenes, src: String) -> Int
         return 0
     end
     return im.por_src[src]
+end
+
+# === SVG dentro de la página (tarea 31i) ===
+# Cada <svg> se vuelve a escribir como un fichero SVG (T:dashweb_svgN.svg) que decodifica nanosvg: con los nombres
+# en su caja (el HTML los pasa a minúsculas: viewBox, linearGradient...), currentColor con su color, el fill y el
+# stroke que le da el CSS de la página a cada elemento, y <use href="#icono"> cambiado por lo que nombra (un
+# <symbol> de un sprite, con su viewBox). Su dirección queda en el atributo data-dashweb-svg (la maqueta lo pone
+# como una imagen).
+
+func _imagenes_svg(im: Imagenes, n: Nodo)
+    if dom_tiene_atributo(n, "data-dashweb-svg") or _oculto_svg(n)
+        return
+    end
+    raiz = n
+    while raiz.padre != nil
+        raiz = raiz.padre
+    end
+    color = "#000000"
+    if n.estilo.has("color") and css_color(n.estilo["color"]) >= 0
+        color = _hex6(css_color(n.estilo["color"]))
+    end
+    w = svg_ancho(n)
+    h = svg_alto(n)
+    texto = _svg_elemento(n, raiz, true, w, h)
+    texto = str_replace(str_replace(str_replace(texto, "currentColor", color), "currentcolor", color), "CurrentColor", color)
+    fichero = "T:dashweb_svg" + im.ficheros.length + ".svg"
+    if not file_write_text(fichero, texto)
+        return
+    end
+    im.ficheros.push(fichero)
+    _poner_atributo(n, "data-dashweb-svg", fichero)
+    if not im.por_src.has(fichero)
+        im.por_src[fichero] = imagen_cargar_a(fichero, IMAGEN_MAX_ANCHO, IMAGEN_MAX_ALTO)
+    end
+end
+
+func _oculto_svg(n: Nodo) -> Bool
+    return n.estilo.has("display") and n.estilo["display"] == "none"
+end
+
+func _hex6(rgb: Int) -> String
+    cifras = "0123456789abcdef"
+    r = "#"
+    k = 20
+    while k >= 0
+        r = r + cifras[(rgb / _potencia2(k)) % 16]
+        k = k - 4
+    end
+    return r
+end
+
+func _potencia2(k: Int) -> Int
+    r = 1
+    for i in (1..k)
+        r = r * 2
+    end
+    return r
+end
+
+# Los nombres de SVG con mayúsculas (el HTML los deja en minúsculas)
+func _svg_nombre(x: String) -> String
+    if x == "lineargradient"
+        return "linearGradient"
+    elif x == "radialgradient"
+        return "radialGradient"
+    elif x == "clippath"
+        return "clipPath"
+    elif x == "textpath"
+        return "textPath"
+    elif x == "foreignobject"
+        return "foreignObject"
+    elif x == "viewbox"
+        return "viewBox"
+    elif x == "preserveaspectratio"
+        return "preserveAspectRatio"
+    elif x == "gradientunits"
+        return "gradientUnits"
+    elif x == "gradienttransform"
+        return "gradientTransform"
+    elif x == "spreadmethod"
+        return "spreadMethod"
+    elif x == "clippathunits"
+        return "clipPathUnits"
+    elif x == "patternunits"
+        return "patternUnits"
+    end
+    return x
+end
+
+func _svg_escapar(v: String) -> String
+    return str_replace(str_replace(str_replace(v, "&", "&amp;"), "\"", "&quot;"), "<", "&lt;")
+end
+
+# Un elemento de SVG como texto (raiz: el documento, para los <use>)
+func _svg_elemento(n: Nodo, raiz: Nodo, es_raiz: Bool, w: Int, h: Int) -> String
+    if n.tipo == DOM_TEXTO
+        if n.padre != nil and (n.padre.nombre == "style")
+            return n.texto
+        end
+        return ""
+    end
+    if n.tipo != DOM_ELEMENTO or _oculto_svg(n)
+        return ""
+    end
+    if n.nombre == "use"
+        return _svg_use(n, raiz)
+    end
+    if n.nombre == "title" or n.nombre == "desc" or n.nombre == "script"
+        return ""
+    end
+    nombre = _svg_nombre(n.nombre)
+    r = "<" + nombre
+    if es_raiz
+        r = r + " xmlns=\"http://www.w3.org/2000/svg\" width=\"" + w + "\" height=\"" + h + "\""
+        if svg_viewbox(n) == ""
+            vb = _svg_viewbox_de_use(n, raiz)
+            if vb != ""
+                r = r + " viewBox=\"" + _svg_escapar(vb) + "\""
+            end
+        end
+    end
+    estilo = ""
+    for a in n.atributos
+        if es_raiz and (a.nombre == "width" or a.nombre == "height" or a.nombre == "data-dashweb-svg")
+            continue
+        end
+        if a.nombre == "style"
+            estilo = a.valor
+            continue
+        end
+        if str_starts(a.nombre, "on")
+            continue
+        end
+        r = r + " " + _svg_nombre(a.nombre) + "=\"" + _svg_escapar(a.valor) + "\""
+    end
+    # lo que le da el CSS de la página
+    for p in ["fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "opacity", "fill-rule", "stroke-linecap", "stroke-linejoin"]
+        if n.estilo.has(p)
+            estilo = estilo + ";" + p + ":" + n.estilo[p]
+        end
+    end
+    if estilo != ""
+        r = r + " style=\"" + _svg_escapar(estilo) + "\""
+    end
+    r = r + ">"
+    for h2 in n.hijos
+        r = r + _svg_elemento(h2, raiz, false, 0, 0)
+    end
+    return r + "</" + nombre + ">"
+end
+
+# <use href="#id" x y width height>: lo que nombra, en su sitio (un <symbol>: sus hijos, a escala de su viewBox)
+func _svg_use(n: Nodo, raiz: Nodo) -> String
+    ref = dom_atributo(n, "href")
+    if ref == ""
+        ref = dom_atributo(n, "xlink:href")
+    end
+    if not str_starts(ref, "#")
+        return ""
+    end
+    t = dom_por_id(raiz, ref[1:])
+    if t == nil
+        return ""
+    end
+    x = dom_atributo(n, "x")
+    y = dom_atributo(n, "y")
+    if x == ""
+        x = "0"
+    end
+    if y == ""
+        y = "0"
+    end
+    r = "<g transform=\"translate(" + _svg_escapar(x) + " " + _svg_escapar(y) + ")\">"
+    if t.nombre == "symbol"
+        for h in t.hijos
+            r = r + _svg_elemento(h, raiz, false, 0, 0)
+        end
+    else
+        r = r + _svg_elemento(t, raiz, false, 0, 0)
+    end
+    return r + "</g>"
+end
+
+# Un <svg> sin viewBox que usa un <symbol> con viewBox (los sprites de iconos): ese viewBox
+func _svg_viewbox_de_use(n: Nodo, raiz: Nodo) -> String
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO and h.nombre == "use"
+            ref = dom_atributo(h, "href")
+            if ref == ""
+                ref = dom_atributo(h, "xlink:href")
+            end
+            if str_starts(ref, "#")
+                t = dom_por_id(raiz, ref[1:])
+                if t != nil and t.nombre == "symbol"
+                    return dom_atributo(t, "viewbox")
+                end
+            end
+        end
+    end
+    return ""
 end

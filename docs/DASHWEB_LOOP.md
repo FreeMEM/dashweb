@@ -358,14 +358,32 @@ tarea, con el estilo de Dash.
       [x] 31f. border-radius de verdad (esquinas redondeadas con su radio, también en fondos e imágenes), box-shadow.
       [x] 31g. vertical-align, tablas completas (colspan/rowspan, anchos automáticos), aspect-ratio, object-fit.
       31h. @font-face (fuentes de la web: woff/woff2/ttf) y font-weight/style reales.
+      31k. Selectors 4: :is(), :where(), :has(), :not() con listas (ami64.com usa :is() en querySelector).
+      31l. Transforms completo: translate con %, scale, rotate de cualquier ángulo (en cajas e imágenes).
+      31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
+      31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
+      31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
+      (El usuario, 2026-10-17: "mejor CSS 3". CSS 3 es el conjunto de módulos posteriores a CSS 2.1, que sigue siendo
+      la base: el bloque 31 los va completando.)
       31j. ami64.com sale en blanco (averiguar); amigang.com, la cabecera rota; muylinux.com, el menú escondido sale
            a la vista; dpms.freemem.space, la imagen de fondo enorme (primera comparación, 2026-10-17).
-      31i. SVG dentro de la página (<svg> con sus hijos, <use href="#icono"> de un sprite): los iconos y logos de
+      [x] 31i. SVG dentro de la página (<svg> con sus hijos, <use href="#icono"> de un sprite): los iconos y logos de
            casi todas las webs de la lista salen como cuadraditos vacíos (xataka.com, la primera comparación).
       Webs de prueba (del usuario): https://trainalong.fit/ https://meneame.net https://xataka.com
       https://dpms.freemem.space https://commodoremalacca.club https://www.muylinux.com/ https://amigaworld.net/
       https://www.ami64.com/ https://amigastore.eu/es/ https://aminet.net/ https://amiga.abime.net/
       https://amigang.com/community/ y https://freemem.space.
+- [ ] 32. **JavaScript de las webs de hoy (pregunta del usuario, 2026-10-17).** El lenguaje está completo (QuickJS,
+      ES2023); falta navegador. Orden:
+      32z. Primero, los errores de JavaScript de las webs de la lista: amigastore.eu (jQuery 1.7: "not a function" al
+           poner un style), amigang.com ("cannot read property 'replace' of undefined" en sus enlaces: ¿a.hash,
+           a.pathname?), ami64.com (Wix: "'set'/'get' of undefined"; :is() en querySelector).
+      32a. fetch y XMLHttpRequest (sobre las cargas sin espera de lib/http.dash; promesas y eventos), con Headers,
+           Request/Response básicos.
+      32b. URL y URLSearchParams, FormData, Blob (lo básico), crypto.getRandomValues y randomUUID.
+      32c. <script type="module"> e import estáticos (traídos con la red de dashweb), import() dinámico.
+      32d. customElements (define, connectedCallback) y los observadores de verdad (MutationObserver al menos).
+      32e. Canvas 2D (lo básico: rectángulos, texto, imágenes) sobre la zona de dibujo.
 - [ ] 28j. **Next.js sin agotar la memoria.** Con ReadableStream (escrita en el preludio como
       __dashweb_ReadableStream, sin poner), el JavaScript de commodoremalacca.club sigue (React montando la página) y
       deja el Amiga sin memoria (malloc falla: no es QuickJS, que ya tiene tope de 48 MB) y dashweb se cierra; salen
@@ -1662,3 +1680,13 @@ Formato:
 - Test `test_maqueta_tabla` (16 cajas en 7 casos). test_maqueta: su tabla ahora se ajusta al contenido y lleva
   border-spacing (como Chrome): sus líneas esperadas, al día. Base: 42/42 (test_http_seguir falló una vez por
   servidores de pruebas huérfanos de una batería parada a mano; sin ellos, pasa).
+
+### 2026-10-17 — Tarea 31i (SVG dentro de la página)
+- `lib/imagenes.dash`: cada <svg> de la página se vuelve a escribir como un fichero SVG (T:dashweb_svgN.svg) que
+  decodifica nanosvg: nombres de SVG con su caja (el lector de HTML los deja en minúsculas: viewBox,
+  linearGradient, clipPath...), currentColor con el color del <svg>, fill/stroke/opacity que pone el CSS de la
+  página a cada elemento, y <use href="#id"> (o xlink:href) sustituido por lo que nombra (de un <symbol>: sus hijos,
+  y su viewBox para un <svg> sin viewBox, como en los sprites de iconos). La maqueta lo pone como una imagen, a su
+  tamaño de CSS, de sus atributos o, sin nada, 300x150 (con viewBox, el alto en proporción).
+- Test `test_svg_pagina` (el SVG generado, lo que decodifica nanosvg de un rectángulo y de un icono de sprite, y
+  su sitio en la maqueta). Base: 43/43.

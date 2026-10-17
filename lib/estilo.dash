@@ -1863,3 +1863,54 @@ func _pistas_html(n: Nodo) -> [Declaracion]
     end
     return r
 end
+
+# === Tamaño de un <svg> dentro de la página (lib/imagenes.dash y lib/maqueta.dash) ===
+
+# El tamaño con que se ve un <svg>: CSS (px), sus atributos o, si no, el de los navegadores (300x150; con viewBox,
+# el alto en proporción)
+func svg_ancho(n: Nodo) -> Int
+    e = n.estilo
+    if e.has("width") and e["width"] != "auto" and not str_ends(e["width"], "%")
+        w = estilo_px(e["width"], estilo_px(_svg_val(e, "font-size", "16px"), 0, 0), 0)
+        if w > 0
+            return w
+        end
+    end
+    w = Int(dom_atributo(n, "width"))
+    if w > 0 and not str_ends(dom_atributo(n, "width"), "%")
+        return w
+    end
+    return 300
+end
+
+func svg_alto(n: Nodo) -> Int
+    e = n.estilo
+    if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
+        h = estilo_px(e["height"], estilo_px(_svg_val(e, "font-size", "16px"), 0, 0), 0)
+        if h > 0
+            return h
+        end
+    end
+    h = Int(dom_atributo(n, "height"))
+    if h > 0 and not str_ends(dom_atributo(n, "height"), "%")
+        return h
+    end
+    # con viewBox: en proporción al ancho
+    vb = css_partir(str_trim(str_replace(svg_viewbox(n), ",", " ")), 32)
+    if vb.length == 4 and Int(vb[2]) > 0
+        return svg_ancho(n) * Int(vb[3]) / Int(vb[2])
+    end
+    return 150
+end
+
+func _svg_val(e: {String: String}, p: String, d: String) -> String
+    if e.has(p)
+        return e[p]
+    end
+    return d
+end
+
+func svg_viewbox(n: Nodo) -> String
+    return dom_atributo(n, "viewbox")
+end
+
