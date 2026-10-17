@@ -362,7 +362,7 @@ tarea, con el estilo de Dash.
       [x] 31l. Transforms completo: translate con %, scale, rotate de cualquier ángulo (en cajas e imágenes).
       [x] 31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
       [x] 31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
-      31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
+      [x] 31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
       (El usuario, 2026-10-17: "mejor CSS 3". CSS 3 es el conjunto de módulos posteriores a CSS 2.1, que sigue siendo
       la base: el bloque 31 los va completando.)
       31j. ami64.com sale en blanco (averiguar); amigang.com, la cabecera rota; muylinux.com, el menú escondido sale
@@ -1743,3 +1743,15 @@ Formato:
 - Lo que no: la sintaxis relativa (rgb(from ...)) da -1; color-mix in oklab/oklch mezcla en sRGB.
 - Test `test_colores4` (21 colores; lab y oklab a 1 de la fórmula en coma flotante).
 - Base: 47/47.
+
+### 2026-10-17 — Tarea 31o (Text 3)
+- white-space: nowrap no se miraba: ahora las palabras de un texto nowrap van pegadas (no se corta la línea entre
+  ellas). overflow-wrap/word-wrap: break-word o anywhere y word-break: break-all o break-word parten una palabra
+  más ancha que la línea en trozos que caben (break-all no rellena la línea de antes: solo parte lo que no cabe).
+  text-overflow: ellipsis, en una caja con overflow que no sea visible, cambia lo que no cabe por "..." (Latin-1
+  no tiene el carácter de los tres puntos). text-shadow: la primera sombra, como copia del texto desplazada con su
+  color (o el del texto); no se pinta si es casi transparente o difuminada más de 4 px (los halos quedarían
+  peor sin difuminar). text-shadow, overflow-wrap, word-wrap y word-break se heredan.
+- Lo que no: white-space: pre-wrap y pre-line siguen como pre (no parten líneas largas); hyphens.
+- Test `test_maqueta_texto3`.
+- Base: 48/48.

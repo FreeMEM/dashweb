@@ -1750,6 +1750,9 @@ func _palabras(m: Maquetador, texto_dom: String, e: {String: String}, piezas: [P
     n = texto.length
     i = 0
     hubo_blanco = false
+    # white-space: nowrap: no se corta la línea entre sus palabras (van pegadas)
+    sin_cortes = e["white-space"] == "nowrap"
+    primera = true
     while i < n
         c = str_code(texto, i)
         if c == 32 or c == 9 or c == 10 or c == 13 or c == 12
@@ -1780,6 +1783,10 @@ func _palabras(m: Maquetador, texto_dom: String, e: {String: String}, piezas: [P
                 anterior = piezas[piezas.length - 1]
                 pz.pegada = not anterior.salto and not anterior.imagen and not anterior.control and not str_ends(anterior.texto, " ")
             end
+            if sin_cortes and piezas.length > 0 and (not primera or hubo_blanco)
+                pz.pegada = true
+            end
+            primera = false
             piezas.push(pz)
             hubo_blanco = false
             i = j
@@ -1803,10 +1810,14 @@ func _termina_en_blanco(piezas: [Pieza]) -> Bool
 end
 
 # Reparte las piezas en líneas de ese ancho; devuelve el alto
-func _lineas(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}) -> Int
+func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}) -> Int
     cy = y
     var linea: [Pieza] = []
     ocupado = 0
+    piezas = todas
+    if _partir_palabras(e)
+        piezas = _palabras_partidas(todas, ancho)
+    end
     for p in piezas
         if p.salto
             cy = cy + _poner_linea(m, linea, x, cy, ancho, e, p.alto)
@@ -1858,6 +1869,47 @@ func _lineas(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {Str
     return cy - y
 end
 
+# overflow-wrap (o word-wrap): break-word o anywhere, o word-break: break-all o break-word: una palabra más
+# larga que la línea se parte donde haga falta
+func _partir_palabras(e: {String: String}) -> Bool
+    o = _val(e, "overflow-wrap", _val(e, "word-wrap", "normal"))
+    w = _val(e, "word-break", "normal")
+    return o == "break-word" or o == "anywhere" or w == "break-all" or w == "break-word"
+end
+
+# Las piezas con las palabras de texto más anchas que la línea partidas en trozos que caben
+func _palabras_partidas(piezas: [Pieza], ancho: Int) -> [Pieza]
+    var r: [Pieza] = []
+    for p in piezas
+        if p.ancho <= ancho or ancho <= 0 or p.salto or p.imagen or p.control or p.icono or p.video or p.caja != nil or p.texto.length < 2
+            r.push(p)
+            continue
+        end
+        font_use(p.fuente)
+        font_style(p.estilo)
+        resto = p.texto
+        primero = true
+        while resto != ""
+            k = 1
+            while k < resto.length and font_text_width(resto[:k + 1]) + p.espaciado * (k + 1) <= ancho
+                k = k + 1
+            end
+            trozo = resto[:k]
+            resto = resto[k:]
+            pz = Pieza(trozo, font_text_width(trozo) + p.espaciado * trozo.length, p.alto, p.base, p.fuente, p.estilo, p.color, p.tachado, p.enlace, 0, false, false)
+            pz.nodo = p.nodo
+            pz.espaciado = p.espaciado
+            if primero
+                pz.espacio = p.espacio
+                pz.pegada = p.pegada
+            end
+            primero = false
+            r.push(pz)
+        end
+    end
+    return r
+end
+
 # Una línea: alto y línea base de lo más alto, alineación, y las palabras seguidas con el mismo
 # aspecto juntas en un solo texto (pintar texto es lo que más cuesta)
 func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}, alto_vacia: Int) -> Int
@@ -1891,6 +1943,8 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     end
     cx = x + desplaza
     var actual: Dibujo = nil
+    var sombra: Dibujo = nil
+    inicio = m.pagina.dibujos.length
     for p in linea
         cx = cx + p.espacio
         if p.caja != nil
@@ -1928,7 +1982,27 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
         elif actual != nil and actual.fuente == p.fuente and actual.estilo == p.estilo and actual.color == p.color and actual.enlace == p.enlace and actual.nodo == p.nodo and actual.espaciado == p.espaciado
             actual.texto = actual.texto + _espacios(p.espacio, actual) + p.texto
             actual.ancho = cx + p.ancho - actual.x
+            if sombra != nil
+                sombra.texto = actual.texto
+                sombra.ancho = actual.ancho
+            end
         else
+            sombra = nil
+            if p.nodo != nil and p.nodo.estilo.has("text-shadow") and p.nodo.estilo["text-shadow"] != "none"
+                sombra = _sombra_texto(p.nodo.estilo, p.color)
+                if sombra != nil
+                    sombra.x = cx + sombra.x
+                    sombra.y = y + base - p.base + 1 + sombra.y
+                    sombra.ancho = p.ancho
+                    sombra.alto = p.alto
+                    sombra.texto = p.texto
+                    sombra.fuente = p.fuente
+                    sombra.estilo = p.estilo
+                    sombra.nodo = p.nodo
+                    sombra.espaciado = p.espaciado
+                    m.pagina.dibujos.push(sombra)
+                end
+            end
             actual = _dibujo(D_TEXTO, cx, y + base - p.base + 1, p.ancho, p.alto, p.color)
             actual.texto = p.texto
             actual.fuente = p.fuente
@@ -1943,7 +2017,62 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
         end
         cx = cx + p.ancho
     end
+    # text-overflow: ellipsis en una caja que recorta: lo que no cabe se cambia por "..."
+    if desplaza + total > ancho and _val(e, "text-overflow", "clip") == "ellipsis" and (_val(e, "overflow", "visible") != "visible" or _val(e, "overflow-x", "visible") != "visible")
+        _puntos(m, inicio, x + ancho)
+    end
     return alto
+end
+
+# Los textos de una línea (desde el dibujo inicio) cortados en limite: el que lo cruza acaba en "...", los de
+# después se vacían
+func _puntos(m: Maquetador, inicio: Int, limite: Int)
+    i = inicio
+    while i < m.pagina.dibujos.length
+        d = m.pagina.dibujos[i]
+        if d.tipo == D_TEXTO
+            if d.x >= limite
+                d.texto = ""
+                d.ancho = 0
+            elif d.x + d.ancho > limite
+                font_use(d.fuente)
+                font_style(d.estilo)
+                puntos = font_text_width("...")
+                k = d.texto.length
+                while k > 0 and font_text_width(d.texto[:k]) + d.espaciado * k + puntos > limite - d.x
+                    k = k - 1
+                end
+                d.texto = str_trim(d.texto[:k]) + "..."
+                d.ancho = font_text_width(d.texto) + d.espaciado * d.texto.length
+            end
+        end
+        i = i + 1
+    end
+end
+
+# text-shadow: la primera sombra como una copia del texto desplazada (x e y del dibujo: el desplazamiento), con
+# su color; nil si no hay, si es casi transparente o muy difuminada (un halo: sin difuminar quedaría peor)
+func _sombra_texto(e: {String: String}, color_texto: Int) -> Dibujo
+    var nada: Dibujo = nil
+    valor = e["text-shadow"]
+    primera = css_partir(valor, 44)[0]
+    con_color = false
+    for t in css_partir(str_trim(primera), 32)
+        c = str_code(str_trim(t) + " ", 0)
+        if str_trim(t) != "" and not ((c >= 48 and c <= 57) or c == 45 or c == 46)
+            con_color = true
+        end
+    end
+    v = [0, 0, 0, 0]
+    d = _sombra(primera, estilo_px(_val(e, "font-size", "16px"), 0, 0), v)
+    if d == nil or v[2] > 4 or (v[0] == 0 and v[1] == 0) or (d.espaciado > 0 and d.espaciado < 128)
+        return nada
+    end
+    s = _dibujo(D_TEXTO, v[0], v[1], 0, 0, d.color)
+    if not con_color
+        s.color = color_texto
+    end
+    return s
 end
 
 # El hueco entre dos palabras dentro de un mismo texto: un espacio (si no lo trae ya)

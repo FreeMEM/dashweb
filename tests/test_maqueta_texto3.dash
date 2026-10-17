@@ -1,0 +1,67 @@
+# Test: CSS Text 3 (tarea 31o) con la fuente de 8 px: white-space: nowrap deja las cuatro palabras en una línea
+# (sin él, cuatro líneas); overflow-wrap: break-word parte una palabra de 26 letras en líneas de 40 px (5 letras);
+# text-overflow: ellipsis en una caja de 60 px que recorta deja "aaaa..."; text-shadow: 1px 2px 0 red pone una
+# copia roja del texto un px a la derecha y dos más abajo.
+# memcheck
+# expect-out: nowrap 1
+# expect-out: normal 4
+# expect-out: partida 6 40
+# expect-out: puntos aaaa...
+# expect-out: sombra 1 2
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+func lineas(p: Pagina, id: String) -> String
+    var ys: {String: Int} = {}
+    mayor = 0
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and d.nodo != nil and dom_atributo(d.nodo, "id") == id
+            ys["" + d.y] = 1
+            if d.ancho > mayor
+                mayor = d.ancho
+            end
+        end
+    end
+    if id == "c"
+        return "" + ys.length + " " + mayor
+    end
+    return "" + ys.length
+end
+
+Main
+    h = "<html><body style='margin:0;font-family:topaz;font-size:8px'>"
+    h = h + "<div id=a style='width:50px;white-space:nowrap'>aaa bbb ccc ddd</div>"
+    h = h + "<div id=b style='width:50px'>aaa bbb ccc ddd</div>"
+    h = h + "<div id=c style='width:40px;overflow-wrap:break-word'>abcdefghijklmnopqrstuvwxyz</div>"
+    h = h + "<div id=d style='width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>aaaa bbbb cccc dddd</div>"
+    h = h + "<div id=e style='text-shadow:1px 2px 0 red'>sombra</div>"
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    p = maquetar(doc, 280)
+    Print "nowrap " + lineas(p, "a")
+    Print "normal " + lineas(p, "b")
+    Print "partida " + lineas(p, "c")
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and d.nodo != nil and dom_atributo(d.nodo, "id") == "d"
+            Print "puntos " + d.texto
+        end
+    end
+    var roja: Dibujo = nil
+    var negra: Dibujo = nil
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and d.nodo != nil and dom_atributo(d.nodo, "id") == "e"
+            if d.color == 16711680
+                roja = d
+            else
+                negra = d
+            end
+        end
+    end
+    if roja != nil and negra != nil
+        Print "sombra " + (roja.x - negra.x) + " " + (roja.y - negra.y)
+    else
+        Print "sombra no"
+    end
+end
