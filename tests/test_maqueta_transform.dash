@@ -1,0 +1,41 @@
+# Test: transform completo (tarea 31l). translate con % de la propia caja y con calc(), scale alrededor del centro
+# y de transform-origin, scale(0) que oculta, scale(-1) que da la vuelta, matrix() sin giro, las propiedades
+# sueltas translate y rotate (en turn: una barra girada 45 grados es un trazo).
+# memcheck
+# expect-out: a 50 10 100 20
+# expect-out: b 10 30 20 20
+# expect-out: c 0 60 80 80
+# expect-out: e 10 115 40 10
+# expect-out: f 30 120 40 10
+# expect-out: g trazo
+# expect-out: h -15 132 40 10
+# expect-out: i 0 142 40 10
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+Main
+    h = "<html><body style='margin:0'>"
+    h = h + "<div id=a style='margin-left:100px;width:100px;height:20px;background:red;transform:translate(-50%, 10px)'></div>"
+    h = h + "<div id=b style='width:40px;height:40px;background:red;transform:scale(.5)'></div>"
+    h = h + "<div id=c style='width:40px;height:40px;background:red;transform-origin:left top;transform:scale(2)'></div>"
+    h = h + "<div id=d style='height:10px;background:red;transform:scale(0)'></div>"
+    h = h + "<div id=e style='width:40px;height:10px;background:red;translate:10px 5px'></div>"
+    h = h + "<div id=f style='width:40px;height:10px;background:red;transform:matrix(1, 0, 0, 1, 30, 0)'></div>"
+    h = h + "<div id=g style='width:20px;height:2px;background:red;rotate:0.125turn'></div>"
+    h = h + "<div id=h style='width:40px;height:10px;background:red;transform:translateX(calc(-50% + 5px))'></div>"
+    h = h + "<div id=i style='width:40px;height:10px;background:red;transform:scale(-1)'></div>"
+    h = h + "</body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    p = maquetar(doc, 280)
+    for d in p.dibujos
+        if d.nodo != nil and dom_atributo(d.nodo, "id") != ""
+            if d.tipo == D_RECT
+                Print dom_atributo(d.nodo, "id") + " " + d.x + " " + d.y + " " + d.ancho + " " + d.alto
+            elif d.tipo == D_TRAZO
+                Print dom_atributo(d.nodo, "id") + " trazo"
+            end
+        end
+    end
+end

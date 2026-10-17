@@ -359,7 +359,7 @@ tarea, con el estilo de Dash.
       [x] 31g. vertical-align, tablas completas (colspan/rowspan, anchos automáticos), aspect-ratio, object-fit.
       31h. @font-face (fuentes de la web: woff/woff2/ttf) y font-weight/style reales.
       [x] 31k. Selectors 4: :is(), :where(), :has(), :not() con listas (ami64.com usa :is() en querySelector).
-      31l. Transforms completo: translate con %, scale, rotate de cualquier ángulo (en cajas e imágenes).
+      [x] 31l. Transforms completo: translate con %, scale, rotate de cualquier ángulo (en cajas e imágenes).
       31m. Transitions y Animations: el estado final (sin animar) y lo que pidan las webs de la lista.
       31n. Color 4: hsl(), hwb(), lab()/oklch(), color-mix(), y la sintaxis nueva rgb(r g b / a).
       31o. Text 3: text-overflow: ellipsis, overflow-wrap, word-break, text-shadow, hyphens básico.
@@ -1705,3 +1705,16 @@ Formato:
   más lento y con fallos nuevos, para tener lo mismo; QuickJS sigue como librería de C y lo de alrededor, en Dash.
   Orden decidido por el usuario: primero el bloque 31, luego el 32.
 - Base: 44/44.
+
+### 2026-10-17 — Tarea 31l (Transforms)
+- `_transformar` (lib/maqueta.dash) reescrita: compone las funciones de izquierda a derecha en una matriz de escala
+  (milésimas) y desplazamiento (px), alrededor de `transform-origin` (palabras, % o longitudes; por omisión el
+  centro). translate/translateX/Y/3d con % de la propia caja y con calc() dentro (paréntesis anidados); scale,
+  scaleX/Y/3d (también con %); matrix() y matrix3d() sin giro (con giro, solo su desplazamiento); ángulos en deg,
+  rad, grad y turn. Las propiedades sueltas `translate`, `rotate` y `scale` (Transforms 2) van delante de
+  `transform`. scale(0) quita lo dibujado; scale(-1) da la caja vuelta (el texto se mueve, no cambia de letra).
+  Las zonas de recorte de overflow que van dentro se transforman con ello.
+- Lo que no: girar una caja con contenido a un ángulo cualquiera (haría falta girar texto e imágenes en el pintor);
+  una barra sola se gira al múltiplo de 45 más cercano, como antes. skew y los giros 3D se ignoran.
+- Test `test_maqueta_transform` (9 casos).
+- Base: 45/45.

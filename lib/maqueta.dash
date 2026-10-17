@@ -334,8 +334,9 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     _maqueta_nivel = _maqueta_nivel + 1
     antes = m.pagina.dibujos.length
     r = _bloque_en(m, n, x, y, ancho, contenedor)
-    if n.estilo.has("transform") and n.estilo["transform"] != "none"
-        _transformar(m, n.estilo["transform"], antes)
+    t = _transformacion(n.estilo)
+    if t != ""
+        _transformar(m, n, t, antes)
     end
     # z-index en un elemento posicionado: un contexto de apilado con todo lo suyo (el de fuera manda)
     if n.estilo.has("z-index") and n.estilo["z-index"] != "auto" and _val(n.estilo, "position", "static") != "static"
@@ -722,11 +723,12 @@ func _redonda(e: {String: String}, ancho: Int, alto: Int) -> Bool
     return estilo_px(r, estilo_px(e["font-size"], 0, 0), 0) * 2 >= menor
 end
 
-# transform: translate (px o % de la propia caja) mueve lo dibujado; rotate en múltiplos de 45 grados
-# gira una barra (una caja que es un solo rectángulo) sobre su centro
-func _transformar(m: Maquetador, t: String, antes: Int)
-    n = m.pagina.dibujos.length - antes
-    if n <= 0
+# transform (CSS Transforms 1 y 2): translate, scale y matrix sin giro mueven y escalan lo dibujado alrededor de
+# transform-origin (el texto se mueve pero no cambia de letra; scale(0) lo oculta). rotate solo gira una barra
+# (una caja que es un solo rectángulo), al múltiplo de 45 grados más cercano; skew y los giros 3D no se pintan
+func _transformar(m: Maquetador, n: Nodo, t: String, antes: Int)
+    total = m.pagina.dibujos.length - antes
+    if total <= 0
         return
     end
     # la caja: lo que abarca lo dibujado
@@ -751,94 +753,352 @@ func _transformar(m: Maquetador, t: String, antes: Int)
         end
         i = i + 1
     end
+    em = estilo_px(_val(n.estilo, "font-size", "16px"), 0, 0)
+    w = x2 - x1
+    h = y2 - y1
+    # la matriz: escala en milésimas, desplazamiento en px (se compone de izquierda a derecha)
+    sx = 1000
+    sy = 1000
     dx = 0
     dy = 0
     giro = 0
     resto = str_lower(t)
     while true
         p = str_find(resto, "(")
-        c = str_find(resto, ")")
-        if p < 0 or c < p
+        if p < 0
+            break
+        end
+        c = _cierre(resto, p)
+        if c < 0
             break
         end
         f = str_trim(resto[:p])
-        a = resto[p + 1:c]
-        b = ""
-        coma = str_find(a, ",")
-        if coma >= 0
-            b = a[coma + 1:]
-            a = a[:coma]
-        end
+        args = _transform_args(resto[p + 1:c])
         resto = resto[c + 1:]
+        a = ""
+        b = ""
+        if args.length > 0
+            a = args[0]
+        end
+        if args.length > 1
+            b = args[1]
+        end
+        tx = 0
+        ty = 0
         if f == "translatex"
-            dx = dx + _desplazamiento(a, x2 - x1)
+            tx = estilo_px(a, em, w)
         elif f == "translatey"
-            dy = dy + _desplazamiento(a, y2 - y1)
-        elif f == "translate"
-            dx = dx + _desplazamiento(a, x2 - x1)
+            ty = estilo_px(a, em, h)
+        elif f == "translate" or f == "translate3d"
+            tx = estilo_px(a, em, w)
             if b != ""
-                dy = dy + _desplazamiento(b, y2 - y1)
+                ty = estilo_px(b, em, h)
             end
-        elif f == "rotate"
-            a = str_trim(a)
-            if str_ends(a, "deg")
-                giro = giro + Int(a[:a.length - 3])
+        elif f == "scale" or f == "scale3d"
+            ka = _escala(a)
+            kb = ka
+            if b != ""
+                kb = _escala(b)
+            end
+            sx = sx * ka / 1000
+            sy = sy * kb / 1000
+        elif f == "scalex"
+            sx = sx * _escala(a) / 1000
+        elif f == "scaley"
+            sy = sy * _escala(a) / 1000
+        elif f == "rotate" or f == "rotatez"
+            giro = giro + _grados(a)
+        elif f == "matrix" or f == "matrix3d"
+            # sin giro ni sesgo (b y c a 0): escala y desplazamiento; con giro, solo el desplazamiento
+            ia = 0
+            ib = 1
+            ic = 2
+            id = 3
+            ie = 4
+            jf = 5
+            if f == "matrix3d"
+                ib = 1
+                ic = 4
+                id = 5
+                ie = 12
+                jf = 13
+            end
+            if args.length > jf
+                tx = _mil_signo(args[ie]) / 1000
+                ty = _mil_signo(args[jf]) / 1000
+                if _mil_signo(args[ib]) == 0 and _mil_signo(args[ic]) == 0
+                    sx = sx * _mil_signo(args[ia]) / 1000
+                    sy = sy * _mil_signo(args[id]) / 1000
+                end
+            end
+        end
+        dx = dx + tx * sx / 1000
+        dy = dy + ty * sy / 1000
+    end
+    if sx == 0 or sy == 0
+        # scale(0): no se ve
+        while m.pagina.dibujos.length > antes
+            m.pagina.dibujos.pop()
+        end
+        return
+    end
+    giro = ((giro % 360) + 360) % 360
+    if giro % 180 != 0 and total == 1 and m.pagina.dibujos[antes].tipo == D_RECT
+        _girar_barra(m.pagina.dibujos[antes], (giro + 22) / 45 * 45)
+    end
+    if sx == 1000 and sy == 1000 and dx == 0 and dy == 0
+        return
+    end
+    # transform-origin (por omisión, el centro de la caja)
+    ox = x1 + w / 2
+    oy = y1 + h / 2
+    if n.estilo.has("transform-origin")
+        partes = _transform_args(n.estilo["transform-origin"])
+        if partes.length > 0
+            ox = x1 + _origen(partes[0], w, em)
+            if partes[0] == "top" or partes[0] == "bottom"
+                ox = x1 + w / 2
+                oy = y1 + _origen(partes[0], h, em)
+            end
+        end
+        if partes.length > 1
+            if partes[1] == "left" or partes[1] == "right"
+                ox = x1 + _origen(partes[1], w, em)
+                oy = y1 + _origen(partes[0], h, em)
+            else
+                oy = y1 + _origen(partes[1], h, em)
             end
         end
     end
-    if giro % 45 == 0 and giro % 180 != 0 and n == 1 and m.pagina.dibujos[antes].tipo == D_RECT
-        d = m.pagina.dibujos[antes]
-        largo = d.ancho
-        grueso = d.alto
-        angulo = giro
-        if d.alto > d.ancho
-            largo = d.alto
-            grueso = d.ancho
-            angulo = angulo + 90
+    i = antes
+    while i < m.pagina.dibujos.length
+        d = m.pagina.dibujos[i]
+        texto = d.tipo == D_TEXTO or d.tipo == D_ICONO or d.tipo == D_CONTROL or d.tipo == D_LINEA
+        nx = ox + dx + (d.x - ox) * sx / 1000
+        ny = oy + dy + (d.y - oy) * sy / 1000
+        if not texto
+            fx = ox + dx + (d.x + d.ancho - ox) * sx / 1000
+            fy = oy + dy + (d.y + d.alto - oy) * sy / 1000
+            if fx < nx
+                cambio = nx
+                nx = fx
+                fx = cambio
+            end
+            if fy < ny
+                cambio = ny
+                ny = fy
+                fy = cambio
+            end
+            d.ancho = fx - nx
+            d.alto = fy - ny
         end
-        angulo = ((angulo % 180) + 180) % 180
-        cx = d.x + d.ancho / 2
-        cy = d.y + d.alto / 2
-        if angulo == 0
-            d.x = cx - largo / 2
-            d.y = cy - grueso / 2
-            d.ancho = largo
-            d.alto = grueso
-        elif angulo == 90
-            d.x = cx - grueso / 2
-            d.y = cy - largo / 2
-            d.ancho = grueso
-            d.alto = largo
-        else
-            mitad = largo * 707 / 2000
-            d.tipo = D_TRAZO
-            d.x = cx - mitad
-            d.y = cy - mitad
-            d.ancho = mitad * 2 + 1
-            d.alto = mitad * 2 + 1
-            d.fuente = grueso
-            d.estilo = 0
-            if angulo == 135
-                d.estilo = 1
+        d.x = nx
+        d.y = ny
+        if d.recorte
+            rx0 = ox + dx + (d.rx0 - ox) * sx / 1000
+            rx1 = ox + dx + (d.rx1 - ox) * sx / 1000
+            ry0 = oy + dy + (d.ry0 - oy) * sy / 1000
+            ry1 = oy + dy + (d.ry1 - oy) * sy / 1000
+            d.rx0 = rx0
+            d.rx1 = rx1
+            d.ry0 = ry0
+            d.ry1 = ry1
+            if rx1 < rx0
+                d.rx0 = rx1
+                d.rx1 = rx0
+            end
+            if ry1 < ry0
+                d.ry0 = ry1
+                d.ry1 = ry0
             end
         end
+        i = i + 1
     end
-    if dx != 0 or dy != 0
-        i = antes
-        while i < m.pagina.dibujos.length
-            m.pagina.dibujos[i].x = m.pagina.dibujos[i].x + dx
-            m.pagina.dibujos[i].y = m.pagina.dibujos[i].y + dy
-            i = i + 1
+end
+
+# Gira una barra sobre su centro un múltiplo de 45 grados (a 0 o 90: horizontal o vertical; si no, un trazo)
+func _girar_barra(d: Dibujo, giro: Int)
+    largo = d.ancho
+    grueso = d.alto
+    angulo = giro
+    if d.alto > d.ancho
+        largo = d.alto
+        grueso = d.ancho
+        angulo = angulo + 90
+    end
+    angulo = ((angulo % 180) + 180) % 180
+    cx = d.x + d.ancho / 2
+    cy = d.y + d.alto / 2
+    if angulo == 0
+        d.x = cx - largo / 2
+        d.y = cy - grueso / 2
+        d.ancho = largo
+        d.alto = grueso
+    elif angulo == 90
+        d.x = cx - grueso / 2
+        d.y = cy - largo / 2
+        d.ancho = grueso
+        d.alto = largo
+    else
+        mitad = largo * 707 / 2000
+        d.tipo = D_TRAZO
+        d.x = cx - mitad
+        d.y = cy - mitad
+        d.ancho = mitad * 2 + 1
+        d.alto = mitad * 2 + 1
+        d.fuente = grueso
+        d.estilo = 0
+        if angulo == 135
+            d.estilo = 1
         end
     end
 end
 
-func _desplazamiento(v: String, propio: Int) -> Int
+# El paréntesis que cierra el abierto en p (con calc() y otros dentro); -1 si no hay
+func _cierre(v: String, p: Int) -> Int
+    nivel = 0
+    i = p
+    while i < v.length
+        c = str_code(v, i)
+        if c == 40
+            nivel = nivel + 1
+        elif c == 41
+            nivel = nivel - 1
+            if nivel == 0
+                return i
+            end
+        end
+        i = i + 1
+    end
+    return -1
+end
+
+# Los argumentos de una función de transform: separados por comas o, si no hay, por espacios (fuera de paréntesis)
+func _transform_args(v: String) -> [String]
+    var r: [String] = []
+    comas = false
+    nivel = 0
+    for i in (0..v.length - 1)
+        c = str_code(v, i)
+        if c == 40
+            nivel = nivel + 1
+        elif c == 41
+            nivel = nivel - 1
+        elif c == 44 and nivel == 0
+            comas = true
+        end
+    end
+    actual = ""
+    nivel = 0
+    i = 0
+    while i < v.length
+        c = str_code(v, i)
+        corta = false
+        if c == 40
+            nivel = nivel + 1
+        elif c == 41
+            nivel = nivel - 1
+        elif nivel == 0 and (c == 44 or (not comas and (c == 32 or c == 9 or c == 10)))
+            corta = true
+        end
+        if corta
+            if str_trim(actual) != ""
+                r.push(str_trim(actual))
+            end
+            actual = ""
+        else
+            actual = actual + v[i:i + 1]
+        end
+        i = i + 1
+    end
+    if str_trim(actual) != ""
+        r.push(str_trim(actual))
+    end
+    return r
+end
+
+# Un número con signo (y quizá exponente, como en matrix()) en milésimas
+func _mil_signo(v: String) -> Int
+    a = str_trim(v)
+    signo = 1
+    if str_starts(a, "-")
+        signo = -1
+        a = a[1:]
+    elif str_starts(a, "+")
+        a = a[1:]
+    end
+    e = str_find(a, "e")
+    if e >= 0
+        exp = Int(a[e + 1:])
+        r = _mil(a[:e])
+        while exp > 0
+            r = r * 10
+            exp = exp - 1
+        end
+        while exp < 0
+            r = r / 10
+            exp = exp + 1
+        end
+        return signo * r
+    end
+    return signo * _mil(a)
+end
+
+# Un factor de scale (1.5, -1, 50 %) en milésimas
+func _escala(v: String) -> Int
     a = str_trim(v)
     if str_ends(a, "%")
-        return Int(a[:a.length - 1]) * propio / 100
+        return _mil_signo(a[:a.length - 1]) / 100
     end
-    return estilo_px(a, 0, 0)
+    return _mil_signo(a)
+end
+
+# Un ángulo (deg, rad, grad, turn) en grados
+func _grados(v: String) -> Int
+    a = str_trim(v)
+    if str_ends(a, "deg")
+        return _mil_signo(a[:a.length - 3]) / 1000
+    elif str_ends(a, "grad")
+        return _mil_signo(a[:a.length - 4]) * 9 / 10000
+    elif str_ends(a, "rad")
+        return _mil_signo(a[:a.length - 3]) * 180 / 3142
+    elif str_ends(a, "turn")
+        return _mil_signo(a[:a.length - 4]) * 360 / 1000
+    end
+    return 0
+end
+
+# Una coordenada de transform-origin (left, center, right, top, bottom, % o longitud) dentro de un tamaño
+func _origen(v: String, tam: Int, em: Int) -> Int
+    if v == "left" or v == "top"
+        return 0
+    elif v == "right" or v == "bottom"
+        return tam
+    elif v == "center"
+        return tam / 2
+    end
+    return estilo_px(v, em, tam)
+end
+
+# transform más las propiedades sueltas translate, rotate y scale (se aplican antes, en ese orden); "" si nada
+func _transformacion(e: {String: String}) -> String
+    t = ""
+    if e.has("translate") and e["translate"] != "none"
+        t = "translate(" + e["translate"] + ") "
+    end
+    if e.has("rotate") and e["rotate"] != "none"
+        partes = _transform_args(e["rotate"])
+        if partes.length > 0
+            t = t + "rotate(" + partes[partes.length - 1] + ") "
+        end
+    end
+    if e.has("scale") and e["scale"] != "none"
+        t = t + "scale(" + e["scale"] + ") "
+    end
+    if e.has("transform") and e["transform"] != "none"
+        t = t + e["transform"]
+    end
+    return t
 end
 
 # float: left o right; "" si no flota. Un inline-block que lleva bloques dentro, o tiene width o
