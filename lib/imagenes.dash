@@ -69,6 +69,9 @@ const IMAGEN_MAX_ALTO = 1024
 const IMAGENES_A_LA_VEZ = 4
 # Decodificando a la vez, cada una en su proceso (con una sola, freemem.space tardaba unos 5 s más)
 const IMAGENES_DECODIFICANDO = 4
+# Las fuentes van aparte, con sus propias descargas: si no, las imágenes esperaban detrás (freemem.space: 4 pesos
+# de Inter de 325 KB y 4 de Font Awesome; las imágenes empezaban a bajarse a los 28 s)
+const FUENTES_A_LA_VEZ = 2
 
 func imagenes_nuevas() -> Imagenes
     var por_src: {String: Int} = {}
@@ -203,6 +206,7 @@ end
 func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
     llegadas = 0
     activas = 0
+    fuentes = 0
     decodificando = 0
     i = 0
     while i < im.cola.length
@@ -212,6 +216,9 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                 img = imagen_acabar(p.dec)
                 if img == 0
                     img = image_load(p.fichero)      # otro formato: los datatypes
+                end
+                if traza_activa
+                    traza("decodificada " + p.src)
                 end
                 if _imagen_llegada(im, doc, p, img)
                     llegadas = llegadas + 1
@@ -242,7 +249,8 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                 decodificando = decodificando + 1
             end
         else
-            if p.carga == nil and activas < IMAGENES_A_LA_VEZ
+            es_fuente = p.fuente != ""
+            if p.carga == nil and ((not es_fuente and activas < IMAGENES_A_LA_VEZ) or (es_fuente and fuentes < FUENTES_A_LA_VEZ))
                 p.carga = http_empezar_a_fichero(p.direccion, p.fichero, 15000)
             end
             if p.carga != nil
@@ -258,7 +266,11 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                     im.cola.remove(i)
                     continue
                 end
-                activas = activas + 1
+                if es_fuente
+                    fuentes = fuentes + 1
+                else
+                    activas = activas + 1
+                end
             end
         end
         i = i + 1

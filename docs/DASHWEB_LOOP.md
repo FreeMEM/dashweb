@@ -2091,3 +2091,21 @@ Formato:
   que el 80 % de Main es sobre todo la espera después de cargar. En los 47 s de carga lo que pesa es: JavaScript
   ~8 s, recibir (TLS) ~7 s, decodificar imágenes ~6 s, abrir conexiones (TLS) ~5 s, la cascada ~7 s. Que el
   total no se mueva ni un poco apunta a algo que espera un tiempo fijo: siguiente, una línea de tiempo de la carga.
+
+### 2026-10-17 — Tarea 33, la línea de tiempo de la carga
+- lib/traza.dash: con el argumento TRAZA (`tools/medir_visor.py --traza`) dashweb saca cada paso con sus ms:
+  pedir, enviar (y si la conexión se reusó), llegar (estado, bytes, ms) de cada descarga; scripts, estilo,
+  maqueta, pintado, temporizadores del JavaScript y lo que rehacen, y cada imagen decodificada.
+- freemem.space (45 s en la máquina RTG): HTML y recursos hasta 4 s; scripts 7 s (hasta 11 s); estilo 3,7 s;
+  maqueta 1 s; primera pintada a los 16 s. Luego los temporizadores del JavaScript cambian la página dos veces y
+  cada una rehace el estilo entero y la maqueta: 2,7 s y 4 s. Las fuentes: 4 pesos de Inter de Google Fonts
+  (325 KB cada uno: el TTF entero, con todos los alfabetos) y 4 de Font Awesome (700 KB), 1,3 MB en total.
+- Las imágenes esperaban en la misma cola detrás de las 8 fuentes: empezaban a bajarse a los 28 s. Ahora las
+  fuentes tienen sus propias descargas (`FUENTES_A_LA_VEZ = 2`) y las imágenes llegan desde los 22 s. El total
+  no cambia (44,8 s): la máquina va al 100 % todo el rato y todo compite por el procesador (TLS de las descargas,
+  estilo, maqueta, decodificar). Probado también decodificar con prioridad 0 en vez de -1: se decodifican antes
+  pero las descargas van más lentas; el total igual (45,5 s), así que se queda en -1 (la ventana responde mejor).
+- Conclusión: para bajar el total hay que quitar trabajo. Por orden de lo que se ahorraría: (1) volver a calcular
+  el estilo solo de lo que cambió el JavaScript (~6 s); (2) WOFF2 (31h): Google Fonts lo da en trozos por
+  alfabeto, ~25 KB por peso en vez de 325 KB; (3) el primer estilo (3,7 s); (4) image_from_rgb en el proceso
+  principal (~6 s en total); (5) JavaScript (7 s).

@@ -158,6 +158,7 @@ func documento_avanzar(d: Documento) -> Bool
         return false
     end
     t0 = time_ms()
+    traza("recursos listos: scripts")
     traidos = d.recursos.traidos
     if dom_buscar(d.doc, "script") != nil
         d.js = js_nuevo()
@@ -165,12 +166,14 @@ func documento_avanzar(d: Documento) -> Bool
         jsdom_ejecutar_scripts_con(d.js, d.doc, d.direccion, traidos)
         d.cambios = jsdom_cambios(d.js)
     end
+    traza("scripts hechos en " + (time_ms() - t0) + " ms: estilo")
     d.titulo = jsdom_titulo(d.doc)
     if d.titulo == ""
         d.titulo = d.direccion
     end
     d.hojas = estilo_hojas_con(d.doc, d.direccion, traidos)
     estilo_aplicar(d.doc, d.hojas)
+    traza("estilo hecho")
     imagenes_pedir_fuentes(d.im, estilo_caras(d.hojas))
     imagenes_pedir(d.im, d.doc, d.direccion)
     var nada: Recursos = nil
@@ -226,6 +229,7 @@ func documento_maquetar(d: Documento, ancho: Int)
     d.ancho = ancho
     _documento_vistas(d)
     d.ms = d.ms + time_ms() - t0
+    traza("maquetada en " + (time_ms() - t0) + " ms")
 end
 
 # A qué tamaño se ve cada imagen (las que aún no han llegado se decodificarán a ese tamaño)
@@ -242,6 +246,7 @@ func documento_al_dia(d: Documento) -> Bool
     if d.js == 0 or jsdom_cambios(d.js) == d.cambios
         return false
     end
+    t0 = time_ms()
     d.cambios = jsdom_cambios(d.js)
     d.titulo = jsdom_titulo(d.doc)
     estilo_aplicar(d.doc, d.hojas)
@@ -250,6 +255,7 @@ func documento_al_dia(d: Documento) -> Bool
         d.pagina = maquetar(d.doc, d.ancho)
         _documento_vistas(d)
     end
+    traza("el JavaScript cambió la página: estilo y maqueta otra vez en " + (time_ms() - t0) + " ms")
     return true
 end
 

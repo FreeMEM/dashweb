@@ -24,6 +24,7 @@
 import "url.dash"
 import "red.dash"
 import "texto.dash"
+import "traza.dash"
 
 @link "../build/img-lib/libimg.a"
 
@@ -428,11 +429,16 @@ struct Carga
     cabecera: Int = -1     # bytes de la línea de estado y las cabeceras, cuando ya llegaron (http_parcial)
     enviada: Bool = false  # la petición ya salió por la conexión
     reusada: Bool = false  # la conexión venía de otra respuesta (si resulta cerrada, se abre otra)
+    t0: Int = 0            # time_ms de cuando se pidió (traza)
 end
 
 func http_empezar(direccion: String, espera_ms: Int) -> Carga
     var sin: Conexion = nil
     c = Carga(url_parse(direccion), sin, espera_ms, 0, false, _respuesta_vacia(direccion), -1, time_ms())
+    c.t0 = c.ultimo
+    if traza_activa
+        traza("pide " + direccion)
+    end
     _carga_conectar(c)
     return c
 end
@@ -441,7 +447,11 @@ end
 func http_empezar_a_fichero(direccion: String, fichero: String, espera_ms: Int) -> Carga
     var sin: Conexion = nil
     c = Carga(url_parse(direccion), sin, espera_ms, 0, false, _respuesta_vacia(direccion), -1, time_ms())
+    c.t0 = c.ultimo
     c.fichero = fichero
+    if traza_activa
+        traza("pide " + direccion)
+    end
     _carga_conectar(c)
     return c
 end
@@ -540,6 +550,13 @@ func http_avanzar(c: Carga) -> Bool
         end
         c.enviada = true
         c.ultimo = time_ms()
+        if traza_activa
+            reusada = ""
+            if c.reusada
+                reusada = " (conexión reusada)"
+            end
+            traza("enviada " + url_text(c.actual) + " a los " + (c.ultimo - c.t0) + " ms" + reusada)
+        end
     end
     n = red_recibir_ya(c.conexion)
     while n > 0
@@ -591,6 +608,9 @@ func http_avanzar(c: Carga) -> Bool
         end
     end
     c.hecha = true
+    if traza_activa
+        traza("llega " + url_text(c.actual) + ": " + r.estado + " " + r.error + ", " + (r.cuerpo.length + r.bytes) + " bytes en " + (time_ms() - c.t0) + " ms")
+    end
     return true
 end
 

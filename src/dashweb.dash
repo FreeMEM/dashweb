@@ -255,7 +255,9 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         pintar_videos(w.actual.pagina, w.desde, x, y, ancho, alto)
         return
     end
+    t0 = time_ms()
     pintar(w.actual.pagina, w.actual.im, w.desde, x, y, ancho, alto)
+    traza("pintada en " + (time_ms() - t0) + " ms")
 end
 
 # Barra de desplazamiento: total de la página y lo que se ve
@@ -459,7 +461,11 @@ end
 # Los setTimeout/setInterval que tocan en esa ventana
 func temporizadores(w: Ventana)
     if w.actual != nil and w.actual.js != 0 and w.carga == nil
+        t0 = time_ms()
         espera = jsdom_temporizadores(w.actual.js)
+        if traza_activa
+            traza("temporizadores del JavaScript en " + (time_ms() - t0) + " ms; el siguiente en " + espera + " ms")
+        end
         if documento_al_dia(w.actual)
             ajustar_barra(w)
             mui_canvas_redraw(w.v.pagina)
@@ -773,11 +779,23 @@ Main
     else
         a = Acerca_create()
         # cada argumento en su ventana (hasta 4); sin argumentos, la página de inicio
-        if arg_count() == 0
+        # TRAZA: la línea de tiempo de las cargas por la salida (lib/traza.dash)
+        paginas = 0
+        for i in (0..arg_count() - 1)
+            if arg(i) == "TRAZA"
+                traza_activa = true
+                traza_t0 = time_ms()
+            else
+                paginas = paginas + 1
+            end
+        end
+        if paginas == 0
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            nueva_ventana(arg(i))
+            if arg(i) != "TRAZA"
+                nueva_ventana(arg(i))
+            end
         end
         acerca_abierta = false
         while abiertas() > 0
