@@ -1927,3 +1927,10 @@ Formato:
   copia convertida de la fuente). `test_fuente_web` con WOFF y con dos @font-face.
 - Falta (paso 3): bajarlas al cargar la página y que la maqueta las use cuando el font-family las nombra.
 - Base: 50/50.
+
+### 2026-10-17 — El indicador de actividad y la barra de progreso (lo pide el usuario)
+- El indicador de carga (ocho puntos que giraban, diez repintados de MUI por segundo mientras cargaba) era caro
+  en el Amiga: ahora es un punto quieto que solo se pinta al empezar y al acabar.
+- La barra de progreso (abajo a la derecha, junto al estado) solo se veía mientras llegaba el HTML: ahora, con
+  la página puesta, sigue a la vista mientras faltan imágenes y avanza con las llegadas sobre las pedidas.
+- Base: 50/50.
