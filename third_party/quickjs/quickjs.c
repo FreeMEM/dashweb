@@ -2134,13 +2134,45 @@ void JS_SetRuntimeOpaque(JSRuntime *rt, void *opaque)
 }
 
 /* default memory allocation functions with memory limitation */
+#if defined(__amigaos__)
+/* dashweb: libnix has no malloc_usable_size. Each block keeps its size in front of it, so that
+   malloc_size (and with it JS_SetMemoryLimit) counts the real memory: returning 0 counted nothing. */
+#define AMIGA_CABECERA 8
+static void *amiga_malloc(size_t n)
+{
+    size_t *p = malloc(n + AMIGA_CABECERA);
+    if (!p)
+        return NULL;
+    p[0] = n;
+    return (char *)p + AMIGA_CABECERA;
+}
+static void amiga_free(void *q)
+{
+    if (q)
+        free((char *)q - AMIGA_CABECERA);
+}
+static void *amiga_realloc(void *q, size_t n)
+{
+    size_t *p = realloc(q ? (char *)q - AMIGA_CABECERA : NULL, n + AMIGA_CABECERA);
+    if (!p)
+        return NULL;
+    p[0] = n;
+    return (char *)p + AMIGA_CABECERA;
+}
+#define malloc(n) amiga_malloc(n)
+#define free(q) amiga_free(q)
+#define realloc(q, n) amiga_realloc(q, n)
+#endif
+
 static size_t js_def_malloc_usable_size(const void *ptr)
 {
-#if defined(__APPLE__)
+#if defined(__amigaos__)
+    return ptr ? ((const size_t *)((const char *)ptr - AMIGA_CABECERA))[0] : 0;
+#elif defined(__APPLE__)
     return malloc_size(ptr);
 #elif defined(_WIN32)
     return _msize((void *)ptr);
-#elif defined(__EMSCRIPTEN__) || defined(__amigaos__)
+#elif defined(__EMSCRIPTEN__)
     return 0;
 #elif defined(__linux__) || defined(__GLIBC__)
     return malloc_usable_size((void *)ptr);
@@ -2205,6 +2237,12 @@ static void *js_def_realloc(JSMallocState *s, void *ptr, size_t size)
     s->malloc_size += js_def_malloc_usable_size(ptr) - old_size;
     return ptr;
 }
+
+#if defined(__amigaos__)
+#undef malloc
+#undef free
+#undef realloc
+#endif
 
 static const JSMallocFunctions def_malloc_funcs = {
     js_def_malloc,

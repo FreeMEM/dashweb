@@ -170,6 +170,26 @@ end
 """
 end
 
+# Bytes que usa ahora el JavaScript de este motor (lo que ha pedido a malloc)
+@native func js_memoria(js: Int) -> Int
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSMemoryUsage u;
+    if (!m) return 0;
+    JS_ComputeMemoryUsage(m->rt, &u);
+    return (LONG)u.malloc_size;
+"""
+end
+
+# Otro tope de memoria para el JavaScript de este motor (por omisión JS_MEMORIA, 48 MB): pasado, sus scripts
+# reciben "out of memory"
+@native func js_limite(js: Int, bytes: Int)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    if (m) JS_SetMemoryLimit(m->rt, (size_t)bytes);
+"""
+end
+
 # La excepción de la última evaluación (mensaje y pila), o ""
 @native(borrow) func js_error(js: Int) -> String
 """

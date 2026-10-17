@@ -31,14 +31,16 @@ struct Documento
     ms: Int              # lo que tardó en abrirse y maquetarse
     recursos: Recursos = nil   # documento_empezar: las hojas y scripts que están llegando
     videos: Videos = nil       # los reproductores de sus <video> (lib/videos.dash)
-    sin_maquetar: Int = 0      # imágenes que han llegado desde la última maqueta
-    maquetada: Int = 0         # time_ms de la última maqueta por imágenes
+    sin_maquetar: Int = 0      # imágenes llegadas que cambian la maqueta (su <img> no tenía tamaño)
+    sin_pintar: Int = 0        # imágenes llegadas que aún no se han pintado
+    pintada: Int = 0           # time_ms del último repintado por imágenes
 end
 
-# Una imagen que llega solo cambia la maqueta si su <img> no tenía tamaño; mientras siguen llegando, se vuelve
-# a maquetar como mucho cada tanto desde el final de la anterior (maquetar freemem.space entera cuesta ~1,4 s
-# en la máquina RTG: una maqueta por imagen, decodificadas de una en una, eran 20 s más)
-const DOCUMENTO_REMAQUETAR = 2000
+# Las imágenes que llegan se pintan juntas: mientras siguen llegando, como mucho cada tanto (pintar
+# freemem.space entera cuesta ~0,7 s en la máquina RTG y se ve redibujarse: eran 15 repintados seguidos, uno
+# por imagen); la última, enseguida. Solo se vuelve a maquetar si alguna cambió el tamaño de su <img>
+# (maquetar esa página cuesta ~1,4 s).
+const DOCUMENTO_REPINTAR = 2500
 
 # El texto de la página (Latin-1): http(s) o un fichero; si falla, una página que lo dice
 func documento_texto(direccion: String, d: Documento) -> String
@@ -211,23 +213,25 @@ end
 
 # Las imágenes que siguen llegando (sin esperar); true si llegó alguna y se volvió a maquetar
 func documento_imagenes(d: Documento) -> Bool
-    llegadas = 0
     if imagenes_pendientes(d.im) > 0
-        llegadas = imagenes_avanzar(d.im, d.doc)
+        d.sin_pintar = d.sin_pintar + imagenes_avanzar(d.im, d.doc)
     end
     d.sin_maquetar = d.sin_maquetar + d.im.cambiados
     d.im.cambiados = 0
-    if d.sin_maquetar == 0 or d.ancho <= 0
-        return llegadas > 0      # (solo repintar: su sitio en la página no cambia)
+    if d.sin_pintar == 0
+        return false
     end
     # (la última que faltaba: ya)
-    if imagenes_pendientes(d.im) > 0 and time_ms() - d.maquetada < DOCUMENTO_REMAQUETAR
-        return llegadas > 0
+    if imagenes_pendientes(d.im) > 0 and time_ms() - d.pintada < DOCUMENTO_REPINTAR
+        return false
+    end
+    if d.sin_maquetar > 0 and d.ancho > 0
+        d.pagina = maquetar(d.doc, d.ancho)
+        _documento_vistas(d)
     end
     d.sin_maquetar = 0
-    d.pagina = maquetar(d.doc, d.ancho)
-    _documento_vistas(d)
-    d.maquetada = time_ms()
+    d.sin_pintar = 0
+    d.pintada = time_ms()
     return true
 end
 

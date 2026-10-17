@@ -338,6 +338,8 @@ tarea, con el estilo de Dash.
 - [x] 28i. **Lo que le falta al JavaScript de las webs de hoy.** commodoremalacca.club (Next.js), probado a mano
       por el usuario el 2026-10-17: "ReferenceError: 'TextEncoder' is not defined" en su webpack. TextEncoder y
       TextDecoder (UTF-8) en jsdom; luego, lo siguiente que pida esa página.
+- [x] 28l. **Repintar menos (el usuario, 2026-10-17: "todo se re-renderiza varias veces").** Imágenes que llegan
+      pintadas juntas; doble búfer en la zona de dibujo (D48, encargada).
 - [ ] 28j. **Next.js sin agotar la memoria.** Con ReadableStream (escrita en el preludio como
       __dashweb_ReadableStream, sin poner), el JavaScript de commodoremalacca.club sigue (React montando la página) y
       deja el Amiga sin memoria (malloc falla: no es QuickJS, que ya tiene tope de 48 MB) y dashweb se cierra; salen
@@ -1547,3 +1549,22 @@ Formato:
 - lib/js.dash: tope de memoria de 48 MB para el JavaScript de una página (JS_SetMemoryLimit): si lo pasa, su
   script recibe "out of memory" en vez de dejar sin memoria al Amiga.
 - Test `test_jsdom_texto`. Apuntado lo que se ve mal en esa portada: tarea 28k. Base: 37/37.
+
+### 2026-10-17 — Tarea 28l (repintar menos)
+- El usuario, probando dashweb en una ventana del emulador: tras cargar la página "todo se re-renderiza varias
+  veces". Medido en la máquina RTG con freemem.space (avisos temporales en cada repintado): 17 repintados de la
+  página entera después de abrirla, cada uno de ~0,7 s y visible (se pinta en la ventana, que se borra antes):
+  uno al llegar la página, dos de los temporizadores del JavaScript que cambian el DOM, y 14 de imágenes que
+  llegan (aunque la 29c ya no maquetaba por cada una, sí repintaba todo).
+- `documento_imagenes`: las imágenes que llegan se pintan juntas, como mucho cada 2,5 s mientras siguen llegando
+  y la última enseguida; se maqueta solo si alguna cambió el tamaño de su `<img>`. Ahora: 6 repintados por
+  imágenes en lugar de 15; la página entera en 44,0 s en lugar de 51,6 (las dos con los avisos puestos).
+- Encargado a Dash (D48): doble búfer en mui_canvas, para que un repintado no se vea a medias.
+- `js_memoria` y `js_limite` (lib/js.dash): lo que ocupa el JavaScript de un motor y su tope. Midiéndolo salió
+  un fallo: en Amiga, QuickJS contaba 0 bytes por bloque (nuestro parche de malloc_usable_size devolvía 0, libnix
+  no lo tiene), así que el tope de 48 MB de la 28i nunca saltaba. Arreglado en third_party/quickjs: en Amiga cada
+  bloque guarda su tamaño delante (8 bytes). Un motor recién hecho: 149.728 bytes. Test en test_js: con un tope de
+  1 MB, un script que pide más recibe el error (InternalError, o null si ni ese objeto cabe) y el programa sigue.
+- Base: 37/37.
+- 28j (en marcha, sin resultados): con ReadableStream puesta y avisos de memoria cada 3 s, el emulador se quedó
+  colgado sin escribir nada (la salida se pierde): habrá que mirarlo con el disco guardado o capturas.

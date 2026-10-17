@@ -3,7 +3,9 @@
 # mismos dígitos que fdlibm en un PC: exp(1) sale a 1 ulp del valor bien redondeado, como en
 # fdlibm; V8 da ...045), JSON y que el estado se guarda entre evaluaciones. Enteros de 64 bits a número
 # (Date.now, BigInt): con libqjs.a sin FPU en un programa con FPU salían como basura (8.8e-312), porque
-# la conversión de libgcc devuelve el resultado en la FPU (tarea 28g).
+# la conversión de libgcc devuelve el resultado en la FPU (tarea 28g). La memoria que usa (js_memoria) y su
+# tope (js_limite): con malloc_usable_size a 0 en Amiga, QuickJS no contaba nada y el tope no saltaba (28l). Al
+# pasarlo se lanza InternalError, o null si ni ese objeto cabe.
 # expect-out: 3
 # expect-out: hola desde JS 42
 # expect-out: [canción]
@@ -14,6 +16,8 @@
 # expect-out: 0.30000000000000004 1e+21 0.1
 # expect-out: {"a":[1,2,{"b":"c"}]}
 # expect-out: true 1152921504606847000 -4611686018427388000
+# expect-out: memoria: true
+# expect-out: sin memoria: true
 # expect-out: 6
 
 import "../lib/js.dash"
@@ -30,6 +34,10 @@ Main
     Print js_evaluar(js, "[0.1 + 0.2, 1e21, 0.1].join(' ')", "prueba.js")
     Print js_evaluar(js, "JSON.stringify(JSON.parse('{\"a\": [1, 2, {\"b\": \"c\"}]}'))", "prueba.js")
     Print js_evaluar(js, "[Date.now() > 1.7e12 && Date.now() < 1e14, Number(2n ** 60n), Number(-(2n ** 62n))].join(' ')", "prueba.js")
+    Print "memoria: " + (js_memoria(js) > 100000 and js_memoria(js) < 10000000)
+    # con un tope de 1 MB, un script que pide más recibe "out of memory" (y el programa sigue)
+    js_limite(js, js_memoria(js) + 1000000)
+    Print js_evaluar(js, "try { var a = []; for (var i = 0; i < 300000; i++) a.push({i: i}); 'no' } catch (e) { a = null; 'sin memoria: ' + (e === null || String(e) == 'InternalError: out of memory') }", "prueba.js")
     js_evaluar(js, "var total = 0; function sumar(n) { total += n; return total; }", "prueba.js")
     js_evaluar(js, "sumar(1); sumar(2)", "prueba.js")
     Print js_evaluar(js, "sumar(3)", "prueba.js")
