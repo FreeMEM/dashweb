@@ -1786,3 +1786,13 @@ Formato:
   La imagen de debajo la pinta JavaScript en el navegador (BAILOUT_TO_CLIENT_SIDE_RENDERING de Next.js).
 - Caso nuevo en `test_maqueta_transform`.
 - Base: 49/49.
+
+### 2026-10-17 — Tarea 31j, segundo arreglo (dpms.freemem.space)
+- El texto gigante de dpms era su logo: un PNG de 3000x3000 con `height: 50px; width: auto; max-width: 200px`.
+  Una <img> en la línea tomaba solo sus atributos width/height (o lo que mide la imagen cargada) y no el CSS.
+  Ahora `_img_medida` aplica width (px o % de la línea) y height (px) del CSS, saca el que es auto de la
+  proporción, y después max-width y max-height con la misma proporción (como ya hacían los vídeos).
+- Casos nuevos en `test_maqueta_transform` (3 imágenes).
+- Comparación de hoy (commodoremalacca, dpms, muylinux, xataka) con la versión de la 31p: muylinux ya tiene su logo;
+  xataka sigue sin logo ni menú, y muylinux sin las noticias (lozad.js: falta NodeList en JavaScript, bloque 32).
+- Base: 49/49.

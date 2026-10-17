@@ -1480,6 +1480,9 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         if h <= 0
             h = 16
         end
+        medida = _img_medida(m, e, w, h)
+        w = medida[0]
+        h = medida[1]
         img = Pieza(dom_img_src(n), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true)
         img.nodo = n
         piezas.push(img)
@@ -1701,6 +1704,57 @@ func formulario_opcion(n: Nodo) -> Nodo
         end
     end
     return primera
+end
+
+# El tamaño de una <img> en la línea: el suyo (w x h: sus atributos, o lo que mide la imagen ya cargada) con el
+# width y el height del CSS (en px, o width en % de la línea); el que sea auto sale de la proporción. Luego
+# max-width y max-height, también con la proporción
+func _img_medida(m: Maquetador, e: {String: String}, w0: Int, h0: Int) -> [Int]
+    w = w0
+    h = h0
+    cw = 0
+    ch = 0
+    if e.has("width") and e["width"] != "auto"
+        cw = _px(e, "width", m.ancho_linea)
+    end
+    if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
+        ch = _px(e, "height", 0)
+    end
+    if cw > 0 and ch > 0
+        w = cw
+        h = ch
+    elif cw > 0
+        h = h * cw / w
+        w = cw
+    elif ch > 0
+        w = w * ch / h
+        h = ch
+    end
+    if e.has("max-width") and e["max-width"] != "none"
+        mw = _px(e, "max-width", m.ancho_linea)
+        if mw > 0 and w > mw
+            if ch <= 0
+                h = h * mw / w
+            end
+            w = mw
+        end
+    end
+    if e.has("max-height") and e["max-height"] != "none" and not str_ends(e["max-height"], "%")
+        mh = _px(e, "max-height", 0)
+        if mh > 0 and h > mh
+            if cw <= 0
+                w = w * mh / h
+            end
+            h = mh
+        end
+    end
+    if w < 1
+        w = 1
+    end
+    if h < 1
+        h = 1
+    end
+    return [w, h]
 end
 
 # Palabras de un texto con el estilo de su elemento

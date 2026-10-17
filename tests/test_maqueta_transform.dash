@@ -11,6 +11,9 @@
 # expect-out: h -15 132 40 10
 # expect-out: i 0 142 40 10
 # expect-out: capa 0 157 280 30
+# expect-out: img 50 50
+# expect-out: img 140 70
+# expect-out: img 280 140
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -28,12 +31,18 @@ Main
     h = h + "<div id=i style='width:40px;height:10px;background:red;transform:scale(-1)'></div>"
     # (y una capa con position absolute, top y bottom y sin height: el hueco entre los dos)
     h = h + "<div style='position:relative;height:40px'><div id=capa style='position:absolute;top:5px;bottom:5px;left:0;right:0;background:navy'></div></div>"
+    # (y el width/height del CSS en una <img>: el otro sale de la proporción; max-width)
+    h = h + "<div><img src=a.png width=3000 height=3000 style='height:50px;width:auto'></div>"
+    h = h + "<div><img src=b.png width=200 height=100 style='width:50%'></div>"
+    h = h + "<div><img src=c.png width=400 height=200 style='max-width:100%;height:auto'></div>"
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
     p = maquetar(doc, 280)
     for d in p.dibujos
-        if d.nodo != nil and dom_atributo(d.nodo, "id") != ""
+        if d.tipo == D_IMAGEN
+            Print "img " + d.ancho + " " + d.alto
+        elif d.nodo != nil and dom_atributo(d.nodo, "id") != ""
             if d.tipo == D_RECT
                 Print dom_atributo(d.nodo, "id") + " " + d.x + " " + d.y + " " + d.ancho + " " + d.alto
             elif d.tipo == D_TRAZO
