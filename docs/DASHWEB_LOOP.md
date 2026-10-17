@@ -1893,3 +1893,17 @@ Formato:
 - Comprobado contra Chrome (29231ab, con D50): xataka ya tiene su logo SVG con transparencia, como Chrome;
   amigang, su menú en una fila sobre la cabecera oscura (sin el título "Amiga Community", que queda tapado);
   trainalong, la curva (solo la de lima, rayada, y más arriba que en Chrome: falta la segunda y su sitio exacto).
+
+### 2026-10-17 — Tarea 31h, primer paso (una fuente TTF hecha TextFont del Amiga)
+- Plan de la 31h: (1) TTF a fuente del Amiga; (2) leer @font-face (familia, src con format, peso, estilo) y bajar
+  las fuentes (ttf/otf; woff con el inflate de zlib; woff2 necesita Brotli: más adelante; a Google Fonts, con un
+  User-Agent al que sirva TTF); (3) que la maqueta use la fuente de la web cuando el font-family la nombra.
+- Paso 1: `lib/fuente_web.dash`. stb_truetype (third_party/stb/stb_truetype.h v1.26, dominio público; en
+  build/img-lib/libimg.a con tools/build_img.sh) rasteriza los caracteres de Latin-1 (32-255 y uno para los que
+  falten) al tamaño del em y se monta un `struct TextFont` en memoria (un solo AllocVec: tablas CharLoc,
+  CharSpace y CharKern y un plano de 1 bit, umbral 112 de 255). Es lo que esperan font_use, font_text_width y
+  Text(): el pintor no cambia. `fuente_web_liberar` (nunca font_close).
+- Test `test_fuente_web` con Bitstream Vera Sans Mono (tests/pages/VeraMono.ttf, sin modificar, con su
+  licencia en VeraMono.LICENSE): alto 24 a 20 px, monoespaciada de 12, un fichero que no es fuente da 0, y
+  pintada pone tinta.
+- Base: 50/50.

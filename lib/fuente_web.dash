@@ -1,0 +1,139 @@
+# Fuentes de la web (@font-face, tarea 31h): un TTF (o OTF con contornos TrueType) hecho TextFont del Amiga en
+# memoria, con stb_truetype (third_party/stb, en build/img-lib/libimg.a: tools/build_img.sh). Los caracteres de
+# Latin-1 (32-255, los mismos puntos de Unicode) a un tamaño dado (el font-size: el em), en un plano de 1 bit
+# (sin suavizado: el pintor del Amiga pinta así). Lo devuelto vale para font_use, font_text_width... de Dash.
+#
+#   f = fuente_web("T:fuente.ttf", 16)     # 0 si no se puede
+#   font_use(f)
+#   fuente_web_liberar(f)                  # (nunca con font_close)
+
+@link "../build/img-lib/libimg.a"
+@header "#include <stb_truetype.h>"
+@header "#include <graphics/text.h>"
+
+@c
+"""
+static char _fw_nombre[] = "dashweb-web.font";
+
+/* El fichero entero en memoria (AllocVec); NULL si no se puede */
+static UBYTE *_fw_leer(const char *fichero, LONG *largo) {
+    BPTR fh = Open((CONST_STRPTR)fichero, MODE_OLDFILE);
+    UBYTE *d = NULL;
+    LONG n;
+    if (!fh) return NULL;
+    Seek(fh, 0, OFFSET_END);
+    n = Seek(fh, 0, OFFSET_BEGINNING);
+    if (n > 0 && n < 8 * 1024 * 1024 && (d = (UBYTE *)AllocVec(n, MEMF_ANY))) {
+        if (Read(fh, d, n) != n) { FreeVec(d); d = NULL; }
+    }
+    Close(fh);
+    *largo = n;
+    return d;
+}
+
+#define _FW_LO 32
+#define _FW_HI 255
+#define _FW_N (_FW_HI - _FW_LO + 2)      /* y uno más: el que sale con los que no tiene */
+
+/* Un TextFont (y sus tablas y su plano, en un solo AllocVec) con los glifos de datos a tam px de em */
+static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam) {
+    stbtt_fontinfo fi;
+    float esc;
+    int asc, desc, gap, c, i, base, alto, total = 0, x0, y0, x1, y1, adv, lsb;
+    int ws[_FW_N], xs[_FW_N], ads[_FW_N], gl[_FW_N];
+    LONG modulo, tam_bloque;
+    UBYTE *bloque, *plano, *gris;
+    struct TextFont *tf;
+    ULONG *loc;
+    WORD *esp, *ker;
+    if (tam < 4 || tam > 200) return NULL;
+    if (!stbtt_InitFont(&fi, datos, stbtt_GetFontOffsetForIndex(datos, 0))) return NULL;
+    esc = stbtt_ScaleForMappingEmToPixels(&fi, (float)tam);
+    stbtt_GetFontVMetrics(&fi, &asc, &desc, &gap);
+    base = (int)(asc * esc + 0.999f);
+    alto = base + (int)(-desc * esc + 0.999f);
+    if (alto < 1) return NULL;
+    for (i = 0; i < _FW_N; i++) {
+        c = i < _FW_N - 1 ? _FW_LO + i : '?';
+        gl[i] = stbtt_FindGlyphIndex(&fi, c);
+        stbtt_GetGlyphHMetrics(&fi, gl[i], &adv, &lsb);
+        ads[i] = (int)(adv * esc + 0.5f);
+        stbtt_GetGlyphBitmapBox(&fi, gl[i], esc, esc, &x0, &y0, &x1, &y1);
+        if (x1 < x0 || c == ' ') x1 = x0;
+        ws[i] = x1 - x0;
+        xs[i] = x0;
+        total += ws[i];
+    }
+    modulo = ((total + 15) / 16) * 2;
+    if (modulo < 2) modulo = 2;
+    tam_bloque = sizeof(struct TextFont) + _FW_N * (sizeof(ULONG) + 2 * sizeof(WORD)) + modulo * alto;
+    bloque = (UBYTE *)AllocVec(tam_bloque, MEMF_CLEAR);
+    if (!bloque) return NULL;
+    tf = (struct TextFont *)bloque;
+    loc = (ULONG *)(bloque + sizeof(struct TextFont));
+    esp = (WORD *)(loc + _FW_N);
+    ker = esp + _FW_N;
+    plano = (UBYTE *)(ker + _FW_N);
+    total = 0;
+    for (i = 0; i < _FW_N; i++) {
+        int w = ws[i], gx0, gy0, gx1, gy1, gh, yy, xx;
+        loc[i] = ((ULONG)total << 16) | (ULONG)w;
+        ker[i] = (WORD)xs[i];
+        esp[i] = (WORD)(ads[i] - xs[i]);
+        if (w > 0) {
+            stbtt_GetGlyphBitmapBox(&fi, gl[i], esc, esc, &gx0, &gy0, &gx1, &gy1);
+            gh = gy1 - gy0;
+            if (gh > 0 && (gris = (UBYTE *)AllocVec(w * gh, MEMF_CLEAR))) {
+                stbtt_MakeGlyphBitmap(&fi, gris, w, gh, w, esc, esc, gl[i]);
+                for (yy = 0; yy < gh; yy++) {
+                    int fila = base + gy0 + yy;
+                    if (fila < 0 || fila >= alto) continue;
+                    for (xx = 0; xx < w; xx++)
+                        if (gris[yy * w + xx] >= 112) {
+                            int bit = total + xx;
+                            plano[fila * modulo + (bit >> 3)] |= 0x80 >> (bit & 7);
+                        }
+                }
+                FreeVec(gris);
+            }
+        }
+        total += w;
+    }
+    tf->tf_Message.mn_Node.ln_Name = _fw_nombre;
+    tf->tf_Message.mn_Node.ln_Type = NT_FONT;
+    tf->tf_YSize = alto;
+    tf->tf_Style = 0;
+    tf->tf_Flags = FPF_PROPORTIONAL | FPF_DESIGNED;
+    tf->tf_XSize = ads['n' - _FW_LO] > 0 ? ads['n' - _FW_LO] : tam / 2;
+    tf->tf_Baseline = base > 0 ? base - 1 : 0;
+    tf->tf_BoldSmear = 1;
+    tf->tf_LoChar = _FW_LO;
+    tf->tf_HiChar = _FW_HI;
+    tf->tf_CharData = plano;
+    tf->tf_Modulo = modulo;
+    tf->tf_CharLoc = loc;
+    tf->tf_CharSpace = esp;
+    tf->tf_CharKern = ker;
+    return tf;
+}
+"""
+end
+
+# El TextFont de la fuente del fichero a tam px (el em); 0 si no se puede leer o no es una fuente TrueType
+@native(borrow) func fuente_web(fichero: String, tam: Int) -> Int
+"""
+    LONG largo = 0;
+    UBYTE *d = _fw_leer((const char *)fichero, &largo);
+    struct TextFont *tf;
+    if (!d) return 0;
+    tf = _fw_crear(d, largo, tam);
+    FreeVec(d);
+    return (LONG)tf;
+"""
+end
+
+@native func fuente_web_liberar(f: Int)
+"""
+    if (f) FreeVec((APTR)f);
+"""
+end

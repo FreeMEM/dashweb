@@ -1,6 +1,6 @@
 #!/bin/sh
 # Los decodificadores de imágenes de dashweb (third_party/tjpgd, third_party/stb, el decodificador de
-# third_party/libwebp y third_party/nanosvg) en
+# third_party/libwebp y third_party/nanosvg) y stb_truetype (fuentes de @font-face) en
 # build/img-lib/libimg.a, con sus cabeceras, para el "@link" de lib/imagen_dec.dash.
 #
 #   tools/build_img.sh
@@ -26,10 +26,11 @@ for f in "$W"/src/dec/*.c "$W"/src/dsp/*.c "$W"/src/utils/*.c; do
     $GCC $CF -I"$W" -c "$f" -o "$B/webp/$(basename "$f" .c).o"
 done
 $GCC $CF -I"$R/third_party/nanosvg" -c "$R/third_party/nanosvg/nanosvg_impl.c" -o "$B/nanosvg.o"
+$GCC $CF -I"$R/third_party/stb" -c "$R/third_party/stb/stb_truetype_impl.c" -o "$B/stb_truetype.o"
 rm -f "$B/libimg.a"
-${AR:-/opt/amiga/bin/m68k-amigaos-ar} rcs "$B/libimg.a" "$B/tjpgd.o" "$B/stb_image.o" "$B/nanosvg.o" "$B"/webp/*.o
+${AR:-/opt/amiga/bin/m68k-amigaos-ar} rcs "$B/libimg.a" "$B/tjpgd.o" "$B/stb_image.o" "$B/nanosvg.o" "$B/stb_truetype.o" "$B"/webp/*.o
 mkdir -p "$B/webp_inc/webp"
 cp "$W"/src/webp/decode.h "$W"/src/webp/types.h "$B/webp_inc/webp/"
 cp "$R/third_party/nanosvg/nanosvg.h" "$R/third_party/nanosvg/nanosvgrast.h" "$B/"
-cp "$R/third_party/tjpgd/tjpgd.h" "$R/third_party/tjpgd/tjpgdcnf.h" "$R/third_party/stb/stb_image.h" "$B/"
+cp "$R/third_party/tjpgd/tjpgd.h" "$R/third_party/tjpgd/tjpgdcnf.h" "$R/third_party/stb/stb_image.h" "$R/third_party/stb/stb_truetype.h" "$B/"
 ls -l "$B/libimg.a"

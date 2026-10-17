@@ -1,0 +1,46 @@
+# Test: lib/fuente_web.dash (tarea 31h): Bitstream Vera Sans Mono (tests/pages/VeraMono.ttf, su licencia al lado)
+# hecha TextFont del Amiga a 20 px de em: alto 24 (ascendente 19 + descendente 5), todas las letras del mismo
+# ancho (12), "abc" tres veces una, y un fichero que no es una fuente da 0. Y pintada: la W pone tinta.
+# emu-server: http.py 40853
+# memcheck
+# expect-out: fuente 24 12 true true
+# expect-out: nada 0
+# expect-out: tinta true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/fuente_web.dash"
+import "../lib/http.dash"
+
+Window W
+    title "Fuente"
+    width 200
+    height 80
+end
+
+Main
+    http_a_fichero("http://127.0.0.1:40853/pages/VeraMono.ttf", "T:VeraMono.ttf", 10000)
+    f = fuente_web("T:VeraMono.ttf", 20)
+    font_use(f)
+    Print "fuente " + font_height() + " " + font_text_width("W") + " " + (font_text_width("i") == font_text_width("W")) + " " + (font_text_width("abc") == 3 * font_text_width("a"))
+    Print "nada " + fuente_web("T:nada", 20)
+    W.open
+    font_use(f)
+    x0 = W.inner_left
+    y0 = W.inner_top
+    gfx_pen(0)
+    gfx_rect(x0, y0, x0 + 100, y0 + 40)
+    gfx_pen(1)
+    gfx_mode(0)
+    gfx_text_at(x0 + 4, y0 + 4 + font_baseline(), "WWW")
+    tinta = false
+    for x in (0..40)
+        for y in (0..30)
+            if gfx_pixel_read(x0 + 4 + x, y0 + 4 + y) != gfx_pixel_read(x0 + 90, y0 + 35)
+                tinta = true
+            end
+        end
+    end
+    Print "tinta " + tinta
+    W.close
+    fuente_web_liberar(f)
+end
