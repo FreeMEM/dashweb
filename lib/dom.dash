@@ -542,6 +542,43 @@ func dom_es_youtube(d: String) -> Bool
     return str_find(l, "youtube.com/embed/") >= 0 or str_find(l, "youtube-nocookie.com/embed/") >= 0 or str_find(l, "youtube.com/watch") >= 0 or str_find(l, "youtube.com/shorts/") >= 0 or str_find(l, "youtu.be/") >= 0
 end
 
+# El identificador de un vídeo de YouTube en su dirección (embed, watch?v=, youtu.be, shorts); "" si no
+func dom_youtube_id(d: String) -> String
+    for marca in ["/embed/", "/shorts/", "youtu.be/", "?v=", "&v="]
+        p = str_find(d, marca)
+        if p >= 0
+            i = p + marca.length
+            f = i
+            while f < d.length
+                c = str_code(d, f)
+                if not ((c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == 45 or c == 95)
+                    break
+                end
+                f = f + 1
+            end
+            if f > i
+                return d[i:f]
+            end
+        end
+    end
+    return ""
+end
+
+# La imagen que se ve antes de reproducir: el poster de un <video> o la miniatura de un YouTube
+# (hqdefault: 480x360, la que se ve sin JavaScript); "" si no tiene
+func dom_video_poster(n: Nodo) -> String
+    if dom_atributo(n, "poster") != ""
+        return dom_atributo(n, "poster")
+    end
+    if n.nombre == "iframe"
+        id = dom_youtube_id(dom_atributo(n, "src"))
+        if id != ""
+            return "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg"
+        end
+    end
+    return ""
+end
+
 # ¿Se maqueta n como un vídeo? (<video>, o un <iframe> de YouTube)
 func dom_es_video(n: Nodo) -> Bool
     return n.tipo == DOM_ELEMENTO and (n.nombre == "video" or (n.nombre == "iframe" and dom_es_youtube(dom_atributo(n, "src"))))

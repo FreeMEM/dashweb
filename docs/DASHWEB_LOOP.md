@@ -321,9 +321,9 @@ tarea, con el estilo de Dash.
       Partes: 30a traer y compilar el núcleo y libavc (decodificar un MP4 local en el emulador); 30b reproducir en
       el recuadro de `<video>` (imagen por imagen en la zona de dibujo, sonido); 30c YouTube (de la página del
       vídeo al MP4/HLS); 30d controles y pantalla completa.
-- [ ] 30e. **Vídeo: que empiece antes.** Reproducir mientras se baja (hoy espera el fichero entero) y enseñar la
-      miniatura del vídeo (la de YouTube, img.youtube.com/vi/ID/hqdefault.jpg; el atributo poster de `<video>`)
-      antes del clic. Captura del artículo de freemem.space con su YouTube.
+- [x] 30e. **Vídeo: el cartel antes del clic.** La miniatura del vídeo (la de YouTube, i.ytimg.com/vi/ID/hqdefault.jpg;
+      el atributo poster de `<video>`) antes del clic. Captura del artículo de freemem.space con su YouTube.
+- [ ] 30f. **Vídeo: que empiece antes.** Reproducir mientras se baja (hoy espera el fichero entero).
 - [ ] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
       objetivo): QuickJS 24 %. libqjs.a va sin FPU (fp-bit): compilarlo para 68020+FPU como dashweb.
 - [ ] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
@@ -1446,3 +1446,16 @@ Formato:
   en la máquina RTG, bajado con el teclado hasta su primer YouTube (bnWKfEWPAaM) y pulsado: resuelto, bajado
   (540x360) y reproducido entero dentro de la página, 289 imágenes de 289 en 48 s (el vídeo es de 6 por
   segundo), reloj del sonido 47,99 s. Enviada al usuario.
+
+### 2026-10-17 — Tarea 30e (el cartel del vídeo)
+- `dom_youtube_id` (en Dash: embed, shorts, youtu.be, ?v=) y `dom_video_poster`: el poster de `<video>` o, en un
+  YouTube, https://i.ytimg.com/vi/ID/hqdefault.jpg. `imagenes.dash` lo pide con las demás imágenes y deja la
+  dirección completa en el atributo poster. El pintor lo pone sobre negro mientras el vídeo no ha empezado
+  (o falló), con el botón encima: la miniatura de YouTube cubre el recuadro, el poster cabe entero (contain).
+  Los repintados parciales del vídeo que suena no tocan los vídeos con cartel.
+- Test `test_video_cartel` (identificadores, la dirección de la miniatura, píxeles de contain y cover). Base: 34/34.
+- `tools/medir_visor.py`: varias capturas en una ejecución (`--captura a.png,b.png --captura-en 100,200`), con
+  D44 de Dash (rama `capturas`, ya en `dashweb`).
+- Probado en la máquina RTG con el artículo de freemem.space: antes del clic se ve la miniatura del vídeo;
+  después, reproducido entero (283-289 imágenes según la vuelta, reloj del sonido 48 s). Capturas del cartel y
+  del vídeo sonando (segundo 17) enviadas al usuario.

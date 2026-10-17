@@ -36,7 +36,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--pagina", default="prueba.html", help="file of tests/pages/ (or /route of tests/servers/http.py, or a whole address); several, with commas")
     ap.add_argument("--maquina", choices=sorted(MAQUINAS), default="a1200")
-    ap.add_argument("--captura", metavar="FILE.png", help="screen picture after the first paint")
+    ap.add_argument("--captura", metavar="FILE.png", help="screen picture after the first paint (several, with commas: a.png,b.png)")
     ap.add_argument("--fases", action="store_true", help="run tests/bench/fases.dash instead (no window)")
     ap.add_argument("--programa", default="src/visor.dash", help="the program to run (e.g. src/dashweb.dash, "
                     "with --sistema ~/.cache/dash-emu/sys31muiweb)")
@@ -56,7 +56,7 @@ def main():
     ap.add_argument("--tls-lento", action="store_true", help="HTTPS whose server waits 4 s before the handshake "
                     "(needs a system with AmiSSL, e.g. ~/.cache/dash-emu/sys31muisslweb)")
     ap.add_argument("--tls", action="store_true", help="HTTPS (the test CA's certificate is for localhost and 127.0.0.1)")
-    ap.add_argument("--captura-en", type=float, metavar="S", help="take --captura S seconds after boot (default: "
+    ap.add_argument("--captura-en", metavar="S", help="take --captura S seconds after boot (default: "
                     "5 s before the end)")
     args = ap.parse_args()
 
@@ -95,7 +95,12 @@ def main():
             os.environ["LD_PRELOAD"] = str(shim)          # FS-UAE inherits it
             os.environ["DNS_LENTO_MS"] = str(args.dns_lento)
         try:
-            shot = (args.captura_en or args.segundos - 5, args.captura) if args.captura else None
+            # --captura a.png,b.png --captura-en 100,200: varias fotos en la misma ejecución
+            shot = None
+            if args.captura:
+                ficheros = args.captura.split(",")
+                tiempos = (args.captura_en or str(args.segundos - 5)).split(",")
+                shot = [(float(tiempos[min(i, len(tiempos) - 1)]), f) for i, f in enumerate(ficheros)]
             esquema = "https" if modo else "http"
             programs = [str(exe)]
             prog_args = [" ".join(p if "://" in p else f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")

@@ -1,0 +1,61 @@
+# Test: el cartel de un vídeo antes de reproducirlo. dom_youtube_id y dom_video_poster (la miniatura
+# hqdefault de i.ytimg.com para un YouTube, el atributo poster si lo hay). Una página (por HTTP) con un
+# <video poster> de 96x96 y un <iframe> de YouTube de 96x24 con poster: el ILBM de 8x4 (filas
+# 11110000 00001111 10101010 01010101) cabe entero en el vídeo (franjas negras arriba y abajo) y cubre el
+# iframe (se ven sus filas 1 y 2). Se leen los lápices fuera del botón del centro: blanco 2, negro 1.
+# emu-server: http.py 40865
+# memcheck
+# expect-out: id: [bnWKfEWPAaM][bnWKfEWPAaM][bnWKfEWPAaM][]
+# expect-out: poster: https://i.ytimg.com/vi/bnWKfEWPAaM/hqdefault.jpg []
+# expect-out: video: http://127.0.0.1:40865/pages/cuadro.iff
+# expect-out: contain: 1 2 1 1 2 1
+# expect-out: cover: 1 2 2 1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/pintor.dash"
+
+Window W
+    title "Cartel"
+    width 300
+    height 160
+end
+
+Main
+    l = ""
+    for d in ["https://www.youtube.com/embed/bnWKfEWPAaM?feature=oembed", "https://www.youtube.com/watch?v=bnWKfEWPAaM&t=3", "https://youtu.be/bnWKfEWPAaM", "https://example.org/"]
+        l = l + "[" + dom_youtube_id(d) + "]"
+    end
+    Print "id: " + l
+    yt = dom_desde_html("<iframe src='https://www.youtube.com/embed/bnWKfEWPAaM'></iframe><video src=a.mp4></video>")
+    var carteles: [String] = []
+    for n in [dom_buscar(yt, "iframe"), dom_buscar(yt, "video")]
+        carteles.push(dom_video_poster(n))
+    end
+    Print "poster: " + carteles[0] + " [" + carteles[1] + "]"
+
+    W.open
+    x0 = W.inner_left
+    y0 = W.inner_top
+    h = "<html><body style='margin: 4px; background: #fff'><video width=96 height=96 poster=cuadro.iff src=a.mp4></video> <iframe width=96 height=24 poster=cuadro.iff src='https://www.youtube.com/embed/bnWKfEWPAaM'></iframe></body></html>"
+    doc = dom_desde_html(h)
+    base = "http://127.0.0.1:40865/pages/prueba.html"
+    estilo_aplicar(doc, estilo_hojas(doc, base))
+    im = imagenes_nuevas()
+    imagenes_cargar(im, doc, base)
+    Print "video: " + dom_atributo(dom_buscar(doc, "video"), "poster")
+    p = maquetar(doc, 280)
+    pintar(p, im, 0, x0, y0, 280, 140)
+    for d in p.dibujos
+        if d.tipo == D_VIDEO
+            x = x0 + d.x
+            y = y0 + d.y
+            if d.alto == 96
+                Print "contain: " + gfx_pixel_read(x + 4, y + 4) + " " + gfx_pixel_read(x + 4, y + 28) + " " + gfx_pixel_read(x + 90, y + 28) + " " + gfx_pixel_read(x + 4, y + 40) + " " + gfx_pixel_read(x + 90, y + 40) + " " + gfx_pixel_read(x + 4, y + 90)
+            else
+                Print "cover: " + gfx_pixel_read(x + 4, y + 2) + " " + gfx_pixel_read(x + 90, y + 2) + " " + gfx_pixel_read(x + 4, y + 20) + " " + gfx_pixel_read(x + 90, y + 20)
+            end
+        end
+    end
+    imagenes_liberar(im)
+    W.close
+end

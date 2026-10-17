@@ -68,7 +68,7 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                 _elipse_pintar(d, x, y)
             end
         elif d.tipo == D_VIDEO
-            _video_dibujo(d, x, y, x0, y0, derecha, abajo)
+            _video_dibujo(d, im, x, y, x0, y0, derecha, abajo)
         elif d.tipo == D_DEGRADADO
             _degradado_pintar(d, x, y, x0, y0, derecha, abajo)
         elif d.tipo == D_TRAZO
@@ -661,17 +661,70 @@ end
 
 # Un vídeo (su imagen o el botón de reproducir), también si solo se ve una parte: la zona de dibujo de MUI
 # recorta lo que cae fuera (MUI_AddClipping en lib de Dash)
-func _video_dibujo(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+func _video_dibujo(d: Dibujo, im: Imagenes, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
     if x + d.ancho - 1 >= x0 and y + d.alto - 1 >= y0 and x <= x1 and y <= y1
+        if im != nil and videos_sin_empezar(pintor_videos, d.nodo) and _video_cartel(im, d, x, y, x0, y0, x1, y1)
+            return
+        end
         videos_pintar(pintor_videos, d.nodo, x, y, d.ancho, d.alto)
     end
+end
+
+# El cartel antes de reproducir, sobre negro: la miniatura de YouTube cubre el recuadro (hqdefault es 4:3
+# con franjas negras dentro, como el reproductor de YouTube), el poster de <video> cabe entero (contain)
+func _video_cartel(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int) -> Bool
+    src = dom_atributo(d.nodo, "poster")
+    if src == ""
+        return false
+    end
+    img = imagenes_cargada(im, src)
+    if img == 0 or d.ancho <= 0 or d.alto <= 0
+        return false
+    end
+    iw = image_width(img)
+    ih = image_height(img)
+    if iw <= 0 or ih <= 0
+        return false
+    end
+    cubrir = d.nodo.nombre == "iframe"
+    sw = d.ancho
+    sh = ih * d.ancho / iw
+    if (cubrir and sh < d.alto) or (not cubrir and sh > d.alto)
+        sh = d.alto
+        sw = iw * d.alto / ih
+    end
+    _rect_recortado(x, y, d.ancho, d.alto, x0, y0, x1, y1, _lapiz(0))
+    a = x0
+    if x > a
+        a = x
+    end
+    b = y0
+    if y > b
+        b = y
+    end
+    c = x1
+    if x + d.ancho - 1 < c
+        c = x + d.ancho - 1
+    end
+    e = y1
+    if y + d.alto - 1 < e
+        e = y + d.alto - 1
+    end
+    escalada = imagenes_a_tamano(im, src, sw, sh)
+    if escalada != 0 and a <= c and b <= e
+        _imagen_recortada(escalada, x + (d.ancho - sw) / 2, y + (d.alto - sh) / 2, sw, sh, a, b, c, e)
+    end
+    videos_boton(pintor_videos, d.nodo, x, y, d.ancho, d.alto)
+    return true
 end
 
 # Solo los vídeos de la franja [desde, desde + alto) (una imagen nueva: no hace falta pintar la página entera)
 func pintar_videos(p: Pagina, desde: Int, x0: Int, y0: Int, ancho: Int, alto: Int)
     for d in p.dibujos
-        if d.tipo == D_VIDEO and d.y + d.alto > desde and d.y < desde + alto
-            _video_dibujo(d, x0 + d.x, y0 + d.y - desde, x0, y0, x0 + ancho - 1, y0 + alto - 1)
+        # (los que aún enseñan su cartel no cambian: necesitan las imágenes, que aquí no están)
+        if d.tipo == D_VIDEO and d.y + d.alto > desde and d.y < desde + alto and not videos_sin_empezar(pintor_videos, d.nodo)
+            var sin: Imagenes = nil
+            _video_dibujo(d, sin, x0 + d.x, y0 + d.y - desde, x0, y0, x0 + ancho - 1, y0 + alto - 1)
         end
     end
 end

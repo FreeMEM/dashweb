@@ -112,8 +112,41 @@ func _imagenes_pedir_fondo(im: Imagenes, n: Nodo, base: Url)
     end
 end
 
+# El cartel de un vídeo (dom_video_poster), como dirección completa en su atributo poster (el pintor lo
+# busca ahí); "" si no tiene
+func imagenes_cartel(n: Nodo, base: Url) -> String
+    if not dom_es_video(n)
+        return ""
+    end
+    p = dom_video_poster(n)
+    if p == ""
+        return ""
+    end
+    completa = url_text(url_resolve(base, p))
+    _poner_atributo(n, "poster", completa)
+    return completa
+end
+
+func _imagenes_pedir_cartel(im: Imagenes, n: Nodo, base: Url)
+    src = imagenes_cartel(n, base)
+    if src == "" or im.por_src.has(src)
+        return
+    end
+    u = url_parse(src)
+    if u.esquema == "http" or u.esquema == "https"
+        im.por_src[src] = 0
+        fichero = "T:dashweb_img" + im.ficheros.length
+        im.ficheros.push(fichero)
+        var sin: Carga = nil
+        im.cola.push(Pedida(src, src, fichero, sin))
+    else
+        im.por_src[src] = _imagen_traer(im, base, src)
+    end
+end
+
 func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
     _imagenes_pedir_fondo(im, n, base)
+    _imagenes_pedir_cartel(im, n, base)
     if n.tipo == DOM_ELEMENTO and n.nombre == "img"
         src = dom_img_src(n)
         if src != "" and im.por_src.has(src)
@@ -239,6 +272,10 @@ func _imagenes_recorrer(im: Imagenes, n: Nodo, base: Url)
     fondo = imagenes_fondo(n, base)
     if fondo != "" and not im.por_src.has(fondo)
         im.por_src[fondo] = _imagen_traer(im, base, fondo)
+    end
+    cartel = imagenes_cartel(n, base)
+    if cartel != "" and not im.por_src.has(cartel)
+        im.por_src[cartel] = _imagen_traer(im, base, cartel)
     end
     if n.tipo == DOM_ELEMENTO and n.nombre == "img"
         src = dom_img_src(n)

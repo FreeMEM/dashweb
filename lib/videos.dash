@@ -363,6 +363,27 @@ func videos_pintar_r(r: Reproductor, x: Int, y: Int, ancho: Int, alto: Int)
     end
 end
 
+# ¿Se ve aún el cartel del vídeo? (no se ha pulsado, o falló)
+func videos_sin_empezar(vs: Videos, n: Nodo) -> Bool
+    if vs == nil
+        return true
+    end
+    r = videos_de(vs, n)
+    return r == nil or r.estado == V_PARADO or r.estado == V_ERROR
+end
+
+# El botón de reproducir (y el error, si lo hubo) encima del cartel
+func videos_boton(vs: Videos, n: Nodo, x: Int, y: Int, ancho: Int, alto: Int)
+    _triangulo(x, y, ancho, alto)
+    if vs != nil
+        r = videos_de(vs, n)
+        if r != nil and r.estado == V_ERROR
+            gfx_pen(color_pen(255, 120, 120))
+            gfx_text_at(x + 8, y + alto - 8, r.error)
+        end
+    end
+end
+
 # El botón de pantalla completa, abajo a la derecha del vídeo: cuatro esquinas blancas
 const VIDEO_ESQUINA = 24
 
