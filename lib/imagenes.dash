@@ -47,6 +47,11 @@ struct Imagenes
     vistas: {String: Int} = nil
     cambiados: Int = 0          # <img> a los que una imagen llegada les ha puesto tamaño (cambia la maqueta)
     recien: {String: Int} = nil # los src llegados desde el último repintado (para no repintar si no se ven)
+    # Como los navegadores: una <img loading=lazy> no se baja hasta que está cerca de lo que se ve, y un fondo
+    # (background-image) hasta que algún elemento lo pinta (los de display: none no). posiciones: src -> la y más
+    # alta a la que se dibuja en la última maqueta; hasta: la y hasta la que se baja lo perezoso (-1: aún no se sabe)
+    posiciones: {String: Int} = nil
+    hasta: Int = -1
 end
 
 struct Pedida
@@ -60,6 +65,8 @@ struct Pedida
     llegada: Bool = false       # ya está en su fichero: espera su turno para decodificarse
     dec: Decodificando = nil    # decodificándose en otro proceso (lib/imagen_dec.dash)
     fuente: String = ""         # una fuente de @font-face ("familia|peso|estilo"), no una imagen
+    perezosa: Bool = false      # <img loading=lazy>: espera a estar cerca de lo que se ve
+    de_fondo: Bool = false      # un background-image: espera a que algo lo pinte
 end
 
 # Una imagen grande no se decodifica entera si el HTML ya dice a qué tamaño se ve (width y height)
@@ -119,6 +126,7 @@ func _imagenes_pedir_fondo(im: Imagenes, n: Nodo, base: Url)
         im.ficheros.push(fichero)
         var sin: Carga = nil
         pedida = Pedida(src, src, fichero, sin)
+        pedida.de_fondo = true
         # con cover o contain el tamaño de la imagen solo cuenta por su proporción: se puede reducir
         if n.tipo == DOM_ELEMENTO and n.estilo != nil and n.estilo.has("background-size")
             bs = n.estilo["background-size"]
@@ -183,6 +191,7 @@ func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
                 im.ficheros.push(fichero)
                 var sin: Carga = nil
                 pedida = Pedida(src, url_text(u), fichero, sin)
+                pedida.perezosa = str_lower(dom_atributo(n, "loading")) == "lazy"
                 w = Int(dom_atributo(n, "width"))
                 h = Int(dom_atributo(n, "height"))
                 if w > 0 and h > 0
@@ -253,6 +262,9 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                 end
                 decodificando = decodificando + 1
             end
+        elif p.carga == nil and _imagen_aparcada(im, p)
+            i = i + 1
+            continue
         else
             es_fuente = p.fuente != ""
             if p.carga == nil and ((not es_fuente and activas < IMAGENES_A_LA_VEZ) or (es_fuente and fuentes < FUENTES_A_LA_VEZ))
@@ -367,8 +379,45 @@ func imagenes_fuente_de_iconos(familia: String) -> Bool
     return false
 end
 
+# Las que faltan (sin contar las aparcadas: lejos de lo que se ve, o fondos que nada pinta)
 func imagenes_pendientes(im: Imagenes) -> Int
-    return im.cola.length
+    n = 0
+    for p in im.cola
+        if p.carga != nil or p.llegada or p.dec != nil or not _imagen_aparcada(im, p)
+            n = n + 1
+        end
+    end
+    return n
+end
+
+# ¿Espera a que la pidan? (perezosa lejos de lo que se ve, o un fondo que ninguna maqueta ha pintado)
+func _imagen_aparcada(im: Imagenes, p: Pedida) -> Bool
+    if p.de_fondo
+        return im.vistas == nil or not im.vistas.has(p.src)
+    end
+    if p.perezosa
+        if im.hasta < 0 or im.posiciones == nil or not im.posiciones.has(p.src)
+            return true
+        end
+        return im.posiciones[p.src] > im.hasta
+    end
+    return false
+end
+
+# Hasta dónde de la página se bajan las imágenes perezosas (lo que se ve y dos pantallas más, como Chrome)
+func imagenes_hasta(im: Imagenes, desde: Int, alto: Int)
+    im.hasta = desde + alto * 3
+end
+
+# Dónde se dibuja cada imagen en la maqueta nueva (empezar: antes de la primera)
+func imagenes_posicion(im: Imagenes, src: String, y: Int, empezar: Bool)
+    if empezar or im.posiciones == nil
+        var nuevas: {String: Int} = {}
+        im.posiciones = nuevas
+    end
+    if src != "" and (not im.posiciones.has(src) or y < im.posiciones[src])
+        im.posiciones[src] = y
+    end
 end
 
 # width/height de todos los <img src> con esa imagen (los que no lo tenían: cuentan en im.cambiados)

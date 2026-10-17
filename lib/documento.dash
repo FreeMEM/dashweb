@@ -236,9 +236,11 @@ end
 
 # A qué tamaño se ve cada imagen (las que aún no han llegado se decodificarán a ese tamaño)
 func _documento_vistas(d: Documento)
+    imagenes_posicion(d.im, "", 0, true)
     for dib in d.pagina.dibujos
         if dib.tipo == D_IMAGEN or dib.tipo == D_FONDO
             imagenes_vista(d.im, dib.texto, dib.ancho, dib.alto)
+            imagenes_posicion(d.im, dib.texto, dib.y, false)
         end
     end
 end

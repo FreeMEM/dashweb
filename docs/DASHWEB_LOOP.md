@@ -2149,3 +2149,14 @@ Formato:
   pintor (D_ICONO). En freemem.space eran 700 KB.
 - freemem.space: de 41-42 s a 39 s con las fuentes reducidas y a 37,7 s sin las de iconos. Tests: test_url y
   test_documento_tipo (casos nuevos). Base (con D53 de Dash): 54/54.
+
+### 2026-10-17 — Tarea 33, imágenes perezosas y fondos sin pintar
+- Como los navegadores: una <img loading=lazy> no se baja hasta que está a menos de dos pantallas de lo que se
+  ve (`Imagenes.hasta`, que pone dashweb al pintar y al desplazar; `Imagenes.posiciones`: la y de cada src en la
+  última maqueta), y un background-image no se baja hasta que alguna maqueta lo pinta (las diapositivas ocultas
+  de un carrusel, lo que tiene display: none). Mientras, esas pedidas no cuentan en `imagenes_pendientes` (así
+  no hay tic cada 50 ms esperando algo que no se va a pedir); al desplazar, dashweb vuelve a programar el tic.
+- freemem.space: entera en 31,4 s (antes 37,7 s): 10 imágenes en vez de 18; la captura, igual que antes.
+- Sin probar aún: desplazar hasta las perezosas y ver que llegan (falta una prueba con clics en el emulador).
+- Base: 52/54 en la batería, con la otra sesión usando la red de pruebas a la vez (había un servidor suyo en el
+  40841); test_documento_tipo y test_formularios_post solos, 2/2.

@@ -248,6 +248,7 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         documento_maquetar(w.actual, ancho)
         mui_timer(1, ID_RANGO)
     end
+    imagenes_hasta(w.actual.im, w.desde, alto)
     pintor_foco = w.foco
     pintor_videos = w.actual.videos
     if mui_canvas_updating()
@@ -885,6 +886,11 @@ Main
             if ev == ID_SCROLL
                 w.desde = mui_get_value(w.v.barra)
                 mui_canvas_redraw(w.v.pagina)
+                # (las imágenes perezosas que ahora quedan cerca empiezan a bajarse: el tic otra vez)
+                if w.actual != nil
+                    imagenes_hasta(w.actual.im, w.desde, mui_height(w.v.pagina))
+                    programar()
+                end
             end
             if ev == ID_PARAR and (w.carga != nil or w.preparando != nil)
                 parar_carga(w)
