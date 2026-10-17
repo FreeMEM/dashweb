@@ -786,6 +786,8 @@ Main
             if arg(i) == "TRAZA"
                 traza_activa = true
                 traza_t0 = time_ms()
+            elif arg(i) == "GCSIEMPRE"
+                js_gc_siempre(true)
             else
                 paginas = paginas + 1
             end
@@ -794,7 +796,7 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA"
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE"
                 nueva_ventana(arg(i))
             end
         end

@@ -2200,3 +2200,14 @@ Formato:
 - Encargos hechos por la otra sesión, aún en su rama tlssess: D54 (image_from_rgb en RTG: 120 -> 5 ms) y D55
   (sesión TLS reanudada; con TLS 1.3 ahorra poco: 9,0 -> 7,9 s; para reanudar hay que abrir primero una conexión
   y esperar a su primera lectura).
+- Más pruebas del fallo de QuickJS (con el bloqueo encendido a mano, 14 cargas cada una):
+  - `GCSIEMPRE` (argumento de dashweb; `medir_visor --gc-siempre`; `js_gc_siempre` en lib/js.dash): el
+    recolector tras cada script, llamada y trabajo. No lo reproduce (2 cargas con bloqueo y 2 sin él, limpias): el
+    recolector falla cuando salta solo, a mitad de algo, no entre script y script.
+  - Sin los procesos que decodifican las imágenes (todo en el principal): 1 de 14, y esta vez abort() en vez del
+    assert, después de los scripts. No es que esos procesos pisen memoria a la vez.
+  - Hay que tomar con cuidado el 0 de 10 sin bloqueo: con un fallo de ~10 % por carga, 10 limpias seguidas salen
+    una vez de cada tres. Se repite con 14 más.
+  - Sin bloqueo (lo publicado, c60f2d0): 0 de 14 más, 0 de 24 en total (28,4-34,2 s). Con bloqueo, 6 de 59. Con un
+    10 % por carga, 24 limpias seguidas saldrían 8 de cada 100 veces: sin bloqueo se puede dar por estable en
+    freemem.space. El fallo de QuickJS sigue sin encontrar (pendiente, antes de volver a encender el bloqueo).

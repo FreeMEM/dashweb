@@ -43,11 +43,15 @@ typedef struct _JsMotorS {
     void (*liberar_extra)(struct _JsMotorS *m);   /* called before the context is freed */
 } _JsMotor;
 
+/* js_gc_siempre: the cycle collector after every script, call and job (to find reference-count bugs) */
+static int _js_gc_siempre = 0;
+
 /* The jobs waiting (Promise.then, async functions): run them all, up to a limit */
 static void _js_trabajos(JSRuntime *rt) {
     JSContext *c;
     int i;
     for (i = 0; i < 10000 && JS_ExecutePendingJob(rt, &c) > 0; i++) ;
+    if (_js_gc_siempre) JS_RunGC(rt);
 }
 
 /* Latin-1 -> UTF-8 (malloc; free it) */
@@ -181,6 +185,13 @@ end
     r = _dash_str_dup((STRPTR)(texto ? texto : ""), TRUE);
     free(texto);
     return r;
+"""
+end
+
+# Para buscar fallos de referencias: el recolector de ciclos tras cada script, llamada y trabajo (lento)
+@native func js_gc_siempre(si: Bool)
+"""
+    _js_gc_siempre = si ? 1 : 0;
 """
 end
 

@@ -48,6 +48,7 @@ def main():
                     help="the page from the emulated disk, without network: FS-UAE's bsdsocket.library makes the "
                          "emulated CPU many times slower (measure the A1200 like this)")
     ap.add_argument("--memcheck", action="store_true", help="build with ./dash --memcheck (memory errors to the output)")
+    ap.add_argument("--gc-siempre", action="store_true", help="dashweb GCSIEMPRE: QuickJS's cycle collector after every script and call")
     ap.add_argument("--traza", action="store_true", help="dashweb TRAZA: the timeline of the load (lib/traza.dash)")
     ap.add_argument("--perfil", action="store_true", help="build with ./dash --profile (the table goes to the output)")
     ap.add_argument("--guardar", metavar="DIR", help="keep the emulated disk there (outputs: out0.txt, bg0.txt)")
@@ -109,6 +110,8 @@ def main():
                                   else f"{esquema}://{args.host}:{PORT}/pages/{p}" for p in args.pagina.split(","))]
             if args.traza:
                 prog_args[0] += " TRAZA"
+            if args.gc_siempre:
+                prog_args[0] += " GCSIEMPRE"
             red = "bsdsocket_library = 1\n"
             if args.local:
                 # the page goes to the disk as a second "program" (DH0:p1; running it just fails)
