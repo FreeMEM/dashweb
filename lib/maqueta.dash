@@ -339,6 +339,10 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if t != ""
         _transformar(m, n, t, antes)
     end
+    # position: relative: se desplaza lo dibujado (left o right, top o bottom) sin mover a los demás (CSS 2.1, 9.4.3)
+    if _val(n.estilo, "position", "static") == "relative"
+        _relativo(m, n, antes, contenedor)
+    end
     # z-index en un elemento posicionado: un contexto de apilado con todo lo suyo (el de fuera manda)
     if n.estilo.has("z-index") and n.estilo["z-index"] != "auto" and _val(n.estilo, "position", "static") != "static"
         z = Int(n.estilo["z-index"])
@@ -1336,9 +1340,45 @@ func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, pl: I
     if dy != 0
         i = antes
         while i < m.pagina.dibujos.length
-            m.pagina.dibujos[i].y = m.pagina.dibujos[i].y + dy
+            _mover(m.pagina.dibujos[i], 0, dy)
             i = i + 1
         end
+    end
+end
+
+func _relativo(m: Maquetador, n: Nodo, antes: Int, contenedor: Int)
+    e = n.estilo
+    rx = 0
+    ry = 0
+    if _val(e, "left", "auto") != "auto"
+        rx = _px(e, "left", contenedor)
+    elif _val(e, "right", "auto") != "auto"
+        rx = -_px(e, "right", contenedor)
+    end
+    if _val(e, "top", "auto") != "auto" and not str_ends(e["top"], "%")
+        ry = _px(e, "top", 0)
+    elif _val(e, "bottom", "auto") != "auto" and not str_ends(e["bottom"], "%")
+        ry = -_px(e, "bottom", 0)
+    end
+    if rx == 0 and ry == 0
+        return
+    end
+    i = antes
+    while i < m.pagina.dibujos.length
+        _mover(m.pagina.dibujos[i], rx, ry)
+        i = i + 1
+    end
+end
+
+# Mueve un dibujo y, si va recortado (overflow), su zona de recorte con él (está en coordenadas de página)
+func _mover(d: Dibujo, dx: Int, dy: Int)
+    d.x = d.x + dx
+    d.y = d.y + dy
+    if d.recorte
+        d.rx0 = d.rx0 + dx
+        d.rx1 = d.rx1 + dx
+        d.ry0 = d.ry0 + dy
+        d.ry1 = d.ry1 + dy
     end
 end
 
@@ -2599,11 +2639,10 @@ func _tabla(m: Maquetador, t: Nodo, x: Int, y: Int, ancho: Int) -> Int
         dx = xs[cel.col]
         dy = ys[cel.fila]
         for d in cel.dibujos
-            d.x = d.x + dx
-            d.y = d.y + dy
+            _mover(d, dx, dy)
             decoracion = d.nodo == cel.nodo and (d.tipo == D_RECT or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE or d.tipo == D_LINEA)
             if not decoracion
-                d.y = d.y + desplazar
+                _mover(d, 0, desplazar)
             end
             m.pagina.dibujos.push(d)
         end
@@ -3289,8 +3328,7 @@ func _flex(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, alto_fijo: Int) -
             dy = y + it.pos
         end
         for d in it.dibujos
-            d.x = d.x + dx
-            d.y = d.y + dy
+            _mover(d, dx, dy)
             m.pagina.dibujos.push(d)
         end
     end
@@ -4140,8 +4178,7 @@ func _grid(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, alto_fijo: Int) -
             dx = area_x + area_w - it.ancho_ext
         end
         for d in it.dibujos
-            d.x = d.x + x + dx
-            d.y = d.y + y + dy
+            _mover(d, x + dx, y + dy)
             m.pagina.dibujos.push(d)
         end
     end

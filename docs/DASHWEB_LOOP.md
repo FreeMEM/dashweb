@@ -1817,3 +1817,14 @@ Formato:
   del degradado (o el background-color). -webkit-text-fill-color con un color manda sobre color, y se hereda.
 - Caso nuevo en `test_maqueta_texto3`.
 - Base: 49/49.
+
+### 2026-10-17 — Tarea 31j, quinto arreglo (recortes que se quedaban atrás; position: relative)
+- Flex, grid, tablas y los absolutos con bottom maquetan en (0, 0) y luego mueven lo dibujado a su sitio, pero la
+  zona de recorte de overflow (rx0..ry1, en coordenadas de página) se quedaba donde estaba: lo de dentro de una
+  caja con overflow: hidden que fuera hija de un flex (el menú de xataka) quedaba fuera de su propia zona y no se
+  pintaba. Ahora todos mueven con `_mover`, que lleva el recorte con el dibujo.
+- position: relative con left/right/top/bottom no movía nada (no había código): ahora `_relativo` desplaza lo
+  dibujado de la caja (CSS 2.1, 9.4.3; top/bottom en % no, como height). Solo en cajas de bloque e inline-block,
+  no en un <span> relativo.
+- Casos nuevos en `test_maqueta_transform`.
+- Base: 49/49.

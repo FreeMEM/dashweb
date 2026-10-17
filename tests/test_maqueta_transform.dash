@@ -16,6 +16,8 @@
 # expect-out: img 280 140
 # expect-out: pct W 160 84
 # expect-out: pct2 W 280 10
+# expect-out: rel 10
+# expect-out: clip true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -40,6 +42,9 @@ Main
     # (y height en %: del alto fijo del contenedor, también encadenado)
     h = h + "<div style='height:84px;width:160px'><a id=pct href=x style='display:inline-block;width:100%;height:100%;background:red'></a></div>"
     h = h + "<div style='height:40px'><div style='height:50%'><div id=pct2 style='height:50%;background:blue'></div></div></div>"
+    # (position: relative con left; y un overflow: hidden dentro de un flex: su recorte va con él)
+    h = h + "<div id=r_rel style='position:relative;left:10px;top:5px;width:20px;height:10px;background:red'></div>"
+    h = h + "<div style='display:flex'><div style='width:50px;height:10px;overflow:hidden'><div id=r_clip style='width:30px;height:5px;background:red'></div></div></div>"
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
@@ -48,7 +53,11 @@ Main
         if d.tipo == D_IMAGEN
             Print "img " + d.ancho + " " + d.alto
         elif d.nodo != nil and dom_atributo(d.nodo, "id") != ""
-            if d.tipo == D_RECT and str_starts(dom_atributo(d.nodo, "id"), "pct")
+            if d.tipo == D_RECT and dom_atributo(d.nodo, "id") == "r_rel"
+                Print "rel " + d.x
+            elif d.tipo == D_RECT and dom_atributo(d.nodo, "id") == "r_clip"
+                Print "clip " + (d.recorte and d.ry0 <= d.y and d.ry1 >= d.y + d.alto)
+            elif d.tipo == D_RECT and str_starts(dom_atributo(d.nodo, "id"), "pct")
                 Print dom_atributo(d.nodo, "id") + " W " + d.ancho + " " + d.alto
             elif d.tipo == D_RECT
                 Print dom_atributo(d.nodo, "id") + " " + d.x + " " + d.y + " " + d.ancho + " " + d.alto
