@@ -20,6 +20,28 @@
 """
 end
 
+# Un vídeo que aún se baja (lib/http.dash, http_parcial): los listos primeros bytes de total están en datos.
+# 0 si aún no se puede abrir (el índice del MP4 no ha llegado): probar luego con más
+@native func video_abrir_bajando(datos: Int, listos: Int, total: Int) -> Int
+"""
+    return dwv_abrir_bajando((const unsigned char *)datos, listos, total);
+"""
+end
+
+# Lo que ya ha llegado y dónde está (el búfer de la carga se mueve al crecer: después de cada http_avanzar)
+@native func video_bajado(v: Int, datos: Int, listos: Int)
+"""
+    dwv_bajado(v, (const unsigned char *)datos, listos);
+"""
+end
+
+# Ya ha llegado entero y está en fichero (la memoria de la carga se ha liberado)
+@native(borrow) func video_bajado_fichero(v: Int, fichero: String)
+"""
+    dwv_bajado_fichero(v, (const char *)fichero);
+"""
+end
+
 @native func video_ancho(v: Int) -> Int
 """
     return dwv_ancho(v);
@@ -45,7 +67,7 @@ end
 """
 end
 
-# 1: hay una imagen nueva; 0: se acabó; -1: error
+# 1: hay una imagen nueva; 0: se acabó; -1: error; 2: la siguiente aún no ha llegado (se baja): esperar
 @native func video_siguiente(v: Int) -> Int
 """
     return dwv_siguiente(v);

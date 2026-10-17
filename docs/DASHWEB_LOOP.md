@@ -323,7 +323,7 @@ tarea, con el estilo de Dash.
       vídeo al MP4/HLS); 30d controles y pantalla completa.
 - [x] 30e. **Vídeo: el cartel antes del clic.** La miniatura del vídeo (la de YouTube, i.ytimg.com/vi/ID/hqdefault.jpg;
       el atributo poster de `<video>`) antes del clic. Captura del artículo de freemem.space con su YouTube.
-- [ ] 30f. **Vídeo: que empiece antes.** Reproducir mientras se baja (hoy espera el fichero entero).
+- [x] 30f. **Vídeo: que empiece antes.** Reproducir mientras se baja (hoy espera el fichero entero).
 - [ ] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
       objetivo): QuickJS 24 %. libqjs.a va sin FPU (fp-bit): compilarlo para 68020+FPU como dashweb.
 - [ ] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
@@ -1459,3 +1459,18 @@ Formato:
 - Probado en la máquina RTG con el artículo de freemem.space: antes del clic se ve la miniatura del vídeo;
   después, reproducido entero (283-289 imágenes según la vuelta, reloj del sonido 48 s). Capturas del cartel y
   del vídeo sonando (segundo 17) enviadas al usuario.
+
+### 2026-10-17 — Tarea 30f (el vídeo empieza mientras se baja)
+- La red de dashweb guarda la respuesta en memoria hasta el final: `http_parcial` (dónde está ya el cuerpo de
+  una respuesta 2xx con Content-Length; se mueve al crecer el búfer), `http_parcial_listos`, `http_parcial_total`.
+- `dashweb_video.c`: una fuente de MintVID (mr_source_create, por el hueco de su red) que lee de esa memoria y,
+  al acabar la descarga, del fichero (`dwv_abrir_bajando`, `dwv_bajado`, `dwv_bajado_fichero`). Lo que no ha
+  llegado no se lee: `dwv_siguiente` da 2 (esperar). Parche en `core/mr_mov.c` (anotado en README.dashweb):
+  un paquete que no se pudo leer no se da por consumido.
+- `lib/videos.dash`: mientras se trae, prueba a abrirlo cada 256 KB (un MP4 con el índice al principio suena
+  enseguida; con el índice al final, al llegar entero). Suena y sigue bajando; si se queda sin datos, se para
+  (también el sonido) con "esperando a que llegue" y sigue solo. La barra dice "(trayéndolo, N %)".
+- Servidor de pruebas: `/goteo/<fichero>` (64 KB, una pausa de GOTEO_S s, el resto). Test `test_video_bajando`
+  (abre antes del final, imágenes mientras baja, espera, mismas imágenes que entero). Base: 35/35.
+- Probado en la máquina RTG con `video_goteo.html` (GOTEO_S=10): suena con el 21 % traído, espera en la imagen
+  40 y sigue; 200 imágenes de 200, sonido entero (8034 ms). Capturas enviadas al usuario.

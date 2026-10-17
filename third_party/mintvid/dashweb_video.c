@@ -19,6 +19,7 @@ typedef struct mr_audio_decoder mr_audio_decoder;
 typedef struct mr_audio mr_audio;
 #endif
 #include "dashweb_video.h"
+#include <proto/dos.h>
 
 /* --- lo que no va en dashweb --- */
 const mr_codec mr_codec_mpeg2 = {0};
@@ -26,7 +27,7 @@ const mr_codec mr_codec_dv = {0};
 int mr_http_options_init(mr_http_options *o, const char *ua, const char *ref)
 { if (o) memset(o, 0, sizeof *o); (void)ua; (void)ref; return 1; }
 mr_source *mr_http_source_open(const char *url) { (void)url; return NULL; }
-mr_source *mr_http_source_open_ex(const char *url, const mr_http_options *o) { (void)url; (void)o; return NULL; }
+/* (mr_http_source_open_ex: más abajo, el fichero que aún se está bajando) */
 int mr_source_is_hls(const char *url) { (void)url; return 0; }
 mr_source *mr_hls_source_open(const char *url) { (void)url; return NULL; }
 mr_source *mr_hls_source_open_ex(const char *url, const mr_http_options *o) { (void)url; (void)o; return NULL; }
@@ -55,6 +56,48 @@ const char *dwv_youtube_mp4(const char *texto)
     return url;
 }
 
+/* --- un vídeo que aún se está bajando ---
+   dashweb lo baja con su red (lib/http.dash), que guarda la respuesta en memoria hasta el final: mientras
+   llega, se lee de ahí (dwv_bajado dice dónde está y cuánto hay: el búfer se mueve al crecer); al acabar,
+   del fichero donde quedó (dwv_bajado_fichero). Lo que aún no ha llegado no se lee: la lectura falla con
+   "falta" y dwv_siguiente responde 2 (esperar), con el paquete sin consumir (parche en core/mr_mov.c). */
+typedef struct {
+    const unsigned char *datos;
+    size_t listos;
+    size_t total;
+    char nombre[256];   /* "" mientras se baja */
+    BPTR f;
+    int falta;
+} dwv_bajando;
+
+static dwv_bajando *dwv_pendiente;   /* el que toma mr_http_source_open_ex, desde dwv_abrir_bajando */
+
+static int bajando_leer(void *ctx, size_t off, void *dst, size_t len)
+{
+    dwv_bajando *b = (dwv_bajando *)ctx;
+    if (off > b->listos || len > b->listos - off) { b->falta = 1; return 0; }
+    if (!b->nombre[0]) { memcpy(dst, b->datos + off, len); return 1; }
+    if (!b->f && !(b->f = Open((STRPTR)b->nombre, MODE_OLDFILE))) return 0;
+    if (Seek(b->f, (LONG)off, OFFSET_BEGINNING) < 0) return 0;
+    return Read(b->f, dst, (LONG)len) == (LONG)len;
+}
+
+static void bajando_cerrar(void *ctx)
+{
+    dwv_bajando *b = (dwv_bajando *)ctx;
+    if (b->f) Close(b->f);
+    free(b);
+}
+
+mr_source *mr_http_source_open_ex(const char *url, const mr_http_options *o)
+{
+    dwv_bajando *b = dwv_pendiente;
+    (void)url; (void)o;
+    if (!b) return NULL;
+    dwv_pendiente = NULL;
+    return mr_source_create(b, b->total, bajando_leer, bajando_cerrar, b->nombre);
+}
+
 /* --- la interfaz --- */
 
 typedef struct {
@@ -71,6 +114,7 @@ typedef struct {
     int sonando;           /* la salida ya empezó (tras llenar un poco el búfer) */
     int pausa;
     long ms;
+    dwv_bajando *bajando;  /* el fichero aún se baja (de la fuente de MintVID: vive hasta mr_demux_close) */
     char codecs[200];
 } dwv;
 
@@ -95,6 +139,43 @@ static void dwv_sonido(dwv *v, const mr_packet *pkt)
 #else
 static void dwv_sonido(dwv *v, const mr_packet *pkt) { (void)v; (void)pkt; }
 #endif
+
+/* Un vídeo de total bytes que aún se baja: los listos primeros están en datos. 0 si aún no se puede abrir
+   (p. ej. el índice del MP4, moov, no ha llegado: probar de nuevo con más) */
+long dwv_abrir_bajando(const unsigned char *datos, long listos, long total)
+{
+    dwv_bajando *b;
+    long h;
+    if (total <= 0 || !datos) return 0;
+    b = (dwv_bajando *)calloc(1, sizeof *b);
+    if (!b) return 0;
+    b->datos = datos;
+    b->listos = (size_t)listos;
+    b->total = (size_t)total;
+    dwv_pendiente = b;
+    h = dwv_abrir("http://dashweb/bajando");
+    if (dwv_pendiente) { free(dwv_pendiente); dwv_pendiente = NULL; h = 0; }   /* (no llegó a la fuente) */
+    if (h) ((dwv *)h)->bajando = b;   /* si falló, la fuente ya se cerró y lo liberó */
+    return h;
+}
+
+/* Lo que ya ha llegado (datos: dónde está ahora) */
+void dwv_bajado(long h, const unsigned char *datos, long listos)
+{
+    dwv *v = (dwv *)h;
+    if (v->bajando && !v->bajando->nombre[0]) { v->bajando->datos = datos; v->bajando->listos = (size_t)listos; }
+}
+
+/* Ya está entero en el fichero (la memoria de la carga se ha liberado) */
+void dwv_bajado_fichero(long h, const char *fichero)
+{
+    dwv *v = (dwv *)h;
+    dwv_bajando *b = v->bajando;
+    if (!b || !fichero || strlen(fichero) >= sizeof b->nombre) return;
+    strcpy(b->nombre, fichero);
+    b->datos = NULL;
+    b->listos = b->total;
+}
 
 long dwv_abrir(const char *fichero)
 {
@@ -165,8 +246,13 @@ long dwv_siguiente(long h)
         if (mr_decoder_drain(&v->dec) == MR_OK) return dwv_imagen(v, 0);
         v->tras_paquete = 0;
     }
-    while (!v->vaciando && mr_demux_next_packet(v->dx, &pkt) == MR_OK) {
+    while (!v->vaciando) {
         mr_status s;
+        if (mr_demux_next_packet(v->dx, &pkt) != MR_OK) {
+            /* el paquete siguiente aún no ha llegado: esperar sin dar el fichero por acabado */
+            if (v->bajando && v->bajando->falta) { v->bajando->falta = 0; return 2; }
+            break;
+        }
         if (!pkt.is_video) { if (pkt.len) dwv_sonido(v, &pkt); continue; }
         if (pkt.len == 0) continue;
         v->paquetes++;

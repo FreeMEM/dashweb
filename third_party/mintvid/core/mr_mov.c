@@ -712,8 +712,12 @@ mr_status mr_mov_next_packet(mr_mov *m, mr_packet *pkt)
                 m->packet_cap = s->size;
             }
             if (s->size &&
-                !file_read_at(m, (size_t)s->off, m->packet_buf, s->size))
+                !file_read_at(m, (size_t)s->off, m->packet_buf, s->size)) {
+                /* dashweb: the bytes may still be downloading - leave the
+                 * sample unconsumed so the next call retries it */
+                m->cursor--;
                 return MR_EFORMAT;
+            }
             pkt->data = m->packet_buf;
         } else {
             pkt->data = m->buf + s->off;

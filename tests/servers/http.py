@@ -60,6 +60,18 @@ class Handler(socketserver.StreamRequestHandler):
             time.sleep(1.5)
             self.wfile.write(b"b" * 1000)
             return
+        if path.startswith("/goteo/"):     # a file of tests/pages: 64 KB, a pause, the rest (a video that starts
+            import os                      # playing while it downloads; GOTEO_S seconds, 3 by default)
+            import time
+            f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages", os.path.basename(path))
+            if os.path.isfile(f):
+                data = open(f, "rb").read()
+                self.wfile.write(reply("200 OK", [("Content-Type", "video/mp4"), ("Content-Length", str(len(data)))],
+                                       data[:65536]))
+                self.wfile.flush()
+                time.sleep(float(os.environ.get("GOTEO_S", "3")))
+                self.wfile.write(data[65536:])
+                return
         if path.startswith("/pages/"):     # files of tests/pages
             import os
             f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages", os.path.basename(path))

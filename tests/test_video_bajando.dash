@@ -1,0 +1,81 @@
+# Test: un vídeo que empieza mientras se baja (tarea 30f). El servidor manda los 64 KB primeros de un MP4
+# H.264 de 12 s (índice al principio), espera 3 s y manda el resto. Se abre con lo que ha llegado
+# (http_parcial, video_abrir_bajando), se decodifica hasta que falta (video_siguiente da 2: esperar) y se sigue
+# al llegar más (video_bajado); al acabar la descarga, del fichero (video_bajado_fichero). Salen las mismas
+# imágenes que abriéndolo entero.
+# emu-server: http.py 40866
+# memcheck
+# emu-config: cpu = 68030
+# emu-config: zorro_iii_memory = 65536
+# expect-out: abierto antes del final: true
+# expect-out: imágenes mientras se bajaba: true
+# expect-out: esperó: true
+# expect-out: iguales: true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/video.dash"
+import "../lib/http.dash"
+
+Main
+    f = "T:bajando.mp4"
+    c = http_empezar_a_fichero("http://127.0.0.1:40866/goteo/video_prueba.mp4", f, 20000)
+    v = 0
+    antes = false
+    n = 0
+    n_bajando = 0
+    esperas = 0
+    hecha = false
+    s = 2
+    while s != 0 and s != -1
+        if not hecha
+            hecha = http_avanzar(c)
+        end
+        if v == 0
+            if hecha
+                break
+            end
+            listos = http_parcial_listos(c)
+            if listos > 0
+                v = video_abrir_bajando(http_parcial(c), listos, http_parcial_total(c))
+                antes = v != 0 and listos < http_parcial_total(c)
+            end
+            continue
+        end
+        if hecha
+            video_bajado_fichero(v, f)
+        else
+            video_bajado(v, http_parcial(c), http_parcial_listos(c))
+        end
+        # todo lo que se pueda con lo que ha llegado
+        s = video_siguiente(v)
+        while s == 1
+            n = n + 1
+            if not hecha
+                n_bajando = n_bajando + 1
+            end
+            s = video_siguiente(v)
+        end
+        if s == 2 and hecha
+            Print "falta con el fichero entero"
+            break
+        end
+        if s == 2
+            esperas = esperas + 1
+            time_delay(1)
+        end
+    end
+    if v != 0
+        video_cerrar(v)
+    end
+    Print "abierto antes del final: " + antes
+    Print "imágenes mientras se bajaba: " + (n_bajando > 0)
+    Print "esperó: " + (esperas > 0)
+    entero = video_abrir(f)
+    m = 0
+    while video_siguiente(entero) == 1
+        m = m + 1
+    end
+    video_cerrar(entero)
+    Print "iguales: " + (n == m and m > 0)
+    file_delete(f)
+end

@@ -2,11 +2,14 @@
 #ifndef DASHWEB_VIDEO_H
 #define DASHWEB_VIDEO_H
 long dwv_abrir(const char *fichero);           /* un vídeo (MP4/MOV, AVI, MKV, MPEG-TS...); 0 si no se puede */
+long dwv_abrir_bajando(const unsigned char *datos, long listos, long total);  /* aún se baja; 0: probar luego */
+void dwv_bajado(long v, const unsigned char *datos, long listos);  /* lo que ha llegado ya, y dónde está */
+void dwv_bajado_fichero(long v, const char *fichero);  /* ya está entero en el fichero */
 long dwv_ancho(long v);
 long dwv_alto(long v);
 long dwv_fps_mil(long v);                      /* imágenes por segundo x 1000 (0 si no se sabe) */
 const char *dwv_codecs(long v);                /* "video=..., audio=..." */
-long dwv_siguiente(long v);                    /* 1 una imagen nueva, 0 fin, -1 error */
+long dwv_siguiente(long v);                    /* 1 una imagen nueva, 0 fin, -1 error, 2 esperar (aún se baja) */
 const unsigned char *dwv_rgb(long v);          /* la imagen: RGB24, dwv_paso() bytes por fila */
 long dwv_paso(long v);
 long dwv_ms(long v);                           /* su instante en ms desde el principio (-1 si no se sabe) */

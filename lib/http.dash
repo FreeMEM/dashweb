@@ -323,6 +323,7 @@ struct Carga
     cuerpo: String = ""    # lo que se manda con POST
     tipo: String = ""      # su Content-Type
     agente: String = ""    # el User-Agent, si no es el de dashweb (http_con_agente)
+    cabecera: Int = -1     # bytes de la línea de estado y las cabeceras, cuando ya llegaron (http_parcial)
 end
 
 func http_empezar(direccion: String, espera_ms: Int) -> Carga
@@ -365,6 +366,7 @@ end
 func _carga_conectar(c: Carga)
     c.respuesta = _respuesta_vacia(url_text(c.actual))
     c.total = -1
+    c.cabecera = -1
     c.ultimo = time_ms()
     u = c.actual
     if u.esquema != "http" and u.esquema != "https"
@@ -473,6 +475,52 @@ func http_cancelar(c: Carga)
         c.respuesta.error = "cancelada"
         c.hecha = true
     end
+end
+
+# Lo que ya ha llegado del cuerpo de una respuesta 2xx con Content-Length, para usarlo antes de que acabe
+# (un vídeo que empieza mientras se baja): su dirección en el búfer de la conexión, o 0 si aún no se sabe o no
+# vale (redirección, chunked). El búfer se mueve al crecer: pedirla otra vez tras cada http_avanzar. Al acabar la
+# carga el búfer se libera (el cuerpo ya está en su fichero).
+func http_parcial(c: Carga) -> Int
+    if c.hecha or c.conexion == nil or c.conexion.fase != 0 or c.total <= 0
+        return 0
+    end
+    if c.cabecera < 0
+        c.cabecera = _carga_cabecera(c.conexion)
+    end
+    # "HTTP/1.1 2xx": el estado empieza en el byte 9
+    if c.cabecera <= 12 or buffer_get_byte(c.conexion.buf, c.conexion.ini + 9) != 50
+        return 0
+    end
+    return c.conexion.buf + c.conexion.ini + c.cabecera
+end
+
+# Bytes del cuerpo que ya han llegado (con http_parcial) y los que tendrá entero
+func http_parcial_listos(c: Carga) -> Int
+    if http_parcial(c) == 0
+        return 0
+    end
+    return red_pendientes(c.conexion) - c.cabecera
+end
+
+func http_parcial_total(c: Carga) -> Int
+    if http_parcial(c) == 0
+        return 0
+    end
+    return c.total - c.cabecera
+end
+
+# Bytes de la línea de estado y las cabeceras (con la línea vacía), o -1 si aún no han llegado
+func _carga_cabecera(c: Conexion) -> Int
+    n = red_pendientes(c)
+    i = 0
+    while i + 3 < n
+        if buffer_get_byte(c.buf, c.ini + i) == 13 and buffer_get_byte(c.buf, c.ini + i + 1) == 10 and buffer_get_byte(c.buf, c.ini + i + 2) == 13 and buffer_get_byte(c.buf, c.ini + i + 3) == 10
+            return i + 4
+        end
+        i = i + 1
+    end
+    return -1
 end
 
 # Cabeceras + Content-Length cuando ya llegaron las cabeceras: el tamaño de la respuesta entera;

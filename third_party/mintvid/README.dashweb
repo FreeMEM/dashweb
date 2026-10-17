@@ -6,7 +6,7 @@ b3be6f3b3181996a46f1881845ec65a053022901, con el decodificador H.264 de Ittiam l
 NOTICE en libavc/) en su submódulo de MintVID (28825e13a734c8667ac9274e1b34489c25da7e37) y su adaptación
 libavc_port.
 
-Ficheros sin cambios. Se quedan fuera, para que dashweb siga siendo MIT y use su propia red:
+Ficheros sin cambios salvo uno (ver "Cambios"). Se quedan fuera, para que dashweb siga siendo MIT y use su propia red:
   - libmpeg2 y liba52 (GPL-2.0-or-later), libdv (LGPL-2.1): core/mr_mpeg2.*, core/mr_dv.* y sus vendor/.
   - La red de MintVID (core/mr_http.c, mr_hls.c, mr_youtube.c; quedan sus cabeceras) y MintAMP (sonido).
   - De libavc: el codificador, MVC/SVC y el código de otras arquitecturas.
@@ -22,3 +22,8 @@ Sonido (2026-10-17)
     MintAMP. Licencia RPSL (RPSL.txt; o RCSL.txt): estos ficheros se distribuyen con sus fuentes, aquí, y con sus
     avisos; dashweb sigue siendo MIT.
   - sin_a52/: sustitutos propios (MIT) de las cabeceras de liba52 que nombra mr_audio_decode.c: sin AC-3.
+
+Cambios (2026-10-17)
+--------------------
+  - core/mr_mov.c, mr_mov_next_packet: si no se puede leer un paquete, no se da por consumido (cursor--), para
+    probarlo otra vez: el vídeo puede estar aún bajándose (dashweb_video.c, dwv_abrir_bajando).
