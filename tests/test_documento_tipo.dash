@@ -5,6 +5,7 @@
 # expect-out: imagen: dec_base.jpg http://127.0.0.1:40858/pages/dec_base.jpg #0e0e0e
 # expect-out: html: true
 # expect-out: visibles: true false true
+# expect-out: iconos: true true true false
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -36,4 +37,5 @@ Main
     d3.remaquetada = true
     c = documento_imagenes_visibles(d3, 0, 400)
     Print "visibles: " + a + " " + b + " " + c
+    Print "iconos: " + imagenes_fuente_de_iconos("Font Awesome 6 Free") + " " + imagenes_fuente_de_iconos("dashicons") + " " + imagenes_fuente_de_iconos("Material Icons") + " " + imagenes_fuente_de_iconos("Inter")
 end

@@ -262,7 +262,7 @@ func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
         return
     end
     if u.esquema == "http" or u.esquema == "https"
-        r = http_get(direccion, 15000)
+        r = http_get(url_fuentes_latin1(direccion), 15000)
         if r.error != "" or r.estado != 200
             return
         end

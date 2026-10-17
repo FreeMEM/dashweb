@@ -368,3 +368,26 @@ func _url_deshacer(t: String) -> String
     end
     return r
 end
+
+# Google Fonts (fonts.googleapis.com/css y /css2) da el TTF entero, con todos los alfabetos (Inter: 325 KB por
+# peso). Con text= da solo esos caracteres: se le piden los que dashweb sabe pintar (Latin-1), unos 50 KB.
+func url_fuentes_latin1(direccion: String) -> String
+    if not str_starts(direccion, "https://fonts.googleapis.com/css") and not str_starts(direccion, "http://fonts.googleapis.com/css")
+        return direccion
+    end
+    if str_find(direccion, "text=") >= 0
+        return direccion
+    end
+    t = ""
+    for c in (32..126)
+        t = t + str_char(c)
+    end
+    for c in (160..255)
+        t = t + str_char(c)
+    end
+    sep = "?"
+    if str_find(direccion, "?") >= 0
+        sep = "&"
+    end
+    return direccion + sep + "text=" + url_codificar(t)
+end

@@ -2139,3 +2139,13 @@ Formato:
   imágenes que llegaban justo entonces, trabajo que hay que hacer igual).
 - freemem.space: 41,2 s y 42,2 s en dos medidas (el estilo de cada vuelta del JavaScript, 0,16 s y 0,05 s).
   Tests de estilo y jsdom: 10/10.
+
+### 2026-10-17 — Tarea 33, menos bytes de fuentes
+- Google Fonts da el TTF entero (Inter: 325 KB por peso, todos los alfabetos). `url_fuentes_latin1` (lib/url.dash)
+  añade a las hojas de fonts.googleapis.com/css y /css2 un `text=` con los caracteres que dashweb sabe pintar
+  (Latin-1 32-126 y 160-255): Google devuelve solo esos, 53 KB por peso. Lo usan recursos.dash y los @import.
+- Las fuentes de iconos ya no se bajan (`imagenes_fuente_de_iconos`: Font Awesome, dashicons, Material Icons...):
+  sus letras están fuera de Latin-1, que es lo único que lee lib/fuente_web.dash, y los iconos los dibuja el
+  pintor (D_ICONO). En freemem.space eran 700 KB.
+- freemem.space: de 41-42 s a 39 s con las fuentes reducidas y a 37,7 s sin las de iconos. Tests: test_url y
+  test_documento_tipo (casos nuevos); la batería entera, cuando la red de pruebas quede libre.

@@ -102,7 +102,7 @@ func recursos_avanzar(r: Recursos) -> Int
     while i < r.cola.length
         p = r.cola[i]
         if p.carga == nil and activas < RECURSOS_A_LA_VEZ
-            p.carga = http_empezar(p.direccion, 15000)
+            p.carga = http_empezar(url_fuentes_latin1(p.direccion), 15000)
         end
         if p.carga != nil
             if http_avanzar(p.carga)

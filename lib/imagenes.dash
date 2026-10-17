@@ -337,7 +337,7 @@ func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
     n = 0
     for c in caras
         src = css_fuente_src(c.src)
-        if src == "" or im.por_src.has(src) or n >= 8
+        if src == "" or im.por_src.has(src) or n >= 8 or imagenes_fuente_de_iconos(c.familia)
             continue
         end
         u = url_parse(src)
@@ -353,6 +353,18 @@ func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
         im.cola.push(pedida)
         n = n + 1
     end
+end
+
+# Las fuentes de iconos no se bajan: sus letras están fuera de Latin-1 (lib/fuente_web.dash solo lee de la 32 a la
+# 255) y dashweb dibuja él los iconos más comunes (lib/pintor.dash, D_ICONO). Font Awesome son 700 KB.
+func imagenes_fuente_de_iconos(familia: String) -> Bool
+    f = str_lower(familia)
+    for nombre in ["awesome", "icon", "dashicons", "genericons", "glyph", "fontello", "icomoon", "material symbols", "remixicon", "themify", "feather", "eicons"]
+        if str_find(f, nombre) >= 0
+            return true
+        end
+    end
+    return false
 end
 
 func imagenes_pendientes(im: Imagenes) -> Int
