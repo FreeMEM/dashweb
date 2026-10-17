@@ -1442,3 +1442,7 @@ Formato:
 - Sin probar: la captura del artículo de freemem.space con su YouTube (el intento se paró por tiempo).
 - Base con Dash de la rama `fullscreen` (d21cecc): 33/33 tras pasar a true/false las líneas esperadas de
   test_imagen_dec, test_jsdom_eventos y test_formularios_post (un Bool ya se escribe así en Dash).
+- Captura pedida por el usuario: el artículo de freemem.space ("Análisis de la evolución de la popularidad...")
+  en la máquina RTG, bajado con el teclado hasta su primer YouTube (bnWKfEWPAaM) y pulsado: resuelto, bajado
+  (540x360) y reproducido entero dentro de la página, 289 imágenes de 289 en 48 s (el vídeo es de 6 por
+  segundo), reloj del sonido 47,99 s. Enviada al usuario.
