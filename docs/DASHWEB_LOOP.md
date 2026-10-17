@@ -2157,6 +2157,7 @@ Formato:
   de un carrusel, lo que tiene display: none). Mientras, esas pedidas no cuentan en `imagenes_pendientes` (así
   no hay tic cada 50 ms esperando algo que no se va a pedir); al desplazar, dashweb vuelve a programar el tic.
 - freemem.space: entera en 31,4 s (antes 37,7 s): 10 imágenes en vez de 18; la captura, igual que antes.
-- Sin probar aún: desplazar hasta las perezosas y ver que llegan (falta una prueba con clics en el emulador).
+- Probado desplazando con clics en la barra (`medir_visor --acciones`): al bajar se piden las perezosas que
+  quedan cerca (Captura de 2018, reportaje9gr, IMG_2014..., github...) y se ven en su sitio.
 - Base: 52/54 en la batería, con la otra sesión usando la red de pruebas a la vez (había un servidor suyo en el
   40841); test_documento_tipo y test_formularios_post solos, 2/2.
