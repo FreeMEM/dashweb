@@ -323,7 +323,7 @@ end
 func documento_video_de(n: Nodo) -> Nodo
     m = n
     while m != nil
-        if m.tipo == DOM_ELEMENTO and m.nombre == "video"
+        if dom_es_video(m)
             return m
         end
         m = m.padre

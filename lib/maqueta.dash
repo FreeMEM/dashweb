@@ -987,7 +987,7 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
-    if n.nombre == "video"
+    if dom_es_video(n)
         # como en los navegadores: 300x150 si no dice más; width en px o en % (del ancho de la línea) y el
         # alto con la proporción de sus atributos
         w = Int(dom_atributo(n, "width"))

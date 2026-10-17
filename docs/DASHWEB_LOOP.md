@@ -1407,3 +1407,20 @@ Formato:
 - Fallo encontrado y no de Dash: libavc pide 5 MB al crear el decodificador; en los 8 MB del A1200 de pruebas
   ya no cabía con el sonido. test_video usa un 68030 con 64 MB (emu-config) y abre también un vídeo con AAC.
 - Fallo de Dash encargado: un @native que devuelve Bool no se escribe true/false al concatenarlo.
+
+### 2026-10-17 — Tarea 30c (YouTube)
+- `lib/youtube.dash`: el recorrido de MintVID (mr_youtube.c) con la red de dashweb y sin esperar: la página
+  del vídeo (User-Agent de navegador) y, si no trae el MP4, youtubei/v1/player con los clientes ANDROID,
+  ANDROID_VR, WEB_EMBEDDED_PLAYER y WEB; clave y versión de la página (o la clave pública de WEB si no las
+  trae, p. ej. la página de consentimiento). Los analizadores son los de MintVID en C (dwv_youtube_id,
+  dwv_youtube_mp4: itag 18, H.264 + AAC), con su red sustituida. El MP4 se baja con el User-Agent del
+  cliente que lo dio (http_con_agente, nuevo en lib/http.dash).
+- `<iframe>` de YouTube (embed, watch, youtu.be, shorts, nocookie) maquetados como vídeo (`dom_es_video`).
+  Reproductor: fase "preguntando a YouTube", y "trayéndolo, N % de M KB" en la barra de estado. El vídeo
+  conserva su proporción (franjas negras), como en los navegadores.
+- Prueba manual, una vez, con YouTube de verdad en la máquina RTG ("Me at the zoo", jNQXAC9IVRw): resuelto,
+  bajado y reproducido entero con sonido, 284 imágenes en 19 s (14,8/s; el vídeo es de 15), reloj del sonido
+  18,86 s. Captura enviada al usuario. Test sin red `test_youtube` (identificadores, el MP4 de una respuesta
+  del reproductor guardada en tests/pages/youtube_player.json, la configuración de la página).
+- Pendiente: pantalla completa (30d); empezar a reproducir antes de tener el fichero entero; la miniatura
+  del vídeo antes del clic.

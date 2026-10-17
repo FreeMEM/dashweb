@@ -30,14 +30,30 @@ mr_source *mr_http_source_open_ex(const char *url, const mr_http_options *o) { (
 int mr_source_is_hls(const char *url) { (void)url; return 0; }
 mr_source *mr_hls_source_open(const char *url) { (void)url; return NULL; }
 mr_source *mr_hls_source_open_ex(const char *url, const mr_http_options *o) { (void)url; (void)o; return NULL; }
-int mr_youtube_is_url(const char *url) { (void)url; return 0; }
-int mr_youtube_http_options_init(struct mr_http_options *out, const struct mr_http_options *base)
-{ (void)out; (void)base; return 0; }
-int mr_youtube_media_http_options_init(struct mr_http_options *out, const struct mr_http_options *base)
-{ (void)out; (void)base; return 0; }
-int mr_youtube_resolve_media(const char *url, const struct mr_http_options *options, char *out, size_t out_size,
-                             mr_youtube_media_kind *kind)
-{ (void)url; (void)options; (void)out; (void)out_size; (void)kind; return 0; }
+/* La red de MintVID tampoco: core/mr_youtube.c (sus analizadores) la nombra, pero dashweb pide las páginas
+   de YouTube con la suya (lib/youtube.dash) y solo le pasa los textos. */
+int mr_http_fetch_text(const char *url, const mr_http_options *o, char **out, size_t *len, size_t max)
+{ (void)url; (void)o; (void)max; if (out) *out = NULL; if (len) *len = 0; return 0; }
+int mr_http_post_json(const char *url, const mr_http_options *o, const char *json, char **out, size_t *len,
+                      size_t max)
+{ (void)url; (void)o; (void)json; (void)max; if (out) *out = NULL; if (len) *len = 0; return 0; }
+
+/* Para lib/youtube.dash: el identificador de una dirección de YouTube ("" si no lo es) y el MP4 de 360p (H.264
+   + AAC, itag 18) de una página o una respuesta del reproductor ("" si no lo trae) */
+const char *dwv_youtube_id(const char *url)
+{
+    static char id[12];
+    if (!mr_youtube_extract_video_id(url, id)) id[0] = 0;
+    return id;
+}
+
+const char *dwv_youtube_mp4(const char *texto)
+{
+    static char url[4096];
+    mr_youtube_media_kind kind = MR_YOUTUBE_MEDIA_NONE;
+    if (!texto || !mr_youtube_extract_progressive(texto, 0, url, sizeof url, &kind)) url[0] = 0;
+    return url;
+}
 
 /* --- la interfaz --- */
 

@@ -536,9 +536,23 @@ func _formato_raro(dir: String) -> Bool
     return str_ends(d, ".avif") or str_ends(d, ".jxl")
 end
 
+# ¿Es la dirección de un vídeo de YouTube? (watch, embed, shorts, youtu.be, youtube-nocookie)
+func dom_es_youtube(d: String) -> Bool
+    l = str_lower(d)
+    return str_find(l, "youtube.com/embed/") >= 0 or str_find(l, "youtube-nocookie.com/embed/") >= 0 or str_find(l, "youtube.com/watch") >= 0 or str_find(l, "youtube.com/shorts/") >= 0 or str_find(l, "youtu.be/") >= 0
+end
+
+# ¿Se maqueta n como un vídeo? (<video>, o un <iframe> de YouTube)
+func dom_es_video(n: Nodo) -> Bool
+    return n.tipo == DOM_ELEMENTO and (n.nombre == "video" or (n.nombre == "iframe" and dom_es_youtube(dom_atributo(n, "src"))))
+end
+
 # La dirección de un <video>: su src o la del primer <source> con un tipo que se sabe reproducir (MP4, MOV,
 # AVI, MKV, MPEG-TS, MPEG-1) o sin tipo
 func video_src(n: Nodo) -> String
+    if n.nombre == "iframe"
+        return dom_atributo(n, "src")
+    end
     if dom_atributo(n, "src") != ""
         return dom_atributo(n, "src")
     end

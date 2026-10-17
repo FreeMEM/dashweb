@@ -10,6 +10,7 @@
 #   videos_liberar(vs)
 
 import "video.dash"
+import "youtube.dash"
 import "http.dash"
 import "url.dash"
 import "dom.dash"
@@ -20,6 +21,7 @@ const V_SONANDO = 2
 const V_PAUSA = 3
 const V_FIN = 4
 const V_ERROR = 5
+const V_RESOLVIENDO = 6  # YouTube: buscando el MP4 del vídeo (lib/youtube.dash)
 
 # Una imagen se puede enseñar hasta este adelanto sobre su hora: el temporizador del sistema despierta tarde
 # (en la máquina RTG emulada, unos 27 ms de media) y esperar a la hora exacta la retrasa siempre
@@ -31,6 +33,7 @@ struct Reproductor
     fichero: String
     estado: Int = 0
     carga: Carga = nil
+    yt: YouTube = nil
     v: Int = 0
     inicio: Int = 0          # time_ms() del instante 0 del vídeo (mientras suena)
     pos: Int = 0             # ms del vídeo donde se paró
@@ -81,7 +84,10 @@ func videos_alternar(vs: Videos, n: Nodo, base: String)
     end
     if r.estado == V_PARADO or r.estado == V_ERROR
         r.error = ""
-        if str_starts(r.direccion, "http://") or str_starts(r.direccion, "https://")
+        if youtube_es(r.direccion)
+            r.yt = youtube_empezar(r.direccion)
+            r.estado = V_RESOLVIENDO
+        elif str_starts(r.direccion, "http://") or str_starts(r.direccion, "https://")
             r.carga = http_empezar_a_fichero(r.direccion, r.fichero, 60000)
             r.estado = V_TRAYENDO
         else
@@ -139,7 +145,18 @@ end
 func videos_avanzar(vs: Videos) -> Bool
     cambio = false
     for r in vs.lista
-        if r.estado == V_TRAYENDO
+        if r.estado == V_RESOLVIENDO
+            if youtube_avanzar(r.yt)
+                if r.yt.media != ""
+                    r.carga = http_con_agente(http_empezar_a_fichero(r.yt.media, r.fichero, 60000), r.yt.agente)
+                    r.estado = V_TRAYENDO
+                else
+                    r.estado = V_ERROR
+                    r.error = r.yt.error
+                end
+                cambio = true
+            end
+        elif r.estado == V_TRAYENDO
             if http_avanzar(r.carga)
                 resp = r.carga.respuesta
                 r.carga = nil
@@ -228,8 +245,14 @@ end
 # Una línea para la barra de estado: el vídeo que suena, su segundo y las imágenes por segundo que se ven
 func videos_estado(vs: Videos) -> String
     for r in vs.lista
-        if r.estado == V_TRAYENDO
-            return "Vídeo: trayéndolo..."
+        if r.estado == V_RESOLVIENDO
+            return "Vídeo: preguntando a YouTube..."
+        elif r.estado == V_TRAYENDO
+            t = http_recibidos(r.carga) / 1024
+            if http_total(r.carga) > 0
+                return "Vídeo: trayéndolo, " + (http_recibidos(r.carga) * 100 / http_total(r.carga)) + " % de " + (http_total(r.carga) / 1024) + " KB"
+            end
+            return "Vídeo: trayéndolo, " + t + " KB"
         elif r.estado == V_SONANDO
             t = time_ms() - r.inicio
             ips = 0
@@ -248,7 +271,7 @@ func videos_espera(vs: Videos) -> Int
     espera = -1
     for r in vs.lista
         e = -1
-        if r.estado == V_TRAYENDO
+        if r.estado == V_TRAYENDO or r.estado == V_RESOLVIENDO
             e = 50
         elif r.estado == V_SONANDO
             e = 1
@@ -272,7 +295,7 @@ end
 # ¿Algún vídeo suena o llega? (el bucle tiene que seguir dando tics)
 func videos_activos(vs: Videos) -> Bool
     for r in vs.lista
-        if r.estado == V_TRAYENDO or r.estado == V_SONANDO
+        if r.estado == V_TRAYENDO or r.estado == V_SONANDO or r.estado == V_RESOLVIENDO
             return true
         end
     end
@@ -287,7 +310,32 @@ func videos_pintar(vs: Videos, n: Nodo, x: Int, y: Int, ancho: Int, alto: Int)
         r = videos_de(vs, n)
     end
     if r != nil and r.hay_imagen and r.v != 0
-        gfx_rgb_draw_scaled(video_rgb(r.v), video_ancho(r.v), video_alto(r.v), x, y, ancho, alto)
+        # con su proporción (un vídeo 4:3 en un recuadro 16:9: franjas negras a los lados), como los navegadores
+        vw = video_ancho(r.v)
+        vh = video_alto(r.v)
+        dw = ancho
+        dh = alto
+        if vw > 0 and vh > 0
+            if vw * alto > vh * ancho
+                dh = vh * ancho / vw
+            else
+                dw = vw * alto / vh
+            end
+        end
+        dx = x + (ancho - dw) / 2
+        dy = y + (alto - dh) / 2
+        if dw < ancho or dh < alto
+            gfx_pen(color_pen(0, 0, 0))
+            if dx > x
+                gfx_rect(x, y, dx - 1, y + alto - 1)
+                gfx_rect(dx + dw, y, x + ancho - 1, y + alto - 1)
+            end
+            if dy > y
+                gfx_rect(x, y, x + ancho - 1, dy - 1)
+                gfx_rect(x, dy + dh, x + ancho - 1, y + alto - 1)
+            end
+        end
+        gfx_rgb_draw_scaled(video_rgb(r.v), vw, vh, dx, dy, dw, dh)
         if r.estado == V_PAUSA or r.estado == V_FIN
             _triangulo(x, y, ancho, alto)
         end
@@ -295,7 +343,7 @@ func videos_pintar(vs: Videos, n: Nodo, x: Int, y: Int, ancho: Int, alto: Int)
     end
     gfx_pen(color_pen(0, 0, 0))
     gfx_rect(x, y, x + ancho - 1, y + alto - 1)
-    if r != nil and r.estado == V_TRAYENDO
+    if r != nil and (r.estado == V_TRAYENDO or r.estado == V_RESOLVIENDO)
         gfx_pen(color_pen(255, 255, 255))
         gfx_text_at(x + ancho / 2 - 12, y + alto / 2, "...")
         return

@@ -26,7 +26,7 @@ NUCLEO="mr_codec.c mr_source.c mr_demux.c mr_latm.c mr_mkv.c mr_avi.c mr_mov.c m
     mr_c2p_m68k.S mr_mjpeg.c picojpeg.c mr_mpeg1.c mr_mpeg1_blockset_m68k.S mr_mpeg1_idct_m68k.S mr_mpeg4.c
     mr_msmpeg4v2.c mr_wmv.c mr_wmv2.c mr_h263.c mr_msvideo1.c mr_rle.c mr_rawvideo.c mr_yuv.c mr_yuv_m68k.S
     mr_yuv_dither.c mr_yuv_dither_planar_m68k.S mr_yuv_dither_planar_direct_m68k.S mr_yuv_planar_queue.c
-    mr_yuv_ham.c mr_h264.c plm_audio_synth_window_m68k.S plm_audio_idct36_m68k.S plm_audio_scale_clamp_m68k.S
+    mr_yuv_ham.c mr_h264.c mr_youtube.c plm_audio_synth_window_m68k.S plm_audio_idct36_m68k.S plm_audio_scale_clamp_m68k.S
     plm_audio_synth_window_m68k_060.S plm_audio_idct36_m68k_060.S"
 for f in $NUCLEO; do
     $GCC $CF -c "$M/core/$f" -o "$B/o/n_$(echo "$f" | tr . _).o"

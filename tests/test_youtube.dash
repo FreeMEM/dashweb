@@ -1,0 +1,30 @@
+# Test: lib/youtube.dash sin red (las partes que no preguntan a YouTube): el identificador de las direcciones
+# de YouTube (watch, embed, youtu.be, shorts, nocookie; otra web no), dom_es_youtube, el MP4 de 360p (itag 18,
+# con los & de JSON) de una respuesta del reproductor guardada en tests/pages, sin MP4 y la configuración
+# de una página ("INNERTUBE_API_KEY").
+# expect-out: [dQw4w9WgXcQ][dQw4w9WgXcQ][dQw4w9WgXcQ][dQw4w9WgXcQ][dQw4w9WgXcQ][]
+# expect-out: es: true true false
+# expect-out: mp4: https://rr1---sn-abc.googlevideo.com/videoplayback?expire=1&itag=18&mime=video%2Fmp4
+# expect-out: sin: []
+# expect-out: clave: AIzaXYZ version: 2.2026 nada: []
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+# memcheck
+# emu-server: http.py 40864
+
+import "../lib/youtube.dash"
+import "../lib/dom.dash"
+import "../lib/http.dash"
+
+Main
+    l = ""
+    for d in ["https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10", "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0", "https://youtu.be/dQw4w9WgXcQ", "https://www.youtube.com/shorts/dQw4w9WgXcQ", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ", "https://vimeo.com/123"]
+        l = l + "[" + youtube_id(d) + "]"
+    end
+    Print l
+    Print "es: " + dom_es_youtube("https://www.youtube.com/embed/x") + " " + dom_es_youtube("https://youtu.be/x") + " " + dom_es_youtube("https://example.org/youtube")
+    json = http_texto(http_get("http://127.0.0.1:40864/pages/youtube_player.json", 10000))
+    Print "mp4: " + youtube_mp4_de(json)
+    Print "sin: [" + youtube_mp4_de("{\"streamingData\":{}}") + "]"
+    pagina = "<script>ytcfg.set({\"INNERTUBE_API_KEY\": \"AIzaXYZ\",\"INNERTUBE_CLIENT_VERSION\":\"2.2026\"})</script>"
+    Print "clave: " + youtube_config(pagina, "INNERTUBE_API_KEY") + " version: " + youtube_config(pagina, "INNERTUBE_CLIENT_VERSION") + " nada: [" + youtube_config(pagina, "OTRA") + "]"
+end

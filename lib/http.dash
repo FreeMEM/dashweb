@@ -105,7 +105,7 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
         var nada: Conexion = nil
         return nada
     end
-    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo))
+    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, ""))
         r.error = c.error
         red_cerrar(c)
         var nada: Conexion = nil
@@ -114,7 +114,8 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
     return c
 end
 
-func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String) -> String
+# agente: el User-Agent ("" el de dashweb; YouTube contesta según el cliente que dice ser)
+func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente: String) -> String
     ruta = u.ruta
     if ruta == ""
         ruta = "/"
@@ -126,7 +127,11 @@ func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String) -> Str
     if u.puerto >= 0
         host = host + ":" + u.puerto
     end
-    peticion = metodo + " " + ruta + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: " + HTTP_AGENTE
+    ua = HTTP_AGENTE
+    if agente != ""
+        ua = agente
+    end
+    peticion = metodo + " " + ruta + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: " + ua
     peticion = peticion + "\r\nAccept: */*\r\nAccept-Encoding: identity\r\nConnection: close"
     if metodo == "POST"
         peticion = peticion + "\r\nContent-Type: " + tipo + "\r\nContent-Length: " + cuerpo.length
@@ -317,6 +322,7 @@ struct Carga
     metodo: String = "GET"
     cuerpo: String = ""    # lo que se manda con POST
     tipo: String = ""      # su Content-Type
+    agente: String = ""    # el User-Agent, si no es el de dashweb (http_con_agente)
 end
 
 func http_empezar(direccion: String, espera_ms: Int) -> Carga
@@ -346,6 +352,12 @@ func http_empezar_post(direccion: String, cuerpo: String, tipo: String, espera_m
         c.tipo = "application/x-www-form-urlencoded"
     end
     _carga_conectar(c)
+    return c
+end
+
+# La misma carga con otro User-Agent (antes de su primer http_avanzar: la petición aún no se ha mandado)
+func http_con_agente(c: Carga, agente: String) -> Carga
+    c.agente = agente
     return c
 end
 
@@ -392,7 +404,7 @@ func http_avanzar(c: Carga) -> Bool
         if abierta == 0
             return false
         end
-        if abierta < 0 or not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo))
+        if abierta < 0 or not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo, c.agente))
             c.respuesta.error = c.conexion.error
             red_cerrar(c.conexion)
             c.hecha = true

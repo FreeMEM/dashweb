@@ -1,0 +1,150 @@
+# YouTube (tarea 30c): de la dirección de un vídeo al MP4 de 360p (H.264 + AAC, itag 18) que se puede
+# reproducir, como hace MintVID (third_party/mintvid/core/mr_youtube.c: sus analizadores, en libvideo.a) pero
+# con la red de dashweb y sin esperar. Primero la página del vídeo; si no trae el MP4, el reproductor de
+# YouTube (youtubei/v1/player) con varios clientes, en el orden de MintVID: ANDROID, ANDROID_VR,
+# WEB_EMBEDDED_PLAYER y WEB. El MP4 se baja con el User-Agent del cliente que lo dio.
+#
+#   y = youtube_empezar("https://www.youtube.com/watch?v=...")   # nil si no es de YouTube
+#   while not youtube_avanzar(y)
+#       ... la interfaz
+#   end
+#   y.media, y.agente      # la dirección del MP4 y el User-Agent para bajarlo ("" y y.error si no hay)
+
+import "video.dash"
+import "http.dash"
+
+const YT_NAVEGADOR = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+const YT_ANDROID_VERSION = "21.08.266"
+const YT_ANDROID = "com.google.android.youtube/21.08.266 (Linux; U; Android 11) gzip"
+const YT_VR_VERSION = "1.65.10"
+const YT_VR = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
+# Si la página no los trae (la de consentimiento de la UE, por ejemplo): la clave pública del cliente WEB y una
+# versión reciente
+const YT_CLAVE = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+const YT_VERSION_WEB = "2.20260708.00.00"
+
+struct YouTube
+    id: String
+    paso: Int = 0            # 0 la página, 1-4 los clientes, 5 hecho
+    carga: Carga = nil
+    clave: String = ""
+    version: String = ""
+    media: String = ""
+    agente: String = ""
+    error: String = ""
+end
+
+@native(borrow) func youtube_id(direccion: String) -> String
+"""
+    return (STRPTR)dwv_youtube_id((const char *)direccion);
+"""
+end
+
+@native(borrow) func youtube_mp4_de(texto: String) -> String
+"""
+    return (STRPTR)dwv_youtube_mp4((const char *)texto);
+"""
+end
+
+func youtube_es(direccion: String) -> Bool
+    return youtube_id(direccion) != ""
+end
+
+func youtube_empezar(direccion: String) -> YouTube
+    id = youtube_id(direccion)
+    if id == ""
+        var nada: YouTube = nil
+        return nada
+    end
+    y = YouTube(id)
+    y.carga = http_con_agente(http_empezar("https://www.youtube.com/watch?v=" + id + "&hl=en", 20000), YT_NAVEGADOR)
+    return y
+end
+
+# true cuando acaba: con y.media o con y.error
+func youtube_avanzar(y: YouTube) -> Bool
+    if y.paso >= 5
+        return true
+    end
+    if not http_avanzar(y.carga)
+        return false
+    end
+    r = y.carga.respuesta
+    texto = ""
+    if r.error == "" and r.estado >= 200 and r.estado < 300
+        texto = http_texto(r)
+    end
+    if texto != ""
+        m = youtube_mp4_de(texto)
+        if m != ""
+            y.media = m
+            y.agente = _agente_de(y.paso)
+            y.paso = 5
+            return true
+        end
+    end
+    if y.paso == 0
+        y.clave = youtube_config(texto, "INNERTUBE_API_KEY")
+        if y.clave == ""
+            y.clave = YT_CLAVE
+        end
+        y.version = youtube_config(texto, "INNERTUBE_CLIENT_VERSION")
+        if y.version == ""
+            y.version = YT_VERSION_WEB
+        end
+    end
+    y.paso = y.paso + 1
+    if y.paso > 4
+        y.error = "YouTube no da un MP4 que se pueda reproducir"
+        y.paso = 5
+        return true
+    end
+    _pedir(y)
+    return false
+end
+
+func _agente_de(paso: Int) -> String
+    if paso == 1
+        return YT_ANDROID
+    elif paso == 2
+        return YT_VR
+    end
+    return YT_NAVEGADOR
+end
+
+# La petición al reproductor de YouTube con el cliente de ese paso (los mismos cuerpos que MintVID)
+func _pedir(y: YouTube)
+    api = "https://www.youtube.com/youtubei/v1/player?key=" + y.clave + "&prettyPrint=false"
+    c = "\"videoId\":\"" + y.id + "\",\"contentCheckOk\":true,\"racyCheckOk\":true"
+    j = ""
+    if y.paso == 1
+        j = "{" + c + ",\"context\":{\"client\":{\"clientName\":\"ANDROID\",\"clientVersion\":\"" + YT_ANDROID_VERSION + "\",\"platform\":\"DESKTOP\",\"clientScreen\":\"EMBED\",\"clientFormFactor\":\"UNKNOWN_FORM_FACTOR\",\"browserName\":\"Chrome\"},\"user\":{\"lockedSafetyMode\":\"false\"},\"request\":{\"useSsl\":\"true\"}}}"
+    elif y.paso == 2
+        j = "{" + c + ",\"context\":{\"client\":{\"clientName\":\"ANDROID_VR\",\"clientVersion\":\"" + YT_VR_VERSION + "\",\"deviceMake\":\"Oculus\",\"deviceModel\":\"Quest 3\",\"androidSdkVersion\":32,\"userAgent\":\"" + YT_VR + "\",\"osName\":\"Android\",\"osVersion\":\"12L\"}}}"
+    elif y.paso == 3
+        j = "{\"context\":{\"client\":{\"clientName\":\"WEB_EMBEDDED_PLAYER\",\"clientVersion\":\"" + y.version + "\",\"hl\":\"en\",\"gl\":\"GB\"},\"thirdParty\":{\"embedUrl\":\"https://www.reddit.com/\"}}," + c + "}"
+    else
+        j = "{\"context\":{\"client\":{\"clientName\":\"WEB\",\"clientVersion\":\"" + y.version + "\",\"hl\":\"en\",\"gl\":\"GB\"}}," + c + "}"
+    end
+    y.carga = http_con_agente(http_empezar_post(api, j, "application/json", 20000), _agente_de(y.paso))
+end
+
+# "NOMBRE":"valor" de la configuración de una página de YouTube ("" si no está)
+func youtube_config(texto: String, nombre: String) -> String
+    p = str_find(texto, "\"" + nombre + "\"")
+    if p < 0
+        return ""
+    end
+    p = p + nombre.length + 2
+    while p < texto.length and (str_code(texto, p) == 32 or str_code(texto, p) == 58)
+        p = p + 1
+    end
+    if p >= texto.length or str_code(texto, p) != 34
+        return ""
+    end
+    fin = str_find_from(texto, "\"", p + 1)
+    if fin < 0 or fin - p > 100
+        return ""
+    end
+    return texto[p + 1:fin]
+end
