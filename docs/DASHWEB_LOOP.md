@@ -1948,3 +1948,9 @@ Formato:
   fuentes hechas no se liberan al cambiar de página. trainalong solo trae WOFF2: seguirá sin sus letras.
 - Caso nuevo en `test_fuente_web` (una fuente registrada cambia el ancho del texto en la maqueta).
 - Base: 50/50.
+- Google Fonts da a dashweb ("dashweb/0.1 (AmigaOS)") las fuentes en TTF (format('truetype')), no en WOFF2: las
+  webs con Google Fonts ya pueden tener sus letras sin Brotli.
+- Ojo: build/ no va a git. Tras traer el commit de la 31h (1) hay que ejecutar `tools/build_img.sh` en cada árbol
+  (en dashweb-w faltaba stb_truetype.h y dashweb no compilaba: la comparación salió sin capturas de dashweb).
+- Comprobado contra Chrome (d2c4778): amigang ya sale con las letras de Google Fonts (el menú en mayúsculas de
+  Muli, el logo); freemem.space, parecida. Sigue en amigang la imagen de la cabecera, más grande que en Chrome.
