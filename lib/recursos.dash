@@ -48,6 +48,10 @@ func recursos_pedir(r: Recursos, direccion: String, es_css: Bool, nivel: Int)
         end
     end
     u = url_parse(direccion)
+    if not es_css and url_rastreador(direccion)
+        r.traidos[direccion] = ""
+        return
+    end
     if u.esquema == "http" or u.esquema == "https"
         var sin: Carga = nil
         r.cola.push(Pedido(direccion, es_css, nivel, sin))

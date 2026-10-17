@@ -2161,3 +2161,11 @@ Formato:
   quedan cerca (Captura de 2018, reportaje9gr, IMG_2014..., github...) y se ven en su sitio.
 - Base: 52/54 en la batería, con la otra sesión usando la red de pruebas a la vez (había un servidor suyo en el
   40841); test_documento_tipo y test_formularios_post solos, 2/2.
+
+### 2026-10-17 — Tarea 33, sin scripts de rastreo
+- `url_rastreador` (lib/url.dash): los <script src> de estadísticas, publicidad y rastreo (Google Tag Manager y
+  Analytics, DoubleClick, AdSense, Facebook, Hotjar, Clarity, TikTok, stats.wp.com, Taboola, Criteo...) no se
+  bajan ni se ejecutan (recursos.dash los da por traídos y vacíos; jsdom no los trae). En freemem.space,
+  googletagmanager.com/gtag/js son 465 KB: los scripts pasan de 7 s a 1,1 s y la página entera de 31,4 s a 24,7 s.
+  No cambian la página (el gtag() de la página solo apunta en dataLayer). Decisión de diseño: avisado al usuario.
+- Tests: test_url (casos nuevos), jsdom, js, recursos y estilo: 16/16 (la red de pruebas la tenía la otra sesión).

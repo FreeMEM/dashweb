@@ -391,3 +391,16 @@ func url_fuentes_latin1(direccion: String) -> String
     end
     return direccion + sep + "text=" + url_codificar(t)
 end
+
+# Scripts de estadísticas, publicidad y rastreo: no se bajan ni se ejecutan (Google Tag Manager son 465 KB de
+# JavaScript; en un 68040 son segundos y no cambian la página)
+func url_rastreador(direccion: String) -> Bool
+    u = url_parse(direccion)
+    h = u.host
+    for r in ["googletagmanager.com", "google-analytics.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com", "connect.facebook.net", "static.hotjar.com", "clarity.ms", "analytics.tiktok.com", "stats.wp.com", "scorecardresearch.com", "quantserve.com", "adservice.google.com", "amazon-adsystem.com", "taboola.com", "outbrain.com", "criteo.com", "matomo.cloud", "plausible.io", "cdn.segment.com"]
+        if h == r or str_ends(h, "." + r)
+            return true
+        end
+    end
+    return false
+end
