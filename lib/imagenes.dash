@@ -20,6 +20,7 @@ import "css.dash"
 import "imagen_dec.dash"
 import "estilo.dash"
 import "colores.dash"
+import "fuente_web.dash"
 
 # Una imagen de un fichero: decodificada aquí (lib/imagen_dec.dash, reducida a lo que cabe en una
 # pantalla grande) y, si no se puede (otro formato, AmigaOS 3.1), con los datatypes
@@ -57,6 +58,7 @@ struct Pedida
     con_medidas: Bool = false   # una <img> con width y height (su tamaño en la página no depende de la imagen)
     llegada: Bool = false       # ya está en su fichero: espera su turno para decodificarse
     dec: Decodificando = nil    # decodificándose en otro proceso (lib/imagen_dec.dash)
+    fuente: String = ""         # una fuente de @font-face ("familia|peso|estilo"), no una imagen
 end
 
 # Una imagen grande no se decodifica entera si el HTML ya dice a qué tamaño se ve (width y height)
@@ -217,6 +219,13 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                 continue
             end
             decodificando = decodificando + 1
+        elif p.llegada and p.fuente != ""
+            # una fuente: se apunta y hay que volver a maquetar (las letras cambian de ancho)
+            fuente_web_registrar(p.fuente, p.fichero)
+            im.cambiados = im.cambiados + 1
+            llegadas = llegadas + 1
+            im.cola.remove(i)
+            continue
         elif p.llegada
             if decodificando < IMAGENES_DECODIFICANDO
                 _imagen_tamano_final(im, p)
@@ -297,6 +306,29 @@ func imagenes_vista(im: Imagenes, src: String, ancho: Int, alto: Int)
     end
     if w > 0 and h > 0 and w < 65536 and h < 65536
         im.vistas[src] = w * 65536 + h
+    end
+end
+
+# Las fuentes de los @font-face (las que se saben leer: TTF, OTF y WOFF), a la cola como las imágenes; hasta 8
+func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
+    n = 0
+    for c in caras
+        src = css_fuente_src(c.src)
+        if src == "" or im.por_src.has(src) or n >= 8
+            continue
+        end
+        u = url_parse(src)
+        if u.esquema != "http" and u.esquema != "https"
+            continue
+        end
+        im.por_src[src] = 0
+        fichero = "T:dashweb_fuente" + im.ficheros.length
+        im.ficheros.push(fichero)
+        var sin: Carga = nil
+        pedida = Pedida(src, src, fichero, sin)
+        pedida.fuente = c.familia + "|" + c.peso + "|" + c.estilo
+        im.cola.push(pedida)
+        n = n + 1
     end
 end
 

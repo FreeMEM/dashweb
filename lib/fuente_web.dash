@@ -7,6 +7,8 @@
 #   font_use(f)
 #   fuente_web_liberar(f)                  # (nunca con font_close)
 
+import "css.dash"
+
 @link "../build/img-lib/libimg.a"
 @header "#include <stb_truetype.h>"
 @header "#include <graphics/text.h>"
@@ -186,4 +188,65 @@ end
 """
     if (f) FreeVec((APTR)f);
 """
+end
+
+# === Las fuentes de la página (lib/imagenes.dash las registra al llegar; la maqueta las pide) ===
+
+# "familia|peso|estilo" -> el fichero bajado
+var fuentes_web: {String: String} = nil
+# "fichero|tamaño" -> la fuente hecha a ese tamaño (0: no se pudo)
+var _fuentes_web_hechas: {String: Int} = nil
+# cambia con cada fuente registrada (la maqueta guarda lo elegido por font-family y tamaño: con otra versión
+# vuelve a elegir)
+var fuentes_web_version: Int = 0
+
+func fuente_web_registrar(clave: String, fichero: String)
+    if fuentes_web == nil
+        var f: {String: String} = {}
+        fuentes_web = f
+    end
+    fuentes_web[clave] = fichero
+    fuentes_web_version = fuentes_web_version + 1
+end
+
+# La fuente de la web para un font-family (la primera familia de la lista que tenga alguna, con el peso más
+# cercano a peso y, si hay, del mismo estilo) a tam px; 0 si ninguna
+func fuente_web_para(familias: String, peso: Int, estilo: String, tam: Int) -> Int
+    if fuentes_web == nil or fuentes_web.length == 0
+        return 0
+    end
+    for parte in css_partir(familias, 44)
+        familia = str_lower(str_trim(str_replace(str_replace(parte, "\"", ""), "'", "")))
+        mejor = ""
+        distancia = 100000
+        for k in fuentes_web.keys()
+            if str_starts(k, familia + "|")
+                trozos = css_partir(k, 124)
+                d = Int(trozos[1]) - peso
+                if d < 0
+                    d = 0 - d
+                end
+                if trozos[2] != estilo
+                    d = d + 1000
+                end
+                if d < distancia
+                    distancia = d
+                    mejor = k
+                end
+            end
+        end
+        if mejor != ""
+            fichero = fuentes_web[mejor]
+            if _fuentes_web_hechas == nil
+                var h: {String: Int} = {}
+                _fuentes_web_hechas = h
+            end
+            clave = fichero + "|" + tam
+            if not _fuentes_web_hechas.has(clave)
+                _fuentes_web_hechas[clave] = fuente_web(fichero, tam)
+            end
+            return _fuentes_web_hechas[clave]
+        end
+    end
+    return 0
 end

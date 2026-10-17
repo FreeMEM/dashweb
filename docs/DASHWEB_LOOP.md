@@ -1934,3 +1934,17 @@ Formato:
 - La barra de progreso (abajo a la derecha, junto al estado) solo se veía mientras llegaba el HTML: ahora, con
   la página puesta, sigue a la vista mientras faltan imágenes y avanza con las llegadas sobre las pedidas.
 - Base: 50/50.
+
+### 2026-10-17 — Tarea 31h, tercer paso (bajar las fuentes y usarlas)
+- Las fuentes van por la cola de las imágenes (lib/imagenes.dash, 4 descargas a la vez, sin parar la ventana):
+  `imagenes_pedir_fuentes` pide hasta 8 de los @font-face (lo que elige css_fuente_src) y, al llegar, una
+  `Pedida` con `fuente` no se decodifica: se registra (`fuente_web_registrar`, "familia|peso|estilo" -> fichero)
+  y cuenta como cambio de maqueta (las letras cambian de ancho). lib/documento.dash las pide junto a las imágenes.
+- `fuente_web_para(font-family, peso, estilo, tamaño)`: la primera familia de la lista que tenga fuente, con el
+  peso más cercano (y del mismo estilo si hay); cada fichero y tamaño se hace TextFont una vez. La maqueta la
+  mira antes que las fuentes del Amiga (lo elegido se guarda con fuentes_web_version: al llegar otra, se vuelve
+  a elegir). De momento pide siempre 400 normal (la negrita y la cursiva las pone el sistema, como antes).
+- Lo que no: WOFF2 (Brotli) ni TTF con contornos CFF (OTF "OTTO": stb_truetype los lee, pero sin probar); las
+  fuentes hechas no se liberan al cambiar de página. trainalong solo trae WOFF2: seguirá sin sus letras.
+- Caso nuevo en `test_fuente_web` (una fuente registrada cambia el ancho del texto en la maqueta).
+- Base: 50/50.

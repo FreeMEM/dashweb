@@ -131,6 +131,7 @@ func documento_avanzar(d: Documento) -> Bool
     end
     d.hojas = estilo_hojas_con(d.doc, d.direccion, traidos)
     estilo_aplicar(d.doc, d.hojas)
+    imagenes_pedir_fuentes(d.im, estilo_caras(d.hojas))
     imagenes_pedir(d.im, d.doc, d.direccion)
     var nada: Recursos = nil
     d.recursos = nada
@@ -162,6 +163,7 @@ func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
     end
     d.hojas = estilo_hojas(d.doc, d.direccion)
     estilo_aplicar(d.doc, d.hojas)
+    imagenes_pedir_fuentes(d.im, estilo_caras(d.hojas))
     imagenes_pedir(d.im, d.doc, d.direccion)
     d.ms = time_ms() - t0
     return d

@@ -15,6 +15,7 @@
 
 import "estilo.dash"
 import "colores.dash"
+import "fuente_web.dash"
 
 const D_RECT = 1
 const D_TEXTO = 2
@@ -149,9 +150,15 @@ end
 # cualquier tamaño) y, si no hay, la de mapa de bits más cercana; la topaz de la ROM si no hay otra
 func _fuente(m: Maquetador, familia: String, tam: Int) -> Int
     # primero por el font-family tal cual (suele ser una lista larga: mirarla entera cuesta)
-    cruda = familia + "|" + tam
+    cruda = familia + "|" + tam + "|" + fuentes_web_version
     if m.fuentes.has(cruda)
         return m.fuentes[cruda]
+    end
+    # las de la página (@font-face) primero
+    h = fuente_web_para(familia, 400, "normal", tam)
+    if h != 0
+        m.fuentes[cruda] = h
+        return h
     end
     h = _fuente_de(m, familia, tam)
     m.fuentes[cruda] = h
