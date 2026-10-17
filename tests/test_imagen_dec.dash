@@ -5,18 +5,18 @@
 # tamaño (rojo, azul, un círculo verde en medio, transparente abajo a la derecha) y al doble.
 # emu-server: http.py 40852
 # memcheck
-# expect-out: base: 64x32 alfa=0 rojo azul
-# expect-out: prog: 64x32 alfa=0 rojo azul
-# expect-out: png: 20x10 alfa=1 0,255,0,255 / 0
-# expect-out: gif: 64x32 alfa=1 rojo azul
-# expect-out: bmp: 64x32 alfa=0 rojo azul
+# expect-out: base: 64x32 alfa=false rojo azul
+# expect-out: prog: 64x32 alfa=false rojo azul
+# expect-out: png: 20x10 alfa=true 0,255,0,255 / 0
+# expect-out: gif: 64x32 alfa=true rojo azul
+# expect-out: bmp: 64x32 alfa=false rojo azul
 # expect-out: grande: 1024x512
 # expect-out: nada: no
-# expect-out: webp: 64x32 alfa=0 rojo azul
-# expect-out: webp sin pérdida: 64x32 alfa=0 rojo azul
-# expect-out: webp alfa: 20x10 alfa=1 0,255,0,255 / 0
+# expect-out: webp: 64x32 alfa=false rojo azul
+# expect-out: webp sin pérdida: 64x32 alfa=false rojo azul
+# expect-out: webp alfa: 20x10 alfa=true 0,255,0,255 / 0
 # expect-out: webp grande: 300x150
-# expect-out: svg: 64x32 alfa=1 rojo azul
+# expect-out: svg: 64x32 alfa=true rojo azul
 # expect-out: svg círculo: 0,255,0,255 esquina: 0
 # expect-out: svg doble: 128x64
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0

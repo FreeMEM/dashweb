@@ -331,3 +331,16 @@ func documento_video_de(n: Nodo) -> Nodo
     var nada: Nodo = nil
     return nada
 end
+
+# El dibujo del vídeo de ese nodo en la página (para saber dónde cayó un clic); nil si no está
+func documento_video_dibujo(d: Documento, n: Nodo) -> Dibujo
+    if d.pagina != nil
+        for dib in d.pagina.dibujos
+            if dib.tipo == D_VIDEO and dib.nodo == n
+                return dib
+            end
+        end
+    end
+    var nada: Dibujo = nil
+    return nada
+end

@@ -38,6 +38,8 @@ const ID_VER_HISTORIAL = 20
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
 const ID_CERRADA = 100    # + número de ventana: su botón de cerrar
+const ID_COMPLETA = 90    # la ventana del vídeo a pantalla completa: un clic o una tecla
+const ID_COMPLETA_CERRADA = 91
 
 const MAX_VENTANAS = 4
 const FICHERO_MARCADORES = "PROGDIR:dashweb.marcadores"
@@ -98,6 +100,54 @@ func dw_estado(w: Ventana, texto: String)
         t = t[:45] + "..."
     end
     mui_set_text(w.v.estado, t)
+end
+
+# === Vídeo a pantalla completa ===
+# Una ventana del tamaño de la pantalla con un lienzo negro y el vídeo con su proporción. Un clic o Esc la
+# cierra; la barra espaciadora para o sigue.
+
+var dw_completa_win: Int = 0
+var dw_completa_lienzo: Int = 0
+var dw_completa: Reproductor = nil
+var dw_completa_de: Ventana = nil
+
+func pantalla_completa(w: Ventana, r: Reproductor)
+    if r == nil
+        return
+    end
+    if dw_completa_win == 0
+        dw_completa_win = mui_window_begin("dashweb: vídeo", 0)
+        dw_completa_lienzo = mui_canvas(320, 200)
+        mui_window_end()
+        mui_canvas_on_draw(dw_completa_lienzo, pinta_completa)
+        mui_canvas_on_input(dw_completa_lienzo, ID_COMPLETA)
+        mui_on_close(dw_completa_win, ID_COMPLETA_CERRADA)
+        mui_window_fullscreen(dw_completa_win)
+    end
+    dw_completa = r
+    dw_completa_de = w
+    mui_window_open(dw_completa_win)
+end
+
+func salir_completa()
+    if dw_completa_win != 0
+        mui_window_close(dw_completa_win)
+    end
+    dw_completa = nil
+    if dw_completa_de != nil and dw_completa_de.abierta
+        mui_canvas_redraw(dw_completa_de.v.pagina)
+    end
+    dw_completa_de = nil
+end
+
+func pinta_completa(x: Int, y: Int, ancho: Int, alto: Int)
+    if not mui_canvas_updating()
+        gfx_pen(color_pen(0, 0, 0))
+        gfx_rect(x, y, x + ancho - 1, y + alto - 1)
+    end
+    if dw_completa != nil
+        videos_pintar_r(dw_completa, x, y, ancho, alto)
+    end
 end
 
 # La zona de dibujo de cada ventana (MUI llama a una función sin decir de qué zona: una por ventana)
@@ -430,9 +480,15 @@ func tic(w: Ventana)
         while vueltas < 4
             if videos_avanzar(w.actual.videos)
                 mui_canvas_update(w.v.pagina)
+                if dw_completa != nil and dw_completa_de == w
+                    mui_canvas_update(dw_completa_lienzo)
+                end
             end
             if videos_adelantar(w.actual.videos)
                 mui_canvas_update(w.v.pagina)
+                if dw_completa != nil and dw_completa_de == w
+                    mui_canvas_update(dw_completa_lienzo)
+                end
             end
             vueltas = vueltas + 1
             if videos_espera(w.actual.videos) != 1
@@ -471,9 +527,18 @@ func clic(w: Ventana)
     if not seguir
         return
     end
-    # un <video>: reproducir o parar
+    # un <video>: reproducir o parar; en su esquina, a pantalla completa
     vid = documento_video_de(n)
     if vid != nil
+        dib = documento_video_dibujo(w.actual, vid)
+        if dib != nil
+            dx = mui_canvas_mouse_x(w.v.pagina) - dib.x
+            dy = mui_canvas_mouse_y(w.v.pagina) + w.desde - dib.y
+            if videos_en_completa(documento_videos(w.actual), vid, dx, dy, dib.ancho, dib.alto)
+                pantalla_completa(w, videos_de(documento_videos(w.actual), vid))
+                return
+            end
+        end
         videos_alternar(documento_videos(w.actual), vid, w.actual.direccion)
         mui_canvas_redraw(w.v.pagina)
         programar()
@@ -711,6 +776,22 @@ Main
                     end
                 end
                 programar()
+                continue
+            end
+            if ev == ID_COMPLETA_CERRADA
+                salir_completa()
+                continue
+            end
+            if ev == ID_COMPLETA
+                tecla = mui_canvas_key(dw_completa_lienzo)
+                if tecla == 0x40 and dw_completa != nil and dw_completa_de != nil and dw_completa_de.actual != nil
+                    # espacio: parar o seguir
+                    videos_alternar(documento_videos(dw_completa_de.actual), dw_completa.nodo, dw_completa_de.actual.direccion)
+                    mui_canvas_redraw(dw_completa_lienzo)
+                    programar()
+                elif tecla == 0x45 or (tecla < 0 and mui_canvas_button(dw_completa_lienzo) == 1)
+                    salir_completa()
+                end
                 continue
             end
             if ev >= ID_CERRADA and ev < ID_CERRADA + MAX_VENTANAS

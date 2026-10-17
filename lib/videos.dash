@@ -309,6 +309,14 @@ func videos_pintar(vs: Videos, n: Nodo, x: Int, y: Int, ancho: Int, alto: Int)
     if vs != nil
         r = videos_de(vs, n)
     end
+    videos_pintar_r(r, x, y, ancho, alto)
+    if r != nil and r.hay_imagen
+        _icono_completa(x + ancho - VIDEO_ESQUINA, y + alto - VIDEO_ESQUINA)
+    end
+end
+
+# Lo mismo para un reproductor (la pantalla completa); r nil: el recuadro negro con el botón de reproducir
+func videos_pintar_r(r: Reproductor, x: Int, y: Int, ancho: Int, alto: Int)
     if r != nil and r.hay_imagen and r.v != 0
         # con su proporción (un vídeo 4:3 en un recuadro 16:9: franjas negras a los lados), como los navegadores
         vw = video_ancho(r.v)
@@ -353,6 +361,31 @@ func videos_pintar(vs: Videos, n: Nodo, x: Int, y: Int, ancho: Int, alto: Int)
         gfx_pen(color_pen(255, 120, 120))
         gfx_text_at(x + 8, y + alto - 8, r.error)
     end
+end
+
+# El botón de pantalla completa, abajo a la derecha del vídeo: cuatro esquinas blancas
+const VIDEO_ESQUINA = 24
+
+func _icono_completa(x: Int, y: Int)
+    gfx_pen(color_pen(255, 255, 255))
+    a = x + 5
+    b = y + 6
+    c = x + VIDEO_ESQUINA - 6
+    d = y + VIDEO_ESQUINA - 6
+    gfx_rect(a, b, a + 4, b + 1)
+    gfx_rect(a, b, a + 1, b + 4)
+    gfx_rect(c - 4, b, c, b + 1)
+    gfx_rect(c - 1, b, c, b + 4)
+    gfx_rect(a, d - 1, a + 4, d)
+    gfx_rect(a, d - 4, a + 1, d)
+    gfx_rect(c - 4, d - 1, c, d)
+    gfx_rect(c - 1, d - 4, c, d)
+end
+
+# ¿Cae el punto (dx, dy), relativo al recuadro del vídeo, en su botón de pantalla completa?
+func videos_en_completa(vs: Videos, n: Nodo, dx: Int, dy: Int, ancho: Int, alto: Int) -> Bool
+    r = videos_de(vs, n)
+    return r != nil and r.hay_imagen and dx >= ancho - VIDEO_ESQUINA and dy >= alto - VIDEO_ESQUINA
 end
 
 # El botón de reproducir: un rectángulo oscuro con un triángulo blanco en el centro

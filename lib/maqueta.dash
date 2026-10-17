@@ -754,6 +754,39 @@ func _absoluto(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int, pl: I
     elif not tiene_l
         ax = cx + pl         # sin left ni right: donde estaría (al principio del contenido)
     end
+    # un vídeo con position absolute (WordPress: el iframe de YouTube llena una caja con la proporción hecha en
+    # CSS): su recuadro sale de left/right/top/bottom y del width/height en % del contenedor
+    if dom_es_video(n)
+        vy = cy
+        vh = 0
+        if tiene_t
+            vy = cy + _px(e, "top", ch)
+        end
+        if tiene_t and tiene_b
+            vh = ch - _px(e, "top", ch) - _px(e, "bottom", ch)
+        elif e.has("height") and e["height"] != "auto"
+            vh = _px(e, "height", ch)
+        end
+        if tiene_l and tiene_r and e.has("width") and e["width"] != "auto"
+            w = _px(e, "width", cw)
+        end
+        if vh <= 0
+            aw = Int(dom_atributo(n, "width"))
+            ah = Int(dom_atributo(n, "height"))
+            vh = w * 9 / 16
+            if aw > 0 and ah > 0
+                vh = w * ah / aw
+            end
+        end
+        if not tiene_t and tiene_b
+            vy = cy + ch - _px(e, "bottom", ch) - vh
+        end
+        vd = _dibujo(D_VIDEO, ax, vy, w, vh, 0)
+        vd.texto = video_src(n)
+        vd.nodo = n
+        m.pagina.dibujos.push(vd)
+        return
+    end
     # se maqueta arriba y luego se baja a su sitio (bottom necesita su alto)
     antes = m.pagina.dibujos.length
     alto = _bloque_de(m, n, ax, cy, w, cw)
@@ -903,13 +936,15 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             margen_previo = 0
             continue
         end
-        if en_fila and (_es_bloque(h) or not _solo_blanco(h))
+        # un vídeo (<video>, el <iframe> de YouTube) va como una pieza aunque su CSS diga display: block
+        bloque = _es_bloque(h) and not dom_es_video(h)
+        if en_fila and (bloque or not _solo_blanco(h))
             en_fila = false
             if fondo > cy
                 cy = fondo
             end
         end
-        if _es_bloque(h)
+        if bloque
             if piezas.length > 0
                 cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
                 piezas.clear()
@@ -1010,6 +1045,18 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
             if ch > 0
                 h = ch
             end
+        end
+        # max-width (WordPress: 100 %) y nunca más ancho que la línea, con la misma proporción
+        mx = m.ancho_linea
+        if e.has("max-width") and e["max-width"] != "none"
+            mw = _px(e, "max-width", m.ancho_linea)
+            if mw > 0 and mw < mx
+                mx = mw
+            end
+        end
+        if mx > 0 and w > mx
+            h = h * mx / w
+            w = mx
         end
         vid = Pieza(video_src(n), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, false)
         vid.video = true

@@ -659,13 +659,11 @@ func _color_en(c1: Int, c2: Int, en: Int, largo: Int) -> Int
     return (r1 + (r2 - r1) * en / largo) * 65536 + (g1 + (g2 - g1) * en / largo) * 256 + b1 + (b2 - b1) * en / largo
 end
 
-# Un vídeo: entero si cabe en el rectángulo (su imagen o el botón de reproducir); si no, la parte que se ve
-# en negro
+# Un vídeo (su imagen o el botón de reproducir), también si solo se ve una parte: la zona de dibujo de MUI
+# recorta lo que cae fuera (MUI_AddClipping en lib de Dash)
 func _video_dibujo(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
-    if x >= x0 and y >= y0 and x + d.ancho - 1 <= x1 and y + d.alto - 1 <= y1
+    if x + d.ancho - 1 >= x0 and y + d.alto - 1 >= y0 and x <= x1 and y <= y1
         videos_pintar(pintor_videos, d.nodo, x, y, d.ancho, d.alto)
-    else
-        _rect_recortado(x, y, d.ancho, d.alto, x0, y0, x1, y1, _lapiz(0))
     end
 end
 

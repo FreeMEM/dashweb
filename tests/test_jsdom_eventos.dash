@@ -5,12 +5,12 @@
 # memcheck
 # expect-out: a: a
 # expect-out: caja: a
-# expect-out: seguir: 1
+# expect-out: seguir: true
 # expect-out: a: a
 # expect-out: bloqueado
-# expect-out: seguir: 0
+# expect-out: seguir: false
 # expect-out: onclick del atributo
-# expect-out: seguir: 0
+# expect-out: seguir: false
 # expect-out: cambios: 1
 # expect-out: t0
 # expect-out: texto

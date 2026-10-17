@@ -312,7 +312,7 @@ tarea, con el estilo de Dash.
 - [x] 28f. **Degradados.** linear-gradient (los títulos de las entradas destacadas sobre una sombra) leído y en la
       maqueta (`D_DEGRADADO`); pintarlo mezclado con lo de debajo necesita D42 (tarea 6 de la otra sesión:
       `gfx_blend_rect`, `gfx_gradient_rect`). Mientras, solo los tramos casi opacos.
-- [ ] 30. **Vídeo dentro de la página (prioridad del usuario, 2026-10-16).** `<video>` y YouTube reproducidos en su
+- [x] 30. **Vídeo dentro de la página (prioridad del usuario, 2026-10-16).** `<video>` y YouTube reproducidos en su
       recuadro y a pantalla completa, "directo al vídeo integrado" (sin el paso de abrir MintVID aparte), con el
       núcleo de MintVID (github.com/boingball/MintVID, MIT; C99 portable): H.264 con libavc (Apache-2.0) y AAC.
       MintVID saca el MP4 de 360p (itag 18) o el HLS de la página de YouTube en el propio Amiga; en PiStorm/Emu68
@@ -321,6 +321,9 @@ tarea, con el estilo de Dash.
       Partes: 30a traer y compilar el núcleo y libavc (decodificar un MP4 local en el emulador); 30b reproducir en
       el recuadro de `<video>` (imagen por imagen en la zona de dibujo, sonido); 30c YouTube (de la página del
       vídeo al MP4/HLS); 30d controles y pantalla completa.
+- [ ] 30e. **Vídeo: que empiece antes.** Reproducir mientras se baja (hoy espera el fichero entero) y enseñar la
+      miniatura del vídeo (la de YouTube, img.youtube.com/vi/ID/hqdefault.jpg; el atributo poster de `<video>`)
+      antes del clic. Captura del artículo de freemem.space con su YouTube.
 - [ ] 28g. **JavaScript más rápido.** El perfil de la otra sesión (carga real de freemem.space, 12 s en la máquina
       objetivo): QuickJS 24 %. libqjs.a va sin FPU (fp-bit): compilarlo para 68020+FPU como dashweb.
 - [ ] 28h. **Menos negociaciones TLS.** red_abrir_avanzar 14 % y red_recibir_ya 7 %: conexiones keep-alive para los
@@ -1424,3 +1427,18 @@ Formato:
   del reproductor guardada en tests/pages/youtube_player.json, la configuración de la página).
 - Pendiente: pantalla completa (30d); empezar a reproducir antes de tener el fichero entero; la miniatura
   del vídeo antes del clic.
+
+### 2026-10-17 — Tarea 30d (pantalla completa)
+- Esquina de abajo a la derecha del vídeo (icono de cuatro esquinas, 24 px, cuando ya hay imagen): un clic abre
+  una ventana MUI a pantalla completa (`mui_window_fullscreen`, D de la otra sesión, rama `fullscreen`) con un
+  lienzo negro y el mismo reproductor con su proporción. Clic o Esc la cierran; la barra espaciadora para y
+  sigue. Al cerrar se repinta la página.
+- Los `<iframe>` de YouTube que el CSS de la página pone como bloque o con posición absoluta (temas de
+  WordPress, p. ej. freemem.space) también son vídeo: `_contenido` no los trata como bloque y `_absoluto`
+  tiene su caso. Un vídeo visto solo en parte se pinta igual (lo recorta MUI).
+- Probado en la máquina RTG (1024x768) con video_sonido.html: clic para reproducir y clic en la esquina; el
+  vídeo 320x180 escalado a 1024x576 a pantalla completa, 200 imágenes de 200, sonido entero (reloj 8034 ms).
+  Captura enviada al usuario.
+- Sin probar: la captura del artículo de freemem.space con su YouTube (el intento se paró por tiempo).
+- Base con Dash de la rama `fullscreen` (d21cecc): 33/33 tras pasar a true/false las líneas esperadas de
+  test_imagen_dec, test_jsdom_eventos y test_formularios_post (un Bool ya se escribe así en Dash).

@@ -7,7 +7,7 @@
 # expect-out: textarea: [hola|dos]
 # expect-out: POST http://ej.org/enviar [nota=hola%0Ados&acepto=on&campo=v&s=a]
 # expect-out: js: [x] [b] [] [hola|dos] [x b false]
-# expect-out: onsubmit: 0
+# expect-out: onsubmit: false
 # expect-out: submit(): form, después: nil
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
