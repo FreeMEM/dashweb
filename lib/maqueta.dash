@@ -419,6 +419,11 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             fondo = -1
         end
     end
+    # background-clip: text: el fondo solo se ve dentro de las letras (las pinta _palabras con su color)
+    recorta_texto = _clip_texto(e)
+    if recorta_texto
+        fondo = -1
+    end
     # box-shadow (la primera que no es inset), debajo del fondo
     var sombra: Dibujo = nil
     sombra_v = [0, 0, 0, 0]
@@ -442,7 +447,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         m.pagina.dibujos.push(caja_fondo)
     end
     var degradado: Dibujo = nil
-    if e.has("background-image") and _es_degradado(e["background-image"])
+    if e.has("background-image") and _es_degradado(e["background-image"]) and not recorta_texto
         degradado = _degradado(e["background-image"], x + ml, y + mt, interior + bl + br + pl + pr)
         if degradado != nil
             degradado.nodo = n
@@ -450,7 +455,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         end
     end
     var imagen_fondo: Dibujo = nil
-    if e.has("background-image") and css_url(e["background-image"]) != ""
+    if e.has("background-image") and css_url(e["background-image"]) != "" and not recorta_texto
         imagen_fondo = _dibujo(D_FONDO, x + ml + bl, y + mt + bt, interior + pl + pr, 0, 0)
         imagen_fondo.texto = css_url(e["background-image"])
         imagen_fondo.nodo = n
@@ -729,6 +734,49 @@ func _degradado(v: String, x: Int, y: Int, ancho: Int) -> Dibujo
 end
 
 # El color de una parada ("rgba(0,0,0,.5) 0px", "red 40%"): lo de antes del primer blanco fuera de paréntesis
+func _clip_texto(e: {String: String}) -> Bool
+    return _val(e, "background-clip", "") == "text" or _val(e, "-webkit-background-clip", "") == "text"
+end
+
+# El color de unas letras con el fondo recortado a ellas (background-clip: text en n o un antepasado cercano): el
+# color de en medio de su degradado, o su background-color; si no hay, defecto
+func _color_recortado(n: Nodo, defecto: Int) -> Int
+    a = n
+    k = 0
+    while a != nil and k < 6
+        if a.tipo == DOM_ELEMENTO and _clip_texto(a.estilo)
+            e = a.estilo
+            if e.has("background-image") and _es_degradado(e["background-image"])
+                v = e["background-image"]
+                ini = str_find(v, "(")
+                fin = v.length - 1
+                while fin > ini and str_code(v, fin) != 41
+                    fin = fin - 1
+                end
+                if ini >= 0 and fin > ini
+                    var colores: [Int] = []
+                    for parte in css_partir(v[ini + 1:fin], 44)
+                        c = css_color(_parada(parte))
+                        if c >= 0
+                            colores.push(c)
+                        end
+                    end
+                    if colores.length > 0
+                        return colores[colores.length / 2]
+                    end
+                end
+            end
+            if e.has("background-color") and css_color(e["background-color"]) >= 0
+                return css_color(e["background-color"])
+            end
+            return defecto
+        end
+        a = a.padre
+        k = k + 1
+    end
+    return defecto
+end
+
 func _parada(p: String) -> String
     s = str_trim(p)
     b = css_partir(s, 32)
@@ -1821,6 +1869,15 @@ func _palabras(m: Maquetador, texto_dom: String, e: {String: String}, piezas: [P
     color = css_color(e["color"])
     if color < 0
         color = 0
+    end
+    # -webkit-text-fill-color: el color de las letras; transparente con background-clip: text, el del fondo
+    if e.has("-webkit-text-fill-color") and str_lower(e["-webkit-text-fill-color"]) != "currentcolor"
+        relleno = css_color(e["-webkit-text-fill-color"])
+        if relleno >= 0
+            color = relleno
+        elif elemento != nil
+            color = _color_recortado(elemento, color)
+        end
     end
     font_use(f)
     font_style(estilo)

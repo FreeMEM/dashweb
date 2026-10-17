@@ -1809,3 +1809,11 @@ Formato:
 - Comprobado en la máquina RTG contra Chrome (versión be47543): commodoremalacca ya tiene la capa azul con el
   título blanco legible, y dpms el logo a 50 px y el cartel en su sitio. Falta en dpms: el título "Posadas Party
   2026" sale como una caja blanca (texto con degradado: background-clip: text) y el fondo de estrellas (Three.js).
+
+### 2026-10-17 — Tarea 31j, cuarto arreglo (dpms: el título con degradado)
+- `background-clip: text` (y -webkit-) con `-webkit-text-fill-color: transparent`: el fondo solo se ve en las
+  letras. dashweb pintaba la caja del degradado (la caja blanca de dpms) y las letras transparentes. Ahora una caja
+  con background-clip: text no pinta fondo (color, degradado ni imagen) y sus letras toman el color de en medio
+  del degradado (o el background-color). -webkit-text-fill-color con un color manda sobre color, y se hereda.
+- Caso nuevo en `test_maqueta_texto3`.
+- Base: 49/49.

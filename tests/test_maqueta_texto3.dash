@@ -8,6 +8,7 @@
 # expect-out: partida 6 40
 # expect-out: puntos aaaa...
 # expect-out: sombra 1 2
+# expect-out: clip 16753920 0
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -36,6 +37,7 @@ Main
     h = h + "<div id=c style='width:40px;overflow-wrap:break-word'>abcdefghijklmnopqrstuvwxyz</div>"
     h = h + "<div id=d style='width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>aaaa bbbb cccc dddd</div>"
     h = h + "<div id=e style='text-shadow:1px 2px 0 red'>sombra</div>"
+    h = h + "<div id=f style='background:linear-gradient(135deg, #fff 0%, #ffa500 50%, #fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text'>titulo</div>"
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
@@ -64,4 +66,17 @@ Main
     else
         Print "sombra no"
     end
+    # background-clip: text: sin caja de fondo; las letras, del color de en medio del degradado
+    color = -1
+    fondos = 0
+    for d in p.dibujos
+        if d.nodo != nil and dom_atributo(d.nodo, "id") == "f"
+            if d.tipo == D_TEXTO
+                color = d.color
+            elif d.tipo == D_RECT or d.tipo == D_DEGRADADO
+                fondos = fondos + 1
+            end
+        end
+    end
+    Print "clip " + color + " " + fondos
 end

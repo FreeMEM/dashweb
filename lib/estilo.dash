@@ -1060,7 +1060,7 @@ end
 
 # Propiedades que se heredan si el elemento no dice nada
 func _se_hereda(p: String) -> Bool
-    return p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform" or p == "text-shadow" or p == "overflow-wrap" or p == "word-wrap" or p == "word-break"
+    return p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform" or p == "text-shadow" or p == "overflow-wrap" or p == "word-wrap" or p == "word-break" or p == "-webkit-text-fill-color"
 end
 
 # Apunta en usadas los nombres de los var(--x) de un valor
