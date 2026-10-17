@@ -10,6 +10,7 @@
 # expect-out: borrar: [dura=1; salto=si] js: [salto=si]
 # expect-out: guardadas: true 1 [dura=1]
 # expect-out: js: [dura=1; js=1] [js=1]
+# expect-out: página: true true 1970-01-01 2026-07-21 2038-01-19 | borrar: 1 0
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/jsdom.dash"
@@ -47,4 +48,11 @@ Main
     jsdom_ejecutar_scripts(js, doc, base + "/pagina.html")
     Print "js: [" + cookies_para(url_parse(base + "/")) + "] [" + js_evaluar(js, "visto", "x") + "]"
     js_liberar(js)
+    h = cookies_html()
+    cookies_recibir(url_parse("http://otro.net/"), "x=1")
+    n = cookies_todas.length
+    cookies_borrar("127.0.0.1")
+    m = cookies_todas.length
+    cookies_borrar("")
+    Print "página: " + (str_find(h, "dura") >= 0) + " " + (str_find(h, "borrar=127.0.0.1") >= 0) + " " + cookies_dia(0) + " " + cookies_dia(1784618880) + " " + cookies_dia(2147483000) + " | borrar: " + (n - m - 1) + " " + cookies_todas.length
 end

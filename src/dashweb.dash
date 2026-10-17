@@ -79,6 +79,7 @@ func dw_inicio() -> String
     h = h + "<h1>dashweb</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
     h = h + "<p>Escribe una dirección arriba (http o https) y pulsa Return.</p>"
     h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
+    h = h + "<p><a href=\"dashweb:marcadores\">Marcadores</a> · <a href=\"dashweb:cookies\">Cookies</a></p>"
     h = h + "<p class=nota>Fase B: ventanas con MUI 5.</p></body></html>"
     return h
 end
@@ -309,6 +310,17 @@ func abrir(w: Ventana, direccion: String)
         d = documento_html("dashweb:inicio", dw_inicio())
     elif direccion == "dashweb:marcadores"
         d = documento_html("dashweb:marcadores", marcadores_html(FICHERO_MARCADORES))
+    elif str_starts(direccion, "dashweb:cookies")
+        # dashweb:cookies?borrar (todas) o ?borrar=dominio
+        if str_starts(direccion, "dashweb:cookies?borrar")
+            dominio = ""
+            if str_starts(direccion, "dashweb:cookies?borrar=")
+                dominio = direccion[23:]
+            end
+            cookies_borrar(dominio)
+            cookies_guardar(FICHERO_COOKIES)
+        end
+        d = documento_html("dashweb:cookies", cookies_html())
     else
         d = documento_abrir(direccion)
     end

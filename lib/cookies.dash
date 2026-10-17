@@ -327,3 +327,82 @@ func cookies_cargar(fichero: String)
         end
     end
 end
+
+# Borra las de ese dominio ("" todas)
+func cookies_borrar(dominio: String)
+    if dominio == ""
+        cookies_todas.clear()
+        return
+    end
+    k = 0
+    while k < cookies_todas.length
+        if cookies_todas[k].dominio == dominio
+            cookies_todas.remove(k)
+        else
+            k = k + 1
+        end
+    end
+end
+
+# "2026-10-21" de unos segundos desde 1970
+func cookies_dia(s: Int) -> String
+    z = s / 86400 + 719468
+    era = z / 146097
+    doe = z - era * 146097
+    yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    y = yoe + era * 400
+    doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    mp = (5 * doy + 2) / 153
+    d = doy - (153 * mp + 2) / 5 + 1
+    m = mp + 3
+    if m > 12
+        m = m - 12
+        y = y + 1
+    end
+    t = "" + y + "-"
+    if m < 10
+        t = t + "0"
+    end
+    t = t + m + "-"
+    if d < 10
+        t = t + "0"
+    end
+    return t + d
+end
+
+func _cookies_escapar(t: String) -> String
+    return str_replace(str_replace(str_replace(t, "&", "&amp;"), "<", "&lt;"), "\"", "&quot;")
+end
+
+# La página dashweb:cookies: las guardadas por dominio, con enlaces para borrarlas
+func cookies_html() -> String
+    h = "<html><head><title>Cookies</title><style>body { font-family: sans-serif; margin: 12px } h1 { color: #036 } "
+    h = h + "td { padding: 2px 8px; vertical-align: top } .gris { color: #666 } th { text-align: left }</style></head>"
+    h = h + "<body><h1>Cookies</h1>"
+    ahora = cookies_ahora()
+    if cookies_todas.length == 0
+        return h + "<p>No hay ninguna guardada.</p></body></html>"
+    end
+    h = h + "<p>" + cookies_todas.length + " guardadas. <a href=\"dashweb:cookies?borrar\">Borrarlas todas</a></p>"
+    h = h + "<table><tr><th>Dominio</th><th>Nombre</th><th>Valor</th><th>Caduca</th><th></th></tr>"
+    for c in cookies_todas
+        v = c.valor
+        if v.length > 24
+            v = v[:24] + "..."
+        end
+        caduca = "al salir"
+        if c.caduca >= 0
+            caduca = cookies_dia(c.caduca)
+        end
+        extra = ""
+        if c.segura
+            extra = extra + " https"
+        end
+        if c.solo_http
+            extra = extra + " HttpOnly"
+        end
+        h = h + "<tr><td>" + _cookies_escapar(c.dominio) + "</td><td>" + _cookies_escapar(c.nombre) + "</td><td class=gris>" + _cookies_escapar(v) + "</td><td>" + caduca + "<span class=gris>" + extra + "</span></td>"
+        h = h + "<td><a href=\"dashweb:cookies?borrar=" + _cookies_escapar(c.dominio) + "\">borrar las de este dominio</a></td></tr>"
+    end
+    return h + "</table></body></html>"
+end

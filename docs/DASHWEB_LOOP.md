@@ -2239,3 +2239,6 @@ Formato:
   ahorro es pequeño (9,0 -> 7,9 s por conexión en el A1200): no se ha hecho.
 - Lo siguiente que más pesaría: el fallo del recolector de QuickJS (para volver a quitar los scripts de rastreo,
   ~6 s en freemem.space), el primer estilo (3,7 s) y las maquetas (1 s cada una).
+- dashweb:cookies (enlazada desde la página de inicio, con los marcadores): las guardadas con su dominio, valor,
+  caducidad, https y HttpOnly; "dashweb:cookies?borrar" las borra todas y "?borrar=dominio" las de un dominio
+  (`cookies_borrar`, `cookies_html`, `cookies_dia`). Casos nuevos en test_cookies. Sin probar a mano en la ventana.
