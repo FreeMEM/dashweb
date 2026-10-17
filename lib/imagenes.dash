@@ -83,8 +83,13 @@ end
 
 # Empieza a traer las imágenes que falten (las de disco se cargan ya) y vuelve
 func imagenes_pedir(im: Imagenes, doc: Nodo, base: String)
+    t0 = time_ms()
     _imagenes_pedir_en(im, doc, url_parse(base))
+    t1 = time_ms()
     imagenes_avanzar(im, doc)
+    if traza_activa
+        traza("imágenes: buscarlas " + (t1 - t0) + " ms, avanzar las que llegan " + (time_ms() - t1) + " ms")
+    end
 end
 
 # La imagen de fondo de un elemento (background-image: url(...)), como dirección completa; "" si no

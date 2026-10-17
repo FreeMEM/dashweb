@@ -1469,7 +1469,7 @@ func _estilo_toque(t: Toque, hojas: Hojas) -> Bool
     # directamente en <html>, como el <div> con que se mide la barra de desplazamiento, no mueve nada)
     en_html = n.padre != nil and n.padre.nombre == "html"
     if t.tipo == TOQUE_VECINO
-        if hojas.hermanos == 0
+        if hojas.hermanos == 0 or en_html
             return true
         end
         if hojas.hermanos == 2 and not en_html

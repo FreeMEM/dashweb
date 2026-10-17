@@ -2130,3 +2130,12 @@ Formato:
   rehacerlo todo aunque haya :nth-child en las hojas. La traza dice también cuánto tarda buscar las imágenes tras
   cada cambio: en la segunda vuelta de freemem.space, 1,5 s (siguiente cosa a mirar).
 - Base: 54/54.
+
+### 2026-10-17 — Tarea 33, los vecinos de lo que entra en <html>
+- A veces (según cuándo llega el temporizador) el <div> con que jQuery mide la barra de desplazamiento sigue en
+  <html> cuando se rehace el estilo: <body> salía como su vecino y, con selectores de hermanos en las hojas, se
+  rehacía entero (1,9 s). Lo que entra directamente en <html> ya no toca a sus vecinos (head y body).
+- La traza separa buscar las imágenes (15-20 ms) de avanzar las que llegan (lo de 1,5 s era eso: fuentes e
+  imágenes que llegaban justo entonces, trabajo que hay que hacer igual).
+- freemem.space: 41,2 s y 42,2 s en dos medidas (el estilo de cada vuelta del JavaScript, 0,16 s y 0,05 s).
+  Tests de estilo y jsdom: 10/10.
