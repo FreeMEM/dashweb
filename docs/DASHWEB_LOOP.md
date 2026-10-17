@@ -2148,4 +2148,4 @@ Formato:
   sus letras están fuera de Latin-1, que es lo único que lee lib/fuente_web.dash, y los iconos los dibuja el
   pintor (D_ICONO). En freemem.space eran 700 KB.
 - freemem.space: de 41-42 s a 39 s con las fuentes reducidas y a 37,7 s sin las de iconos. Tests: test_url y
-  test_documento_tipo (casos nuevos); la batería entera, cuando la red de pruebas quede libre.
+  test_documento_tipo (casos nuevos). Base (con D53 de Dash): 54/54.
