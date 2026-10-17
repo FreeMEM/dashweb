@@ -692,6 +692,8 @@ func nueva_ventana(direccion: String) -> Ventana
         mui_canvas_on_draw(v.actividad, giro3)
     end
     mui_canvas_on_input(v.pagina, ID_PAGINA)
+    # la página se pinta aparte y llega a la ventana de una vez: no se ve redibujarse
+    mui_canvas_buffered(v.pagina, true)
     mui_on_close(v.window, ID_CERRADA + k)
     mui_window_open(v.window)
     if k > 0

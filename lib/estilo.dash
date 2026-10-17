@@ -688,7 +688,7 @@ func _gana_con(importante: Bool, autor: Bool, especificidad: Int, orden: Int, vi
 end
 
 func _es_atajo(p: String) -> Bool
-    return p == "margin" or p == "padding" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font"
+    return p == "margin" or p == "padding" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap"
 end
 
 # Las declaraciones de una regla con los atajos partidos (margin en margin-top..., border, background,
@@ -789,9 +789,84 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
         end
     elif p == "font"
         _fuente(ganadoras, v, d.importante, autor, esp, orden)
+    elif p == "flex"
+        _flex_atajo(ganadoras, v, d.importante, autor, esp, orden)
+    elif p == "flex-flow"
+        for t in _palabras(v)
+            if t == "row" or t == "row-reverse" or t == "column" or t == "column-reverse"
+                _proponer(ganadoras, "flex-direction", Candidata(t, d.importante, autor, esp, orden))
+            else
+                _proponer(ganadoras, "flex-wrap", Candidata(t, d.importante, autor, esp, orden))
+            end
+        end
+    elif p == "gap" or p == "grid-gap"
+        t = _palabras(v)
+        if t.length > 0
+            columnas = t[0]
+            if t.length > 1
+                columnas = t[1]
+            end
+            _proponer(ganadoras, "row-gap", Candidata(t[0], d.importante, autor, esp, orden))
+            _proponer(ganadoras, "column-gap", Candidata(columnas, d.importante, autor, esp, orden))
+        end
     else
         _proponer(ganadoras, p, Candidata(v, d.importante, autor, esp, orden))
     end
+end
+
+# flex: none | auto | initial | <grow> [<shrink>] [<basis>] | <basis> (CSS Flexbox 1, 7.2)
+func _flex_atajo(g: {String: Candidata}, v: String, imp: Bool, autor: Bool, esp: Int, orden: Int)
+    crecer = "0"
+    encoger = "1"
+    base = "auto"
+    var partes: [String] = _palabras(str_lower(v))
+    if partes.length == 1 and partes[0] == "none"
+        encoger = "0"
+    elif partes.length == 1 and partes[0] == "auto"
+        crecer = "1"
+    elif partes.length == 1 and partes[0] == "initial"
+        crecer = "0"
+    elif partes.length > 0
+        # los números sin unidad son grow y shrink; lo demás (con unidad, %, auto, content) la base
+        numeros = 0
+        con_base = false
+        for palabra in partes
+            if _numero_solo(palabra) and numeros < 2
+                if numeros == 0
+                    crecer = palabra
+                else
+                    encoger = palabra
+                end
+                numeros = numeros + 1
+            else
+                base = palabra
+                con_base = true
+            end
+        end
+        if numeros > 0 and not con_base
+            base = "0%"
+        end
+        if numeros == 0
+            crecer = "1"
+        end
+    end
+    _proponer(g, "flex-grow", Candidata(crecer, imp, autor, esp, orden))
+    _proponer(g, "flex-shrink", Candidata(encoger, imp, autor, esp, orden))
+    _proponer(g, "flex-basis", Candidata(base, imp, autor, esp, orden))
+end
+
+# "1", "0.5", ".5": un número sin unidad
+func _numero_solo(t: String) -> Bool
+    if t == ""
+        return false
+    end
+    for i in (0..t.length - 1)
+        c = str_code(t, i)
+        if not ((c >= 48 and c <= 57) or c == 46 or (i == 0 and c == 45))
+            return false
+        end
+    end
+    return true
 end
 
 # margin: 1 a 4 valores -> top right bottom left
@@ -874,6 +949,11 @@ end
 
 func _es_color(t: String) -> Bool
     return str_starts(t, "#") or str_starts(t, "rgb") or str_starts(t, "hsl") or (not _es_longitud(t) and not str_starts(t, "url(") and t != "none" and t != "no-repeat" and t != "repeat" and t != "repeat-x" and t != "repeat-y" and t != "center" and t != "top" and t != "left" and t != "right" and t != "bottom" and t != "fixed" and t != "scroll")
+end
+
+# (para la maqueta: el estilo de una caja anónima, lo que hereda de su padre)
+func estilo_se_hereda(p: String) -> Bool
+    return _se_hereda(p)
 end
 
 # Propiedades que se heredan si el elemento no dice nada

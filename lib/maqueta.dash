@@ -377,6 +377,19 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     alto = 0
     if e["display"] == "table"
         alto = _tabla(m, n, cx, cy, interior)
+    elif e["display"] == "flex" or e["display"] == "inline-flex"
+        # el alto del contenido si está fijado (lo necesitan las columnas y el estirado de una línea)
+        alto_fijo = -1
+        if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
+            alto_fijo = _px(e, "height", 0)
+            if e.has("box-sizing") and e["box-sizing"] == "border-box"
+                alto_fijo = alto_fijo - bt - bb - pt - pb
+            end
+            if alto_fijo < 0
+                alto_fijo = 0
+            end
+        end
+        alto = _flex(m, n, cx, cy, interior, alto_fijo)
     else
         alto = _contenido(m, n, cx, cy, interior)
     end
@@ -1621,3 +1634,666 @@ func maqueta_nodo_en(p: Pagina, x: Int, y: Int) -> Nodo
     return nada
 end
 
+
+# === Flexbox (CSS Flexible Box Layout 1) ===
+# Los hijos de un display: flex son elementos flex (cada uno como un bloque; el texto suelto y los elementos
+# reemplazados, en una caja anónima). Se miden (tamaño base e hipotético, con min/max y el mínimo automático),
+# se reparten en líneas (flex-wrap), se resuelve el espacio libre con flex-grow/flex-shrink (congelando a los que
+# se pasan de su mínimo o máximo, como en el apartado 9.7), y se colocan: justify-content con los márgenes auto,
+# align-items/align-self (stretch vuelve a maquetar con el alto de la línea), align-content entre líneas, order,
+# gap y las direcciones invertidas. Cada elemento se maqueta en 0,0 y sus dibujos se mueven a su sitio.
+
+struct FlexHijo
+    nodo: Nodo
+    base: Int = 0
+    hip: Int = 0
+    minimo: Int = 0          # -2: el mínimo automático, aún sin medir
+    maximo: Int = -1         # -1: sin máximo
+    bp: Int = 0              # bordes y rellenos en el eje principal
+    mi: Int = 0              # márgenes en el eje principal (0 si son auto)
+    mf: Int = 0
+    auto_i: Bool = false
+    auto_f: Bool = false
+    crecer: Int = 0          # flex-grow x 1000
+    encoger: Int = 1000      # flex-shrink x 1000
+    meta: Int = 0            # el tamaño principal que le toca (del contenido)
+    congelado: Bool = false
+    cruz: Int = 0            # su tamaño exterior en el eje cruzado (márgenes incluidos)
+    dibujos: [Dibujo] = nil  # lo suyo, maquetado en 0,0
+    medido: Int = -1         # el tamaño principal con el que se maquetó (-1: aún no)
+    ancho_usado: Int = 0     # columnas: el ancho exterior con el que se maquetó
+    linea: Int = 0
+    pos: Int = 0             # dónde empieza su caja de márgenes en el eje principal
+    pos_cruz: Int = 0
+end
+
+struct FlexLinea
+    ini: Int
+    fin: Int                 # (sin incluir)
+    cruz: Int = 0
+    pos: Int = 0
+end
+
+const FLEX_GRANDE = 4000
+
+func _val(e: {String: String}, p: String, defecto: String) -> String
+    if e.has(p) and e[p] != ""
+        return e[p]
+    end
+    return defecto
+end
+
+# "1", "0.5", ".25" -> x 1000 (negativo o raro: 0)
+func _mil(v: String) -> Int
+    entero = 0
+    frac = 0
+    cifras = 0
+    punto = false
+    for i in (0..v.length - 1)
+        c = str_code(v, i)
+        if c == 46
+            punto = true
+        elif c >= 48 and c <= 57
+            if punto
+                if cifras < 3
+                    frac = frac * 10 + c - 48
+                    cifras = cifras + 1
+                end
+            else
+                entero = entero * 10 + c - 48
+            end
+        else
+            return 0
+        end
+    end
+    while cifras < 3
+        frac = frac * 10
+        cifras = cifras + 1
+    end
+    return entero * 1000 + frac
+end
+
+# Un elemento que no tiene hijos que maquetar (se pone como una pieza dentro de una caja anónima)
+func _reemplazado(h: Nodo) -> Bool
+    n = h.nombre
+    return n == "img" or n == "video" or n == "iframe" or n == "input" or n == "select" or n == "textarea" or n == "button" or n == "svg" or n == "canvas" or n == "object" or n == "embed" or dom_es_video(h)
+end
+
+# Una caja anónima con lo que hereda de n (el texto suelto de un contenedor flex)
+func _anonima(n: Nodo) -> Nodo
+    a = dom_nodo(DOM_ELEMENTO, "div", "")
+    for k in n.estilo.keys()
+        if estilo_se_hereda(k)
+            a.estilo[k] = n.estilo[k]
+        end
+    end
+    a.estilo["display"] = "block"
+    return a
+end
+
+# Los elementos flex de n, ya ordenados por order (estable)
+func _flex_hijos(n: Nodo) -> [Nodo]
+    var r: [Nodo] = []
+    var texto: Nodo = nil
+    for h in _hijos(n)
+        if _oculto(h) or _fuera_del_flujo(h)
+            continue
+        end
+        if h.tipo != DOM_ELEMENTO
+            if _solo_blanco(h)
+                continue
+            end
+            if texto == nil
+                texto = _anonima(n)
+                r.push(texto)
+            end
+            texto.hijos.push(h)
+            continue
+        end
+        var nada: Nodo = nil
+        texto = nada
+        if _reemplazado(h)
+            caja = _anonima(n)
+            caja.hijos.push(h)
+            r.push(caja)
+        else
+            r.push(h)
+        end
+    end
+    # order: inserción estable
+    i = 1
+    while i < r.length
+        j = i
+        while j > 0 and Int(_val(r[j - 1].estilo, "order", "0")) > Int(_val(r[j].estilo, "order", "0"))
+            x = r[j - 1]
+            r[j - 1] = r[j]
+            r[j] = x
+            j = j - 1
+        end
+        i = i + 1
+    end
+    return r
+end
+
+# Maqueta el elemento en 0,0 con ese ancho exterior y, si no son -1, ese ancho y alto de contenido (forzados
+# mientras tanto en su estilo); guarda sus dibujos aparte y devuelve el alto exterior (márgenes incluidos)
+func _flex_maquetar(m: Maquetador, it: FlexHijo, ancho_ext: Int, contenedor: Int, w: Int, h: Int) -> Int
+    e = it.nodo.estilo
+    var guardado: {String: String} = {}
+    nombres = ["width", "min-width", "max-width", "height", "min-height", "max-height", "box-sizing"]
+    for k in nombres
+        if e.has(k)
+            guardado[k] = e[k]
+        end
+    end
+    if w >= 0
+        e["width"] = "" + w + "px"
+        e["min-width"] = "0"
+        e["max-width"] = "none"
+        e["box-sizing"] = "content-box"
+    end
+    if h >= 0
+        e["height"] = "" + h + "px"
+        e["min-height"] = "0"
+        e["max-height"] = "none"
+        e["box-sizing"] = "content-box"
+    end
+    antes = m.pagina.dibujos.length
+    alto = _bloque_de(m, it.nodo, 0, 0, ancho_ext, contenedor)
+    var suyos: [Dibujo] = []
+    i = antes
+    while i < m.pagina.dibujos.length
+        suyos.push(m.pagina.dibujos[i])
+        i = i + 1
+    end
+    while m.pagina.dibujos.length > antes
+        m.pagina.dibujos.pop()
+    end
+    it.dibujos = suyos
+    for k in nombres
+        if guardado.has(k)
+            e[k] = guardado[k]
+        elif e.has(k)
+            e.remove(k)
+        end
+    end
+    return alto
+end
+
+# Un tamaño de contenido de una propiedad (width, flex-basis...) con box-sizing; -1 si es auto o no se sabe
+func _flex_tam(e: {String: String}, p: String, cien: Int, bp: Int) -> Int
+    v = _val(e, p, "auto")
+    if v == "auto" or v == "none" or v == "content" or v == "max-content" or v == "min-content" or v == "fit-content"
+        return -1
+    end
+    if str_ends(v, "%") and cien < 0
+        return -1
+    end
+    r = _px(e, p, cien)
+    if _val(e, "box-sizing", "content-box") == "border-box"
+        r = r - bp
+    end
+    if r < 0
+        r = 0
+    end
+    return r
+end
+
+func _flex_limitar(it: FlexHijo, v: Int) -> Int
+    r = v
+    if it.maximo >= 0 and r > it.maximo
+        r = it.maximo
+    end
+    if r < it.minimo
+        r = it.minimo
+    end
+    return r
+end
+
+# Mide el elemento: márgenes, bordes y rellenos del eje principal, tamaño base e hipotético, mínimo y máximo
+func _flex_base(m: Maquetador, it: FlexHijo, fila: Bool, ancho: Int, alto_fijo: Int, estirar: Bool)
+    e = it.nodo.estilo
+    it.crecer = _mil(_val(e, "flex-grow", "0"))
+    it.encoger = _mil(_val(e, "flex-shrink", "1"))
+    if fila
+        it.auto_i = _val(e, "margin-left", "0") == "auto"
+        it.auto_f = _val(e, "margin-right", "0") == "auto"
+        it.mi = _px(e, "margin-left", ancho)
+        it.mf = _px(e, "margin-right", ancho)
+        it.bp = _borde(e, "left") + _borde(e, "right") + _px(e, "padding-left", ancho) + _px(e, "padding-right", ancho)
+    else
+        it.auto_i = _val(e, "margin-top", "0") == "auto"
+        it.auto_f = _val(e, "margin-bottom", "0") == "auto"
+        it.mi = _px(e, "margin-top", ancho)
+        it.mf = _px(e, "margin-bottom", ancho)
+        it.bp = _borde(e, "top") + _borde(e, "bottom") + _px(e, "padding-top", ancho) + _px(e, "padding-bottom", ancho)
+    end
+    if it.auto_i
+        it.mi = 0
+    end
+    if it.auto_f
+        it.mf = 0
+    end
+    prop = "width"
+    cien = ancho
+    if not fila
+        prop = "height"
+        cien = alto_fijo
+    end
+    base = _flex_tam(e, "flex-basis", cien, it.bp)
+    if base < 0 and _val(e, "flex-basis", "auto") == "auto"
+        base = _flex_tam(e, prop, cien, it.bp)
+    end
+    if base < 0
+        # el contenido
+        if fila
+            base = _ancho_flotante(m, it.nodo, FLEX_GRANDE) - it.mi - it.mf - it.bp
+        else
+            it.ancho_usado = _flex_ancho_columna(m, it, ancho, estirar)
+            base = _flex_maquetar(m, it, it.ancho_usado, ancho, -1, -1) - it.mi - it.mf - it.bp
+            it.medido = base
+        end
+    end
+    if base < 0
+        base = 0
+    end
+    it.base = base
+    it.maximo = _flex_tam(e, "max-" + prop, cien, it.bp)
+    minimo = _flex_tam(e, "min-" + prop, cien, it.bp)
+    if minimo < 0
+        minimo = 0
+        # mínimo automático (4.5): en filas, lo menos que ocupa su contenido (sin pasar de su width)
+        if fila and _val(e, "overflow", "visible") == "visible"
+            minimo = -2
+        end
+    end
+    it.minimo = minimo
+    if it.minimo != -2
+        it.hip = _flex_limitar(it, base)
+    else
+        it.hip = base
+        if it.maximo >= 0 and it.hip > it.maximo
+            it.hip = it.maximo
+        end
+    end
+end
+
+# El mínimo automático de una fila, cuando hace falta (encoger): el contenido más estrecho posible
+func _flex_minimo(m: Maquetador, it: FlexHijo)
+    if it.minimo != -2
+        return
+    end
+    minimo = _ancho_flotante(m, it.nodo, 1) - it.mi - it.mf - it.bp
+    puesto = _flex_tam(it.nodo.estilo, "width", -1, it.bp)
+    if puesto >= 0 and puesto < minimo
+        minimo = puesto
+    end
+    if it.maximo >= 0 and minimo > it.maximo
+        minimo = it.maximo
+    end
+    if minimo < 0
+        minimo = 0
+    end
+    it.minimo = minimo
+end
+
+# Columnas: el ancho exterior del elemento (stretch con width auto: todo; si no, lo que pide, sin pasarse)
+func _flex_ancho_columna(m: Maquetador, it: FlexHijo, ancho: Int, estirar: Bool) -> Int
+    if estirar and _val(it.nodo.estilo, "width", "auto") == "auto"
+        return ancho
+    end
+    w = _ancho_flotante(m, it.nodo, ancho)
+    if w > ancho
+        w = ancho
+    end
+    return w
+end
+
+func _flex_alineacion(n: Nodo, contenedor: {String: String}) -> String
+    a = _val(n.estilo, "align-self", "auto")
+    if a == "auto"
+        a = _val(contenedor, "align-items", "stretch")
+    end
+    if a == "normal"
+        a = "stretch"
+    end
+    return a
+end
+
+# Reparte el espacio libre de una línea (9.7): meta de cada elemento
+func _flex_resolver(m: Maquetador, items: [FlexHijo], ini: Int, fin: Int, principal: Int, gap: Int)
+    usado = gap * (fin - ini - 1)
+    for i in (ini..fin - 1)
+        it = items[i]
+        usado = usado + it.hip + it.bp + it.mi + it.mf
+    end
+    crecer = usado < principal
+    for i in (ini..fin - 1)
+        it = items[i]
+        if not crecer
+            _flex_minimo(m, it)
+            it.hip = _flex_limitar(it, it.base)
+        end
+        it.meta = it.hip
+        it.congelado = false
+        factor = it.encoger
+        if crecer
+            factor = it.crecer
+        end
+        if factor == 0 or (crecer and it.base > it.hip) or (not crecer and it.base < it.hip)
+            it.congelado = true
+        end
+    end
+    vueltas = 0
+    while vueltas < 20
+        vueltas = vueltas + 1
+        libre = principal - gap * (fin - ini - 1)
+        suma = 0
+        quedan = 0
+        for i in (ini..fin - 1)
+            it = items[i]
+            if it.congelado
+                libre = libre - it.meta - it.bp - it.mi - it.mf
+            else
+                libre = libre - it.base - it.bp - it.mi - it.mf
+                quedan = quedan + 1
+                if crecer
+                    suma = suma + it.crecer
+                else
+                    suma = suma + it.encoger / 10 * it.base
+                end
+            end
+        end
+        if quedan == 0
+            break
+        end
+        # con flex-grow que suman menos de 1, solo esa parte del espacio libre
+        if crecer and suma < 1000
+            libre = libre * suma / 1000
+        end
+        violacion = 0
+        for i in (ini..fin - 1)
+            it = items[i]
+            if not it.congelado
+                v = it.base
+                if crecer and libre > 0 and suma > 0
+                    v = it.base + libre * it.crecer / suma
+                elif not crecer and libre < 0 and suma > 0
+                    v = it.base + libre * (it.encoger / 10 * it.base) / suma
+                end
+                limitado = _flex_limitar(it, v)
+                violacion = violacion + limitado - v
+                it.meta = v
+            end
+        end
+        # se congelan todos (sin violación), los que se quedaron cortos (positiva) o los que se pasaron (negativa)
+        for i in (ini..fin - 1)
+            it = items[i]
+            if not it.congelado
+                limitado = _flex_limitar(it, it.meta)
+                if violacion == 0 or (violacion > 0 and limitado > it.meta) or (violacion < 0 and limitado < it.meta)
+                    it.meta = limitado
+                    it.congelado = true
+                end
+            end
+        end
+    end
+end
+
+# Coloca el contenido flex de n en (x, y) con ese ancho; alto_fijo: el alto de su contenido si está fijado (o -1).
+# Devuelve el alto del contenido.
+func _flex(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, alto_fijo: Int) -> Int
+    e = n.estilo
+    dir = _val(e, "flex-direction", "row")
+    fila = dir == "row" or dir == "row-reverse"
+    inverso = str_ends(dir, "-reverse")
+    envolver = _val(e, "flex-wrap", "nowrap") != "nowrap"
+    gap_fila = 0
+    gap_col = 0
+    if _val(e, "row-gap", "normal") != "normal"
+        gap_fila = _px(e, "row-gap", ancho)
+    end
+    if _val(e, "column-gap", "normal") != "normal"
+        gap_col = _px(e, "column-gap", ancho)
+    end
+    gap = gap_fila
+    gap_c = gap_col
+    principal = alto_fijo
+    if fila
+        gap = gap_col
+        gap_c = gap_fila
+        principal = ancho
+    end
+    var items: [FlexHijo] = []
+    for h in _flex_hijos(n)
+        it = FlexHijo(h)
+        _flex_base(m, it, fila, ancho, alto_fijo, _flex_alineacion(h, e) == "stretch")
+        items.push(it)
+    end
+    if items.length == 0
+        return 0
+    end
+    # líneas
+    var lineas: [FlexLinea] = []
+    ini = 0
+    usado = 0
+    for i in (0..items.length - 1)
+        it = items[i]
+        ext = it.hip + it.bp + it.mi + it.mf
+        if envolver and principal >= 0 and i > ini and usado + gap + ext > principal
+            lineas.push(FlexLinea(ini, i))
+            ini = i
+            usado = 0
+        end
+        if i > ini
+            usado = usado + gap
+        end
+        usado = usado + ext
+        it.linea = lineas.length
+    end
+    lineas.push(FlexLinea(ini, items.length))
+    # tamaño principal de cada uno
+    for l in lineas
+        if principal >= 0
+            _flex_resolver(m, items, l.ini, l.fin, principal, gap)
+        else
+            for i in (l.ini..l.fin - 1)
+                items[i].meta = _flex_limitar(items[i], items[i].hip)
+            end
+        end
+    end
+    # maquetados a su tamaño principal: su tamaño cruzado
+    for it in items
+        if fila
+            it.cruz = _flex_maquetar(m, it, it.meta + it.bp + it.mi + it.mf, ancho, it.meta, -1)
+        else
+            if it.ancho_usado == 0
+                it.ancho_usado = _flex_ancho_columna(m, it, ancho, _flex_alineacion(it.nodo, e) == "stretch")
+            end
+            if it.medido != it.meta
+                _flex_maquetar(m, it, it.ancho_usado, ancho, -1, it.meta)
+                it.medido = it.meta
+            end
+            it.cruz = it.ancho_usado
+        end
+    end
+    # tamaño cruzado de cada línea
+    cruz_fija = -1
+    if fila
+        cruz_fija = alto_fijo
+    else
+        cruz_fija = ancho
+    end
+    total_cruz = 0
+    for l in lineas
+        c = 0
+        for i in (l.ini..l.fin - 1)
+            if items[i].cruz > c
+                c = items[i].cruz
+            end
+        end
+        if lineas.length == 1 and cruz_fija >= 0
+            c = cruz_fija
+        end
+        l.cruz = c
+        total_cruz = total_cruz + c
+    end
+    total_cruz = total_cruz + gap_c * (lineas.length - 1)
+    # align-content (varias líneas, con el tamaño cruzado del contenedor fijado)
+    inicio_c = 0
+    entre_c = gap_c
+    if lineas.length > 1 and cruz_fija >= 0
+        libre_c = cruz_fija - total_cruz
+        ac = _val(e, "align-content", "normal")
+        if (ac == "normal" or ac == "stretch") and libre_c > 0
+            extra = libre_c / lineas.length
+            for l in lineas
+                l.cruz = l.cruz + extra
+            end
+        elif ac == "center"
+            inicio_c = libre_c / 2
+        elif ac == "flex-end" or ac == "end"
+            inicio_c = libre_c
+        elif ac == "space-between" and libre_c > 0
+            entre_c = gap_c + libre_c / (lineas.length - 1)
+        elif ac == "space-around" and libre_c > 0
+            inicio_c = libre_c / (lineas.length * 2)
+            entre_c = gap_c + libre_c / lineas.length
+        elif ac == "space-evenly" and libre_c > 0
+            inicio_c = libre_c / (lineas.length + 1)
+            entre_c = gap_c + libre_c / (lineas.length + 1)
+        end
+    end
+    pos_c = inicio_c
+    for l in lineas
+        l.pos = pos_c
+        pos_c = pos_c + l.cruz + entre_c
+    end
+    # stretch: con el tamaño cruzado de su línea
+    for it in items
+        l = lineas[it.linea]
+        ne = it.nodo.estilo
+        if _flex_alineacion(it.nodo, e) != "stretch"
+            continue
+        end
+        if fila
+            if _val(ne, "height", "auto") == "auto" and _val(ne, "margin-top", "0") != "auto" and _val(ne, "margin-bottom", "0") != "auto" and it.cruz != l.cruz
+                mv = _px(ne, "margin-top", ancho) + _px(ne, "margin-bottom", ancho)
+                bpv = _borde(ne, "top") + _borde(ne, "bottom") + _px(ne, "padding-top", ancho) + _px(ne, "padding-bottom", ancho)
+                h = l.cruz - mv - bpv
+                if h >= 0
+                    it.cruz = _flex_maquetar(m, it, it.meta + it.bp + it.mi + it.mf, ancho, it.meta, h)
+                end
+            end
+        else
+            if _val(ne, "width", "auto") == "auto" and _val(ne, "margin-left", "0") != "auto" and _val(ne, "margin-right", "0") != "auto" and it.ancho_usado != l.cruz
+                it.ancho_usado = l.cruz
+                _flex_maquetar(m, it, it.ancho_usado, ancho, -1, it.meta)
+                it.cruz = it.ancho_usado
+            end
+        end
+    end
+    # eje principal: márgenes auto y justify-content, línea a línea
+    tam_principal = principal
+    if tam_principal < 0
+        tam_principal = 0
+        for l in lineas
+            u = gap * (l.fin - l.ini - 1)
+            for i in (l.ini..l.fin - 1)
+                u = u + items[i].meta + items[i].bp + items[i].mi + items[i].mf
+            end
+            if u > tam_principal
+                tam_principal = u
+            end
+        end
+    end
+    jc = _val(e, "justify-content", "normal")
+    for l in lineas
+        cuantos = l.fin - l.ini
+        u = gap * (cuantos - 1)
+        autos = 0
+        for i in (l.ini..l.fin - 1)
+            it = items[i]
+            u = u + it.meta + it.bp + it.mi + it.mf
+            if it.auto_i
+                autos = autos + 1
+            end
+            if it.auto_f
+                autos = autos + 1
+            end
+        end
+        libre = tam_principal - u
+        por_auto = 0
+        if autos > 0 and libre > 0
+            por_auto = libre / autos
+            libre = 0
+        end
+        inicio = 0
+        entre = gap
+        if jc == "flex-end" or jc == "end" or jc == "right"
+            inicio = libre
+        elif jc == "center"
+            inicio = libre / 2
+        elif jc == "space-between"
+            if libre > 0 and cuantos > 1
+                entre = gap + libre / (cuantos - 1)
+            end
+        elif jc == "space-around"
+            if libre > 0
+                inicio = libre / (cuantos * 2)
+                entre = gap + libre / cuantos
+            else
+                inicio = libre / 2
+            end
+        elif jc == "space-evenly"
+            if libre > 0
+                inicio = libre / (cuantos + 1)
+                entre = gap + libre / (cuantos + 1)
+            else
+                inicio = libre / 2
+            end
+        end
+        p = inicio
+        for i in (l.ini..l.fin - 1)
+            it = items[i]
+            if it.auto_i
+                p = p + por_auto
+            end
+            it.pos = p
+            p = p + it.meta + it.bp + it.mi + it.mf
+            if it.auto_f
+                p = p + por_auto
+            end
+            p = p + entre
+            if inverso
+                it.pos = tam_principal - it.pos - (it.meta + it.bp + it.mi + it.mf)
+            end
+            # eje cruzado dentro de la línea
+            a = _flex_alineacion(it.nodo, e)
+            it.pos_cruz = l.pos
+            if a == "flex-end" or a == "end" or a == "self-end"
+                it.pos_cruz = l.pos + l.cruz - it.cruz
+            elif a == "center"
+                it.pos_cruz = l.pos + (l.cruz - it.cruz) / 2
+            end
+        end
+    end
+    # a su sitio
+    for it in items
+        dx = x + it.pos
+        dy = y + it.pos_cruz
+        if not fila
+            dx = x + it.pos_cruz
+            dy = y + it.pos
+        end
+        for d in it.dibujos
+            d.x = d.x + dx
+            d.y = d.y + dy
+            m.pagina.dibujos.push(d)
+        end
+    end
+    if fila
+        return total_cruz
+    end
+    return tam_principal
+end

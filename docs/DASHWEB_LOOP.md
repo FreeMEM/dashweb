@@ -340,6 +340,28 @@ tarea, con el estilo de Dash.
       TextDecoder (UTF-8) en jsdom; luego, lo siguiente que pida esa página.
 - [x] 28l. **Repintar menos (el usuario, 2026-10-17: "todo se re-renderiza varias veces").** Imágenes que llegan
       pintadas juntas; doble búfer en la zona de dibujo (D48, encargada).
+- [~] 31. **CSS de verdad, módulo a módulo (decisión del usuario, 2026-10-17).** Hasta ahora el motor es general (nada
+      a medida de una web), pero se iba completando con lo que pedía freemem.space, y otras webs se ven mal. Ahora,
+      cada módulo de CSS entero según su especificación, con sus tests (páginas propias en tests/pages), y
+      comprobado a mano contra Chrome (capturas al mismo ancho, tools/comparar_chrome.py) en la lista de webs de
+      abajo. Orden:
+      [x] 31a. Herramienta de comparación: captura de Chrome (headless, ancho de la zona de dibujo de dashweb en la
+           máquina RTG) y de dashweb, una al lado de la otra, para una web o la lista entera. Solo a mano (no en la
+           batería: son webs de terceros).
+      [x] 31b. Flexbox (CSS Flexible Box Layout 1): flex-direction, flex-wrap, flex-grow/shrink/basis, justify-content,
+           align-items/self/content, order, gap, márgenes auto, inline-flex, mínimos automáticos.
+      31c. calc(), min(), max(), clamp() y las unidades que faltan (vw, vh, vmin, vmax, ch, ex; rem y em en todo).
+      31d. Grid (CSS Grid 1): grid-template-columns/rows (fr, repeat, minmax, auto-fill/fit), áreas, gap, colocación
+           automática y explícita, alineación.
+      31e. Apilado y recorte: z-index (contextos de apilado), overflow (hidden, auto, scroll: recorte), position
+           sticky.
+      31f. border-radius de verdad (esquinas redondeadas con su radio, también en fondos e imágenes), box-shadow.
+      31g. vertical-align, tablas completas (colspan/rowspan, anchos automáticos), aspect-ratio, object-fit.
+      31h. @font-face (fuentes de la web: woff/woff2/ttf) y font-weight/style reales.
+      Webs de prueba (del usuario): https://trainalong.fit/ https://meneame.net https://xataka.com
+      https://dpms.freemem.space https://commodoremalacca.club https://www.muylinux.com/ https://amigaworld.net/
+      https://www.ami64.com/ https://amigastore.eu/es/ https://aminet.net/ https://amiga.abime.net/
+      https://amigang.com/community/ y https://freemem.space.
 - [ ] 28j. **Next.js sin agotar la memoria.** Con ReadableStream (escrita en el preludio como
       __dashweb_ReadableStream, sin poner), el JavaScript de commodoremalacca.club sigue (React montando la página) y
       deja el Amiga sin memoria (malloc falla: no es QuickJS, que ya tiene tope de 48 MB) y dashweb se cierra; salen
@@ -1568,3 +1590,25 @@ Formato:
 - Base: 37/37.
 - 28j (en marcha, sin resultados): con ReadableStream puesta y avisos de memoria cada 3 s, el emulador se quedó
   colgado sin escribir nada (la salida se pierde): habrá que mirarlo con el disco guardado o capturas.
+
+### 2026-10-17 — Tareas 31a y 31b (comparar con Chrome; flexbox)
+- El usuario preguntó si el motor de XHTML/CSS se estaba haciendo completo o solo para freemem.space. Revisado:
+  no hay nada a medida de una web, pero se completaba con lo que pedía freemem.space y faltaban módulos enteros
+  (flexbox y grid se trataban como bloques, sin calc, z-index, overflow, border-radius de verdad, @font-face...).
+  Decisión del usuario: tarea 31, módulo a módulo según su especificación, con su lista de 13 webs.
+- 31a: `tools/comparar_chrome.py` (y `tools/webs_prueba.txt`): Chrome sin ventana (google-chrome-stable
+  --headless) a 940x614, el tamaño de la zona de la página de dashweb en la máquina RTG, y dashweb en esa máquina
+  (recortado a su página), juntas en una imagen. Solo a mano.
+- 31b: flexbox en `lib/maqueta.dash` (`_flex`), según CSS Flexible Box Layout 1: elementos flex (texto suelto y
+  reemplazados en cajas anónimas, order), tamaño base (flex-basis, width/height, contenido) e hipotético con
+  min/max y el mínimo automático, líneas (flex-wrap), espacio libre con flex-grow/flex-shrink congelando a los que
+  violan sus límites (9.7, también con flex-grow que suman menos de 1), tamaño cruzado de las líneas, align-content,
+  stretch (vuelve a maquetar con el alto de la línea), justify-content (con space-*) y márgenes auto, align-self,
+  gap, row/column y -reverse. Cada elemento se maqueta una vez en 0,0 y sus dibujos se mueven a su sitio (solo el
+  estirado lo vuelve a maquetar). Atajos en la cascada: flex, flex-flow, gap, grid-gap.
+- Test `test_maqueta_flex`: 31 cajas en 13 casos, todas como dice la especificación a la primera.
+- D48 (doble búfer, rama `dobleb`, ya en `dashweb`): la página de dashweb se pinta aparte y llega de una vez
+  (`mui_canvas_buffered`): ya no se ve redibujarse. Probado en la máquina RTG con freemem.space.
+- D49 encargado (fallo de Dash): una variable con el [String] que devuelve una función perdía el tipo de sus
+  elementos en un for (en `_flex_atajo`, rodeado con `var partes: [String]`). Arreglado en la rama `tipolista`.
+- Base: 38/38.
