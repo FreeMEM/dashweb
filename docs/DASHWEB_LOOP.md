@@ -2306,3 +2306,15 @@ Formato:
   llegado, sin esperar al cuerpo; dashweb lo mira mientras recibe y, si es una descarga, corta la carga y la
   empieza directamente al fichero. Caso nuevo en test_http_carga (/lento: las cabeceras antes de acabar).
 - Pendiente: "Guardar la página" en el menú.
+
+### 2026-10-18 — Cierre al 89 % de uso
+- Base de lo publicado (572c407, con D54/D55 y la rama pixguard de Dash sin su macro): 56/56. Paquete rehecho en
+  ~/Amiberry/LHA.
+- D56: la otra sesión dejó zonas de guarda en los búferes de píxeles de Dash (rama pixguard, e197b1d; se encienden
+  con DASH_CFLAGS=-D_DASH_PIXGUARD) y revisó sin encontrar fallo _dash_rgb_draw_native, _dash_blend_block,
+  image_from_rgb directo, _dash_img_mask, el TmpRas y el lienzo con doble búfer. Según ella, la basura
+  (0xebfffbed...) no casa con #f5f9f8 en R5G6B5: es casi todo unos con ceros sueltos, como una máscara de 1 bit
+  de una imagen casi opaca o un plano de bits. Lanzada una caza con PIXGUARD y Hubbub (scratchpad, caza "pix_").
+- Para seguir: si sale "PIXGUARD <búfer>", es ese búfer de Dash; si el var_refs roto sale con 0xDEADBEEF, QuickJS
+  usa memoria que Dash soltó; si no sale nada, mirar las escrituras de Picasso96 en bitmaps o QuickJS.
+- Pendiente del usuario: publicar la alfa v0.1.0-alfa y si se quedan bloqueados los scripts de rastreo.
