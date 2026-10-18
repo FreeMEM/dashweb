@@ -409,3 +409,12 @@ func url_rastreador(direccion: String) -> Bool
     end
     return false
 end
+
+# Un nombre de fichero que valga en el Amiga: los %XX deshechos y sin ":" ni "/" (como mucho 100 caracteres)
+func url_fichero_nombre(n: String) -> String
+    t = str_replace(str_replace(_url_deshacer(n), ":", "_"), "/", "_")
+    if t.length > 100
+        t = t[t.length - 100:]
+    end
+    return t
+end

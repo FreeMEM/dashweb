@@ -2290,3 +2290,16 @@ Formato:
   máscaras) y poner zonas de guarda en sus búferes. Los parches para reproducirlo (Hubbub en documento.dash y la
   instrumentación de QuickJS) están en el scratchpad de esta sesión, no en el repositorio.
 - Hasta entonces: el bloqueo de rastreo sigue encendido y documento.dash con el analizador viejo (0 de 46).
+
+### 2026-10-18 — Tarea 35c (descargas)
+- Lo que no es una página se guarda: `documento_es_descarga` (lo que no es text/*, image/*, video/* ni XHTML,
+  XML, JSON, JavaScript o RSS; o Content-Disposition: attachment; sin Content-Type, por la extensión: .lha, .lzx,
+  .zip, .adf, .dms, .pdf...) y `documento_nombre_descarga` (el filename de Content-Disposition o lo último de la
+  dirección; `url_fichero_nombre` deshace los %XX y cambia ":" y "/"). dashweb pregunta dónde con el selector de
+  ficheros del sistema (dialog_file, para guardar; si se elige un cajón, el nombre de la dirección) y lo baja tal
+  cual a ese fichero sin esperar (`http_empezar_a_fichero`, con lo bajado en la barra de estado); la página que
+  había se queda. La primera respuesta llegó como texto (los bytes 0 cambian): se pide otra vez.
+- Casos nuevos en test_documento_tipo. Sin probar a mano (el selector necesita a alguien delante).
+- Dash: dejó hacer `a = Respuesta(...)` con `a` ya Bool en el mismo Main (el test daba un resultado raro, sin
+  error al compilar). Apuntado para la otra sesión.
+- Pendiente: no bajar dos veces (mirar las cabeceras en cuanto llegan) y "Guardar la página" en el menú.

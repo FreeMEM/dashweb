@@ -69,6 +69,8 @@ struct Ventana
     con_atras: Bool = false     # los iconos de atrás y adelante, encendidos o apagados
     con_adelante: Bool = false
     empezada: Int = 0        # time_ms de cuando se pidió la página (para medir la carga entera)
+    descarga: Carga = nil    # algo que se está guardando en un fichero (un .lha, un .zip...)
+    descarga_ruta: String = ""
 end
 
 var dw_ventanas: [Ventana] = []
@@ -203,7 +205,7 @@ end
 # Mueve el indicador si algo está llegando (página, hojas, scripts, imágenes); si no, lo para
 func actualizar_giro(w: Ventana)
     nuevo = -1
-    if w.carga != nil or w.preparando != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
+    if w.carga != nil or w.preparando != nil or w.descarga != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
         nuevo = 0
     end
     if nuevo != w.giro
@@ -368,6 +370,10 @@ func avanzar_carga(w: Ventana)
         c = w.carga
         var nada: Carga = nil
         w.carga = nada
+        if documento_es_descarga(c.respuesta)
+            empezar_descarga(w, c.respuesta)
+            return
+        end
         mui_set_value(w.v.progreso, 90)
         dw_estado(w, "Trayendo hojas de estilo y scripts...")
         vista(w)
@@ -385,6 +391,57 @@ func avanzar_carga(w: Ventana)
     w.preparando = ninguno
     modo_carga(w, false)
     mostrar(w, d, w.carga_dir)
+end
+
+# Lo que no es una página se guarda: el selector de ficheros y luego se baja tal cual a ese fichero (la primera
+# respuesta llegó como texto, que cambia los bytes 0: se pide otra vez); la página de antes se queda
+func empezar_descarga(w: Ventana, r: Respuesta)
+    modo_carga(w, false)
+    mui_set_value(w.v.progreso, 0)
+    nombre = documento_nombre_descarga(r)
+    direccion = r.url
+    if direccion == ""
+        direccion = w.carga_dir
+    end
+    if w.actual != nil
+        mui_set_text(w.v.url, w.actual.direccion)
+    end
+    ruta = dialog_file("Guardar " + nombre + " (escribe el nombre)", "#?", true)
+    if ruta == ""
+        dw_estado(w, "Descarga cancelada: " + nombre)
+        actualizar_giro(w)
+        return
+    end
+    if str_ends(ruta, ":") or str_ends(ruta, "/")
+        ruta = ruta + nombre
+    end
+    if w.descarga != nil
+        http_cancelar(w.descarga)
+    end
+    w.descarga = http_empezar_a_fichero(direccion, ruta, 30000)
+    w.descarga_ruta = ruta
+    dw_estado(w, "Bajando " + nombre + " a " + ruta + "...")
+    actualizar_giro(w)
+    programar()
+end
+
+func avanzar_descarga(w: Ventana)
+    if w.descarga == nil
+        return
+    end
+    if not http_avanzar(w.descarga)
+        dw_estado(w, "Bajando a " + w.descarga_ruta + ": " + http_recibidos(w.descarga) / 1024 + " KB")
+        return
+    end
+    r = w.descarga.respuesta
+    if r.error == "" and r.estado >= 200 and r.estado < 300
+        dw_estado(w, "Guardado en " + w.descarga_ruta + " (" + r.bytes / 1024 + " KB)")
+    else
+        dw_estado(w, "No se pudo guardar " + w.descarga_ruta + ": " + r.error + " " + r.estado)
+    end
+    var nada: Carga = nil
+    w.descarga = nada
+    actualizar_giro(w)
 end
 
 # Para lo que esté llegando (la página o sus recursos)
@@ -455,7 +512,7 @@ func programar()
                     espera = e
                 end
             end
-            trayendo = w.carga != nil or w.preparando != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
+            trayendo = w.carga != nil or w.preparando != nil or w.descarga != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
             if trayendo and (espera < 0 or espera > 50)
                 espera = 50
             end
@@ -497,6 +554,7 @@ end
 # Un tic: cargas, imágenes y temporizadores de una ventana
 func tic(w: Ventana)
     avanzar_carga(w)
+    avanzar_descarga(w)
     if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
         ajustar_barra(w)
         mui_canvas_redraw(w.v.pagina)

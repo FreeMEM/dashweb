@@ -149,6 +149,69 @@ func _documento_de_tipo(r: Respuesta) -> String
     return http_texto(r)
 end
 
+# ¿Es algo para guardar y no para ver? Lo que no es texto, imagen ni vídeo (un .lha, un .zip, un PDF...), o lo
+# que el servidor manda como adjunto (Content-Disposition: attachment)
+func documento_es_descarga(r: Respuesta) -> Bool
+    if r.estado < 200 or r.estado >= 300
+        return false
+    end
+    if r.cabeceras.has("content-disposition") and str_find(str_lower(r.cabeceras["content-disposition"]), "attachment") >= 0
+        return true
+    end
+    t = str_lower(r.tipo)
+    if t == ""
+        n = str_lower(documento_nombre_descarga(r))
+        for e in [".lha", ".lzh", ".lzx", ".zip", ".adf", ".dms", ".gz", ".tgz", ".tar", ".7z", ".exe", ".pdf", ".mod", ".mp3", ".iso", ".hdf"]
+            if str_ends(n, e)
+                return true
+            end
+        end
+        return false
+    end
+    if str_starts(t, "text/") or str_starts(t, "image/") or str_starts(t, "video/")
+        return false
+    end
+    for v in ["application/xhtml+xml", "application/xml", "application/javascript", "application/json", "application/rss+xml", "application/atom+xml"]
+        if t == v
+            return false
+        end
+    end
+    return true
+end
+
+# El nombre con que guardarlo: el filename de Content-Disposition, o lo último de la dirección (sin ?...)
+func documento_nombre_descarga(r: Respuesta) -> String
+    if r.cabeceras.has("content-disposition")
+        cd = r.cabeceras["content-disposition"]
+        p = str_find(str_lower(cd), "filename=")
+        if p >= 0
+            n = str_trim(cd[p + 9:])
+            fin = str_find(n, ";")
+            if fin >= 0
+                n = n[:fin]
+            end
+            n = str_trim(str_replace(n, "\"", ""))
+            if n != ""
+                return url_fichero_nombre(n)
+            end
+        end
+    end
+    u = r.url
+    q = str_find(u, "?")
+    if q >= 0
+        u = u[:q]
+    end
+    i = u.length - 1
+    while i >= 0 and str_code(u, i) != 47
+        i = i - 1
+    end
+    n = u[i + 1:]
+    if n == ""
+        return "descarga"
+    end
+    return url_fichero_nombre(n)
+end
+
 func documento_avanzar(d: Documento) -> Bool
     if d.recursos == nil
         return true

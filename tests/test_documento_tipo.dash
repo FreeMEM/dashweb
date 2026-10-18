@@ -6,6 +6,7 @@
 # expect-out: html: true
 # expect-out: visibles: true false true
 # expect-out: iconos: true true true false
+# expect-out: descargas: true false false true true false | dashweb.lha guia_amiga.pdf a_b.zip descarga
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -38,4 +39,13 @@ Main
     c = documento_imagenes_visibles(d3, 0, 400)
     Print "visibles: " + a + " " + b + " " + c
     Print "iconos: " + imagenes_fuente_de_iconos("Font Awesome 6 Free") + " " + imagenes_fuente_de_iconos("dashicons") + " " + imagenes_fuente_de_iconos("Material Icons") + " " + imagenes_fuente_de_iconos("Inter")
+    var cab: {String: String} = {}
+    z = Respuesta(200, "OK", cab, "", "http://x/files/dashweb.lha", "application/octet-stream", "", "", 0)
+    h = Respuesta(200, "OK", cab, "", "http://x/", "text/html", "", "", 0)
+    j = Respuesta(200, "OK", cab, "", "http://x/a.json", "application/json", "", "", 0)
+    var cab2: {String: String} = {"content-disposition": "attachment; filename=\"guia_amiga.pdf\""}
+    adj = Respuesta(200, "OK", cab2, "", "http://x/bajar?id=3", "text/html", "", "", 0)
+    s2 = Respuesta(200, "OK", cab, "", "http://x/a%3Ab.zip", "", "", "", 0)
+    n = Respuesta(404, "Not Found", cab, "", "http://x/no.lha", "application/octet-stream", "", "", 0)
+    Print "descargas: " + documento_es_descarga(z) + " " + documento_es_descarga(h) + " " + documento_es_descarga(j) + " " + documento_es_descarga(adj) + " " + documento_es_descarga(s2) + " " + documento_es_descarga(n) + " | " + documento_nombre_descarga(z) + " " + documento_nombre_descarga(adj) + " " + documento_nombre_descarga(s2) + " " + documento_nombre_descarga(h)
 end
