@@ -2341,3 +2341,16 @@ Formato:
   polígono (ni el punto del indicador), con Hubbub, falla 2 de 30. La basura cambia de una vez a otra (máscaras,
   atoms imposibles): encaja con un objeto de QuickJS liberado mientras algo aún lo apunta, cuya memoria reutiliza
   luego otro (Hubbub, o antes el camino viejo de las imágenes). Siguiente: cuarentena de bloques liberados.
+- Cuarentena (en `_JS_GUARDAS`: lo que libera QuickJS se rellena de 0xDB y no vuelve a malloc hasta pasar de
+  12 MB, los más viejos primero), con Hubbub: 0 de 30 cargas (sin ella, ~1 de cada 6: saldrían limpias 30 seguidas
+  4 de cada 1000 veces). Y QuickJS no tocó ningún bloque en cuarentena (habría saltado con cuentas 0xDBDBDBDB).
+  Conclusión: no es QuickJS usando memoria suya ya liberada, sino otro que escribe en memoria que él soltó
+  cuando ya es de QuickJS (si QuickJS no reutiliza enseguida, el que escribe cae en memoria de nadie). Quién: algo
+  del proceso principal o de los procesos de las imágenes que libere un búfer y siga escribiendo en él; libnix
+  (malloc/free/realloc con semáforo, revisado) parece bien. Ojo: AllocVec y los bloques grandes de libnix
+  (AllocMem de __MEMORY_STEP) salen de la misma memoria del sistema: un búfer de AllocVec liberado puede acabar
+  dentro de un bloque de malloc de QuickJS.
+- Arreglo provisional posible: dejar la cuarentena encendida en dashweb (12 MB de memoria; el tiempo de
+  freemem.space no cambia: 21-22 s). No se ha hecho: esconde el fallo. Siguiente: buscar quién escribe tarde
+  (los procesos decodificadores al cancelar una página, las máscaras e imágenes que se liberan mientras se
+  pintan, los mapas de bits de las imágenes escaladas).

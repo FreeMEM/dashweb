@@ -91,6 +91,11 @@ static void *_jg_malloc(JSMallocState *s, size_t n) {
     s->malloc_size += n + 32;
     return c + 1;
 }
+/* the freed blocks wait here (filled with 0xDB) before going back to malloc: what still points at one sees 0xDB
+   (up to _JG_CUARENTENA bytes; the oldest go back first) */
+#define _JG_CUARENTENA (12L * 1024 * 1024)
+static _JgCab *_jg_cq_ini = NULL, *_jg_cq_fin = NULL;
+static ULONG _jg_cq_bytes = 0;
 static void _jg_free(JSMallocState *s, void *p) {
     _JgCab *c;
     if (!p) return;
@@ -100,9 +105,20 @@ static void _jg_free(JSMallocState *s, void *p) {
     if (c->sig) c->sig->ant = c->ant;
     s->malloc_count--;
     s->malloc_size -= c->n + 32;
-    c->magia = 0;
+    c->magia = 0xDEADDEADUL;
     memset(c + 1, 0xDB, c->n);
-    free(c);
+    c->sig = NULL;
+    c->ant = _jg_cq_fin;
+    if (_jg_cq_fin) _jg_cq_fin->sig = c; else _jg_cq_ini = c;
+    _jg_cq_fin = c;
+    _jg_cq_bytes += c->n + 32;
+    while (_jg_cq_bytes > _JG_CUARENTENA && _jg_cq_ini) {
+        _JgCab *v = _jg_cq_ini;
+        _jg_cq_ini = v->sig;
+        if (_jg_cq_ini) _jg_cq_ini->ant = NULL; else _jg_cq_fin = NULL;
+        _jg_cq_bytes -= v->n + 32;
+        free(v);
+    }
 }
 static void *_jg_realloc(JSMallocState *s, void *p, size_t n) {
     void *q;
