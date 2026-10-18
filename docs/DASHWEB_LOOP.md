@@ -2337,3 +2337,7 @@ Formato:
   arreglos posteriores del recolector o de WeakRef; (2) probar a quitar WeakRef/FinalizationRegistry del contexto
   (o no tocar weak refs en el preludio) y repetir la caza con Hubbub; (3) instrumentar free_object para guardar la
   dirección de los últimos objetos liberados y, al saltar el assert, ver si el "padre" está entre ellos.
+- Descartado el relleno de áreas (TmpRas de graphics.library): sin ningún gfx_circle_fill, gfx_ellipse_fill ni
+  polígono (ni el punto del indicador), con Hubbub, falla 2 de 30. La basura cambia de una vez a otra (máscaras,
+  atoms imposibles): encaja con un objeto de QuickJS liberado mientras algo aún lo apunta, cuya memoria reutiliza
+  luego otro (Hubbub, o antes el camino viejo de las imágenes). Siguiente: cuarentena de bloques liberados.
