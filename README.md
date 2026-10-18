@@ -6,18 +6,28 @@ interfaz **MUI 5**: XHTML, CSS, JavaScript moderno y HTTPS.
 Es también el banco de pruebas de Dash: un programa grande y exigente que obliga a hacer crecer el
 lenguaje, sus librerías y su rendimiento.
 
+**Descarga:** primera versión de prueba,
+[v0.1.0-alfa](https://github.com/FreeMEM/dashweb/releases/tag/v0.1.0-alfa) (`dashweb.lha`). Es una alfa:
+puede pararse en algunas páginas.
+
 ## Estado
 
 Fase A (sin MUI): `src/visor.dash` abre una página (fichero o URL http/https), la maqueta, la pinta en una
 ventana normal y ejecuta su JavaScript. Fase B (MUI 5): `src/dashweb.dash`, el navegador: barra de dirección,
 atrás/adelante, recargar, parar, historial desplegable, marcadores, página de inicio, hasta 4 ventanas, atajos de
-menú; las páginas llegan sin congelar la ventana (consulta DNS, conexión y negociación TLS incluidas, con un
+menú, descargas a disco, cookies (guardadas entre sesiones, se ven y se borran en `dashweb:cookies`), direcciones
+`file:///Volumen/ruta`; las páginas llegan sin congelar la ventana (consulta DNS, conexión y negociación TLS incluidas, con un
 indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, formularios (GET y POST). Plan y bitácora en
 [docs/DASHWEB_LOOP.md](docs/DASHWEB_LOOP.md), módulos en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
-- Red: TCP (`bsdsocket.library`), HTTP/1.1 (longitud, `chunked`, redirecciones, conexiones que se reutilizan) y
-  HTTPS con AmiSSL 5.
+- Red: TCP (`bsdsocket.library`), HTTP/1.1 (longitud, `chunked`, redirecciones, conexiones que se reutilizan,
+  respuestas comprimidas con gzip) y HTTPS con AmiSSL 5, que reanuda la sesión TLS de cada servidor.
+- Los scripts de rastreo y publicidad conocidos no se descargan (`URL_RASTREO_BLOQUEAR` en `lib/url.dash`):
+  la página va más rápida.
 - HTML tolerante (como los navegadores), árbol DOM, entidades, UTF-8 a Latin-1, atributos de presentación.
+  Ya está dentro el analizador HTML5 de NetSurf (Hubbub, `lib/html5.dash`), aún sin usar para las páginas:
+  con él aparece un fallo de memoria que viene de las fuentes vectoriales del Amiga (ver la bitácora).
+- Al cambiar el DOM desde JavaScript solo se recalcula el estilo de lo afectado.
 - CSS 2.1 y CSS3 por módulos, comparado con Chrome en 13 webs reales (`tools/comparar_chrome.py`): cascada con
   `@layer`, `@media` y `@supports`; Selectors 4 (`:is`, `:where`, `:has`, `:not` con listas); Flexbox, Grid y
   tablas automáticas; `calc()`, `min()`, `max()`, `clamp()` y vw/vh/rem/ch; posicionado (relative, absolute,
@@ -30,9 +40,9 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
 - Vídeo: `<video>` y los vídeos de YouTube (MintVID), que empiezan a verse mientras bajan, a pantalla completa.
 - JavaScript con QuickJS (ES2023+, con FPU) y `Math.*` de fdlibm: DOM (`getElementById`, `querySelector(All)`,
   `innerHTML`, crear y mover nodos...), eventos, `setTimeout`/`setInterval`, `TextEncoder`/`TextDecoder`. Faltan
-  muchas APIs del navegador (`fetch`, `XMLHttpRequest`...): es el bloque siguiente del plan.
+  muchas APIs del navegador (`fetch`, `XMLHttpRequest`...). `document.cookie` funciona.
 
-Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D50): textos
+Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D55): textos
 rápidos, listas y diccionarios con tipo, red, TLS, fuentes, imágenes, C de fuera (`@link`, `@c`), etc.
 
 ### Medidas (FS-UAE, 2026-10-16)
@@ -51,7 +61,8 @@ con las fuentes del Workbench (helvetica, times, courier).
 
 Memoria: 350 KB para prueba.html (con el motor JS, 330 KB para una página pequeña). El visor ocupa 1 MB y el
 navegador MUI 1,1 MB (casi todo QuickJS). En la configuración objetivo una página va en menos de medio segundo.
-En un A1200 el estilo y la maqueta son lo lento: `./dash --profile` (Dash D23) señala la cascada (`_estilo_nodo`,
+Una web real como freemem.space tarda unos 21 s entera (con sus imágenes y fuentes) en la configuración
+objetivo, en la red del emulador. En un A1200 el estilo y la maqueta son lo lento: `./dash --profile` (Dash D23) señala la cascada (`_estilo_nodo`,
 `_cumple_desde`: cada elemento prueba todos los selectores) y el corte en palabras (`_palabras`).
 
 Las primeras medidas del A1200 (tarea 17) eran el triple de lentas: el modo de pruebas de Dash (`--autoclose`)
@@ -96,5 +107,5 @@ tools/emu_qjs.py build/qjs-000/qjs tests/js "hello.js" "test_language.js"
 
 ## Licencia
 
-MIT (ver [LICENSE](LICENSE)). `third_party/quickjs` también es MIT; `third_party/fdlibm` lleva la licencia
-de Sun de cada fichero.
+MIT (ver [LICENSE](LICENSE)). `third_party/quickjs` y `third_party/hubbub` también son MIT; `third_party/fdlibm`
+lleva la licencia de Sun de cada fichero. Las demás librerías de `third_party` llevan la suya en su carpeta.
