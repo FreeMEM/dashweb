@@ -2253,3 +2253,28 @@ Formato:
 - freemem.space: entera en 20,7-22,3 s (sin bloqueo, 28,4-34,2 s). Tests: test_url, js y recursos, 6/6.
 - Ojo: en pantallas de paleta image_from_rgb sigue yendo por picture.datatype. Si allí aparece el mismo assert,
   ya se sabe dónde mirar.
+
+### 2026-10-18 — Tarea 36, Hubbub (hecho, pero aún sin usar para las páginas)
+- third_party/hubbub: libhubbub y libparserutils de NetSurf (MIT; versión en VERSION), con lo que generaba su
+  construcción ya hecho (entities.inc, aliases.inc, y en lugar de gperf, que no hay, la tabla de element-type
+  ordenada: ver su LEEME). tools/build_img.sh los mete en libimg.a (sin iconv, con NDEBUG, sin el optimizador de
+  bebbo: -fbbb=-); sus cabeceras quedan en build/img-lib/hubbub. libimg.a pasa de ~400 a 660 KB (solo cuenta en
+  los programas que importan lib/html5.dash).
+- lib/html5.dash: `dom_desde_html5(texto)` da el mismo tipo de árbol que dom_desde_html. Hubbub llama a funciones
+  de C nuestras (crear elemento, texto, comentario, doctype; añadir, insertar antes, quitar, clonar, mudar los
+  hijos, el padre, si tiene hijos, añadir atributos); el C guarda el árbol con números de nodo (los textos
+  seguidos se juntan, como espera Hubbub) y al acabar Dash lo copia a Nodos (de UTF-8 a Latin-1). Se le da el
+  texto ya en Latin-1 ("ISO-8859-1" fijo): lo de <meta charset> queda para cuando se le den los bytes tal cual.
+- Test nuevo `test_html5`: <b><i>x</b>z</i> reabre el i fuera del b, el texto suelto de una tabla sale delante,
+  un <p> cierra otro, entidades que el viejo no sabía (&hellip;, &rarr;, &amp sin punto y coma), html/head/body,
+  atributos sin comillas y el doctype.
+- Velocidad (A1200 emulado, la portada de freemem.space, 91 KB): el viejo 13,5 s y 2069 nodos; Hubbub 14,5 s y
+  2094 nodos (casi todo es crear los Nodos de Dash, igual en los dos). La batería entera con Hubbub en las
+  páginas (documento.dash y el visor): 56/56.
+- Pero con Hubbub en las páginas vuelve el assert del recolector de QuickJS en freemem.space: 3 de 26 cargas
+  (con el analizador viejo, 0 de 46 desde D54). Compilado en el PC con AddressSanitizer y UBSan (64 y 32 bits),
+  Hubbub y el puente no dan ningún error con esa página; sin el optimizador de bebbo, igual (1 de 14). Lo más
+  probable: el fallo de QuickJS o de jsdom no lo arregló D54, solo cambió cómo queda el montón de malloc (como
+  ahora Hubbub). Por eso documento.dash sigue con dom_desde_html hasta encontrarlo.
+- Siguiente: buscar ese fallo a fondo (un uso de memoria ya liberada que depende de lo que haya en el montón).
+  Idea: con Hubbub sale 1 de cada 9 cargas: sirve para reproducirlo; en el PC no se puede, porque jsdom es Dash.

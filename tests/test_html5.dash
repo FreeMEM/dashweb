@@ -1,0 +1,51 @@
+# Test: lib/html5.dash (tarea 36): el árbol de Hubbub. Lo que el analizador viejo hacía a ojo: etiquetas mal
+# anidadas (<b><i>x</b>y</i>: el i se reabre fuera del b), texto suelto dentro de una tabla (sale delante de ella),
+# un <p> que cierra otro, entidades que el viejo no sabía (&hellip; &rarr; y una sin punto y coma), html/head/body
+# implícitos y atributos sin comillas.
+# memcheck
+# expect-out: mal anidadas: <b>x<i>y</i></b><i>z</i>
+# expect-out: tabla: suelto|<table><tbody><tr><td>c</td></tr></tbody></table>
+# expect-out: p: <p>uno</p><p>dos</p>
+# expect-out: entidades: a...b -> c & d
+# expect-out: html head body: html head body | id=x clase=y z
+# expect-out: doctype: html
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/html5.dash"
+
+func html_de(n: Nodo) -> String
+    r = ""
+    for h in n.hijos
+        if h.tipo == DOM_TEXTO
+            r = r + h.texto
+        elif h.tipo == DOM_ELEMENTO
+            r = r + "<" + h.nombre + ">" + html_de(h) + "</" + h.nombre + ">"
+        end
+    end
+    return r
+end
+
+func cuerpo(html: String) -> String
+    d = dom_desde_html5(html)
+    return html_de(dom_buscar(d, "body"))
+end
+
+Main
+    Print "mal anidadas: " + cuerpo("<b>x<i>y</b>z</i>")
+    t = cuerpo("<table>suelto<tr><td>c</td></tr></table>")
+    Print "tabla: " + str_replace(t, "<table>", "|<table>")
+    Print "p: " + cuerpo("<p>uno<p>dos")
+    e = cuerpo("a&hellip;b &rarr; c &amp d")
+    Print "entidades: " + str_replace(str_replace(e, str_char(133), "..."), str_char(63) + " ", "-> ")
+    d = dom_desde_html5("<!DOCTYPE html><title>t</title><div id=x class='y z'>a</div>")
+    nombres = ""
+    for h in d.hijos
+        nombres = nombres + h.nombre
+        for k in h.hijos
+            nombres = nombres + " " + k.nombre
+        end
+    end
+    div = dom_buscar(d, "div")
+    Print "html head body: " + nombres + " | id=" + dom_atributo(div, "id") + " clase=" + dom_atributo(div, "class")
+    Print "doctype: " + d.texto
+end
