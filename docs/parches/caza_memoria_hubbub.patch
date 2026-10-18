@@ -1,0 +1,161 @@
+diff --git a/lib/documento.dash b/lib/documento.dash
+index 0712a96..f2bae6c 100644
+--- a/lib/documento.dash
++++ b/lib/documento.dash
+@@ -15,6 +15,7 @@
+ import "pintor.dash"
+ import "jsdom.dash"
+ import "recursos.dash"
++import "html5.dash"
+ 
+ struct Documento
+     direccion: String
+@@ -103,7 +104,9 @@ func documento_empezar(direccion: String, r: Respuesta) -> Documento
+         texto = _documento_de_tipo(r)
+     end
+     d.bytes = texto.length
+-    d.doc = dom_desde_html(texto)
++    js_control("antes de Hubbub")
++    d.doc = dom_desde_html5(texto)
++    js_control("tras Hubbub")
+     d.recursos = recursos_nuevos()
+     recursos_del_documento(d.recursos, d.doc, d.direccion)
+     d.ms = time_ms() - t0
+@@ -257,7 +260,9 @@ end
+ 
+ func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
+     d.bytes = texto.length
+-    d.doc = dom_desde_html(texto)
++    js_control("antes de Hubbub")
++    d.doc = dom_desde_html5(texto)
++    js_control("tras Hubbub")
+     if dom_buscar(d.doc, "script") != nil
+         d.js = js_nuevo()
+         jsdom_preparar(d.js, d.doc)
+@@ -290,7 +295,9 @@ func documento_maquetar(d: Documento, ancho: Int)
+             estilo_aplicar(d.doc, d.hojas)
+         end
+     end
++    js_control("antes de maquetar")
+     d.pagina = maquetar(d.doc, ancho)
++    js_control("tras maquetar")
+     d.ancho = ancho
+     _documento_vistas(d)
+     d.ms = d.ms + time_ms() - t0
+@@ -354,7 +361,9 @@ end
+ # Las imágenes que siguen llegando (sin esperar); true si llegó alguna y se volvió a maquetar
+ func documento_imagenes(d: Documento) -> Bool
+     if imagenes_pendientes(d.im) > 0
++        js_control("antes de avanzar las imágenes")
+         d.sin_pintar = d.sin_pintar + imagenes_avanzar(d.im, d.doc)
++        js_control("tras avanzar las imágenes (llegadas, decodificadas, image_from_rgb, fuentes)")
+     end
+     d.sin_maquetar = d.sin_maquetar + d.im.cambiados
+     d.im.cambiados = 0
+diff --git a/lib/js.dash b/lib/js.dash
+index 2e49cab..217991f 100644
+--- a/lib/js.dash
++++ b/lib/js.dash
+@@ -74,11 +74,20 @@ static int _jg_mal(_JgCab *c) {
+ }
+ /* a block in quarantine that someone wrote into after it was freed: where, what, and the block size */
+ static int _jg_cq_avisado = 0;
++static const char *_jg_etiqueta = "inicio", *_jg_antes = "inicio";
+ static void _jg_cq_revisar(_JgCab *c) {
+     unsigned char *p = (unsigned char *)(c + 1);
+-    ULONG i;
+-    for (i = 0; i < c->n; i++) {
++    ULONG i, *w = (ULONG *)p, nw = c->n / 4;
++    for (i = 0; i < nw; i++) if (w[i] != 0xDBDBDBDBUL) break;
++    if (i == nw) {
++        for (i = nw * 4; i < c->n; i++) if (p[i] != 0xDB) break;
++        if (i >= c->n) return;
++    } else {
++        i *= 4;
++    }
++    for (; i < c->n; i++) {
+         if (p[i] != 0xDB) {
++            if (_jg_cq_avisado < 4) printf("JSGUARDA entre \"%s\" y \"%s\"\n", _jg_antes, _jg_etiqueta);
+             if (_jg_cq_avisado++ < 4) {
+                 char b[200], *q = b;
+                 ULONG k;
+@@ -165,7 +174,9 @@ static void _js_trabajos(JSRuntime *rt) {
+     int i;
+     for (i = 0; i < 10000 && JS_ExecutePendingJob(rt, &c) > 0; i++) ;
+ #ifdef _JS_GUARDAS
++    _jg_etiqueta = "tras un script o temporizador";
+     _jg_todo();
++    _jg_antes = _jg_etiqueta;
+ #endif
+     if (_js_gc_siempre) JS_RunGC(rt);
+ }
+@@ -308,6 +319,24 @@ end
+ """
+ end
+ 
++# Un punto de control (con _JS_GUARDAS): revisa la cuarentena y, si alguien escribió en memoria ya liberada,
++# dice entre qué dos puntos fue. Sin _JS_GUARDAS no hace nada.
++@native(borrow) func js_control(etiqueta: String)
++"""
++#ifdef _JS_GUARDAS
++    static char e1[48], e2[48];
++    static int cual = 0;
++    char *e = cual ? e1 : e2;
++    cual = !cual;
++    strncpy(e, (const char *)etiqueta, 47);
++    e[47] = 0;
++    _jg_etiqueta = e;
++    _jg_todo();
++    _jg_antes = e;
++#endif
++"""
++end
++
+ # Para buscar fallos de referencias: el recolector de ciclos tras cada script, llamada y trabajo (lento)
+ @native func js_gc_siempre(si: Bool)
+ """
+diff --git a/lib/maqueta.dash b/lib/maqueta.dash
+index 1400187..3abe346 100644
+--- a/lib/maqueta.dash
++++ b/lib/maqueta.dash
+@@ -188,7 +188,7 @@ func _fuente_de(m: Maquetador, familia: String, tam: Int) -> Int
+         return m.fuentes[clave]
+     end
+     h = 0
+-    if not _tamano_de_mapa(nombre, tam)
++    if false and not _tamano_de_mapa(nombre, tam)
+         # el tamaño de una vectorial del Amiga es el alto de la línea entera: las letras salen más bajas
+         # que con el mismo font-size en un navegador (medido con freemem.space contra Chrome)
+         h = font_open(vectorial + ".font", tam * 6 / 5)
+diff --git a/src/dashweb.dash b/src/dashweb.dash
+index 37f2ff1..d0fc1ed 100644
+--- a/src/dashweb.dash
++++ b/src/dashweb.dash
+@@ -262,7 +262,9 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
+         return
+     end
+     t0 = time_ms()
++    js_control("antes de pintar")
+     pintar(w.actual.pagina, w.actual.im, w.desde, x, y, ancho, alto)
++    js_control("tras pintar")
+     traza("pintada en " + (time_ms() - t0) + " ms")
+ end
+ 
+@@ -562,7 +564,9 @@ end
+ 
+ # Un tic: cargas, imágenes y temporizadores de una ventana
+ func tic(w: Ventana)
++    js_control("principio del tic")
+     avanzar_carga(w)
++    js_control("tras avanzar la carga")
+     avanzar_descarga(w)
+     if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
+         ajustar_barra(w)
+@@ -575,6 +579,7 @@ func tic(w: Ventana)
+         # (en la salida: para medir la página entera, con sus imágenes)
+         Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms"
+     end
++    js_control("tras las imágenes del tic")
+     if w.js_cuando >= 0 and time_ms() >= w.js_cuando
+         temporizadores(w)
+     end

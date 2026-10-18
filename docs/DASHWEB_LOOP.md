@@ -2379,3 +2379,19 @@ Formato:
   (`URL_RASTREO_BLOQUEAR = true`, como estaba). Etiqueta v0.1.0-alfa en b768b49 (rama dev), pre-release en
   https://github.com/FreeMEM/dashweb/releases/tag/v0.1.0-alfa con build/dashweb.lha (5,5 MB), hecho con
   tools/paquete.sh y el Dash de la rama pixguard (e197b1d, sin su macro: el mismo código que D55).
+
+### 2026-10-18 — Cazado el fallo de memoria: las fuentes vectoriales del Amiga
+- Puntos de control con la cuarentena de `_JS_GUARDAS` (`js_control(etiqueta)`, revisa la cuarentena y dice
+  entre qué dos puntos fue la escritura). En la carga 8: `JSGUARDA entre "antes de maquetar" y "tras
+  maquetar"`, el mismo bloque de 4056 bytes y la misma máscara de siempre (`ff fb ff ff ... df ff`).
+- En `maquetar` solo se mide texto y se abren fuentes. El plano de `fuente_web` está acotado (revisado). Queda
+  `font_open` de las vectoriales (CGTriumvirate, CGTimes, LetterGothic): diskfont/bullet pinta sus letras
+  como máscaras de 1 bit.
+- Prueba: Hubbub en las páginas y sin vectoriales (`if false and not _tamano_de_mapa(...)` en `_fuente_de`),
+  sin guardas: **0 de 30** fallos (con ellas, 1 de cada 6). Son las vectoriales.
+- No está arreglado: falta saber si es un fallo de diskfont/bullet de 3.2 o cómo las abre y cierra Dash
+  (`font_open`/`CloseFont`). Arreglo provisional posible: Hubbub sí y vectoriales no (las letras salen de las
+  de mapa de bits, peor escaladas). Decisión del usuario.
+- Los cambios de prueba (js_control, puntos de control, Hubbub en documento.dash y la vectorial apagada) están
+  en `docs/parches/caza_memoria_hubbub.patch` (sobre b768b49). El árbol dev2 queda limpio.
+- Parado: uso semanal al 90 %.
