@@ -2373,3 +2373,9 @@ Formato:
   (3) mientras, una salida provisional sería dejar la cuarentena encendida en dashweb (12 MB; no cambia el tiempo).
 - Loop parado al 89 % de uso semanal (el usuario pidió parar al 90 %): lo publicado, sin Hubbub en las páginas,
   no ha fallado en 46 cargas con D54.
+
+### 2026-10-18 — Publicada la alfa v0.1.0-alfa
+- El usuario dijo que sí a las dos: publicar la alfa y dejar bloqueados los scripts de rastreo
+  (`URL_RASTREO_BLOQUEAR = true`, como estaba). Etiqueta v0.1.0-alfa en b768b49 (rama dev), pre-release en
+  https://github.com/FreeMEM/dashweb/releases/tag/v0.1.0-alfa con build/dashweb.lha (5,5 MB), hecho con
+  tools/paquete.sh y el Dash de la rama pixguard (e197b1d, sin su macro: el mismo código que D55).
