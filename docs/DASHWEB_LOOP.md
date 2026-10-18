@@ -2318,3 +2318,9 @@ Formato:
 - Para seguir: si sale "PIXGUARD <búfer>", es ese búfer de Dash; si el var_refs roto sale con 0xDEADBEEF, QuickJS
   usa memoria que Dash soltó; si no sale nada, mirar las escrituras de Picasso96 en bitmaps o QuickJS.
 - Pendiente del usuario: publicar la alfa v0.1.0-alfa y si se quedan bloqueados los scripts de rastreo.
+- Caza con PIXGUARD (zonas de guarda en todos los búferes de píxeles de Dash) y Hubbub: falla en la 6.ª carga con
+  otro assert de QuickJS (`js_rc(p)->mark == 0` en gc_decref: la lista de objetos del recolector o la cabecera
+  de un objeto, pisadas) y sin ningún aviso PIXGUARD. No son los búferes de píxeles de Dash. Quedan: lo que
+  Picasso96 y picture.datatype escriben en bitmaps y máscaras, los decodificadores (stb, tjpgd, libwebp, nanosvg)
+  en sus búferes de malloc, y el propio QuickJS en 68k. Siguiente idea: guardas en cada bloque que pide QuickJS
+  (JS_NewRuntime2 con funciones de memoria propias), que al liberar digan qué se escribió encima.
