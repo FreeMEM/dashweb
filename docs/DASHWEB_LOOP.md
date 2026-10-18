@@ -2324,3 +2324,16 @@ Formato:
   Picasso96 y picture.datatype escriben en bitmaps y máscaras, los decodificadores (stb, tjpgd, libwebp, nanosvg)
   en sus búferes de malloc, y el propio QuickJS en 68k. Siguiente idea: guardas en cada bloque que pide QuickJS
   (JS_NewRuntime2 con funciones de memoria propias), que al liberar digan qué se escribió encima.
+- lib/js.dash tiene ahora `_JS_GUARDAS` (DASH_CFLAGS=-D_JS_GUARDAS; apagado no cambia nada): QuickJS pide la
+  memoria con funciones propias (JS_NewRuntime2) que ponen 16 bytes de cabecera (tamaño, lista, magia) y 16 de
+  0x5A detrás de cada bloque, los revisan todos tras cada script, llamada y trabajo, y rellenan con 0xDB lo que
+  se libera. Dos cazas (con Hubbub): el assert sale (2.ª y 4.ª carga) sin ningún aviso de guarda pisada: nadie
+  escribe fuera de los bloques de QuickJS desde fuera. En la segunda, con la instrumentación de quickjs.c, el
+  objeto "padre" es él mismo basura: su shape tiene nombres de propiedad imposibles, salvo constructor y deref
+  (el prototipo de WeakRef), y su home_object y var_refs están liberados. Lo más probable ya no es memoria pisada
+  sino un objeto liberado que sigue en la lista del recolector (algo de QuickJS: quizá WeakRef/FinalizationRegistry
+  o el ciclo de vida de los objetos de jsdom), que solo se ve según cómo queda el montón.
+- Para seguir (la próxima sesión): (1) mirar si el QuickJS de third_party (CONFIG_VERSION 2026-06-04) tiene
+  arreglos posteriores del recolector o de WeakRef; (2) probar a quitar WeakRef/FinalizationRegistry del contexto
+  (o no tocar weak refs en el preludio) y repetir la caza con Hubbub; (3) instrumentar free_object para guardar la
+  dirección de los últimos objetos liberados y, al saltar el assert, ver si el "padre" está entre ellos.

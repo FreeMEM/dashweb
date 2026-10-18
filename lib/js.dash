@@ -46,11 +46,89 @@ typedef struct _JsMotorS {
 /* js_gc_siempre: the cycle collector after every script, call and job (to find reference-count bugs) */
 static int _js_gc_siempre = 0;
 
+#ifdef _JS_GUARDAS
+/* To find who writes over QuickJS's memory (DASH_CFLAGS=-D_JS_GUARDAS): every block it asks for has 16 bytes in
+   front (size, list, magic) and 16 of 0x5A behind; all of them are checked after every script, call and job, and
+   on free. A broken one is written with the bytes that are there now. */
+typedef struct _JgCab { struct _JgCab *ant, *sig; ULONG n, magia; } _JgCab;
+static _JgCab *_jg_lista = NULL;
+static int _jg_avisado = 0;
+#define _JG_MAGIA 0xA5C3E1F7UL
+static void _jg_volcar(const char *que, _JgCab *c, unsigned char *p, int n) {
+    char b[200], *q = b;
+    int i;
+    q += sprintf(q, "JSGUARDA %s: bloque %p de %lu bytes:", que, (void *)c, (unsigned long)(c->magia == _JG_MAGIA ? c->n : 0));
+    for (i = 0; i < n && q - b < 180; i++) q += sprintf(q, " %02x", p[i]);
+    printf("%s\n", b);
+    fflush(stdout);
+}
+static int _jg_mal(_JgCab *c) {
+    unsigned char *d;
+    int i;
+    if (c->magia != _JG_MAGIA) { if (!_jg_avisado++) _jg_volcar("cabecera pisada", c, (unsigned char *)c, 32); return 1; }
+    d = (unsigned char *)(c + 1) + c->n;
+    for (i = 0; i < 16; i++) if (d[i] != 0x5A) { if (!_jg_avisado++) _jg_volcar("detrás pisado", c, d, 32); return 1; }
+    return 0;
+}
+static void _jg_todo(void) {
+    _JgCab *c;
+    long k = 0;
+    for (c = _jg_lista; c && k < 2000000; c = c->sig, k++) if (_jg_mal(c)) return;
+}
+static void *_jg_malloc(JSMallocState *s, size_t n) {
+    _JgCab *c;
+    if (s->malloc_size + n + 32 > s->malloc_limit) return NULL;
+    c = (_JgCab *)malloc(sizeof(_JgCab) + n + 16);
+    if (!c) return NULL;
+    c->n = n;
+    c->magia = _JG_MAGIA;
+    memset((unsigned char *)(c + 1) + n, 0x5A, 16);
+    c->ant = NULL;
+    c->sig = _jg_lista;
+    if (_jg_lista) _jg_lista->ant = c;
+    _jg_lista = c;
+    s->malloc_count++;
+    s->malloc_size += n + 32;
+    return c + 1;
+}
+static void _jg_free(JSMallocState *s, void *p) {
+    _JgCab *c;
+    if (!p) return;
+    c = (_JgCab *)p - 1;
+    if (_jg_mal(c)) return;      /* (lo dejamos: ya está avisado) */
+    if (c->ant) c->ant->sig = c->sig; else _jg_lista = c->sig;
+    if (c->sig) c->sig->ant = c->ant;
+    s->malloc_count--;
+    s->malloc_size -= c->n + 32;
+    c->magia = 0;
+    memset(c + 1, 0xDB, c->n);
+    free(c);
+}
+static void *_jg_realloc(JSMallocState *s, void *p, size_t n) {
+    void *q;
+    _JgCab *c;
+    if (!p) return n ? _jg_malloc(s, n) : NULL;
+    if (!n) { _jg_free(s, p); return NULL; }
+    c = (_JgCab *)p - 1;
+    if (_jg_mal(c)) return NULL;
+    q = _jg_malloc(s, n);
+    if (!q) return NULL;
+    memcpy(q, p, c->n < n ? c->n : n);
+    _jg_free(s, p);
+    return q;
+}
+static size_t _jg_tamano(const void *p) { return p ? ((const _JgCab *)p - 1)->n : 0; }
+static const JSMallocFunctions _jg_funciones = { _jg_malloc, _jg_free, _jg_realloc, _jg_tamano };
+#endif
+
 /* The jobs waiting (Promise.then, async functions): run them all, up to a limit */
 static void _js_trabajos(JSRuntime *rt) {
     JSContext *c;
     int i;
     for (i = 0; i < 10000 && JS_ExecutePendingJob(rt, &c) > 0; i++) ;
+#ifdef _JS_GUARDAS
+    _jg_todo();
+#endif
     if (_js_gc_siempre) JS_RunGC(rt);
 }
 
@@ -134,7 +212,11 @@ end
     _JsMotor *m = (_JsMotor *)calloc(1, sizeof(_JsMotor));
     JSValue global, console;
     if (!m) return 0;
+#ifdef _JS_GUARDAS
+    m->rt = JS_NewRuntime2(&_jg_funciones, NULL);
+#else
     m->rt = JS_NewRuntime();
+#endif
     if (m->rt) {
         JS_SetMaxStackSize(m->rt, 192 * 1024);     /* of the 256 KB of @stack */
         /* a page whose JavaScript wants more gets "out of memory" in its script, instead of leaving the whole
