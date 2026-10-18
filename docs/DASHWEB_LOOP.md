@@ -2395,3 +2395,6 @@ Formato:
 - Los cambios de prueba (js_control, puntos de control, Hubbub en documento.dash y la vectorial apagada) están
   en `docs/parches/caza_memoria_hubbub.patch` (sobre b768b49). El árbol dev2 queda limpio.
 - Parado: uso semanal al 90 %.
+- **Decisión del usuario (2026-10-18): arreglo provisional, Hubbub sí y vectoriales no.** Primera tarea en
+  cuanto baje el uso: aplicar de `docs/parches/caza_memoria_hubbub.patch` solo Hubbub en documento.dash y la
+  vectorial apagada en `_fuente_de` (sin los js_control), batería completa, y abrir la causa de fondo en Dash.
