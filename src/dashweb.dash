@@ -358,6 +358,15 @@ func avanzar_carga(w: Ventana)
                 end
                 return
             end
+            # si es algo para guardar, en cuanto se sabe: se corta y se baja directamente al fichero
+            cab = http_cabeceras_ya(w.carga)
+            if cab != nil and documento_es_descarga(cab)
+                http_cancelar(w.carga)
+                var ninguna: Carga = nil
+                w.carga = ninguna
+                empezar_descarga(w, cab)
+                return
+            end
             total = http_total(w.carga)
             if total > 0
                 mui_set_value(w.v.progreso, 10 + http_recibidos(w.carga) * 80 / total)

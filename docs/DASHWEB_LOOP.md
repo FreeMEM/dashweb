@@ -2302,4 +2302,7 @@ Formato:
 - Casos nuevos en test_documento_tipo. Sin probar a mano (el selector necesita a alguien delante).
 - Dash: dejó hacer `a = Respuesta(...)` con `a` ya Bool en el mismo Main (el test daba un resultado raro, sin
   error al compilar). Apuntado para la otra sesión.
-- Pendiente: no bajar dos veces (mirar las cabeceras en cuanto llegan) y "Guardar la página" en el menú.
+- Ya no se baja dos veces: `http_cabeceras_ya(c)` (lib/http.dash) da estado, cabeceras y tipo en cuanto han
+  llegado, sin esperar al cuerpo; dashweb lo mira mientras recibe y, si es una descarga, corta la carga y la
+  empieza directamente al fichero. Caso nuevo en test_http_carga (/lento: las cabeceras antes de acabar).
+- Pendiente: "Guardar la página" en el menú.

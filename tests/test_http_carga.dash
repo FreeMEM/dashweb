@@ -9,6 +9,7 @@
 # expect-out: 200 [hola] http://127.0.0.1:40855/hola
 # expect-out: 404 [no]
 # expect-out: lento: 200 2000 bytes, a medias: true
+# expect-out: cabeceras pronto: 200 text/plain antes de acabar: true
 # expect-out: cancelada: [cancelada]
 # expect-out: rechazada: [conexión rechazada]
 # expect-out: fase: buscando
@@ -51,6 +52,20 @@ Main
         esperar(5)
     end
     Print "lento: " + c.respuesta.estado + " " + c.respuesta.cuerpo.length + " bytes, a medias: " + a_medias
+    c = http_empezar(base + "/lento", 10000)
+    var cab: Respuesta = nil
+    antes = false
+    while cab == nil and not http_avanzar(c)
+        cab = http_cabeceras_ya(c)
+        if cab != nil
+            antes = not c.hecha
+        end
+        esperar(2)
+    end
+    if cab != nil
+        Print "cabeceras pronto: " + cab.estado + " " + cab.tipo + " antes de acabar: " + antes
+    end
+    http_cancelar(c)
     c = http_empezar(base + "/lento", 10000)
     http_cancelar(c)
     Print "cancelada: [" + c.respuesta.error + "]"

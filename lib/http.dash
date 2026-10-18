@@ -641,6 +641,45 @@ func http_avanzar(c: Carga) -> Bool
     return true
 end
 
+# Las cabeceras de la respuesta en cuanto han llegado, sin esperar al cuerpo (una Respuesta con estado,
+# cabeceras, tipo y la dirección; sin cuerpo), o nil si aún no. Para saber pronto qué viene (una descarga).
+func http_cabeceras_ya(c: Carga) -> Respuesta
+    var nada: Respuesta = nil
+    if c.hecha or c.conexion == nil or c.conexion.fase != 0
+        return nada
+    end
+    if c.cabecera < 0
+        c.cabecera = _carga_cabecera(c.conexion)
+    end
+    if c.cabecera <= 12
+        return nada
+    end
+    texto = str_from_buffer(c.conexion.buf, c.conexion.ini, c.cabecera)
+    r = _respuesta_vacia(url_text(c.actual))
+    primera = true
+    for linea in str_split(texto, "\r\n")
+        if primera
+            p = str_find(linea, " ")
+            if p > 0
+                r.estado = Int(linea[p + 1:p + 4])
+            end
+            primera = false
+        else
+            p = str_find(linea, ":")
+            if p > 0
+                nombre = str_lower(str_trim(linea[:p]))
+                if not r.cabeceras.has(nombre)
+                    r.cabeceras[nombre] = str_trim(linea[p + 1:])
+                end
+            end
+        end
+    end
+    if r.cabeceras.has("content-type")
+        _tipo_y_juego(r, r.cabeceras["content-type"])
+    end
+    return r
+end
+
 # Bytes de la respuesta ya recibidos y lo que medirá entera (-1 si no se sabe), para el progreso
 func http_recibidos(c: Carga) -> Int
     if c.conexion == nil or c.conexion.fase != 0
