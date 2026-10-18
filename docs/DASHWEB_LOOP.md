@@ -2354,3 +2354,11 @@ Formato:
   freemem.space no cambia: 21-22 s). No se ha hecho: esconde el fallo. Siguiente: buscar quién escribe tarde
   (los procesos decodificadores al cancelar una página, las máscaras e imágenes que se liberan mientras se
   pintan, los mapas de bits de las imágenes escaladas).
+- Cazado en el acto (cuarentena que comprueba su relleno 0xDB en cada revisión y al soltar): en una de 12
+  cargas, alguien escribió en un bloque de 4056 bytes que QuickJS ya había liberado, a partir de +1922:
+  `ff fb ff ff ff ff ff ff ff fb df ff ff ff fb ff fb ff ff ff ff ff`. Es una máscara de 1 bit casi llena (la de
+  una imagen casi opaca: las capturas PNG de freemem.space) y empieza a mitad de bloque (filas con un salto
+  mayor que su búfer, o un puntero viejo). No es QuickJS: es quien escribe máscaras en memoria Fast. Candidatos:
+  la máscara de image_scale (BitMapScale de un plano con BytesPerRow = mmod hacia un AllocBitMap de 1 plano y
+  _dash_img_mask), _dash_rgba_mask, picture.datatype y su PDTA_MaskPlane, los planos de las fuentes web
+  (lib/fuente_web.dash, _fw_crear). Encargado a la otra sesión con estos datos.

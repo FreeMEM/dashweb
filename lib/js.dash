@@ -53,6 +53,8 @@ static int _js_gc_siempre = 0;
 typedef struct _JgCab { struct _JgCab *ant, *sig; ULONG n, magia; } _JgCab;
 static _JgCab *_jg_lista = NULL;
 static int _jg_avisado = 0;
+static _JgCab *_jg_cq_ini = NULL, *_jg_cq_fin = NULL;
+static ULONG _jg_cq_bytes = 0;
 #define _JG_MAGIA 0xA5C3E1F7UL
 static void _jg_volcar(const char *que, _JgCab *c, unsigned char *p, int n) {
     char b[200], *q = b;
@@ -70,10 +72,31 @@ static int _jg_mal(_JgCab *c) {
     for (i = 0; i < 16; i++) if (d[i] != 0x5A) { if (!_jg_avisado++) _jg_volcar("detrás pisado", c, d, 32); return 1; }
     return 0;
 }
+/* a block in quarantine that someone wrote into after it was freed: where, what, and the block size */
+static int _jg_cq_avisado = 0;
+static void _jg_cq_revisar(_JgCab *c) {
+    unsigned char *p = (unsigned char *)(c + 1);
+    ULONG i;
+    for (i = 0; i < c->n; i++) {
+        if (p[i] != 0xDB) {
+            if (_jg_cq_avisado++ < 4) {
+                char b[200], *q = b;
+                ULONG k;
+                q += sprintf(q, "JSGUARDA escrito tras liberar: bloque de %lu bytes, en +%lu:", (unsigned long)c->n, (unsigned long)i);
+                for (k = i & ~3UL; k < c->n && k < (i & ~3UL) + 24; k++) q += sprintf(q, " %02x", p[k]);
+                printf("%s\n", b);
+                fflush(stdout);
+            }
+            memset(p, 0xDB, c->n);
+            return;
+        }
+    }
+}
 static void _jg_todo(void) {
     _JgCab *c;
     long k = 0;
     for (c = _jg_lista; c && k < 2000000; c = c->sig, k++) if (_jg_mal(c)) return;
+    for (c = _jg_cq_ini; c; c = c->sig) _jg_cq_revisar(c);
 }
 static void *_jg_malloc(JSMallocState *s, size_t n) {
     _JgCab *c;
@@ -94,8 +117,6 @@ static void *_jg_malloc(JSMallocState *s, size_t n) {
 /* the freed blocks wait here (filled with 0xDB) before going back to malloc: what still points at one sees 0xDB
    (up to _JG_CUARENTENA bytes; the oldest go back first) */
 #define _JG_CUARENTENA (12L * 1024 * 1024)
-static _JgCab *_jg_cq_ini = NULL, *_jg_cq_fin = NULL;
-static ULONG _jg_cq_bytes = 0;
 static void _jg_free(JSMallocState *s, void *p) {
     _JgCab *c;
     if (!p) return;
@@ -117,6 +138,7 @@ static void _jg_free(JSMallocState *s, void *p) {
         _jg_cq_ini = v->sig;
         if (_jg_cq_ini) _jg_cq_ini->ant = NULL; else _jg_cq_fin = NULL;
         _jg_cq_bytes -= v->n + 32;
+        _jg_cq_revisar(v);
         free(v);
     }
 }
