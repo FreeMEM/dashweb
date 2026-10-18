@@ -2278,3 +2278,15 @@ Formato:
   ahora Hubbub). Por eso documento.dash sigue con dom_desde_html hasta encontrarlo.
 - Siguiente: buscar ese fallo a fondo (un uso de memoria ya liberada que depende de lo que haya en el montón).
   Idea: con Hubbub sale 1 de cada 9 cargas: sirve para reproducirlo; en el PC no se puede, porque jsdom es Dash.
+
+### 2026-10-18 — El fallo de QuickJS es memoria pisada (encargado a Dash como D56)
+- Con Hubbub en las páginas (sale 1 de cada 6-9 cargas) y QuickJS instrumentado (al saltar el assert escribe el
+  hijo, el padre, sus propiedades y sus variables capturadas): el objeto roto es una función de JavaScript cuyo
+  array de variables capturadas está lleno de basura (0xebfffbed, 0x7feffffd, 0x7ffffdcf): parecen píxeles de 16
+  bits casi blancos (el fondo de freemem.space en la pantalla RTG de 16 bits). Algo escribe píxeles de pantalla
+  fuera de su búfer y cae en la memoria de malloc de QuickJS. No es la cuenta de referencias de jsdom.
+- Encargado a la otra sesión (D56): revisar las rutinas de Dash que escriben píxeles de pantalla
+  (_dash_rgb_draw_scaled, gfx_blend_rect/gfx_gradient_rect por bloques, image_from_rgb directo, el escalado y las
+  máscaras) y poner zonas de guarda en sus búferes. Los parches para reproducirlo (Hubbub en documento.dash y la
+  instrumentación de QuickJS) están en el scratchpad de esta sesión, no en el repositorio.
+- Hasta entonces: el bloqueo de rastreo sigue encendido y documento.dash con el analizador viejo (0 de 46).
