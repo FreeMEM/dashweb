@@ -2362,3 +2362,14 @@ Formato:
   la máscara de image_scale (BitMapScale de un plano con BytesPerRow = mmod hacia un AllocBitMap de 1 plano y
   _dash_img_mask), _dash_rgba_mask, picture.datatype y su PDTA_MaskPlane, los planos de las fuentes web
   (lib/fuente_web.dash, _fw_crear). Encargado a la otra sesión con estos datos.
+- Descartado image_scale (escalar imágenes y su máscara): sin escalar ninguna, con Hubbub, falla 5 de 30.
+  Descartados ya: búferes de píxeles de Dash (PIXGUARD), procesos decodificadores, rellenos de área, image_scale,
+  los planos de las fuentes web (revisados: filas y bits comprobados; además van con AllocVec). La otra sesión
+  ve poco probables el BitMapScale y PDTA_MaskPlane. Lo que sí se sabe: alguien escribe una máscara de 1 bit casi
+  llena en memoria que QuickJS soltó, y con la cuarentena de QuickJS (_JS_GUARDAS) no falla nunca (0 de 30).
+- Para la próxima sesión: (1) mirar las máscaras que crea MUI o picture.datatype para las imágenes con alfa en
+  el camino de image_load (¿hay PNG de freemem.space que vayan por datatypes?); (2) en la cuarentena, guardar
+  también cuándo (en qué paso de la traza) se escribe tras liberar, para saber qué estaba haciendo dashweb;
+  (3) mientras, una salida provisional sería dejar la cuarentena encendida en dashweb (12 MB; no cambia el tiempo).
+- Loop parado al 89 % de uso semanal (el usuario pidió parar al 90 %): lo publicado, sin Hubbub en las páginas,
+  no ha fallado en 46 cargas con D54.
