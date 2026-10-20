@@ -494,9 +494,12 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         end
     end
     if _invisible(n)
-        # ocupa su sitio pero no se pinta (visibility: hidden, opacity: 0)
-        while m.pagina.dibujos.length > antes
-            m.pagina.dibujos.pop()
+        # ocupa su sitio pero no se pinta (visibility: hidden, opacity: 0): sus dibujos se quedan, velados (el
+        # JavaScript puede enseñarlo luego sin rehacer la maqueta: lib/documento.dash, tarea 37d)
+        i = antes
+        while i < m.pagina.dibujos.length
+            m.pagina.dibujos[i].velado = true
+            i = i + 1
         end
     end
     _maqueta_nivel = _maqueta_nivel - 1
@@ -1433,6 +1436,19 @@ func _invisible(n: Nodo) -> Bool
         return true
     end
     return e.has("opacity") and (e["opacity"] == "0" or str_starts(e["opacity"], "0.0") or e["opacity"] == ".0")
+end
+
+# Para lib/documento.dash (cambios del JavaScript sin rehacer la maqueta): si n o algún antepasado está escondido
+# (opacity: 0, visibility: hidden)
+func maqueta_escondido(n: Nodo) -> Bool
+    p = n
+    while p != nil and p.tipo == DOM_ELEMENTO
+        if _invisible(p)
+            return true
+        end
+        p = p.padre
+    end
+    return false
 end
 
 func _fuera_del_flujo(n: Nodo) -> Bool

@@ -292,8 +292,15 @@ tarea, con el estilo de Dash.
            window.scrollY/pageYOffset y documentElement.scrollTop (el desplazamiento de la ventana). Con test.
       [x] 37c. Desplazar y JavaScript: evento scroll en window y document al desplazar (como mucho uno por tic);
            scrollTo, scrollBy y scrollIntoView mueven la vista de verdad. Con test.
-      37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
+      [x] 37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
            opacity o transform (lo que hace GSAP), repintar sin rehacer la maqueta. Medir el coste por fotograma.
+      37d2. LAS ANIMACIONES CSS NO CORREN (el usuario, 2026-10-20: "no veo que las animaciones estén funcionando", y
+           trainalong.fit, con sus @keyframes, tampoco se mueve). lib/animacion.dash calcula fotogramas (31q paso 1,
+           con test) pero nadie lo usa: dashweb pinta el estado final. Conectarlo: tras cada maqueta,
+           animaciones_pagina; en el tic, animar(p, anims, ms) a 10-20 fotogramas por segundo mientras haya alguna
+           viva y repintar (solo la parte que cambia si se puede); transitions al cambiar style o clases desde el
+           JavaScript (lo que hace GSAP con CSS). Medir el coste en la máquina rtg. Probar con trainalong.fit (la curva
+           que se dibuja, el punto que parpadea) y pre.opentimetrack.com (revelar, parpadeo, invita, pista-baja).
       37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
            maquetar. Con test.
       37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
@@ -2646,3 +2653,23 @@ Formato:
   ~1,4 s, y GSAP responde cambiando estilos (5, 4, 1, 3 cambios...); cada cambio rehace la maqueta (1,3 s: la 37d).
   Faltan los elementos que GSAP deja fijos al bajar (grandes huecos). Capturas enviadas.
 - test_jsdom_geometria con scrollTo, scrollBy y los eventos. Base: 61/61 (990 s); freemem.space 21,8 s.
+
+### 2026-10-20 — Tarea 37d (cambios del JavaScript sin rehacer la maqueta)
+- Lo invisible (opacity: 0, visibility: hidden) ya no pierde sus dibujos al maquetar: se quedan velados (el pintor
+  se los salta) y tiene su caja, como en CSS. test_maqueta_cajas y test_animacion, al día con eso.
+- lib/estilo.dash: con `estilo_apuntar`, `_estilo_propio` apunta en `estilo_cambios` cada elemento cuyo estilo
+  calculado cambió al rehacerlo (con el de antes; `pseudo` si cambió su ::before/::after).
+- lib/documento.dash (`documento_al_dia`): si todos los toques son de atributos que actúan por el estilo (class,
+  style, id, title, role, tabindex, data-*, aria-*) o textos cambiados, y lo que cambió en el estilo es solo
+  transform/translate (desplazamientos; un scale entre 0,9 y 1,1 cuenta como 1: GSAP los pone a cada fotograma),
+  opacity, visibility, transition, will-change, cursor o pointer-events, se aplica sobre los dibujos ya puestos en
+  una pasada (cada dibujo suma los desplazamientos de los suyos, campos lig_* de Nodo; velado según maqueta_escondido)
+  y sus cajas para el JavaScript se mueven. Un texto que cambia sin cambiar de forma (mismas palabras y largos: un
+  reloj, la "huella" que la página baraja) se cambia en sus dibujos; si es un único dibujo en un bloque y su ancho
+  cambia hasta 8 px, se recoloca según text-align. Si algo no cuadra, la maqueta entera como antes.
+- pre.opentimetrack.com bajando: de ~30 maquetas de 1,3-1,4 s a 5; 28 cambios aplicados en 0-200 ms; el evento
+  scroll, de 1,4 s a 12-220 ms. Lenis pone y quita clases en <html> al desplazar (ningún estilo cambia: ya no
+  maqueta).
+- El usuario lo probó: no ve animaciones (las CSS no corren: lib/animacion.dash no está conectado) y youtube.com sale
+  como esqueletos grises (tarea 38). Apuntada 37d2 (animaciones CSS de verdad) delante de la 37e.
+- Test nuevo test_documento_ligero. Base: 62/62 tras ajustar los dos tests; freemem.space 21,2 s.

@@ -7,7 +7,7 @@
 # expect-out: -1 250 750 0
 # expect-out: 0.25 translateX(-15px) rgb(128, 0, 127)
 # expect-out: ease true steps 500 linear 600
-# expect-out: pagina 2 -22 true -2 false 8 false false false
+# expect-out: pagina 3 -22 true -2 false 8 false true false
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/animacion.dash"
@@ -31,8 +31,8 @@ Main
     e = animacion_curva("ease", 500)
     Print "ease " + (e > 795 and e < 810) + " steps " + animacion_curva("steps(4)", 600) + " linear " + animacion_curva("linear", 600)
     # en la página (8 px de margen del body): lo dibujado de #m se mueve y se esconde con opacity < 0,5; acabada
-    # (sin forwards), en su sitio. #a no se dibuja (acaba en su primer fotograma: opacity 0); a los 2000 ms ya no
-    # queda ninguna viva (#b dura 2 s)
+    # (sin forwards), en su sitio. #a se dibuja velado (acaba en su primer fotograma: opacity 0; desde la 37d lo
+    # invisible conserva sus dibujos) y cuenta: a los 2000 ms sigue viva (0,5 s + 2 vueltas de 1 s), a los 5000 no
     p = maquetar(doc, 280)
     anims = animaciones_pagina(p, hojas)
     var caja: Dibujo = nil

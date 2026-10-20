@@ -1691,6 +1691,9 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
     if _oculto_a_la_vista(e)
         e["display"] = "none"
     end
+    viejo = n.estilo
+    antes_a = n.pseudo_antes
+    antes_d = n.pseudo_despues
     n.estilo = e
     n.vars = vars
     if n.nombre == "html" and e.has("font-size")
@@ -1698,6 +1701,30 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
     end
     n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "before"), "::before")
     n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "after"), "::after")
+    if estilo_apuntar
+        pseudo = not _pseudo_iguales(antes_a, n.pseudo_antes) or not _pseudo_iguales(antes_d, n.pseudo_despues)
+        if pseudo or not _estilo_iguales(viejo, e)
+            estilo_cambios.push(EstiloCambio(n, viejo, pseudo))
+        end
+    end
+end
+
+# Con estilo_apuntar (lib/documento.dash, tarea 37d), cada elemento cuyo estilo calculado cambió al rehacerlo,
+# con el de antes (pseudo: cambió su ::before o ::after)
+struct EstiloCambio
+    nodo: Nodo
+    viejo: {String: String}
+    pseudo: Bool
+end
+
+var estilo_apuntar: Bool = false
+var estilo_cambios: [EstiloCambio] = nil
+
+func _pseudo_iguales(a: Nodo, b: Nodo) -> Bool
+    if a == nil or b == nil
+        return a == nil and b == nil
+    end
+    return a.texto == b.texto and _estilo_iguales(a.estilo, b.estilo)
 end
 
 # CSS Animations sin animar: lo que deja puesto la animación al acabar. Solo con animation-fill-mode forwards o

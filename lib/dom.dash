@@ -53,6 +53,12 @@ struct Nodo
     caja_y: Int = 0
     caja_w: Int = 0
     caja_h: Int = 0
+    # lib/documento.dash, al aplicar cambios del JavaScript sin maqueta: marca (el número de la vuelta), lo que se
+    # desplaza y si puede haber cambiado su visibilidad
+    lig_marca: Int = 0
+    lig_dx: Int = 0
+    lig_dy: Int = 0
+    lig_vis: Bool = false
 end
 
 # Un cambio del JavaScript, apuntado en el documento para rehacer después solo el estilo al que afecta

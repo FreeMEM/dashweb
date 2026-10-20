@@ -344,9 +344,23 @@ func documento_al_dia(d: Documento) -> Bool
     d.titulo = jsdom_titulo(d.doc)
     toques = d.doc.toques
     _documento_olvidar_tocados(d)
+    # lo que cambia en el estilo, por si no mueve nada (tarea 37d)
+    ligero = _documento_puede_ligero(d, toques)
+    if ligero
+        var cambios: [EstiloCambio] = []
+        estilo_cambios = cambios
+        estilo_apuntar = true
+    end
     parte = toques != nil and estilo_aplicar_partes(d.doc, d.hojas, toques)
+    estilo_apuntar = false
     if not parte
         estilo_aplicar(d.doc, d.hojas)
+    end
+    if ligero and parte and _documento_sin_maqueta(d, toques, estilo_cambios)
+        if traza_activa
+            traza("el JavaScript hizo " + toques.length + " cambios que no mueven nada (" + estilo_cambios.length + " estilos): aplicados sin maqueta en " + (time_ms() - t0) + " ms")
+        end
+        return true
     end
     t1 = time_ms()
     imagenes_pedir(d.im, d.doc, d.direccion)
@@ -369,6 +383,319 @@ func documento_al_dia(d: Documento) -> Bool
         traza("el JavaScript hizo " + cuantos + " cambios: estilo (" + de + ") y maqueta otra vez en " + (time_ms() - t0) + " ms")
     end
     return true
+end
+
+# === Cambios del JavaScript sin rehacer la maqueta (tarea 37d) ===
+# GSAP, Lenis y compañía cambian a cada fotograma el atributo style de unos elementos, casi siempre solo un
+# desplazamiento (transform: translate..., translate) y la opacidad. Si solo cambió eso, se mueven y se enseñan o
+# esconden sus dibujos ya colocados; si no, la maqueta entera, como siempre.
+
+var _lig_vuelta: Int = 0
+
+# ¿Pueden ser cambios sin maqueta? Solo atributos que actúan por el estilo (class, style, id, data-*, aria-*...) y
+# textos cambiados (TOQUE_CONTENIDO, que _documento_texto_igual mira después)
+func _documento_puede_ligero(d: Documento, toques: [Toque]) -> Bool
+    if toques == nil or d.pagina == nil or d.ancho <= 0 or toques.length == 0
+        return false
+    end
+    for t in toques
+        if t.nodo == nil or t.nodo.tipo != DOM_ELEMENTO
+            return false
+        end
+        if t.tipo == TOQUE_ATRIBUTO
+            k = t.nombre
+            if not (k == "class" or k == "style" or k == "id" or k == "title" or k == "role" or k == "tabindex" or str_starts(k, "data-") or str_starts(k, "aria-"))
+                return false
+            end
+        elif t.tipo != TOQUE_CONTENIDO
+            return false
+        end
+    end
+    return true
+end
+
+# ¿Solo cambió lo que no mueve nada? Entonces se aplica sobre los dibujos (una pasada: cada dibujo suma los
+# desplazamientos de los suyos que cambiaron) y da true
+func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambio]) -> Bool
+    # primero, comprobarlo todo (sin tocar nada)
+    for t in toques
+        if t.tipo == TOQUE_CONTENIDO and not _documento_texto_igual(d, t.nodo, false)
+            return false
+        end
+    end
+    var dxs: [Int] = []
+    var dys: [Int] = []
+    for c in cambios
+        n = c.nodo
+        if c.pseudo or c.viejo == nil
+            return false
+        end
+        for k in n.estilo.keys()
+            if not _documento_ligera(k) and (not c.viejo.has(k) or c.viejo[k] != n.estilo[k])
+                return false
+            end
+        end
+        for k in c.viejo.keys()
+            if not _documento_ligera(k) and not n.estilo.has(k)
+                return false
+            end
+        end
+        a = _documento_traslacion(c.viejo, n)
+        b = _documento_traslacion(n.estilo, n)
+        if a == nil or b == nil
+            return false
+        end
+        dxs.push(b[0] - a[0])
+        dys.push(b[1] - a[1])
+    end
+    # y aplicarlo
+    for t in toques
+        if t.tipo == TOQUE_CONTENIDO
+            _documento_texto_igual(d, t.nodo, true)
+        end
+    end
+    if cambios.length == 0
+        return true
+    end
+    _lig_vuelta = _lig_vuelta + 1
+    marca = _lig_vuelta
+    i = 0
+    for c in cambios
+        n = c.nodo
+        n.lig_marca = marca
+        n.lig_dx = dxs[i]
+        n.lig_dy = dys[i]
+        n.lig_vis = _val_estilo(c.viejo, "opacity", "1") != _val_estilo(n.estilo, "opacity", "1") or _val_estilo(c.viejo, "visibility", "visible") != _val_estilo(n.estilo, "visibility", "visible")
+        if dxs[i] != 0 or dys[i] != 0
+            _documento_mover_cajas(d.doc, n, dxs[i], dys[i])
+        end
+        i = i + 1
+    end
+    for dib in d.pagina.dibujos
+        dx = 0
+        dy = 0
+        vis = false
+        p = dib.nodo
+        while p != nil
+            if p.lig_marca == marca
+                dx = dx + p.lig_dx
+                dy = dy + p.lig_dy
+                if p.lig_vis
+                    vis = true
+                end
+            end
+            p = p.padre
+        end
+        if dx != 0 or dy != 0
+            maqueta_mover(dib, dx, dy)
+        end
+        if vis
+            dib.velado = maqueta_escondido(dib.nodo)
+        end
+    end
+    return true
+end
+
+# Propiedades que no mueven la maqueta (lo que se aplica sobre los dibujos, y lo que ni se ve)
+func _documento_ligera(k: String) -> Bool
+    return k == "transform" or k == "translate" or k == "opacity" or k == "visibility" or k == "will-change" or str_starts(k, "transition") or k == "pointer-events" or k == "cursor"
+end
+
+# El desplazamiento de transform y translate en px, [x, y]; nil si hay algo más que desplazar (giro, escala...)
+func _documento_traslacion(e: {String: String}, n: Nodo) -> [Int]
+    var nada: [Int] = nil
+    x = 0
+    y = 0
+    w = n.caja_w
+    h = n.caja_h
+    em = estilo_px(_val_estilo(e, "font-size", "16px"), 0, 0)
+    t = str_trim(_val_estilo(e, "transform", "none"))
+    if t != "none" and t != ""
+        i = 0
+        while i < t.length
+            while i < t.length and str_code(t, i) == 32
+                i = i + 1
+            end
+            if i >= t.length
+                break
+            end
+            p = str_find_from(t, "(", i)
+            q = str_find_from(t, ")", i)
+            if p < 0 or q < p
+                return nada
+            end
+            f = str_lower(str_trim(t[i:p]))
+            var args: [String] = []
+            for a in css_partir(str_replace(t[p + 1:q], " ", ","), 44)
+                if str_trim(a) != ""
+                    args.push(str_trim(a))
+                end
+            end
+            if f == "translate" or f == "translate3d"
+                if args.length >= 1
+                    x = x + estilo_px(args[0], em, w)
+                end
+                if args.length >= 2
+                    y = y + estilo_px(args[1], em, h)
+                end
+            elif f == "translatex"
+                x = x + estilo_px(args[0], em, w)
+            elif f == "translatey"
+                y = y + estilo_px(args[0], em, h)
+            elif f == "translatez"
+                x = x
+            elif f == "matrix" and args.length == 6
+                if args[0] != "1" or args[1] != "0" or args[2] != "0" or args[3] != "1"
+                    return nada
+                end
+                x = x + estilo_px(args[4], em, w)
+                y = y + estilo_px(args[5], em, h)
+            elif (f == "rotate" or f == "rotatez" or f == "skew" or f == "skewx" or f == "skewy") and args.length >= 1 and (args[0] == "0" or args[0] == "0deg" or args[0] == "0rad" or args[0] == "0turn")
+                x = x
+            elif (f == "scale" or f == "scalex" or f == "scaley" or f == "scale3d") and args.length >= 1 and _casi_uno(args[0]) and (args.length < 2 or _casi_uno(args[1]))
+                # (una escala entre 0,9 y 1,1 no se aplica: GSAP las pone a cada fotograma y rehacer la maqueta por
+                # eso cuesta más de un segundo; se pierde ese poco de zoom)
+                x = x
+            else
+                return nada
+            end
+            i = q + 1
+        end
+    end
+    tr = str_trim(_val_estilo(e, "translate", "none"))
+    if tr != "none" and tr != ""
+        partes = css_partir(str_replace(tr, " ", ","), 44)
+        var vals: [String] = []
+        for a in partes
+            if str_trim(a) != ""
+                vals.push(str_trim(a))
+            end
+        end
+        if vals.length >= 1
+            x = x + estilo_px(vals[0], em, w)
+        end
+        if vals.length >= 2
+            y = y + estilo_px(vals[1], em, h)
+        end
+    end
+    # rotate y scale sueltos: solo si no giran ni escalan
+    ro = str_trim(_val_estilo(e, "rotate", "none"))
+    sc = str_trim(_val_estilo(e, "scale", "none"))
+    if (ro != "none" and ro != "0deg" and ro != "0") or (sc != "none" and not _casi_uno(str_trim(css_partir(str_replace(sc, " ", ","), 44)[0])))
+        return nada
+    end
+    return [x, y]
+end
+
+# ¿Un número entre 0,9 y 1,1? ("1", "0.95", "1.04")
+func _casi_uno(v: String) -> Bool
+    return v == "1" or str_starts(v, "0.9") or str_starts(v, "1.0") or v == "1.1" or str_starts(v, "1.10")
+end
+
+# Un texto que cambió sin cambiar de forma (un reloj: "08:02:13" -> "08:02:14"): si n solo tiene texto dentro, y
+# sus palabras nuevas son tantas como sus dibujos de texto, y cada una mide lo mismo que la vieja, se cambian en
+# los dibujos (con aplicar) y da true. Si el ancho guardado no coincide con el medido (una letra que no se sabe
+# medir aquí), false.
+func _documento_texto_igual(d: Documento, n: Nodo, aplicar: Bool) -> Bool
+    for h in n.hijos
+        if h.tipo != DOM_TEXTO
+            return false
+        end
+    end
+    var dibs: [Dibujo] = []
+    # (sus otros dibujos, fondo o borde, no cambian si el texto no cambia de forma)
+    for dib in d.pagina.dibujos
+        if dib.nodo == n and dib.tipo == D_TEXTO
+            dibs.push(dib)
+        end
+    end
+    var palabras: [String] = []
+    for t in str_split(str_replace(str_replace(dom_texto(n), "\n", " "), "\t", " "), " ")
+        if t != ""
+            palabras.push(_documento_mayusculas(n, t))
+        end
+    end
+    # todo en un dibujo (white-space: nowrap o pre: la "huella" que la página va barajando)
+    if dibs.length == 1 and palabras.length > 1
+        junto = ""
+        for t in palabras
+            if junto != ""
+                junto = junto + " "
+            end
+            junto = junto + t
+        end
+        var una: [String] = [junto]
+        palabras = una
+    end
+    if dibs.length == 0 or palabras.length != dibs.length
+        return false
+    end
+    i = 0
+    while i < dibs.length
+        dib = dibs[i]
+        viejo = str_trim(dib.texto)
+        resto = dib.texto[viejo.length:]
+        if viejo.length != palabras[i].length or dib.fuente == 0
+            return false
+        end
+        font_use(dib.fuente)
+        font_style(dib.estilo)
+        if font_text_width(dib.texto) + dib.espaciado * dib.texto.length != dib.ancho
+            return false
+        end
+        nuevo = palabras[i] + resto
+        ancho = font_text_width(nuevo) + dib.espaciado * nuevo.length
+        if ancho != dib.ancho
+            # algo más ancho o más estrecho (letras de ancho distinto: la "huella" en hexadecimal): solo en un bloque
+            # con ese único texto (su caja no depende de él) y hasta 8 px; se recoloca según text-align
+            dif = ancho - dib.ancho
+            if dibs.length != 1 or dif > 8 or dif < -8 or _val_estilo(n.estilo, "display", "inline") != "block"
+                return false
+            end
+            if aplicar
+                alin = _val_estilo(n.estilo, "text-align", "left")
+                if alin == "right" or alin == "end"
+                    dib.x = dib.x - dif
+                elif alin == "center"
+                    dib.x = dib.x - dif / 2
+                end
+                dib.ancho = ancho
+            end
+        end
+        if aplicar
+            dib.texto = nuevo
+        end
+        i = i + 1
+    end
+    return true
+end
+
+func _documento_mayusculas(n: Nodo, t: String) -> String
+    tt = _val_estilo(n.estilo, "text-transform", "none")
+    if tt == "uppercase"
+        return str_upper(t)
+    elif tt == "lowercase"
+        return str_lower(t)
+    end
+    return t
+end
+
+func _val_estilo(e: {String: String}, k: String, defecto: String) -> String
+    if e.has(k) and e[k] != ""
+        return e[k]
+    end
+    return defecto
+end
+
+# Las cajas (para el JavaScript) de n y lo de dentro, movidas
+func _documento_mover_cajas(doc: Nodo, n: Nodo, dx: Int, dy: Int)
+    if n.caja_pase == doc.caja_pase
+        n.caja_x = n.caja_x + dx
+        n.caja_y = n.caja_y + dy
+    end
+    for h in n.hijos
+        _documento_mover_cajas(doc, h, dx, dy)
+    end
 end
 
 # Lo que cambió el JavaScript antes del estilo entero ya no hace falta apuntarlo
