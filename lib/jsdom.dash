@@ -563,6 +563,8 @@ func jsdom_ejecutar_scripts_con(js: Int, doc: Nodo, base: String, traidos: {Stri
     end
     # DOMContentLoaded y load, como un navegador al acabar la página
     js_evaluar(js, "__dashweb_cargado()", "dashweb")
+    # con QuickJS y dashweb compilados con -DJS_PERFIL, el perfil del JavaScript de la página (si no, nada)
+    js_perfil_volcar(js, 40)
     if js_error(js) != ""
         Print "JS: " + str_replace(js_error(js), "\n    ", " | ")
     end
@@ -604,6 +606,11 @@ end
 """
 /* lib/jsdom.dash: one JS object per Dash node, kept in a table until js_liberar */
 static JSClassID _jsdom_clase;
+
+/* A text made here (malloc) that went to a Dash function: Dash keeps the length of long texts in a cache by
+   address, and a free() it does not see would leave it there for the next text at the same address (a selector
+   of 104 characters was read cut short: tarea 37a3). Forget it before freeing. */
+#define _jsdom_soltar(p) do { _dash_str_forget((STRPTR)(p)); free(p); } while (0)
 
 typedef struct {
     _Dash_Nodo *doc;
@@ -689,7 +696,7 @@ static _Dash_Nodo *_jsdom_nodo(JSContext *ctx, JSValueConst v) {
 static JSValue _jsdom_cadena(JSContext *ctx, STRPTR s) {
     char *u = _js_utf8(s ? (const char *)s : "");
     JSValue v = u ? JS_NewString(ctx, u) : JS_EXCEPTION;
-    free(u);
+    _jsdom_soltar(u);
     return v;
 }
 
@@ -720,7 +727,7 @@ static JSValue _jsdom_tagName(JSContext *ctx, JSValueConst this_val) {
     if (!t) return JS_EXCEPTION;
     { char *p; for (p = t; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32; }
     v = JS_NewString(ctx, t);
-    free(t);
+    _jsdom_soltar(t);
     return v;
 }
 
@@ -739,7 +746,7 @@ static JSValue _jsdom_set_textContent(JSContext *ctx, JSValueConst this_val, JSV
     _JSDOM_ESTE;
     t = _js_texto(ctx, v);
     jsdom_poner_texto(n, (STRPTR)(t ? t : ""));
-    free(t);
+    _jsdom_soltar(t);
     _jsdom_tocado(ctx, n);
     return JS_UNDEFINED;
 }
@@ -754,7 +761,7 @@ static JSValue _jsdom_set_innerHTML(JSContext *ctx, JSValueConst this_val, JSVal
     _JSDOM_ESTE;
     t = _js_texto(ctx, v);
     jsdom_poner_html(n, (STRPTR)(t ? t : ""));
-    free(t);
+    _jsdom_soltar(t);
     _jsdom_tocado(ctx, n);
     return JS_UNDEFINED;
 }
@@ -772,7 +779,7 @@ static JSValue _jsdom_set_atr(JSContext *ctx, JSValueConst this_val, JSValueCons
     _JSDOM_ESTE;
     t = _js_texto(ctx, v);
     jsdom_poner_atributo(n, (STRPTR)_jsdom_atr_nombres[magic], (STRPTR)(t ? t : ""));
-    free(t);
+    _jsdom_soltar(t);
     _jsdom_tocado(ctx, n);
     return JS_UNDEFINED;
 }
@@ -788,7 +795,7 @@ static JSValue _jsdom_set_value(JSContext *ctx, JSValueConst this_val, JSValueCo
     _JSDOM_ESTE;
     t = _js_texto(ctx, v);
     jsdom_poner_valor(n, (STRPTR)(t ? t : ""));
-    free(t);
+    _jsdom_soltar(t);
     _jsdom_tocado(ctx, n);
     return JS_UNDEFINED;
 }
@@ -834,7 +841,7 @@ static JSValue _jsdom_getAttribute(JSContext *ctx, JSValueConst this_val, int ar
     _JSDOM_ESTE;
     a = _jsdom_arg(ctx, argc, argv, 0);
     v = a && jsdom_tiene_atributo(n, (STRPTR)a) ? _jsdom_cadena(ctx, jsdom_atributo(n, (STRPTR)a)) : JS_NULL;
-    free(a);
+    _jsdom_soltar(a);
     return v;
 }
 
@@ -844,7 +851,7 @@ static JSValue _jsdom_hasAttribute(JSContext *ctx, JSValueConst this_val, int ar
     _JSDOM_ESTE;
     a = _jsdom_arg(ctx, argc, argv, 0);
     r = a && jsdom_tiene_atributo(n, (STRPTR)a);
-    free(a);
+    _jsdom_soltar(a);
     return JS_NewBool(ctx, r);
 }
 
@@ -854,8 +861,8 @@ static JSValue _jsdom_setAttribute(JSContext *ctx, JSValueConst this_val, int ar
     a = _jsdom_arg(ctx, argc, argv, 0);
     v = _jsdom_arg(ctx, argc, argv, 1);
     if (a && v) jsdom_poner_atributo(n, (STRPTR)a, (STRPTR)v);
-    free(a);
-    free(v);
+    _jsdom_soltar(a);
+    _jsdom_soltar(v);
     _jsdom_tocado(ctx, n);
     return JS_UNDEFINED;
 }
@@ -865,7 +872,7 @@ static JSValue _jsdom_removeAttribute(JSContext *ctx, JSValueConst this_val, int
     _JSDOM_ESTE;
     a = _jsdom_arg(ctx, argc, argv, 0);
     if (a) jsdom_quitar_atributo(n, (STRPTR)a);
-    free(a);
+    _jsdom_soltar(a);
     _jsdom_tocado(ctx, n);
     return JS_UNDEFINED;
 }
@@ -898,11 +905,11 @@ static JSValue _jsdom_selector(JSContext *ctx, JSValueConst this_val, int argc, 
     if (!s) return JS_EXCEPTION;
     if (magic != 2 && !jsdom_selector_valido((STRPTR)s)) {
         JSValue e = JS_ThrowSyntaxError(ctx, "'%s' is not a valid selector", s);
-        free(s);
+        _jsdom_soltar(s);
         return e;
     }
     l = jsdom_selector(n, (STRPTR)s, magic != 0);
-    free(s);
+    _jsdom_soltar(s);
     if (magic) return _jsdom_lista(ctx, l);
     return l && DashArray_length(l) ? _jsdom_objeto(ctx, (_Dash_Nodo *)DashArray_get(l, 0)) : JS_NULL;
 }
@@ -970,11 +977,11 @@ static JSValue _jsdom_matches(JSContext *ctx, JSValueConst this_val, int argc, J
     if (!s) return JS_EXCEPTION;
     if (!jsdom_selector_valido((STRPTR)s)) {
         JSValue e = JS_ThrowSyntaxError(ctx, "'%s' is not a valid selector", s);
-        free(s);
+        _jsdom_soltar(s);
         return e;
     }
     r = n->tipo == DOM_ELEMENTO && jsdom_cumple(n, (STRPTR)s);
-    free(s);
+    _jsdom_soltar(s);
     return JS_NewBool(ctx, r);
 }
 
@@ -985,7 +992,7 @@ static JSValue _jsdom_getElementsByClassName(JSContext *ctx, JSValueConst this_v
     s = _jsdom_arg(ctx, argc, argv, 0);
     if (!s) return JS_EXCEPTION;
     sel = (char *)malloc(strlen(s) * 2 + 2);
-    if (!sel) { free(s); return JS_EXCEPTION; }
+    if (!sel) { _jsdom_soltar(s); return JS_EXCEPTION; }
     /* "a b" -> ".a.b" */
     for (p = s, q = sel; *p; ) {
         while (*p && (unsigned char)*p <= 32) p++;
@@ -995,8 +1002,8 @@ static JSValue _jsdom_getElementsByClassName(JSContext *ctx, JSValueConst this_v
     }
     *q = 0;
     l = sel[0] ? jsdom_selector(n, (STRPTR)sel, TRUE) : NULL;
-    free(s);
-    free(sel);
+    _jsdom_soltar(s);
+    _jsdom_soltar(sel);
     return _jsdom_lista(ctx, l);
 }
 
@@ -1065,7 +1072,7 @@ static JSValue _jsdom_media(JSContext *ctx, JSValueConst this_val, int argc, JSV
     BOOL r;
     if (!q) return JS_EXCEPTION;
     r = css_media_vale((STRPTR)q);
-    free(q);
+    _jsdom_soltar(q);
     return JS_NewBool(ctx, r);
 }
 
@@ -1131,7 +1138,7 @@ static JSValue _jsdom_getElementById(JSContext *ctx, JSValueConst this_val, int 
     JSValue v;
     if (!id) return JS_EXCEPTION;
     v = _jsdom_objeto(ctx, jsdom_por_id(_jsdom_de(ctx)->doc, (STRPTR)id));
-    free(id);
+    _jsdom_soltar(id);
     return v;
 }
 
@@ -1142,7 +1149,7 @@ static JSValue _jsdom_crear(JSContext *ctx, JSValueConst this_val, int argc, JSV
     if (!t) return JS_EXCEPTION;
     v = _jsdom_objeto(ctx, magic == 2 ? jsdom_crear_comentario((STRPTR)t)
                            : magic ? jsdom_crear_texto((STRPTR)t) : jsdom_crear((STRPTR)t));
-    free(t);
+    _jsdom_soltar(t);
     return v;
 }
 
@@ -1156,7 +1163,7 @@ static JSValue _jsdom_documento_nuevo(JSContext *ctx, JSValueConst this_val, int
     JSValue v;
     if (!t) return JS_EXCEPTION;
     v = _jsdom_objeto(ctx, jsdom_documento_nuevo((STRPTR)t));
-    free(t);
+    _jsdom_soltar(t);
     return v;
 }
 
@@ -1169,7 +1176,7 @@ static JSValue _jsdom_calculado(JSContext *ctx, JSValueConst this_val, int argc,
     p = _jsdom_arg(ctx, argc, argv, 1);
     if (!p) return JS_EXCEPTION;
     v = _jsdom_cadena(ctx, jsdom_estilo_calculado(n, (STRPTR)p));
-    free(p);
+    _jsdom_soltar(p);
     return v;
 }
 
@@ -1192,15 +1199,15 @@ static JSValue _jsdom_galletas(JSContext *ctx, JSValueConst this_val, int argc, 
     JSValue v;
     if (!u) return JS_EXCEPTION;
     v = _jsdom_cadena(ctx, jsdom_galletas((STRPTR)u));
-    free(u);
+    _jsdom_soltar(u);
     return v;
 }
 
 static JSValue _jsdom_galleta(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     char *u = _jsdom_arg(ctx, argc, argv, 0), *t = _jsdom_arg(ctx, argc, argv, 1);
     if (u && t) jsdom_galleta((STRPTR)u, (STRPTR)t);
-    free(u);
-    free(t);
+    _jsdom_soltar(u);
+    _jsdom_soltar(t);
     return JS_UNDEFINED;
 }
 

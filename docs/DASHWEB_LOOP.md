@@ -185,6 +185,11 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [x] D61. **Longitudes de textos hechos en C** (hecha por la sesión "dash", 8f04c61: la caché solo apunta los textos
+      de Dash, que llevan una marca en su cabecera; 2026-10-20, tarea 37a3). La caché de
+      longitudes de `_dash_str_len` (textos de 64 o más, por dirección) no se entera de un free() de C: el texto
+      siguiente en esa dirección heredaba la longitud vieja (un selector de 104 caracteres de querySelector salía
+      cortado). dashweb lo parchea con `_jsdom_soltar` (lib/jsdom.dash); el arreglo de fondo va en Dash.
 - [x] D60. **La red despierta el bucle de MUI por señal** (usuario, 2026-10-20, por la sesión dashweb-f7; encargada a
       la sesión "dash", avisará con el commit). `mui_wait_event_signals`/`mui_signals` existen, pero no hay cómo
       obtener la señal de un socket: un builtin con la máscara de señal de la red (p. ej. `net_signal()`, con
@@ -271,9 +276,12 @@ tarea, con el estilo de Dash.
            pierden: la cabecera sale en una columna y el logo (svg con h-[1.35em]) gigante. Con test.
       [x] 37a2. URL y URLSearchParams (es la 32b): el runtime de Turbopack cae al empezar ("'URL' is not defined", turbopack-
            *.js:1:4070) y Next.js no llega a montar nada (React, GSAP). Con test.
-      37a3. Lentitud: con 37a1 la maqueta bajó de 21,7 a 6,7 s, pero con React ya en marcha (37a2) los scripts
-           tardan 31 s (antes 5,6 s, que no hacían nada). Medir con `medir_visor --perfil` y atacar lo que pese
-           (JavaScript: ¿el DOM de jsdom, QuickJS, el GC?; maqueta: 6,7 s).
+      [x] 37a3. Lentitud del JavaScript: de 31 s a 6,7 s (core-js cambiaba el Promise de QuickJS por el suyo), y
+           Next.js ya monta la página sin errores.
+      37a5. Maqueta lenta y repetida: cada maqueta de esta página tarda 6,2-7 s (estilo_px, _borde, flex y grid en el
+           perfil de Dash) y el JavaScript la rehace entera por cada cambio, aunque sea uno (GSAP y React cambian
+           style a cada rato: 6,2 s por fotograma). Hacer la maqueta más rápida y que un cambio de style que no mueve
+           nada (opacity, transform, color) no la rehaga (enlaza con 37d).
       37a4. El JavaScript con sus caracteres: hoy los scripts pasan a Latin-1 (al traerlos y en el DOM) y lo que no
            cabe sale "?" ("https://тест"); por eso core-js descarta el URL de dashweb y pone el suyo. Dar a QuickJS el
            texto UTF-8 de los scripts (traídos y en línea) sin pasar por Latin-1, y punycode en URL.host.
@@ -308,6 +316,26 @@ tarea, con el estilo de Dash.
 - [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
       https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
       como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
+
+- [ ] 40. **Lo que encontró la sesión dashweb-f7 al rehacer docs/ARQUITECTURA.md (2026-10-20; después de la 37,
+      salvo la (a), que va antes de la próxima versión).** Comprobado en el código por ella:
+      (a) tools/paquete.sh compila dashweb y el visor sin --fpu, pero libqjs, libimg y libvideo van con -m68881: la
+      bitácora (28g, 29b) dice que mezclar las dos formas rompía números (Date.now, SVG de 0x0). Mirar si algún
+      número con decimales cruza entre las dos partes en la v0.2.0-alfa y, casi seguro, añadir --fpu.
+      (b) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
+      imágenes, vídeo), sin tope: un .lha grande puede agotar la memoria. Escribir al fichero según llega, o un tope
+      con un aviso claro.
+      (c) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
+      un script que pase de N segundos y decirlo.
+      (d) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
+      la pieza más alta + 2 px en _poner_linea).
+      (e) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
+      fichero).
+      (f) Las animaciones de CSS no corren en dashweb: lib/animacion.dash tiene su test, pero nadie lo importa ni
+      llama a animar() (la 31q no está acabada aunque el README diga otra cosa).
+      (g) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
+      cabeceras de maqueta.dash ("position, más adelante", tablas), video.dash y videos.dash ("sin sonido"), el
+      README (el ahorro de reanudar TLS apenas se nota: D55, 9,0 -> 7,9 s; la tabla de medidas es del 2026-10-16).
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
 
@@ -2543,3 +2571,24 @@ Formato:
 - D60 hecha por la sesión dash (0389bef): marcada; la 39 dice cómo usarla.
 - Para docs/ARQUITECTURA.md (lo rehace dashweb-f7): el preludio trae URL/URLSearchParams propios,
   document.currentScript, href/src completos, ReadableStream y el aviso de promesas sin capturar.
+
+### 2026-10-20 — Tarea 37a3 (el JavaScript de pre.opentimetrack.com, de 31 s a 6,7 s, y Next.js montando la página)
+- Medido: un solo script en línea (`self.__next_f.push([1,"..."])`, los datos de React) tardaba 25 s; el
+  perfil de Dash no veía nada (todo dentro de QuickJS). Probados y descartados: el TextEncoder del preludio (0,4 s),
+  el malloc de libnix (un asignador por tallas, mal medido: no llevaba la cuenta de memoria de QuickJS y el GC no
+  pasaba; se quitó) y el GC (8 MB de margen: igual).
+- Perfil nuevo dentro de QuickJS (`-DJS_PERFIL`, docs/quickjs_amiga.md, cambio 4): muestras desde una interrupción
+  VBlank que miran la función de arriba de la pila. Salió: el 79 % en el Promise de core-js. core-js da por roto el
+  Promise de QuickJS en un navegador sin `PromiseRejectionEvent` y pone el suyo, en JavaScript. Con
+  PromiseRejectionEvent en el preludio: ese script, de 25 s a 0,5-0,9 s; los scripts, de 31 s a 6,7 s.
+- Con React ya trabajando salieron, uno tras otro: un querySelector de 104 caracteres "no válido" (la caché de
+  longitudes de Dash y los textos de C: D61, encargada a "dash"; parcheado con `_jsdom_soltar`), `instanceof
+  HTMLIFrameElement` verdadero para todo (todas las interfaces eran el mismo constructor: ahora cada una con
+  Symbol.hasInstance por tipo y etiqueta, y el mismo prototipo), `Window` y `EventTarget`, `classList` que no se
+  podía recorrer (Lenis: Array.from), y `attachShadow` (el anunciador de rutas de Next.js; una raíz de sombra
+  mínima que no se pinta). console.log/error escriben ya la pila de los errores.
+- Resultado: sin errores de JavaScript; la página queda como la monta React (una ficha, la "huella" calculada) y
+  GSAP, React y Lenis siguen cambiándola. Pero cada cambio rehace la maqueta entera: 6,2 s por fotograma. Apuntada
+  37a5. Tareas de la sesión dashweb-f7 apuntadas como 40.
+- Test nuevo test_jsdom_interfaces. Base: 59/59 (902 s). D61 hecha por "dash" (8f04c61) mientras tanto: el
+  parche `_jsdom_soltar` se queda (no estorba).

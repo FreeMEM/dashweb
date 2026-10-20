@@ -20,6 +20,13 @@ En `third_party/quickjs/quickjs.c` (segundo commit del repo, para ver el diff):
 1. `malloc_usable_size`: libnix no lo tiene; se usa la rama de Emscripten (devuelve 0).
 2. `tm_gmtoff`: libnix no lo tiene; se usa el camino de Windows (`gmtime`/`localtime`).
 3. Sin `CONFIG_ATOMICS`: `Atomics` necesita hilos.
+4. Perfil por muestras, solo si se compila con `-DJS_PERFIL` (tarea 37a3): `JS_PerfilMuestra(rt)` apunta la
+   función de arriba de la pila (de bytecode o nativa) y las de debajo; lib/js.dash la llama 50 veces por segundo
+   desde una interrupción VBlank, y `JS_PerfilVolcar(ctx, n)` escribe las que más pesan (propio y total,
+   fichero:línea:columna del principio de la función). Uso:
+   `tools/build_qjs.sh lib -DJS_PERFIL` y `DASH_CFLAGS=-DJS_PERFIL tools/medir_visor.py ...` (dashweb lo escribe
+   al acabar los scripts de la página); luego `tools/build_qjs.sh lib` para volver a la normal. Sin la macro, el
+   código ni se compila.
 
 `third_party/quickjs/amiga/fenv.h` está vacío: el de libnix no compila y QuickJS no usa nada de él.
 `third_party/quickjs/amiga/qjsamiga.c` es un lanzador de pruebas: ejecuta los `.js` dados y mide tiempo

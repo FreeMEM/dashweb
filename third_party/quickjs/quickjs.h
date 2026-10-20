@@ -924,6 +924,10 @@ void JS_SetHostPromiseRejectionTracker(JSRuntime *rt, JSHostPromiseRejectionTrac
 /* return != 0 if the JS code needs to be interrupted */
 typedef int JSInterruptHandler(JSRuntime *rt, void *opaque);
 void JS_SetInterruptHandler(JSRuntime *rt, JSInterruptHandler *cb, void *opaque);
+#ifdef JS_PERFIL
+void JS_PerfilVolcar(JSContext *ctx, int cuantas); /* dashweb: the sampling profile (-DJS_PERFIL) */
+void JS_PerfilMuestra(JSRuntime *rt);             /* one sample (from an interrupt) */
+#endif
 /* if can_block is TRUE, Atomics.wait() can be used */
 void JS_SetCanBlock(JSRuntime *rt, JS_BOOL can_block);
 /* select which debug info is stripped from the compiled code */
