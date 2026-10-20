@@ -185,6 +185,14 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [ ] D62. **Imágenes con alfa de verdad** (2026-10-20, tarea 37; encargada a la sesión "dash"). `image_draw` e
+      `image_draw_part` de una imagen de `image_from_rgb(..., alfa)` pintan el pixel si su alfa es 128 o más y si no
+      nada: lo translúcido sale opaco o no sale. En trainalong.fit, el círculo y la curva grises (opacity .35 en el
+      SVG) salen como una mancha blanca opaca junto a "En construcción" y sin la curva. Se propone: en pantallas RTG
+      de 15 a 32 bits, mezclar con lo que hay debajo (WritePixelArrayAlpha de CyberGraphX V43 / Picasso96, o leer,
+      mezclar y escribir); en pantallas de paleta, seguir con el umbral. Test en el emulador. Y `image_scale` al
+      ampliar pierde filas de la máscara (BitMapScale): la curva de trainalong.fit (rasterizada a 1024 y ampliada a
+      1100) sale con una fila transparente cada ~14.
 - [x] D61. **Longitudes de textos hechos en C** (hecha por la sesión "dash", 8f04c61: la caché solo apunta los textos
       de Dash, que llevan una marca en su cabecera; 2026-10-20, tarea 37a3). La caché de
       longitudes de `_dash_str_len` (textos de 64 o más, por dirección) no se entera de un free() de C: el texto
@@ -2777,4 +2785,17 @@ Formato:
   la maqueta del montaje (13,8 s, una vez) y la de tres toques SALE al cargar: apuntada 37e4.
 - Tests: test_documento_ligero (view-transition-name, un script y un div que entran), test_estilo_partes
   (transform en el padre no rehace al hijo; color sí). Batería 64/64 (1170 s); freemem.space 22,5 s.
+
+### 2026-10-20 — trainalong.fit en CoffinOS: la mancha blanca y las rayas (encargada D62)
+- El usuario lo prueba en CoffinOS: junto a "En construcción" sale una mancha blanca, la curva gris no sale y el
+  punto no late. Visto en la máquina rtg (MUI 3.8 y 5): el punto sí late; la mancha y las rayas también salen, y
+  ya salían en bf2292b (37e).
+- La mancha es el círculo `punto-acompana` del SVG de fondo (opacity .35; en Chrome, un círculo gris translúcido
+  detrás de la etiqueta). nanosvg da bien el alfa (~145 donde se solapa con la curva, ~89 en el resto), pero
+  `image_draw` pinta con umbral de 128: lo translúcido sale opaco o no sale. Antes de 37d4 el círculo estaba en
+  scale(0) y no se veía.
+- Las rayas de la curva verde: el SVG mide 1100 de alto, se rasteriza a IMAGEN_MAX_ALTO (1024) y `image_scale` lo
+  amplía: la máscara (BitMapScale) pierde una fila cada ~14.
+- Las dos cosas son de Dash: encargada D62 a la sesión "dash". Que el punto no lata en CoffinOS: pendiente de una
+  traza del usuario.
 
