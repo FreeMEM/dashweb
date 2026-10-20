@@ -27,14 +27,21 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
     gfx_mode(0)
     gfx_pen(_lapiz(p.fondo))
     gfx_rect(x0, y0, x0 + ancho - 1, y0 + alto - 1)
-    hasta = desde + alto
     derecha = x0 + ancho - 1
     abajo = y0 + alto - 1
     for d in p.dibujos
-        if d.y + d.alto <= desde or d.y >= hasta or d.velado
+        # (lo fijo, position: fixed, va con la ventana: sin desplazar)
+        dd = desde
+        if d.fijo
+            dd = 0
+        elif d.pega != nil
+            # (lo de un sticky: más abajo, lo que lo empuja el desplazamiento)
+            dd = desde - maqueta_pega_dy(d.pega, desde)
+        end
+        if d.y + d.alto <= dd or d.y >= dd + alto or d.velado
             continue
         end
-        y = y0 + d.y - desde
+        y = y0 + d.y - dd
         x = x0 + d.x
         # lo visible: la zona, o su recorte (overflow) dentro de ella
         cx0 = x0
@@ -45,14 +52,14 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             if x0 + d.rx0 > cx0
                 cx0 = x0 + d.rx0
             end
-            if y0 + d.ry0 - desde > cy0
-                cy0 = y0 + d.ry0 - desde
+            if y0 + d.ry0 - dd > cy0
+                cy0 = y0 + d.ry0 - dd
             end
             if x0 + d.rx1 < cx1
                 cx1 = x0 + d.rx1
             end
-            if y0 + d.ry1 - desde < cy1
-                cy1 = y0 + d.ry1 - desde
+            if y0 + d.ry1 - dd < cy1
+                cy1 = y0 + d.ry1 - dd
             end
             if cx0 > cx1 or cy0 > cy1
                 continue

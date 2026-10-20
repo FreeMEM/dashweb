@@ -39,6 +39,17 @@ const EST_SUBRAYADO = 1
 const EST_NEGRITA = 2
 const EST_CURSIVA = 4
 
+# Un elemento con position: sticky y top (tarea 37h): se queda a top px de lo alto de la vista mientras su
+# contenedor se ve; y0 es donde está en la página y fin lo más abajo que puede ir (el final de su contenedor menos su
+# alto). fuera: el sticky de fuera, si está dentro de otro.
+struct Pegajoso
+    nodo: Nodo
+    top: Int
+    y0: Int = 0
+    fin: Int = 0
+    fuera: Pegajoso = nil
+end
+
 struct Dibujo
     tipo: Int
     x: Int
@@ -54,6 +65,9 @@ struct Dibujo
     espaciado: Int = 0   # letter-spacing: px de más detrás de cada letra (el pintor las pone una a una)
     radio: Int = 0       # D_REDONDO: los cuatro radios
     capa: Int = 0        # z-index del contexto de apilado donde está (se pintan de menor a mayor)
+    pega: Pegajoso = nil # de un elemento con position: sticky (el de más dentro): se mueve con el desplazamiento
+    fijo: Bool = false   # de un elemento con position: fixed: va con la ventana, no con la página (el pintor no le
+                         # resta el desplazamiento; tarea 37h)
     difuso: Int = 0      # una sombra (D_RECT) con difuminado (box-shadow blur, px): el pintor la pinta en capas
     pos: Int = 0         # dentro de su capa, el orden en el árbol del elemento posicionado que lo puso (0: ninguno;
                          # lo posicionado se pinta después de lo demás y en el orden del árbol, CSS 2.1 apéndice E)
@@ -152,6 +166,7 @@ struct Maquetador
     cajas: [CajaNodo] = nil
     blanco: Int = 0      # un blanco detrás de una imagen: el ancho del espacio que toma la pieza siguiente
     ancho_linea: Int = 0 # el ancho de las líneas del bloque que se está maquetando
+    pegajosos: [Pegajoso] = nil
 end
 
 # Para depurar (tools/traza_maqueta.dash): cuántos niveles de cajas se escriben al maquetar (0: ninguno)
@@ -374,6 +389,7 @@ func maquetar(doc: Nodo, ancho: Int) -> Pagina
     end
     p.alto = _bloque(m, html, 0, 0, ancho)
     _cajas_finales(m, doc)
+    _pegajosos(m)
     _por_capas(p)
     return p
 end
@@ -418,12 +434,18 @@ func _cajas_finales(m: Maquetador, doc: Nodo)
         n.caja_y = c.y + dy
         n.caja_w = c.w
         n.caja_h = c.h
+        if c.ref != nil
+            n.caja_fija = c.ref.fijo
+        else
+            n.caja_fija = _en_fijo(n)
+        end
     end
     for d in m.pagina.dibujos
         n = d.nodo
         while n != nil and n.tipo == DOM_ELEMENTO and n.caja_bloque != pase
             if n.caja_pase != pase
                 n.caja_pase = pase
+                n.caja_fija = d.fijo
                 n.caja_x = d.x
                 n.caja_y = d.y
                 n.caja_w = d.ancho
@@ -449,6 +471,54 @@ func _cajas_finales(m: Maquetador, doc: Nodo)
             n = n.padre
         end
     end
+end
+
+# Dónde está cada sticky y hasta dónde puede bajar: el final del contenido de su padre menos su alto
+func _pegajosos(m: Maquetador)
+    if m.pegajosos == nil
+        return
+    end
+    for pg in m.pegajosos
+        n = pg.nodo
+        pg.y0 = n.caja_y
+        pg.fin = pg.y0
+        pd = n.padre
+        if pd != nil and pd.tipo == DOM_ELEMENTO and pd.caja_pase == _maqueta_pase
+            pg.fin = pd.caja_y + pd.caja_h - _px(pd.estilo, "padding-bottom", pd.caja_w) - _borde(pd.estilo, "bottom") - n.caja_h
+        end
+        if pg.fin < pg.y0
+            pg.fin = pg.y0
+        end
+    end
+end
+
+# Lo que se mueve un dibujo de un sticky con la página desplazada desde (0 si no es de ninguno)
+func maqueta_pega_dy(pg: Pegajoso, desde: Int) -> Int
+    dy = 0
+    p = pg
+    while p != nil
+        k = desde + p.top - p.y0
+        if k > p.fin - p.y0
+            k = p.fin - p.y0
+        end
+        if k > 0
+            dy = dy + k
+        end
+        p = p.fuera
+    end
+    return dy
+end
+
+# ¿Él o uno de fuera tiene position: fixed? (su caja va con la ventana)
+func _en_fijo(n: Nodo) -> Bool
+    p = n
+    while p != nil and p.tipo == DOM_ELEMENTO
+        if p.estilo != nil and p.estilo.has("position") and p.estilo["position"] == "fixed"
+            return true
+        end
+        p = p.padre
+    end
+    return false
 end
 
 # z-index: los dibujos de menor a mayor capa, sin cambiar el orden dentro de cada una
@@ -567,6 +637,33 @@ func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedo
     # position: relative: se desplaza lo dibujado (left o right, top o bottom) sin mover a los demás (CSS 2.1, 9.4.3)
     if _val(n.estilo, "position", "static") == "relative"
         _relativo(m, n, antes, contenedor)
+    end
+    # sticky con top: lo suyo se mueve con el desplazamiento (_cajas_finales pone dónde está y hasta dónde llega)
+    if _midiendo == 0 and _val(n.estilo, "position", "static") == "sticky" and _val(n.estilo, "top", "auto") != "auto"
+        var pg: Pegajoso = Pegajoso(n, _px(n.estilo, "top", ancho))
+        if m.pegajosos == nil
+            var lp: [Pegajoso] = []
+            m.pegajosos = lp
+        end
+        m.pegajosos.push(pg)
+        i = antes
+        while i < m.pagina.dibujos.length
+            dib = m.pagina.dibujos[i]
+            if dib.pega == nil
+                dib.pega = pg
+            elif dib.pega != pg and dib.pega.fuera == nil
+                dib.pega.fuera = pg
+            end
+            i = i + 1
+        end
+    end
+    # fixed: lo suyo va con la ventana
+    if _val(n.estilo, "position", "static") == "fixed"
+        i = antes
+        while i < m.pagina.dibujos.length
+            m.pagina.dibujos[i].fijo = true
+            i = i + 1
+        end
     end
     # posicionado: lo suyo (que no sea de otro posicionado de dentro) va con su orden en el árbol
     if _val(n.estilo, "position", "static") != "static" and n.orden > 0
@@ -3298,6 +3395,27 @@ end
 
 # El elemento que hay en el punto x, y de la página (lo último que se pintó allí: un texto, una
 # imagen o un fondo de caja), o nil
+# El elemento que está en x, y de la vista con la página desplazada desde: lo fijo (position: fixed) va con la
+# ventana; lo demás, en y + desde de la página
+func maqueta_nodo_en_vista(p: Pagina, x: Int, y: Int, desde: Int) -> Nodo
+    i = p.dibujos.length - 1
+    while i >= 0
+        d = p.dibujos[i]
+        yy = y + desde
+        if d.fijo
+            yy = y
+        elif d.pega != nil
+            yy = yy - maqueta_pega_dy(d.pega, desde)
+        end
+        if d.nodo != nil and not d.velado and x >= d.x and x < d.x + d.ancho and yy >= d.y and yy < d.y + d.alto
+            return d.nodo
+        end
+        i = i - 1
+    end
+    var nada: Nodo = nil
+    return nada
+end
+
 func maqueta_nodo_en(p: Pagina, x: Int, y: Int) -> Nodo
     i = p.dibujos.length - 1
     while i >= 0

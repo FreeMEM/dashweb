@@ -347,7 +347,7 @@ tarea, con el estilo de Dash.
            un suceso por tic como mucho.
       [x] 37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
            TTF para stb_truetype; las fuentes variables, con su instancia por defecto (o la del peso pedido si cabe).
-      37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
+      [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
 - [ ] 39. **Cargas despertadas por la red, no por un tic (necesita D60; después de la 37).** El bucle de
@@ -2935,4 +2935,20 @@ Formato:
   (var() entre --x del mismo elemento).
 - Batería 66/66 (1245 s); freemem.space 23,5 s (antes 21,4: ahora con --fpu y sus fuentes web de verdad; sin
   medir por separado).
+
+### 2026-10-21 — Tarea 37h, primera parte (position: fixed y sticky)
+- Bajando por pre.opentimetrack.com con espacios: tras la portada todo salía azul oscuro y vacío, y la cabecera se
+  iba. En Chrome: la cabecera fija y la sección "historia" con sus escenas (el móvil, el portátil) pegadas arriba
+  mientras se baja (historia-escenario: position: sticky; top: 0, en una sección de 3276 px).
+- lib/maqueta.dash: `Dibujo.fijo` (lo de un position: fixed va con la ventana: el pintor no le resta el
+  desplazamiento) y `Dibujo.pega` (`Pegajoso`: lo de un sticky con top se mueve lo que lo empuja el desplazamiento,
+  hasta el final del contenido de su padre; dentro de otro sticky, los dos: `maqueta_pega_dy`); `_pegajosos` con
+  las cajas de la maqueta. `maqueta_nodo_en_vista(p, x, y, desde)` para el clic y el ratón (con lo fijo y lo
+  pegajoso). `Nodo.caja_fija`: getBoundingClientRect de lo fijo no resta el desplazamiento.
+- pre.opentimetrack.com: la cabecera fija (oscura en las secciones oscuras, como en Chrome) y la historia se ve y
+  cambia al bajar (08 02 "Lucía llega y ficha", 15 40, 09 12 con el portátil), con su línea de tiempo abajo. Falta:
+  la pantalla del móvil vacía, el móvil a la izquierda (en Chrome, centrado), getBoundingClientRect de lo pegajoso
+  (sin el desplazamiento del sticky).
+- Test: test_maqueta_fijo (nuevo: fixed y sticky pintados y bajo el ratón). Batería 67/67 (1256 s); freemem.space
+  23,7 s.
 

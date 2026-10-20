@@ -267,7 +267,7 @@ func jsdom_preludio_js() -> String
     j = j + "N.getBoundingClientRect = function () {\n"
     j = j + "var c = __dashweb_caja(this);\n"
     j = j + "if (!c) return rect(0, 0, this.offsetWidth, this.offsetHeight);\n"
-    j = j + "return rect(c[0], c[1] - vista().desde, c[2], c[3]);\n"
+    j = j + "return rect(c[0], c[1] - (c[4] ? 0 : vista().desde), c[2], c[3]);\n"
     j = j + "};\n"
     j = j + "N.getClientRects = function () {\n"
     j = j + "var r = this.getBoundingClientRect();\n"

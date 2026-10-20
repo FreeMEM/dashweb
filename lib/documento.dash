@@ -482,7 +482,7 @@ func documento_raton(d: Documento, x: Int, y: Int, y_vista: Int) -> Bool
     end
     var n: Nodo = nil
     if x >= 0
-        n = maqueta_nodo_en(d.pagina, x, y)
+        n = maqueta_nodo_en_vista(d.pagina, x, y_vista, y - y_vista)
     end
     while n != nil and (n.tipo != DOM_ELEMENTO or str_starts(n.nombre, "::"))
         n = n.padre

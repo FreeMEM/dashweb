@@ -748,7 +748,7 @@ func clic(w: Ventana)
     if w.actual == nil or w.actual.pagina == nil
         return
     end
-    n = maqueta_nodo_en(w.actual.pagina, mui_canvas_mouse_x(w.v.pagina), mui_canvas_mouse_y(w.v.pagina) + w.desde)
+    n = maqueta_nodo_en_vista(w.actual.pagina, mui_canvas_mouse_x(w.v.pagina), mui_canvas_mouse_y(w.v.pagina), w.desde)
     if n == nil
         return
     end

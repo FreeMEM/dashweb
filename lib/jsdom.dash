@@ -1140,7 +1140,8 @@ static JSValue _jsdom_tamano(JSContext *ctx, JSValueConst this_val, int magic) {
     return JS_NewInt32(ctx, magic ? 16 : 100);
 }
 
-/* __dashweb_caja(node): [x, y, width, height] of its box in the page, or null (not laid out, or no layout yet) */
+/* __dashweb_caja(node): [x, y, width, height, fixed] of its box in the page (fixed: position: fixed, it goes with the
+   window), or null (not laid out, or no layout yet) */
 static JSValue _jsdom_caja(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     _Dash_Nodo *n = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
     JSValue a;
@@ -1150,6 +1151,7 @@ static JSValue _jsdom_caja(JSContext *ctx, JSValueConst this_val, int argc, JSVa
     JS_SetPropertyUint32(ctx, a, 1, JS_NewInt32(ctx, n->caja_y));
     JS_SetPropertyUint32(ctx, a, 2, JS_NewInt32(ctx, n->caja_w));
     JS_SetPropertyUint32(ctx, a, 3, JS_NewInt32(ctx, n->caja_h));
+    JS_SetPropertyUint32(ctx, a, 4, JS_NewBool(ctx, n->caja_fija));
     return a;
 }
 
