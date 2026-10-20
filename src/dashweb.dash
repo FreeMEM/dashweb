@@ -41,6 +41,7 @@ const ID_VER_HISTORIAL = 20
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
 const ID_CERRADA = 100    # + número de ventana: su botón de cerrar
+const ID_RATON = 120      # + número de ventana: el ratón se movió sobre su página (o salió; D63, tarea 37f3)
 const ID_COMPLETA = 90    # la ventana del vídeo a pantalla completa: un clic o una tecla
 const ID_COMPLETA_CERRADA = 91
 
@@ -653,6 +654,26 @@ func avisar_desplazamiento(w: Ventana)
 end
 
 # Un tic: cargas, imágenes y temporizadores de una ventana
+# El ratón se movió sobre la página (o salió de ella): :hover y los sucesos del ratón del JavaScript (tarea 37f3)
+func raton(w: Ventana)
+    if not w.abierta or w.actual == nil or w.carga != nil or w.actual.pagina == nil
+        return
+    end
+    if mui_canvas_pointer_inside(w.v.pagina)
+        x = mui_canvas_pointer_x(w.v.pagina)
+        y = mui_canvas_pointer_y(w.v.pagina)
+        documento_raton(w.actual, x, y + w.desde, y)
+    else
+        documento_raton(w.actual, -1, -1, -1)
+    end
+    if documento_al_dia(w.actual)
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+    end
+    # (lo que el JavaScript haya programado al moverse el ratón)
+    temporizadores(w)
+end
+
 func tic(w: Ventana)
     avanzar_carga(w)
     avanzar_descarga(w)
@@ -905,6 +926,7 @@ func nueva_ventana(direccion: String) -> Ventana
         mui_canvas_on_draw(v.actividad, giro3)
     end
     mui_canvas_on_input(v.pagina, ID_PAGINA)
+    mui_canvas_on_move(v.pagina, ID_RATON + k)
     # la página se pinta aparte y llega a la ventana de una vez: no se ve redibujarse
     mui_canvas_buffered(v.pagina, true)
     mui_on_close(v.window, ID_CERRADA + k)
@@ -1032,6 +1054,10 @@ Main
             end
             if ev >= ID_CERRADA and ev < ID_CERRADA + MAX_VENTANAS
                 cerrar_ventana(dw_ventanas[ev - ID_CERRADA])
+                continue
+            end
+            if ev >= ID_RATON and ev < ID_RATON + MAX_VENTANAS
+                raton(dw_ventanas[ev - ID_RATON])
                 continue
             end
             w = activa()

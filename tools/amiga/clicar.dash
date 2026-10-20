@@ -4,7 +4,7 @@
 #   clicar "dashweb" e 100 c 50 40 e 50 t 0x4D
 #
 # Acciones: "e N" espera N/50 s; "c X Y" clic en X, Y dentro de los bordes de la ventana;
-# "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...); "a COD" la misma con Amiga
+# "v X Y" lleva el puntero a X, Y sin pulsar; "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...); "a COD" la misma con Amiga
 # derecha (atajos de menú: 0x22 = D); "m M E" elige con el ratón el elemento E del menú M (desde 0,
 # separadores incluidos); "r X Y" pulsa el botón derecho en X, Y, "p X Y" lo lleva pulsado al punto X, Y
 # de la pantalla y "s" lo suelta (menús de MUI). Escribe lo que hace.
@@ -74,6 +74,15 @@ end
             ie.ie_Class = IECLASS_RAWMOUSE;
             ie.ie_Code = tipo == 4 ? IECODE_RBUTTON : IECODE_RBUTTON | IECODE_UP_PREFIX;
             ie.ie_Qualifier = (tipo == 4 ? IEQUALIFIER_RBUTTON : 0) | IEQUALIFIER_RELATIVEMOUSE;
+            DoIO((struct IORequest *)io);
+        } else if (tipo == 6) {          /* mover el puntero a x, y sin pulsar */
+            memset(&ie, 0, sizeof(ie));
+            pp.iepp_Screen = w->WScreen;
+            pp.iepp_Position.X = w->LeftEdge + w->BorderLeft + x;
+            pp.iepp_Position.Y = w->TopEdge + w->BorderTop + y;
+            ie.ie_Class = IECLASS_NEWPOINTERPOS;
+            ie.ie_SubClass = IESUBCLASS_PIXEL;
+            ie.ie_EventAddress = (APTR)&pp;
             DoIO((struct IORequest *)io);
         } else if (tipo == 1) {          /* clic */
             memset(&ie, 0, sizeof(ie));
@@ -251,6 +260,10 @@ Main
             elif a == "c" and i + 2 < arg_count()
                 evento(w, 1, Int(arg(i + 1)), Int(arg(i + 2)), 0)
                 Print "clicar: clic " + arg(i + 1) + "," + arg(i + 2)
+                i = i + 3
+            elif a == "v" and i + 2 < arg_count()
+                evento(w, 6, Int(arg(i + 1)), Int(arg(i + 2)), 0)
+                Print "clicar: ratón a " + arg(i + 1) + "," + arg(i + 2)
                 i = i + 3
             elif a == "r" and i + 2 < arg_count()
                 evento(w, 4, Int(arg(i + 1)), Int(arg(i + 2)), 0)

@@ -1548,6 +1548,24 @@ end
 """
 end
 
+# El ratón sobre la página (tarea 37f3): nuevo es el elemento de debajo (nil: fuera), viejo el de antes; x, y en
+# coordenadas de la vista. Lanza out/leave, over/enter y move (pointer* y mouse*), como los navegadores.
+@native(borrow) func jsdom_raton(js: Int, nuevo: Nodo, viejo: Nodo, x: Int, y: Int)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue args[4], r;
+    if (!m || !m->extra) return;
+    args[0] = _jsdom_objeto(m->ctx, nuevo);
+    args[1] = _jsdom_objeto(m->ctx, viejo);
+    args[2] = JS_NewInt32(m->ctx, (int32_t)x);
+    args[3] = JS_NewInt32(m->ctx, (int32_t)y);
+    r = _jsdom_llamar(m->ctx, "__dashweb_raton", 4, args);
+    JS_FreeValue(m->ctx, r);
+    JS_FreeValue(m->ctx, args[0]);
+    JS_FreeValue(m->ctx, args[1]);
+"""
+end
+
 # Ejecuta los setTimeout/setInterval que ya tocan; los ms que faltan para el siguiente, o -1
 @native(borrow) func jsdom_temporizadores(js: Int) -> Int
 """

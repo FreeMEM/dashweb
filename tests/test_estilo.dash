@@ -3,7 +3,7 @@
 # selectores con combinadores y pseudo-clases, estilo_px; el índice de selectores (clase, id, etiqueta,
 # universal; ::before y :hover fuera), @media por ancho, el texto solo para lectores y css_importes. Las
 # propiedades lógicas (padding-inline, margin-block, inset-inline-start...), también con var() (tarea 37f); svh, dvh,
-# lvh y sus -vw como vh y vw (37f2).
+# lvh y sus -vw como vh y vw (37f2). @media (hover: hover), (pointer: fine) y la sintaxis de rango (37f3).
 # memcheck
 # expect-out: h1: block bold 26px rojo
 # expect-out: p.nota: block 10px green italic
@@ -18,6 +18,7 @@
 # expect-out: media: 600 640 no-print no-ancho
 # expect-out: media 1000: true 0 640 true
 # expect-out: oculto: none inline
+# expect-out: media ratón: true false | rango: true true false
 # expect-out: importes: a.css b.css
 # expect-out: lógicas: 4px 4px 2px 6px | 8px 8px | 1px 3px | 5px
 # expect-out: px: 16 24 50 4 -3 10 0 | svh true dvw true
@@ -87,6 +88,8 @@ Main
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
     Print "oculto: " + dom_buscar(doc, "a").estilo["display"] + " " + dom_buscar(doc, "span").estilo["display"]
+    # el Amiga tiene ratón; la sintaxis de rango con la vista de 640 (tarea 37f3)
+    Print "media ratón: " + css_media_vale("(hover: hover)") + " " + css_media_vale("(pointer: coarse)") + " | rango: " + css_media_vale("(width >= 600px)") + " " + css_media_vale("(400px < width <= 700px)") + " " + css_media_vale("(width<30em)")
     importes = css_importes("@charset \"utf-8\"; /* x */ @import url(a.css); @import \"b.css\" screen; p { } @import url(c.css);")
     r = ""
     for i in importes

@@ -40,6 +40,8 @@ struct Documento
     anims: [Animacion] = nil   # las animaciones de CSS de la última maqueta (lib/animacion.dash; tarea 37d2)
     anim_t0: Int = 0           # time_ms de su principio (la primera maqueta): su reloj
     svgs: [SvgAnimado] = nil   # los <svg> con animaciones dentro (se rasterizan otra vez en cada fotograma; 37d4)
+    raton: Nodo = nil          # el elemento bajo el ratón (documento_raton; tarea 37f3)
+    raton_toques: Bool = false # el :hover cambió: documento_al_dia rehace el estilo aunque el JavaScript no tocara nada
 end
 
 # Un <svg> de la página con animaciones de CSS en sus elementos (la curva de trainalong.fit: stroke-dashoffset)
@@ -471,13 +473,75 @@ func _documento_animar_svgs(d: Documento) -> Bool
     return viva
 end
 
-# Si el JavaScript cambió el documento desde la última maqueta: estilo, imágenes y maqueta otra vez
-func documento_al_dia(d: Documento) -> Bool
-    if d.js == 0 or jsdom_cambios(d.js) == d.cambios
+# El ratón está en x, y de la página (y_vista: la y en la vista, para el JavaScript; x < 0: fuera de la página). Pone
+# :hover en el elemento de debajo y los de fuera (y lo quita de los que deja) y lanza los sucesos del ratón al
+# JavaScript. true si el :hover cambió algo que el CSS mira: entonces documento_al_dia rehace el estilo.
+func documento_raton(d: Documento, x: Int, y: Int, y_vista: Int) -> Bool
+    if d.pagina == nil
         return false
     end
+    var n: Nodo = nil
+    if x >= 0
+        n = maqueta_nodo_en(d.pagina, x, y)
+    end
+    while n != nil and (n.tipo != DOM_ELEMENTO or str_starts(n.nombre, "::"))
+        n = n.padre
+    end
+    viejo = d.raton
+    cambia = false
+    if n != viejo
+        usa_hover = d.hojas != nil and d.hojas.con_hover
+        # (se marcan los de la cadena nueva; los de la vieja que no estén, se desmarcan)
+        _lig_vuelta = _lig_vuelta + 1
+        marca = _lig_vuelta
+        p = n
+        while p != nil and p.tipo == DOM_ELEMENTO
+            p.lig_fuera = 0 - marca
+            p = p.padre
+        end
+        p = viejo
+        while p != nil and p.tipo == DOM_ELEMENTO
+            if p.lig_fuera != 0 - marca and p.raton
+                p.raton = false
+                if usa_hover
+                    dom_apuntar(p, TOQUE_ATRIBUTO, ":hover", "", "")
+                    cambia = true
+                end
+            end
+            p = p.padre
+        end
+        p = n
+        while p != nil and p.tipo == DOM_ELEMENTO
+            if not p.raton
+                p.raton = true
+                if usa_hover
+                    dom_apuntar(p, TOQUE_ATRIBUTO, ":hover", "", "")
+                    cambia = true
+                end
+            end
+            p = p.padre
+        end
+        d.raton = n
+    end
+    if d.js != 0 and (n != nil or viejo != nil)
+        jsdom_raton(d.js, n, viejo, x, y_vista)
+    end
+    if cambia
+        d.raton_toques = true
+    end
+    return cambia
+end
+
+# Si el JavaScript cambió el documento desde la última maqueta: estilo, imágenes y maqueta otra vez
+func documento_al_dia(d: Documento) -> Bool
+    if not d.raton_toques and (d.js == 0 or jsdom_cambios(d.js) == d.cambios)
+        return false
+    end
+    d.raton_toques = false
     t0 = time_ms()
-    d.cambios = jsdom_cambios(d.js)
+    if d.js != 0
+        d.cambios = jsdom_cambios(d.js)
+    end
     d.titulo = jsdom_titulo(d.doc)
     toques = d.doc.toques
     _documento_olvidar_tocados(d)
@@ -541,7 +605,7 @@ func _documento_puede_ligero(d: Documento, toques: [Toque]) -> Bool
         end
         if t.tipo == TOQUE_ATRIBUTO
             k = t.nombre
-            if not (k == "class" or k == "style" or k == "id" or k == "title" or k == "role" or k == "tabindex" or str_starts(k, "data-") or str_starts(k, "aria-"))
+            if not (k == "class" or k == "style" or k == "id" or k == ":hover" or k == "title" or k == "role" or k == "tabindex" or str_starts(k, "data-") or str_starts(k, "aria-"))
                 return _lig_no("el atributo " + k, t.nodo)
             end
         elif t.tipo != TOQUE_CONTENIDO and t.tipo != TOQUE_ENTRA and t.tipo != TOQUE_VECINO and t.tipo != TOQUE_SALE

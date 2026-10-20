@@ -61,6 +61,7 @@ struct Nodo
     af_pase: Int = 0
     af_lista: [Int] = nil
     medidas: [Medida] = nil   # (de la maqueta med_pase)
+    raton: Bool = false       # el ratón está encima (él o uno de dentro): :hover (lib/documento.dash, tarea 37f3)
     orden: Int = 0            # lib/maqueta.dash: su orden en el árbol en la última maqueta (para pintar lo posicionado)
     cl: [Int] = nil           # márgenes, bordes y rellenos en px con el contenedor cl_cont en la maqueta cl_pase
     cl_pase: Int = 0

@@ -928,7 +928,10 @@ func _css_media_rasgo(c: String) -> Bool
     dentro = c[1:fin]
     dos = str_find(dentro, ":")
     if dos < 0
-        return dentro == "color"
+        if str_find(dentro, "<") >= 0 or str_find(dentro, ">") >= 0
+            return _css_media_rango(dentro)
+        end
+        return str_trim(dentro) == "color" or str_trim(dentro) == "hover" or str_trim(dentro) == "pointer"
     end
     rasgo = str_trim(dentro[:dos])
     valor = str_trim(dentro[dos + 1:])
@@ -946,6 +949,77 @@ func _css_media_rasgo(c: String) -> Bool
         return valor == "light"
     elif rasgo == "prefers-reduced-motion"
         return valor == "no-preference"
+    elif rasgo == "hover" or rasgo == "any-hover"
+        # el Amiga tiene ratón: se puede pasar por encima
+        return valor == "hover"
+    elif rasgo == "pointer" or rasgo == "any-pointer"
+        return valor == "fine"
+    end
+    return false
+end
+
+# La sintaxis de rango (Media Queries 4): "width >= 48rem", "400px < width <= 700px", "height < 30em"
+func _css_media_rango(dentro: String) -> Bool
+    # los trozos: rasgos y valores, y los operadores (< > <= >=), con o sin blancos entre ellos
+    var partes: [String] = []
+    trozo = ""
+    i = 0
+    while i < dentro.length
+        c = str_code(dentro, i)
+        if c == 60 or c == 62
+            if trozo != ""
+                partes.push(trozo)
+                trozo = ""
+            end
+            op = dentro[i:i + 1]
+            if i + 1 < dentro.length and str_code(dentro, i + 1) == 61
+                op = dentro[i:i + 2]
+                i = i + 1
+            end
+            partes.push(op)
+        elif c == 32
+            if trozo != ""
+                partes.push(trozo)
+                trozo = ""
+            end
+        else
+            trozo = trozo + dentro[i:i + 1]
+        end
+        i = i + 1
+    end
+    if trozo != ""
+        partes.push(trozo)
+    end
+    # [valor op] rasgo op valor: se mira cada comparación con el rasgo a un lado
+    i = 0
+    while i < partes.length
+        r = partes[i]
+        if r == "width" or r == "height"
+            medida = css_ancho
+            if r == "height"
+                medida = css_alto
+            end
+            if i + 2 < partes.length and not _css_compara(medida, partes[i + 1], _css_media_px(partes[i + 2]))
+                return false
+            end
+            if i >= 2 and not _css_compara(_css_media_px(partes[i - 2]), partes[i - 1], medida)
+                return false
+            end
+        end
+        i = i + 1
+    end
+    return true
+end
+
+func _css_compara(a: Int, op: String, b: Int) -> Bool
+    if op == ">="
+        return a >= b
+    elif op == "<="
+        return a <= b
+    elif op == ">"
+        return a > b
+    elif op == "<"
+        return a < b
     end
     return false
 end

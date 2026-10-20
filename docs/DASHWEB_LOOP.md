@@ -185,6 +185,9 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [x] D63. **El ratón sobre un mui_canvas sin clic** (hecha por la sesión "dash", 3980c80; 2026-10-20, tarea 37f3).
+      `mui_canvas_on_move(canvas, id)` (un aviso al mover dentro del área y al salir; varios seguidos, uno),
+      `mui_canvas_pointer_x/_y(canvas)` (dónde está ahora) y `mui_canvas_pointer_inside(canvas)`; MUI 3.8 y 5.
 - [x] D62. **Imágenes con alfa de verdad** (hecha por la sesión "dash", 31fd909) (2026-10-20, tarea 37; encargada a la sesión "dash"). `image_draw` e
       `image_draw_part` de una imagen de `image_from_rgb(..., alfa)` pintan el pixel si su alfa es 128 o más y si no
       nada: lo translúcido sale opaco o no sale. En trainalong.fit, el círculo y la curva grises (opacity .35 en el
@@ -336,7 +339,7 @@ tarea, con el estilo de Dash.
       [x] 37f2. Lo que queda al comparar la portada de pre.opentimetrack.com con Chrome: la tarjeta girada (rotate: -1.2deg
            como propiedad suelta, md:-rotate-[1.2deg]) con su sombra, la portada más alta (min-height en svh/dvh?),
            el texto "Mueve el ratón por la pantalla" que no sale.
-      37f3. El ratón (usuario, 2026-10-20: "cuando pasas con el ratón por encima de los gráficos, reaccionan en plan
+      [x] 37f3. El ratón (usuario, 2026-10-20: "cuando pasas con el ratón por encima de los gráficos, reaccionan en plan
            hover"): @media (hover: hover) y (pointer: fine) verdaderos (el Amiga tiene ratón: la página enseña "Mueve
            el ratón por la pantalla" solo así); los movimientos del ratón al JavaScript (mousemove/pointermove,
            mouseover/out, mouseenter/leave con clientX/Y, sobre el elemento de debajo: la pila de la portada sigue al
@@ -2881,4 +2884,30 @@ Formato:
 - Tests: test_maqueta_capas (sin z-index: estática, absoluta, relativa), test_estilo (svh, dvw). test_maqueta_cajas,
   _css y _transform: los mismos dibujos, con lo posicionado al final (el orden nuevo). Batería: 61/65 y los 4 que
   cambiaban de orden, arreglados y pasados aparte (maqueta 10/10, estilo 7/7); freemem.space 21,3 s.
+
+### 2026-10-20 — Tarea 37f3, primera parte (:hover y los sucesos del ratón, sin la ventana)
+- lib/css.dash: @media (hover: hover), (any-hover), (pointer: fine), (any-pointer) verdaderas (el Amiga tiene
+  ratón); la sintaxis de rango de Media Queries 4 ("width >= 48rem", "400px < width <= 700px").
+- lib/estilo.dash: :hover se cumple con `Nodo.raton`; entra en el índice y es un rasgo (":hover") para rehacer
+  solo lo que lo nombra (el elemento y, con `.caja:hover .dentro`, los de dentro).
+- lib/documento.dash `documento_raton(d, x, y, y_vista)`: el elemento de debajo (sin ::before/::after) y los de
+  fuera se marcan, los que se dejan se desmarcan, con un toque ":hover" (también por la ruta ligera de 37d); y
+  `jsdom_raton` lanza out/leave, over/enter y move (pointer* y mouse*, con clientX/Y, pageX/Y, movementX/Y)
+  como los navegadores (preludio: `__dashweb_raton`). documento_al_dia rehace el estilo con `raton_toques`
+  aunque el JavaScript no tocara nada (también en páginas sin scripts).
+- Falta conectarlo a la ventana: Dash no avisa de que el ratón se mueve sobre el lienzo (encargada D63).
+- Tests: test_estilo (media del ratón y de rango), test_documento_raton (nuevo).
+
+### 2026-10-21 — Tarea 37f3 (el ratón, conectado a la ventana); D63 en Dash
+- D63 hecha por la sesión dash (3980c80, main 55abbf4): `mui_canvas_on_move`, `mui_canvas_pointer_x/_y/_inside`.
+- src/dashweb.dash: cada ventana pide `mui_canvas_on_move(pagina, ID_RATON + k)`; `raton(w)` lee dónde está el
+  puntero (o que salió), llama a `documento_raton`, rehace si hace falta y corre los temporizadores.
+- lib/estilo.dash: `Hojas.con_hover` (algún selector nombra :hover). Con solo `invalida` no bastaba: un `.caja:hover`
+  de una parte no deja rastro ahí (invalida es para lo de dentro) y el :hover no se apuntaba.
+- tools/amiga/clicar.dash: la acción "v X Y" lleva el puntero sin pulsar. tests/pages/raton.html: una caja con
+  :hover, la posición desde mousemove, mouseleave y @media (hover: hover).
+- Visto en la máquina rtg con MUI 5 y con MUI 3.8 (sys32rtg38): la caja roja con el ratón encima, gris al salir;
+  "ratón en 52,68"; "hay ratón". Sin probar: con un ratón de verdad y en CoffinOS; pre.opentimetrack.com con el
+  ratón (la pila que lo sigue).
+- Batería 66/66 (1236 s); freemem.space 21,4 s.
 
