@@ -1,7 +1,7 @@
 # dashweb
 
 Navegador web ligero para **Commodore Amiga**, escrito en [Dash](https://github.com/FreeMEM/dash) con
-interfaz **MUI 5**: XHTML, CSS, JavaScript moderno y HTTPS.
+interfaz **MUI** (3.8 o 5): XHTML, CSS, JavaScript moderno y HTTPS.
 
 Es también el banco de pruebas de Dash: un programa grande y exigente que obliga a hacer crecer el
 lenguaje, sus librerías y su rendimiento.
@@ -24,9 +24,11 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
   respuestas comprimidas con gzip) y HTTPS con AmiSSL 5, que reanuda la sesión TLS de cada servidor.
 - Los scripts de rastreo y publicidad conocidos no se descargan (`URL_RASTREO_BLOQUEAR` en `lib/url.dash`):
   la página va más rápida.
-- HTML tolerante (como los navegadores), árbol DOM, entidades, UTF-8 a Latin-1, atributos de presentación.
-  Ya está dentro el analizador HTML5 de NetSurf (Hubbub, `lib/html5.dash`), aún sin usar para las páginas:
-  con él aparece un fallo de memoria que viene de las fuentes vectoriales del Amiga (ver la bitácora).
+- HTML5 con el analizador de NetSurf (Hubbub, `lib/html5.dash`), árbol DOM, entidades, UTF-8 a Latin-1,
+  atributos de presentación.
+- Fuentes vectoriales del Amiga (CGTriumvirate, CGTimes, LetterGothic) apagadas de momento: diskfont y bullet
+  de 3.2 escriben fuera de su memoria al abrirlas a 1 píxel o menos, y eso rompía QuickJS (Dash D57). Las
+  letras salen de las fuentes de mapa de bits del Workbench.
 - Al cambiar el DOM desde JavaScript solo se recalcula el estilo de lo afectado.
 - CSS 2.1 y CSS3 por módulos, comparado con Chrome en 13 webs reales (`tools/comparar_chrome.py`): cascada con
   `@layer`, `@media` y `@supports`; Selectors 4 (`:is`, `:where`, `:has`, `:not` con listas); Flexbox, Grid y
@@ -42,7 +44,7 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
   `innerHTML`, crear y mover nodos...), eventos, `setTimeout`/`setInterval`, `TextEncoder`/`TextDecoder`. Faltan
   muchas APIs del navegador (`fetch`, `XMLHttpRequest`...). `document.cookie` funciona.
 
-Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D55): textos
+Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D58): textos
 rápidos, listas y diccionarios con tipo, red, TLS, fuentes, imágenes, C de fuera (`@link`, `@c`), etc.
 
 ### Medidas (FS-UAE, 2026-10-16)
@@ -72,7 +74,8 @@ miraba el reloj en cada vuelta de cada `while` (arreglado en Dash, D34).
 
 - AmigaOS 3.x con un 68030 o superior y FPU (68881/68882 o la del 040/060), y mucha memoria Fast.
   Un A500 o un A1200 sin ampliar no son el objetivo.
-- MUI 5, AmiSSL 5 (HTTPS), una pila TCP/IP (`bsdsocket.library`).
+- MUI 3.8 o 5, AmiSSL 5 (HTTPS), una pila TCP/IP (`bsdsocket.library`). Con MUI 3.8 la pantalla completa
+  de los vídeos deja un marco gris de unos píxeles (el espaciado de ventana de sus preferencias).
 
 ## Paquete
 
@@ -89,6 +92,8 @@ Necesita el toolchain de Dash (`m68k-amigaos-gcc` en `/opt/amiga`) y Dash en `~/
 python3 tests/run.py                   # compila los tests y los ejecuta en FS-UAE
 python3 tests/run.py --memcheck        # con la comprobación de memoria de Dash
 tools/medir_visor.py --pagina prueba.html --maquina objetivo --captura visor.png
+tools/medir_visor.py --maquina rtg --sistema ~/.cache/dash-emu/sys32rtg38 --programa src/dashweb.dash \
+    --pagina https://freemem.space/ --captura mui38.png     # con MUI 3.8 (sys32rtg con el MUI 3.8 de Aminet)
 tools/emu_sys_fuentes.sh ~/.cache/dash-emu/sys31ssl <disco del Workbench .hdf> ~/.cache/dash-emu/sys31web
 ```
 

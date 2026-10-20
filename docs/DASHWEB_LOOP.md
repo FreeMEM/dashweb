@@ -2398,3 +2398,21 @@ Formato:
 - **Decisión del usuario (2026-10-18): arreglo provisional, Hubbub sí y vectoriales no.** Primera tarea en
   cuanto baje el uso: aplicar de `docs/parches/caza_memoria_hubbub.patch` solo Hubbub en documento.dash y la
   vectorial apagada en `_fuente_de` (sin los js_control), batería completa, y abrir la causa de fondo en Dash.
+
+### 2026-10-20 — En CoffinOS no se pintaba nada: MUI 3.8 (D58); D57 cazado por la otra sesión
+- El usuario, en CoffinOS (Amiberry, 68040, 3.2): la página se carga entera (traza: descargas, estilo, maqueta,
+  imágenes) pero el lienzo queda gris; ni una «pintada». Su muimaster.library es la 19.35 (MUI 3.8); los
+  sistemas de prueba tenían MUI 5 (21.227). Reproducido con `~/.cache/dash-emu/sys32rtg38` (sys32rtg con el MUI
+  3.8 de Aminet, mui38usr.lha) y con tests/test_mui_canvas.dash de Dash.
+- Causa (Dash): MUI 3.8 manda MUIM_Draw con msg->flags = 0 (Area lo rellena en la llamada a la superclase) y
+  `_dash_canvas_dispatch` lo leía antes: nunca llamaba a la función de dibujo. Arreglo: si no trae
+  MADF_DRAWOBJECT ni MADF_DRAWUPDATE, se toman de mad_Flags. Probado en una copia de Dash: test_mui_canvas pasa
+  con MUI 3.8 y 5, y freemem.space se pinta con MUI 3.8. Encargado a la otra sesión como D58.
+- D57 (la otra sesión, c9e09a4 en la rama fuente0 de Dash): `font_open` con tamaño 0 hacía que diskfont 47 de
+  3.2 pisara memoria (la caza lo cogió dentro de font_open); ahora un tamaño menor que 1 pide 1. **No cierra el
+  fallo**: con c9e09a4 y vectoriales, 1 de 15 cargas sigue dando el assert de gc_decref_child. Hay al menos otra
+  escritura; la otra sesión sigue cazando. Las vectoriales siguen apagadas.
+- Al usuario, en Traspaso:dashweb/dashweb: Hubbub, vectoriales apagadas, D57 y D58 (Dash de una copia en el
+  scratchpad); la anterior en dashweb_antes.
+- Desde el Workbench, las dos líneas que dashweb escribe (JQMIGRATE y «entera en») abren una ventana de consola.
+  Pendiente: no escribir nada por la salida si no se pide (TRAZA).
