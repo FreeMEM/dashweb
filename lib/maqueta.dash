@@ -54,6 +54,9 @@ struct Dibujo
     espaciado: Int = 0   # letter-spacing: px de más detrás de cada letra (el pintor las pone una a una)
     radio: Int = 0       # D_REDONDO: los cuatro radios
     capa: Int = 0        # z-index del contexto de apilado donde está (se pintan de menor a mayor)
+    difuso: Int = 0      # una sombra (D_RECT) con difuminado (box-shadow blur, px): el pintor la pinta en capas
+    pos: Int = 0         # dentro de su capa, el orden en el árbol del elemento posicionado que lo puso (0: ninguno;
+                         # lo posicionado se pinta después de lo demás y en el orden del árbol, CSS 2.1 apéndice E)
     recorte: Bool = false   # overflow: solo se pinta lo que cae en rx0..rx1, ry0..ry1 (coordenadas de página)
     rx0: Int = 0
     ry0: Int = 0
@@ -362,6 +365,8 @@ func maquetar(doc: Nodo, ancho: Int) -> Pagina
         return p
     end
     cuerpo = dom_buscar(html, "body")
+    _orden_arbol = 0
+    _numerar(html)
     for raiz in [html, cuerpo]
         if raiz != nil and raiz.estilo.has("background-color") and css_color(raiz.estilo["background-color"]) >= 0
             p.fondo = css_color(raiz.estilo["background-color"])
@@ -371,6 +376,27 @@ func maquetar(doc: Nodo, ancho: Int) -> Pagina
     _cajas_finales(m, doc)
     _por_capas(p)
     return p
+end
+
+# El orden de cada elemento en el árbol (con ::before y ::after), para pintar lo posicionado en ese orden
+var _orden_arbol: Int = 0
+
+func _numerar(n: Nodo)
+    _orden_arbol = _orden_arbol + 1
+    n.orden = _orden_arbol
+    if n.pseudo_antes != nil
+        _orden_arbol = _orden_arbol + 1
+        n.pseudo_antes.orden = _orden_arbol
+    end
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO
+            _numerar(h)
+        end
+    end
+    if n.pseudo_despues != nil
+        _orden_arbol = _orden_arbol + 1
+        n.pseudo_despues.orden = _orden_arbol
+    end
 end
 
 # Las cajas de los elementos (tarea 37b): la de cada bloque, movida con su dibujo de referencia; la de lo que va en
@@ -429,7 +455,7 @@ end
 func _por_capas(p: Pagina)
     hay = false
     for d in p.dibujos
-        if d.capa != 0
+        if d.capa != 0 or d.pos != 0
             hay = true
             break
         end
@@ -437,35 +463,48 @@ func _por_capas(p: Pagina)
     if not hay
         return
     end
-    var capas: [Int] = []
-    var vistas: {String: Bool} = {}
-    for d in p.dibujos
-        if not vistas.has("" + d.capa)
-            vistas["" + d.capa] = true
-            capas.push(d.capa)
-        end
+    # por capa y, dentro, por pos; los de la misma clave, como estaban (mezcla estable)
+    p.dibujos = _por_clave(p.dibujos)
+end
+
+func _antes_que(a: Dibujo, b: Dibujo) -> Bool
+    if a.capa != b.capa
+        return a.capa < b.capa
     end
-    # (pocas capas: inserción)
-    i = 1
-    while i < capas.length
-        j = i
-        while j > 0 and capas[j - 1] > capas[j]
-            c = capas[j - 1]
-            capas[j - 1] = capas[j]
-            capas[j] = c
-            j = j - 1
+    return a.pos < b.pos
+end
+
+func _por_clave(l: [Dibujo]) -> [Dibujo]
+    if l.length <= 1
+        return l
+    end
+    mitad = l.length / 2
+    var a: [Dibujo] = []
+    var b: [Dibujo] = []
+    i = 0
+    while i < l.length
+        if i < mitad
+            a.push(l[i])
+        else
+            b.push(l[i])
         end
         i = i + 1
     end
-    var orden: [Dibujo] = []
-    for c in capas
-        for d in p.dibujos
-            if d.capa == c
-                orden.push(d)
-            end
+    a = _por_clave(a)
+    b = _por_clave(b)
+    var r: [Dibujo] = []
+    i = 0
+    j = 0
+    while i < a.length or j < b.length
+        if j >= b.length or (i < a.length and not _antes_que(b[j], a[i]))
+            r.push(a[i])
+            i = i + 1
+        else
+            r.push(b[j])
+            j = j + 1
         end
     end
-    p.dibujos = orden
+    return r
 end
 
 # Coloca un elemento de bloque en (x, y) con ese ancho; devuelve el alto que ocupa, márgenes incluidos
@@ -528,6 +567,16 @@ func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedo
     # position: relative: se desplaza lo dibujado (left o right, top o bottom) sin mover a los demás (CSS 2.1, 9.4.3)
     if _val(n.estilo, "position", "static") == "relative"
         _relativo(m, n, antes, contenedor)
+    end
+    # posicionado: lo suyo (que no sea de otro posicionado de dentro) va con su orden en el árbol
+    if _val(n.estilo, "position", "static") != "static" and n.orden > 0
+        i = antes
+        while i < m.pagina.dibujos.length
+            if m.pagina.dibujos[i].pos == 0
+                m.pagina.dibujos[i].pos = n.orden
+            end
+            i = i + 1
+        end
     end
     # z-index en un elemento posicionado: un contexto de apilado con todo lo suyo (el de fuera manda)
     if n.estilo.has("z-index") and n.estilo["z-index"] != "auto" and _val(n.estilo, "position", "static") != "static"
@@ -663,6 +712,9 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             sombra.ancho = interior + bl + br + pl + pr + sombra_v[3] * 2
             sombra.nodo = n
             sombra.sombra = true
+            if sombra.tipo == D_RECT
+                sombra.difuso = sombra_v[2]
+            end
             sombra.cx = x + ml
             sombra.cy = y + mt
             sombra.cw = interior + bl + br + pl + pr

@@ -3,8 +3,11 @@
 # una caja de 50 px dentro de otra de 20 px de alto no se ve más abajo de los 20 px (se pinta en una ventana y se
 # leen los lápices: rojo dentro, el fondo debajo). border-radius (tarea 31f): una caja roja de 60x40 con radio
 # 20: la esquina de arriba a la izquierda es del fondo, el medio rojo; con borde de 4 px, el centro sin rellenar.
+# Sin z-index, lo posicionado se pinta después de lo que no lo está y en el orden del árbol (una absoluta antes que
+# la relativa que va detrás; la estática, antes que las dos), CSS 2.1 apéndice E (tarea 37f2).
 # memcheck
 # expect-out: orden: menos uno dos
+# expect-out: sin z-index: st a1 r1
 # expect-out: dentro rojo: true
 # expect-out: debajo rojo: false
 # expect-out: esquina rojo: false (medio true)
@@ -40,6 +43,18 @@ Main
         end
     end
     Print "orden:" + orden
+    h2 = "<body style='margin:0'><div style='position:relative;height:60px'><div id=a1 style='position:absolute;top:0;left:0;width:20px;height:20px;background:green'></div>"
+    h2 = h2 + "<div id=st style='height:20px;background:red'></div><div id=r1 style='position:relative;height:20px;background:blue'></div></div></body>"
+    doc2 = dom_desde_html(h2)
+    estilo_aplicar(doc2, estilo_hojas(doc2, "prueba.html"))
+    p2 = maquetar(doc2, 280)
+    orden = ""
+    for d in p2.dibujos
+        if d.tipo == D_RECT and d.nodo != nil and dom_atributo(d.nodo, "id") != ""
+            orden = orden + " " + dom_atributo(d.nodo, "id")
+        end
+    end
+    Print "sin z-index:" + orden
     W.open
     x0 = W.inner_left
     y0 = W.inner_top

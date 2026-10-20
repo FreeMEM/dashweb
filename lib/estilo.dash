@@ -2366,6 +2366,11 @@ func estilo_px(v: String, em_px: Int, cien: Int) -> Int
             r = valor * estilo_vw / 10000
         elif k == 2 and a == 118 and b == 104
             r = valor * estilo_vh / 10000
+        elif k == 3 and (a == 115 or a == 108 or a == 100) and b == 118 and _minuscula(str_code(v, i + 2)) == 104
+            # svh, lvh, dvh: como vh (en una ventana del Amiga no hay barras que aparezcan y se escondan)
+            r = valor * estilo_vh / 10000
+        elif k == 3 and (a == 115 or a == 108 or a == 100) and b == 118 and _minuscula(str_code(v, i + 2)) == 119
+            r = valor * estilo_vw / 10000
         elif k == 4 and a == 118 and b == 109
             menor = estilo_vw
             if estilo_vh < menor

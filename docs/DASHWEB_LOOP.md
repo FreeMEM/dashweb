@@ -333,7 +333,7 @@ tarea, con el estilo de Dash.
            de tamaño (maqueta por trozos), o medir min/max-content sin maquetar.
       [x] 37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
-      37f2. Lo que queda al comparar la portada de pre.opentimetrack.com con Chrome: la tarjeta girada (rotate: -1.2deg
+      [x] 37f2. Lo que queda al comparar la portada de pre.opentimetrack.com con Chrome: la tarjeta girada (rotate: -1.2deg
            como propiedad suelta, md:-rotate-[1.2deg]) con su sombra, la portada más alta (min-height en svh/dvh?),
            el texto "Mueve el ratón por la pantalla" que no sale.
       37f3. El ratón (usuario, 2026-10-20: "cuando pasas con el ratón por encima de los gráficos, reaccionan en plan
@@ -2866,4 +2866,19 @@ Formato:
   test de formularios se quedó una vez sin tiempo (618 s) y pasó al repetirlo (48 s): sin causa conocida.
 - Batería 65/65 (1183 s); freemem.space 21,4 s. Apuntadas por el usuario: 37f3 (el ratón) y la tarea 41 (baterías
   de estándares: Acid2, WPT, css3test/html5test/Acid3, WPT entero como wpt.fyi), antes de youtube.com.
+
+### 2026-10-20 — Tarea 37f2 (orden de lo posicionado, sombras difuminadas, svh)
+- La pila de tarjetas de la portada de pre.opentimetrack.com (página de prueba aparte): las traseras (absolutas)
+  se pintaban encima de la delantera (relativa, detrás en el árbol), y las sombras no se veían.
+- lib/maqueta.dash: lo posicionado se pinta después de lo que no lo está y en el orden del árbol (CSS 2.1, apéndice
+  E): `Nodo.orden` (`_numerar` al empezar la maqueta, con ::before y ::after), `Dibujo.pos` (el orden del posicionado
+  que lo puso), `_por_capas` ordena por (capa, pos) con una mezcla estable (`_por_clave`).
+- box-shadow con difuminado: `Dibujo.difuso`; lib/pintor.dash `_sombra_difusa` la pinta en 2-6 capas translúcidas
+  de la caja ampliada a la reducida en medio difuminado (antes, un rectángulo nítido más claro: con extensión
+  negativa quedaba entero debajo de la caja).
+- lib/estilo.dash: svh, lvh, dvh (y sus -vw) como vh y vw; la portada (min-h-svh) ya tiene el alto de la ventana.
+- Sin hacer: los giros de cajas con contenido (la tarjeta, rotate -1.2deg; solo se giran barras).
+- Tests: test_maqueta_capas (sin z-index: estática, absoluta, relativa), test_estilo (svh, dvw). test_maqueta_cajas,
+  _css y _transform: los mismos dibujos, con lo posicionado al final (el orden nuevo). Batería: 61/65 y los 4 que
+  cambiaban de orden, arreglados y pasados aparte (maqueta 10/10, estilo 7/7); freemem.space 21,3 s.
 

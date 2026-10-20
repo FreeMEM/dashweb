@@ -77,6 +77,8 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             end
         elif d.tipo == D_REDONDO
             _redondo_pintar(d, x, y, cx0, cy0, cx1, cy1)
+        elif d.tipo == D_RECT and d.difuso > 0
+            _sombra_difusa(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_RECT and d.espaciado > 0
             _mezcla_recortada(x, y, d.ancho, d.alto, cx0, cy0, cx1, cy1, d.color, d.espaciado)
         elif d.tipo == D_RECT or d.tipo == D_LINEA
@@ -135,6 +137,33 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         end
     end
     font_style(0)
+end
+
+# Una sombra difuminada: capas translúcidas de la caja ampliada a la reducida en medio difuminado (el borde sale en
+# degradado y el centro con su opacidad), como una aproximación del desenfoque de box-shadow
+func _sombra_difusa(d: Dibujo, x: Int, y: Int, cx0: Int, cy0: Int, cx1: Int, cy1: Int)
+    alfa = d.espaciado
+    if alfa <= 0
+        alfa = 255
+    end
+    capas = d.difuso / 6
+    if capas < 2
+        capas = 2
+    elif capas > 6
+        capas = 6
+    end
+    medio = d.difuso / 2
+    una = alfa / capas + 1
+    i = 0
+    while i < capas
+        e = medio - d.difuso * i / (capas - 1)
+        w = d.ancho + 2 * e
+        h = d.alto + 2 * e
+        if w > 0 and h > 0
+            _mezcla_recortada(x - e, y - e, w, h, cx0, cy0, cx1, cy1, d.color, una)
+        end
+        i = i + 1
+    end
 end
 
 func _rect_recortado(x: Int, y: Int, ancho: Int, alto: Int, x0: Int, y0: Int, x1: Int, y1: Int, lapiz: Int)

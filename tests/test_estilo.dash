@@ -2,7 +2,8 @@
 # !important, herencia, inherit, atajos (margin, border, font, background), font-size en px,
 # selectores con combinadores y pseudo-clases, estilo_px; el índice de selectores (clase, id, etiqueta,
 # universal; ::before y :hover fuera), @media por ancho, el texto solo para lectores y css_importes. Las
-# propiedades lógicas (padding-inline, margin-block, inset-inline-start...), también con var() (tarea 37f).
+# propiedades lógicas (padding-inline, margin-block, inset-inline-start...), también con var() (tarea 37f); svh, dvh,
+# lvh y sus -vw como vh y vw (37f2).
 # memcheck
 # expect-out: h1: block bold 26px rojo
 # expect-out: p.nota: block 10px green italic
@@ -19,7 +20,7 @@
 # expect-out: oculto: none inline
 # expect-out: importes: a.css b.css
 # expect-out: lógicas: 4px 4px 2px 6px | 8px 8px | 1px 3px | 5px
-# expect-out: px: 16 24 50 4 -3 10 0
+# expect-out: px: 16 24 50 4 -3 10 0 | svh true dvw true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/estilo.dash"
@@ -99,5 +100,5 @@ Main
     l = dom_por_id(doc, "l")
     m = dom_por_id(doc, "m")
     Print "lógicas: " + l.estilo["padding-left"] + " " + l.estilo["padding-right"] + " " + l.estilo["padding-top"] + " " + l.estilo["padding-bottom"] + " | " + l.estilo["margin-top"] + " " + l.estilo["margin-bottom"] + " | " + m.estilo["left"] + " " + m.estilo["right"] + " | " + m.estilo["top"]
-    Print "px: " + estilo_px("1em", 16, 0) + " " + estilo_px("1.5em", 16, 0) + " " + estilo_px("50%", 0, 100) + " " + estilo_px("3pt", 0, 0) + " " + estilo_px("-3px", 0, 0) + " " + estilo_px("10", 0, 0) + " " + estilo_px("auto", 0, 0)
+    Print "px: " + estilo_px("1em", 16, 0) + " " + estilo_px("1.5em", 16, 0) + " " + estilo_px("50%", 0, 100) + " " + estilo_px("3pt", 0, 0) + " " + estilo_px("-3px", 0, 0) + " " + estilo_px("10", 0, 0) + " " + estilo_px("auto", 0, 0) + " | svh " + (estilo_px("50svh", 0, 0) == estilo_px("50vh", 0, 0) and estilo_px("50vh", 0, 0) > 0) + " dvw " + (estilo_px("10dvw", 0, 0) == estilo_px("10vw", 0, 0) and estilo_px("10vw", 0, 0) > 0)
 end
