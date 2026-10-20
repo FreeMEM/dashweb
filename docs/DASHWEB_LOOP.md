@@ -6,6 +6,8 @@ Arranque (desde cualquier directorio):
 /loop Sigue las instrucciones de ~/Projects/dashweb/docs/DASHWEB_LOOP.md: haz UNA tarea y actualiza la bitácora. No hagas pausas entre vuelta y vuelta
 ```
 
+**Encargo actual (usuario, 2026-10-20): la tarea 37, https://pre.opentimetrack.com, pasa delante de todo.**
+
 ## Objetivo
 
 Un navegador ligero para AmigaOS 3.x escrito en Dash, con interfaz MUI 5: XHTML, CSS, JavaScript
@@ -27,34 +29,21 @@ Dos fases:
 
 ## Reglas de cada iteración
 
-1. **Vigilar MUI.** Mira cómo va la otra sesión:
-   `git -C ~/Projects/FreeMEMLang show mui:docs/MUI_LOOP.md | grep -E '^- \[.\] ([1-9]|1[01])\.'`.
-   - Si las tareas 1-11 están todas `[x]` y la fase B aún no está "abierta" en la bitácora: pon al día la
-     rama `dashweb` de Dash (regla 3), apunta en la bitácora "Fase B abierta" y avisa con PushNotification. Desde ahí
-     las tareas de la fase B ya se pueden coger.
-   - Si no quedan tareas `[ ]` de la fase A ni de Dash y MUI no ha terminado: no hagas nada más. Programa la siguiente
-     vuelta con ScheduleWakeup a 1800 s (`noop: true`) y termina.
-2. **Rama.** Trabaja en `~/Projects/dashweb`, rama local `dev` (sale de `main`). Sin push.
-3. **Dash.** Lo que le falte a Dash se añade a Dash, como tarea `D<n>` de la lista (sección "Dash").
-   - **Dónde:** el worktree `~/Projects/FreeMEMLang-dashweb`, rama `dashweb` (sale de `mui`). `DASH` apunta ahí
-     (es el valor por defecto de `tests/run.py`). **No toques `~/Projects/FreeMEMLang`**: allí trabaja la
-     sesión de MUI, en la misma copia.
-   - **Al día con `main`:** (desde el 2026-10-16 la otra sesión trabaja en `main`, que ya tiene `mui` y
-     `dashweb` hasta D25) al empezar la vuelta, si `main` tiene commits que `dashweb` no tiene
-     (`git -C ~/Projects/FreeMEMLang-dashweb log --oneline dashweb..main`), haz
-     `git -C ~/Projects/FreeMEMLang-dashweb rebase main`. Si hay conflictos y no los resuelves bien,
-     `git rebase --abort` y apúntalo en la bitácora.
-   - **Reglas de Dash:** cada cambio con su test en `tests/` de Dash (normal, de error, `# expect-c:` o
-     `# expect-out:`); antes y después `python3 tests/run_tests.py` y `./compile_all.sh`, y al cerrar
-     `python3 tests/run_tests.py --emu --emu-a500 --emu-32`: nada que funcionaba puede romperse. Un programa
-     que no usa lo nuevo sale con el mismo C: compruébalo con `tools/cmp_dash_c.sh <commit> WORK` (no con
-     `python3 -m compiler.main` desde el worktree: carga el compilador del directorio actual). Documenta en `docs/QUICK_REFERENCE.md`,
-     `docs/MANUAL_REFERENCIA.md` y, si hay builtins nuevos, `python3 tools/gen_builtins_doc.py`. Commit en la
-     rama `dashweb`: `dashweb: D<n> - <resumen>`. Sin push.
-   - Para enlazar objetos de C (QuickJS) mientras no exista la tarea D10: `DASH_CFLAGS="... ficheros.o"`.
+1. **Encargo y uso.** Coge la subtarea de la 37 que toque (regla 5) mientras la 37 no esté `[x]`. Si el uso semanal
+   pasa del 90 %, apúntalo en la bitácora, para el loop y avisa con PushNotification (lo pidió el usuario).
+2. **Rama.** Trabaja en `~/Projects/dashweb`, rama `dev` (sale de `main`). Sin push ni PR: eso lo pide el usuario.
+3. **Dash.** Lo que le falte a Dash se añade a Dash, como tarea `D<n>` de la lista (sección "Dash"), pero **no lo
+   hace el loop: se lo encarga a la sesión "dash"** (SendMessage a `dash`; `ListAgents` si no responde). El
+   encargo lleva el porqué, cómo reproducirlo, lo que se propone y que avise con el commit. Mientras, el loop
+   sigue con otra subtarea que no dependa de eso. Al recibir el aviso, el loop compila dashweb con ese Dash y
+   lo apunta en la bitácora.
+   - La sesión "dash" trabaja en el worktree `~/Projects/FreeMEMLang-dashweb` (sus ramas salen de `main` de
+     FreeMEM/dash). El loop **no toca ese worktree** (ni `~/Projects/FreeMEMLang`): solo lo usa para compilar
+     (`DASH` por defecto). Para probar un cambio de Dash antes de que esté hecho, una copia en el scratchpad.
+   - Emulador y puertos de pruebas: antes de una batería o una medida larga, avisa a "dash" para no pisaros.
 4. **Base.** `python3 tests/run.py` (cuando exista) antes de empezar. Anota si cambia respecto a la última entrada.
-5. **Tarea.** Coge la primera tarea `[ ]` de la fase abierta. Si dice "necesita D<n>" y esa tarea de
-   Dash no está `[x]`, haz antes la de Dash (la primera que falte). Márcala `[~]` mientras trabajas. Una por
+5. **Tarea.** Coge la primera subtarea sin hacer de la 37 (después, la primera tarea `[ ]` de la fase abierta). Si
+   necesita algo de Dash que no está, encárgalo (regla 3) y coge la siguiente que no dependa de eso. Márcala `[~]` mientras trabajas. Una por
    iteración. Si es grande, divídela en la lista y haz solo la primera parte.
 6. **Hacer.** Código del navegador en Dash (`src/`), módulos reutilizables en `lib/`. C solo en
    `third_party/` y en el pegamento con él. Cada cosa con su test en `tests/`, ejecutado en el emulador.
@@ -63,6 +52,8 @@ Dos fases:
    `DASH_EMU_SYS=~/.cache/dash-emu/sys31`, para MUI `DASH_EMU_SYS_MUI=~/.cache/dash-emu/sys31mui`, para AmiSSL
    `DASH_EMU_SYS_SSL=~/.cache/dash-emu/sys31ssl` y `DASH_EMU_SYS_32_SSL=~/.cache/dash-emu/sys32ssl`
    (`tools/get_amissl.sh` y `tools/emu_sys_amissl.sh` de Dash).
+   Máquina rtg (`medir_visor --maquina rtg`): `DASH_KICKSTART_32="/home/freemem/Descargas/Telegram Desktop/Kickstart
+   v3.2.3 A1200.47.115_Pack_noSCSI.rom"`; con MUI 3.8: `--sistema ~/.cache/dash-emu/sys32rtg38`.
    **Sin `DASH_KICKSTART` se usa la ROM AROS** y los resultados no valen. Para medir "como el objetivo":
    FS-UAE con `cpu = 68040`, `fpu = 68040`, `jit_compiler = 1`, `uae_cpu_speed = max`.
 7. **Verificar.** Repite el paso 4. Nada que antes funcionaba puede romperse. Si algo se rompe y no lo
@@ -250,6 +241,38 @@ tarea, con el estilo de Dash.
       temporizadores), volver a dar estilo y maquetar tras los cambios (`jsdom_cambios`).
 - [x] 17. **Repaso de la fase A.** Tamaño del ejecutable, memoria (`--memcheck`), tiempos por fase en la
       configuración objetivo y en el A1200, páginas de prueba. Resumen en la bitácora y en el README.
+
+### Encargo 37: pre.opentimetrack.com (usuario, 2026-10-20; delante de todo)
+
+- [ ] 37. **https://pre.opentimetrack.com como en Chrome, con sus animaciones.** Next.js (Turbopack, 12 scripts), 47 KB
+      de CSS con 11 @keyframes (revelar, tachar, atenuar, pagina-sale/entra, parpadeo, apunte-entra, caracter-cambia,
+      estampa, pista-baja, invita). Lo que se anima al bajar por la página es **GSAP con ScrollTrigger**: lee la
+      posición de los elementos y el desplazamiento y pone en su `style` translate/rotate/scale/opacity y
+      `transform: scaleX()` (una barra de progreso). La pila de fichas de arriba sigue al ratón. Fuentes: archivo
+      (variable, 400-900, font-stretch) y doto (variable, los números de puntos), solo en WOFF2. Hoy en dashweb la
+      geometría del JavaScript es falsa (offsetTop, getBoundingClientRect, scrollY: 0; innerWidth 640), no hay evento
+      scroll, IntersectionObserver no avisa nunca y WOFF2 no se lee. Comparar siempre con Chrome al mismo ancho
+      (tools/comparar_chrome.py) y bajando por la página (capturas a varias alturas con `medir_visor --acciones`),
+      en la máquina rtg (MUI 5) y en sys32rtg38 (MUI 3.8, la del usuario en CoffinOS). Enviar capturas al usuario.
+      Subtareas, por orden:
+      37a. Primera carga: cómo sale hoy (captura, traza, errores de JavaScript, memoria: ver la 28j, Next.js sin
+           memoria), y apuntar aquí lo que falte que no esté en la lista.
+      37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
+           offsetTop/Left/Width/Height y offsetParent, getBoundingClientRect y getClientRects (respecto a lo que se
+           ve), clientWidth/Height, scrollWidth/Height, window.innerWidth/innerHeight (la zona de dibujo),
+           window.scrollY/pageYOffset y documentElement.scrollTop (el desplazamiento de la ventana). Con test.
+      37c. Desplazar y JavaScript: evento scroll en window y document al desplazar (como mucho uno por tic);
+           scrollTo, scrollBy y scrollIntoView mueven la vista de verdad. Con test.
+      37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
+           opacity o transform (lo que hace GSAP), repintar sin rehacer la maqueta. Medir el coste por fotograma.
+      37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
+           maquetar. Con test.
+      37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
+           filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
+      37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
+           TTF para stb_truetype; las fuentes variables, con su instancia por defecto (o la del peso pedido si cabe).
+      37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
+           cuando el usuario lo dé por bueno.
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
 
