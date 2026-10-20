@@ -1,11 +1,13 @@
 # Arquitectura de dashweb
 
-Cómo está hecho dashweb por dentro, tal como es el código el 2026-10-20 (commit `4785c00`: v0.2.0-alfa más el
+Cómo está hecho dashweb por dentro, tal como es el código el 2026-10-20 (commit `cdfe376`: v0.2.0-alfa más el
 encargo 37 en curso). Sustituye al borrador del 2026-10-15.
 
 Qué es cada documento:
 
 - **Este:** la ingeniería: piezas, datos, procesos, decisiones y límites.
+- `ingenieria/`: el paquete de ingeniería completo (requisitos, casos de uso, flujos, estados, modelo de datos,
+  interfaz, módulos, pruebas, construcción, riesgos). Empieza en `ingenieria/00_INDICE.md`.
 - `DASHWEB_LOOP.md`: el plan y la bitácora (el diario; de ahí salen los porqués y las medidas).
 - `COMO_SE_CONSTRUYE.md` y `TUTORIAL.md`: cómo se hacen aplicaciones con Dash y MUI.
 - `quickjs_amiga.md`: los cambios a QuickJS.
@@ -212,9 +214,10 @@ lleva su recorte, su capa y el nodo de donde sale.
 ## 10. JavaScript
 
 - **QuickJS** (2026-06-04, `third_party/quickjs`) compilado aparte a `build/qjs-lib/libqjs.a` (`tools/build_qjs.sh
-  lib`), con FPU y fdlibm (la libm de la ROM daba resultados erróneos). Tres cambios para AmigaOS (`quickjs_amiga.md`;
-  ojo: ese documento aún describe el `malloc_usable_size` antiguo, y el código ya guarda el tamaño en una cabecera
-  de 8 bytes para que funcione el límite de memoria).
+  lib`), con FPU y fdlibm (la libm de la ROM daba resultados erróneos). Tres cambios para AmigaOS y un cuarto opcional
+  (`quickjs_amiga.md`): un perfil por muestras dentro de QuickJS, solo con `-DJS_PERFIL`, para ver qué función de JS
+  pesa. Ojo: ese documento aún describe el `malloc_usable_size` antiguo; el código ya guarda el tamaño en una
+  cabecera de 8 bytes para que funcione el límite de memoria.
 - **Un motor por página**, solo si tiene `<script>`. Se crea antes del estilo y se libera con el documento. Coste
   fijo: ~150 KB y evaluar el preludio (~46 KB de JS).
 - **Límites:** 48 MB de memoria (`JS_MEMORIA`, por Next.js), 192 KB de pila de JS sobre 256 KB de `@stack`, 10.000
@@ -225,6 +228,9 @@ lleva su recorte, su capa y el nodo de donde sale.
   - Dash: la lógica sobre `Nodo` (selectores, `innerHTML`, insertar, clonar, `getComputedStyle`, ejecutar scripts).
   - `jsdom_preludio.js`: el entorno de navegador en JS normal (eventos, temporizadores, `classList`, `dataset`,
     `style`, `document.*`, `window`, `URL`/`URLSearchParams`, `TextEncoder`, `ReadableStream`, `location`...).
+    Cada interfaz (`HTMLElement`, `HTMLIFrameElement`, `SVGElement`, `Text`, `Window`, `EventTarget`...) tiene su
+    `instanceof` con `Symbol.hasInstance`; está `PromiseRejectionEvent` (sin él, core-js cambia el `Promise` de QuickJS
+    por el suyo, mucho más lento).
     `tools/preludio.py` lo convierte en `jsdom_preludio.dash`; los tests comprueban que esté al día.
 - **Scripts:** en orden de documento, sin `async`/`defer` ni módulos. Un `src` que no llegó se baja en ese momento,
   de forma síncrona. Luego `DOMContentLoaded`, y `load` con el primer tic.
@@ -234,8 +240,8 @@ lleva su recorte, su capa y el nodo de donde sale.
   falta para el siguiente; eso entra en `programar`.
 - **Errores:** a la salida del programa ("JS: ..."), nunca a la interfaz. También las promesas rechazadas sin capturar.
 - **Lo que falta:** `fetch`, `XMLHttpRequest`, `WebSocket`, `Worker`, `Blob`, `FormData`... `location.assign`/`replace`
-  no navegan. Las medidas de maqueta que ve el JS son falsas (`offsetWidth` 100, rects en 0; tarea 37b). `instanceof`
-  no distingue tipos de nodo. Lo que no es Latin-1 llega como `?` (tarea 37a4).
+  no navegan. Las medidas de maqueta que ve el JS son falsas (`offsetWidth` 100, rects en 0; tarea 37b). Shadow DOM solo
+  mínimo (`attachShadow`). Lo que no es Latin-1 llega como `?` (tarea 37a4).
 
 ## 11. Red
 
@@ -309,7 +315,7 @@ hay `multipart`.
 
 | Tema | Tareas |
 |---|---|
-| Textos | D2, D3, D7, D15, D17, D22 |
+| Textos | D2, D3, D7, D15, D17, D22, D61 |
 | Listas, diccionarios y tipos | D1, D4a, D4b, D4c, D5, D37, D49, D53 |
 | Memoria y propiedad | D6 (`weak`), D16, D26 (`@native(borrow)`) |
 | Módulos y nombres | D14, D18, D45 |
@@ -347,8 +353,9 @@ Medidas en la máquina rtg emulada (68040 + JIT), las más recientes de la bitá
 
 - **freemem.space entera:** de 105-128 s al principio a **21-23 s** (2026-10-20). La máquina va al 100 % todo el
   rato: solo baja quitando trabajo. Lo que más pesa: el primer estilo (~3,7 s) y cada maqueta (~1 s).
-- **pre.opentimetrack.com** (encargo 37): maqueta de 21,7 s a 6,7 s; con React funcionando, los scripts tardan 31 s
-  (37a3, abierto).
+- **pre.opentimetrack.com** (encargo 37): una maqueta bajó de 21,7 s a 6,7 s (37a1) y los scripts de 31 s a 6,7 s
+  (37a3: core-js cambiaba el `Promise` de QuickJS por el suyo). Ahora pesa la maqueta: 6,2-7 s cada una, y GSAP y React
+  la hacen rehacer entera a cada cambio de `style` (37a5).
 - **Optimizaciones que más ganaron:** mezclas por bloques (D51, 35 veces); imágenes directas en RTG (D54, 24 veces);
   estilo con índice, filtro de antecesores y caché (5,0 s → 1,5 s); quitar rastreadores (−7 s).
 - **Memoria:** ~350 KB una página sencilla; motor JS recién creado ~150 KB; libavc pide 5 MB al crear el decodificador.
@@ -358,7 +365,7 @@ Medidas en la máquina rtg emulada (68040 + JIT), las más recientes de la bitá
 
 ## 18. Pruebas
 
-- `python3 tests/run.py`: un `test_*.dash` por módulo (56 ficheros hoy), compilados con `--fpu` y ejecutados en FS-UAE en un
+- `python3 tests/run.py`: un `test_*.dash` por módulo (57 ficheros hoy), compilados con `--fpu` y ejecutados en FS-UAE en un
   arranque, comparando con `# expect-out:`. Servidores locales (`tests/servers/http.py`, también TLS, lento, comprimido);
   nunca webs de terceros. Comprueba también que el preludio esté al día y que `src/` compile.
 - `--memcheck`: 0 vivos al salir.
@@ -391,9 +398,9 @@ Documentación desfasada encontrada:
 - Cabeceras de `maqueta.dash` ("position, más adelante") y de `video.dash`/`videos.dash` ("sin sonido").
 - README: "reanuda la sesión TLS de cada servidor" es cierto, pero el ahorro apenas se nota.
 
-Pendiente del plan (relevante para la arquitectura): 37a3 (scripts lentos), 37a4 (UTF-8 en el JS), 37b-37g (geometría
+Pendiente del plan (relevante para la arquitectura): 37a5 (maqueta lenta y rehecha a cada cambio), 37a4 (UTF-8 en el JS), 37b-37g (geometría
 para el JS, `scroll`, `requestAnimationFrame`, `IntersectionObserver`, transformaciones, WOFF2), 39 (red por señal),
-32 (APIs del navegador), 28j (Next.js agota la memoria), 31q (animaciones).
+32 (APIs del navegador), 28j (Next.js agota la memoria), 31q (animaciones), 40 (lo de este apartado).
 
 ## 20. Constantes
 
