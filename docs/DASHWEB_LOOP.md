@@ -254,6 +254,9 @@ tarea, con el estilo de Dash.
       scroll, IntersectionObserver no avisa nunca y WOFF2 no se lee. Comparar siempre con Chrome al mismo ancho
       (tools/comparar_chrome.py) y bajando por la página (capturas a varias alturas con `medir_visor --acciones`),
       en la máquina rtg (MUI 5) y en sys32rtg38 (MUI 3.8, la del usuario en CoffinOS). Enviar capturas al usuario.
+      Las páginas se leen con Hubbub (`dom_desde_html5`, lib/html5.dash), que es lo que se usa desde el 2026-10-20:
+      nada de volver al analizador viejo (lib/html.dash); si Hubbub falla con esta página, se arregla Hubbub o su
+      paso al DOM.
       Subtareas, por orden:
       37a. Primera carga: cómo sale hoy (captura, traza, errores de JavaScript, memoria: ver la 28j, Next.js sin
            memoria), y apuntar aquí lo que falte que no esté en la lista.
