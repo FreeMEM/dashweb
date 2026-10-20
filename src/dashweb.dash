@@ -16,6 +16,9 @@ import "../lib/documento.dash"
 import "../lib/formularios.dash"
 import "../lib/marcadores.dash"
 
+# desde el icono del Workbench, lo que escribe (console.log de las páginas, «entera en») no abre una consola
+@workbench_output "NIL:"
+
 # Los números de evento del .dashui (los mismos en todas las ventanas: la activa dice de cuál viene)
 const ID_ATRAS = 1
 const ID_ADELANTE = 2

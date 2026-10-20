@@ -2426,3 +2426,12 @@ Formato:
   Dash f946ff9), 21-23 s cada una. Antes, 1 de cada 6. `_fuente_de` vuelve a usarlas.
 - Dash: D58 (7ab1d6c) y D57 (450d45e) en la rama fuente0, sin subir. dashweb main (PR #1) los necesita para MUI
   3.8 y las vectoriales.
+
+### 2026-10-20 — Sin consola al abrirlo desde el icono (D59)
+- libnix, al arrancar desde el Workbench, abre `__stdiowin` ("CON://///AUTO/CLOSE/WAIT") en cuanto se escribe
+  algo: el console.log de JQMIGRATE y «entera en» sacaban una ventana negra. Dash D59 (4991f13 en fuente0, de la
+  otra sesión): la directiva `@workbench_output "NIL:"` define `__stdiowin`. src/dashweb.dash la pone.
+- Probado arrancándolo desde el Workbench (un lanzador con OpenWorkbenchObjectA de workbench.library 44, LoadWB,
+  dashweb.prefs con inicio=https://freemem.space/): sin la directiva sale la consola con las dos líneas; con ella,
+  ninguna ventana y la página igual.
+- Dash: fuente0 (D57, D58, D59 y el merge de origin/main, 8c3934d) se sube con PR a main.

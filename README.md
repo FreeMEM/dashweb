@@ -44,7 +44,7 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
   `innerHTML`, crear y mover nodos...), eventos, `setTimeout`/`setInterval`, `TextEncoder`/`TextDecoder`. Faltan
   muchas APIs del navegador (`fetch`, `XMLHttpRequest`...). `document.cookie` funciona.
 
-Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D58): textos
+Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D59): textos
 rápidos, listas y diccionarios con tipo, red, TLS, fuentes, imágenes, C de fuera (`@link`, `@c`), etc.
 
 ### Medidas (FS-UAE, 2026-10-16)
