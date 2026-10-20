@@ -148,6 +148,31 @@ end
 # UTF-8 a Latin-1. Un byte que no forma una secuencia válida se toma como Latin-1
 # (páginas que dicen UTF-8 y no lo son).
 func utf8_a_latin1(s: String) -> String
+    return _utf8_decodificar(s, false)
+end
+
+# Lo mismo para código JavaScript (tarea 37a4): lo que no cabe en Latin-1 sale como escape \uXXXX (y un par de
+# ellos fuera del plano básico), que vale igual en cadenas, identificadores, expresiones regulares y plantillas, y
+# QuickJS lo lee como el carácter de verdad. Con utf8_a_latin1, "тест" llegaba como "????" y unas comillas “ ”
+# dentro de una cadena salían como " y rompían el script.
+func utf8_a_js(s: String) -> String
+    return _utf8_decodificar(s, true)
+end
+
+func _hex4(v: Int) -> String
+    d = "0123456789ABCDEF"
+    return d[(v / 4096) % 16:(v / 4096) % 16 + 1] + d[(v / 256) % 16:(v / 256) % 16 + 1] + d[(v / 16) % 16:(v / 16) % 16 + 1] + d[v % 16:v % 16 + 1]
+end
+
+func _js_escape(cp: Int) -> String
+    if cp >= 65536
+        c = cp - 65536
+        return "\\u" + _hex4(55296 + c / 1024) + "\\u" + _hex4(56320 + c % 1024)
+    end
+    return "\\u" + _hex4(cp)
+end
+
+func _utf8_decodificar(s: String, js: Bool) -> String
     if _solo_ascii(s)
         return s
     end
@@ -183,7 +208,11 @@ func utf8_a_latin1(s: String) -> String
                 k = k + 1
             end
             if largo > 0 and k == largo
-                r = r + latin1_de(cp)
+                if js and cp >= 256
+                    r = r + _js_escape(cp)
+                else
+                    r = r + latin1_de(cp)
+                end
                 i = i + largo
             else
                 r = r + latin1_de(b)
@@ -224,6 +253,16 @@ func texto_decodificar(s: String, juego: String) -> String
         return cp1252_a_latin1(s)
     end
     return utf8_a_latin1(s)
+end
+
+# El texto de un script con su juego de caracteres (UTF-8 si no dice otro): como texto_decodificar, pero lo que no
+# cabe en Latin-1 queda como escape \uXXXX (utf8_a_js)
+func texto_decodificar_js(s: String, juego: String) -> String
+    j = str_lower(str_trim(juego))
+    if j == "iso-8859-1" or j == "latin1" or j == "iso8859-1" or j == "us-ascii" or j == "ascii" or j == "windows-1252" or j == "cp1252"
+        return texto_decodificar(s, juego)
+    end
+    return utf8_a_js(s)
 end
 
 # Código de una entidad con nombre ("amp" -> 38), o -1 si no se conoce

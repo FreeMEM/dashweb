@@ -590,14 +590,14 @@ func _jsdom_traer(direccion: String) -> String
         if r.error != "" or r.estado != 200
             return ""
         end
-        return http_texto(r)
+        return texto_decodificar_js(r.cuerpo, r.juego)
     end
     ruta = url_fichero(direccion)
     t = file_read_text(ruta)
     if t == nil
         return ""
     end
-    return utf8_a_latin1(t)
+    return utf8_a_js(t)
 end
 
 # === La parte en C: los objetos JS de los nodos ===

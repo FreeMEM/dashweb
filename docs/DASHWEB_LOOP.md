@@ -282,7 +282,7 @@ tarea, con el estilo de Dash.
            perfil de Dash) y el JavaScript la rehace entera por cada cambio, aunque sea uno (GSAP y React cambian
            style a cada rato: 6,2 s por fotograma). Hacer la maqueta más rápida y que un cambio de style que no mueve
            nada (opacity, transform, color) no la rehaga (enlaza con 37d).
-      37a4. El JavaScript con sus caracteres: hoy los scripts pasan a Latin-1 (al traerlos y en el DOM) y lo que no
+      [x] 37a4. El JavaScript con sus caracteres: hoy los scripts pasan a Latin-1 (al traerlos y en el DOM) y lo que no
            cabe sale "?" ("https://тест"); por eso core-js descarta el URL de dashweb y pone el suyo. Dar a QuickJS el
            texto UTF-8 de los scripts (traídos y en línea) sin pasar por Latin-1, y punycode en URL.host.
       37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
@@ -2592,3 +2592,18 @@ Formato:
   37a5. Tareas de la sesión dashweb-f7 apuntadas como 40.
 - Test nuevo test_jsdom_interfaces. Base: 59/59 (902 s). D61 hecha por "dash" (8f04c61) mientras tanto: el
   parche `_jsdom_soltar` se queda (no estorba).
+
+### 2026-10-20 — Tarea 37a4 (el JavaScript con sus caracteres; punycode)
+- lib/texto.dash: `utf8_a_js` (y `texto_decodificar_js`): como utf8_a_latin1, pero lo que no cabe en Latin-1 sale
+  como escape \uXXXX (par de ellos fuera del plano básico). Antes "тест" llegaba a QuickJS como "????" y unas
+  comillas “ ” dentro de una cadena de JavaScript salían como " (latin1_de) y rompían el script.
+- Los scripts traídos (recursos.dash, jsdom._jsdom_traer) pasan por ahí. Una página HTML en UTF-8 (o sin juego
+  dicho) va a Hubbub en sus bytes tal cual (`dom_desde_html5_utf8`, `_h5_analizar(texto, utf8)`): el DOM sale en
+  Latin-1 como siempre y el texto de los <script>, con utf8_a_js.
+- URL: punycode en el nombre de servidor (igual que Node en 7 casos); el chequeo de core-js entero pasa ya con el
+  URL de dashweb (antes ponía el suyo).
+- Coste de D61 (la caché de longitudes ya no apunta textos de C): recorrer un texto de C de 64 o más con str_code
+  es cuadrático; pasar a Latin-1 el script de 26 KB que da Hubbub tardaba 7,5 s (antes 0,08). lib/html5.dash
+  devuelve ya `_dash_str_dup` en _h5_texto y _h5_atr_valor: 82 ms. Avisada la sesión dash: lo documentó en el
+  manual de Dash (1a8e0cc, "Textos de C largos").
+- Test nuevo test_js_utf8. Base: 60/60 (936 s); freemem.space 21,3 s (igual).
