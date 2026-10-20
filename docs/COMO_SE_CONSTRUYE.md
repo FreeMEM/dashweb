@@ -239,8 +239,7 @@ Está en el repo de Dash, `editor/vscode/` (extensión `dash-mui-editor`). Da:
 - **El editor visual de ventanas** para los `.dashui`: paleta de objetos a la izquierda, árbol de la ventana en
   el centro (se arrastra para añadir y mover; Supr borra), propiedades y menús a la derecha, y una vista
   aproximada debajo. Pestañas por ventana arriba.
-- **Ver en Amiga**: compila un programa mínimo que abre esa ventana, lo ejecuta en FS-UAE con MUI y muestra la
-  captura en el editor. Tarda unos 30 segundos.
+- **Ver en Amiga**: una foto de la ventana abierta en un Amiga emulado con MUI (apartado 5.4).
 
 ![El editor visual con la ventana de dashweb](img/vscode_dashui.png)
 
@@ -293,12 +292,38 @@ En los ajustes de usuario (`settings.json`):
 6. Para el programa entero: abre `src/dashweb.dash` y "Dash: Compilar" o el botón ▷ de arriba ("Ejecutar en
    emulador").
 
-### 5.4 Lo que hay que saber
+### 5.4 Qué hace "Ver en Amiga"
+
+Enseña cómo queda la ventana de verdad, con MUI, y no el dibujo aproximado del editor. Al pulsarlo, el plugin:
+
+1. Escribe un programa mínimo en Dash que solo abre esa ventana del `.dashui`. Usa lo que hay en el editor, aunque
+   no esté guardado.
+2. Lo compila para el Amiga.
+3. Arranca un Amiga emulado en FS-UAE, sin ventana, con el sistema de `dash.emulator.muiSystem` (Workbench y
+   MUI).
+4. Espera unos 15 segundos a que arranque y salga la ventana.
+5. Hace una foto de la pantalla del Amiga y la pone en el editor, debajo de la vista aproximada.
+
+Sirve para comprobar lo que el dibujo aproximado no sabe: cómo reparte MUI el espacio, las fuentes y los bordes
+reales, los tamaños.
+
+Lo que no hace:
+
+- No es interactivo: es una foto, no se puede pulsar nada.
+- No ejecuta el programa, solo abre la ventana. Por eso, con dashweb, los iconos de la barra salen vacíos (el
+  programa mínimo corre en otra carpeta y no encuentra `PROGDIR:iconos/`) y la zona de la página sale gris (nadie
+  la pinta).
+- Para el programa entero está "Dash: Ejecutar en emulador". Tampoco abre ventana: lo que escribe el programa
+  sale en un terminal de VS Code.
+
+Tarda unos 30 segundos y mientras tanto el botón no cambia. El único aviso es una línea gris pequeña debajo de la
+vista, y la foto sale también ahí: con una ventana grande hay que bajar para verla. Parece que no hace nada, pero
+está trabajando.
+
+### 5.5 Lo que hay que saber
 
 - La vista aproximada no reparte el espacio igual que MUI. Muestra los objetos ocultos (`hidden`) y los botones
   con imagen como el nombre del fichero. Para lo real, "Ver en Amiga".
-- En "Ver en Amiga" los botones de la barra salen vacíos: el programa mínimo se ejecuta en otra carpeta y no
-  encuentra `PROGDIR:iconos/`.
 - "Dash: Compilar" usa las opciones por defecto de `./dash`. Para el paquete de verdad, `tools/paquete.sh`
   (apartado 9).
 - No hay copiar y pegar de objetos ni selección múltiple.
