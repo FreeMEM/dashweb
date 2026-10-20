@@ -327,12 +327,21 @@ tarea, con el estilo de Dash.
            3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje.
       [x] 37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez).
       [x] 37e5. Los toques SALE (un nodo que sale) y un absoluto o fijo que pasa a display: none, sin maqueta.
-      37e6. La maqueta del montaje de pre.opentimetrack.com sigue en ~8,5 s (más 1,7 de estilo) por elementos visibles
+      37e6. (Después de la 37h: tras el montaje la página ya no está ocupada, 37e3.) La maqueta del montaje de pre.opentimetrack.com sigue en ~8,5 s (más 1,7 de estilo) por elementos visibles
            que entran (React monta secciones): cada elemento se maqueta ~6 veces por las medidas de las cajas flex y
            cada bloque cuesta ~0,7 ms. Idea: rehacer solo la parte que cambió cuando la caja de su contenedor no cambia
            de tamaño (maqueta por trozos), o medir min/max-content sin maquetar.
-      37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
+      [x] 37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
+      37f2. Lo que queda al comparar la portada de pre.opentimetrack.com con Chrome: la tarjeta girada (rotate: -1.2deg
+           como propiedad suelta, md:-rotate-[1.2deg]) con su sombra, la portada más alta (min-height en svh/dvh?),
+           el texto "Mueve el ratón por la pantalla" que no sale.
+      37f3. El ratón (usuario, 2026-10-20: "cuando pasas con el ratón por encima de los gráficos, reaccionan en plan
+           hover"): @media (hover: hover) y (pointer: fine) verdaderos (el Amiga tiene ratón: la página enseña "Mueve
+           el ratón por la pantalla" solo así); los movimientos del ratón al JavaScript (mousemove/pointermove,
+           mouseover/out, mouseenter/leave con clientX/Y, sobre el elemento de debajo: la pila de la portada sigue al
+           ratón); :hover en el CSS del elemento de debajo (con la ruta ligera de 37d si no mueve nada). Sin inundar:
+           un suceso por tic como mucho.
       37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
            TTF para stb_truetype; las fuentes variables, con su instancia por defecto (o la del peso pedido si cabe).
       37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
@@ -349,6 +358,22 @@ tarea, con el estilo de Dash.
       después en Amiberry (en FS-UAE no se puede). docs/ARQUITECTURA.md lo rehace la sesión dashweb-f7: no tocarlo,
       apuntar el cambio en la bitácora. Va delante de la 38 salvo que el usuario diga otra cosa: es
       pequeña y acelera todas las cargas.
+- [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
+      de HTML, CSS y JavaScript, y añadirlo. Por orden:
+      41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
+           arreglar lo que salga.
+      41b. Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
+           referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
+           Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
+           el porcentaje que pasa en cada uno y subirlo.
+      41c. css3test.com y html5test.com como lista de lo que falta (miden lo que el JavaScript dice que hay, no si se
+           pinta bien); Acid3 (DOM y JavaScript, nota sobre 100). test262 no: QuickJS ya lo pasa casi entero.
+      41d. Web Platform Tests entero, como en wpt.fyi (usuario, 2026-10-20: "en algún momento habrá que hacerlo"):
+           también las pruebas de JavaScript (testharness.js: la página dice por sí misma qué pasa y qué no), por
+           carpetas (html/, dom/, css/, fetch/, url/, encoding/...), con un resumen por carpeta como el de wpt.fyi
+           (pasan / total) guardado en docs/ para ver cómo sube. Ir tarea a tarea por las carpetas con más fallos.
+      Las pruebas de fuera no van al repo enteras: un guion que las baje (tools/) y las que se arreglen, copiadas
+      como test con su licencia (WPT es BSD de 3 cláusulas).
 - [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
       https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
       como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
@@ -2823,4 +2848,22 @@ Formato:
   (el montaje, 10,3 s: apuntada 37e6). freemem.space: el botón fijo "go-to-top" que se esconde, sin maqueta.
 - test_documento_ligero: sale un absoluto, un fijo pasa a none (sin maqueta y sin sus dibujos), sale uno normal
   (con maqueta). Batería 64/64 (1168 s); freemem.space 20,9 s.
+
+### 2026-10-20 — Tarea 37f (propiedades lógicas, atajos con var() en la cascada, botones con CSS)
+- Comparando la portada de pre.opentimetrack.com con Chrome: la cabecera, la tarjeta y los botones sin relleno.
+- lib/estilo.dash: las propiedades lógicas (Tailwind 4: px-* es padding-inline, py-* padding-block, mx-* margin-inline;
+  inset-inline, -start/-end), en horizontal de izquierda a derecha (`_logica_lados`), como atajos (también con var()).
+- lib/estilo.dash `_calcular`: un atajo con var() se partía al final y "lo suelto ganaba" siempre: el `padding: 0`
+  del `*` de Tailwind (especificidad 0) le ganaba al `padding-inline: calc(var(--spacing) * 5)` de una clase. Ahora
+  cada parte compite en la cascada con la propiedad suelta (en empate, la suelta, como antes). Valía también para
+  margin, border y background con var().
+- lib/maqueta.dash `_boton_propio`: un <button> con fondo o borde de la página (el preflight de Tailwind:
+  background-color #0000, border 0 solid) o appearance: none lo dibuja su CSS, como los navegadores ("Menú" como
+  texto, "Pedir demo" con su caja).
+- pre.opentimetrack.com: la cabecera, los botones y la tarjeta con su relleno; queda la tarjeta girada, su sombra y
+  la altura de la portada (apuntada 37f2) y las fuentes (37g).
+- Tests: test_estilo (lógicas), test_estilo_vars (cascada de un atajo con var()), test_maqueta_boton (nuevo). Un
+  test de formularios se quedó una vez sin tiempo (618 s) y pasó al repetirlo (48 s): sin causa conocida.
+- Batería 65/65 (1183 s); freemem.space 21,4 s. Apuntadas por el usuario: 37f3 (el ratón) y la tarea 41 (baterías
+  de estándares: Acid2, WPT, css3test/html5test/Acid3, WPT entero como wpt.fyi), antes de youtube.com.
 

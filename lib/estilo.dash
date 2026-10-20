@@ -1041,7 +1041,43 @@ func _gana_con(importante: Bool, autor: Bool, especificidad: Int, orden: Int, vi
     return orden >= vieja.orden
 end
 
+# margin-inline, padding-block, inset-inline-start...: las propiedades físicas a las que van (con -inline y -block, la
+# del primer valor y la del segundo); nil si no es una de ellas
+func _logica_lados(p: String) -> [String]
+    var nada: [String] = nil
+    base = ""
+    resto = ""
+    if str_starts(p, "margin-")
+        base = "margin-"
+        resto = p[7:]
+    elif str_starts(p, "padding-")
+        base = "padding-"
+        resto = p[8:]
+    elif str_starts(p, "inset-")
+        resto = p[6:]
+    else
+        return nada
+    end
+    if resto == "inline"
+        return [base + "left", base + "right"]
+    elif resto == "block"
+        return [base + "top", base + "bottom"]
+    elif resto == "inline-start"
+        return [base + "left"]
+    elif resto == "inline-end"
+        return [base + "right"]
+    elif resto == "block-start"
+        return [base + "top"]
+    elif resto == "block-end"
+        return [base + "bottom"]
+    end
+    return nada
+end
+
 func _es_atajo(p: String) -> Bool
+    if (str_ends(p, "-inline") or str_ends(p, "-block") or str_ends(p, "-start") or str_ends(p, "-end")) and _logica_lados(p) != nil
+        return true
+    end
     return p == "margin" or p == "padding" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap"
 end
 
@@ -1074,7 +1110,21 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
         _proponer(ganadoras, p, Candidata(v, d.importante, autor, esp, orden))
         return
     end
-    if p == "margin" or p == "padding"
+    lados = _logica_lados(p)
+    if lados != nil
+        # propiedades lógicas (Tailwind 4: px-4 es padding-inline): en horizontal y de izquierda a derecha
+        partes = _palabras(v)
+        if partes.length > 0
+            _proponer(ganadoras, lados[0], Candidata(partes[0], d.importante, autor, esp, orden))
+            if lados.length > 1
+                segundo = partes[0]
+                if partes.length > 1
+                    segundo = partes[1]
+                end
+                _proponer(ganadoras, lados[1], Candidata(segundo, d.importante, autor, esp, orden))
+            end
+        end
+    elif p == "margin" or p == "padding"
         _cuatro(ganadoras, p + "-", "", v, d.importante, autor, esp, orden)
     elif p == "border-width" or p == "border-style" or p == "border-color"
         _cuatro(ganadoras, "border-", p[6:], v, d.importante, autor, esp, orden)
@@ -1915,14 +1965,18 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
             end
         end
     end
-    # los atajos con var(): se sustituye y se parte (antes que lo demás: lo suelto gana)
+    # los atajos con var(): se sustituye y se parte; cada parte compite en la cascada con la propiedad suelta (el
+    # padding: 0 de un * no le gana al padding-inline: var(...) de una clase)
+    var de_atajo: {String: Candidata} = {}
     for p in ganadoras.keys()
         if _es_atajo(p)
+            ca = ganadoras[p]
             var partes: {String: Candidata} = {}
-            _declarar(partes, Declaracion(p, _resolver_var(ganadoras[p].valor, vars, 0), false), true, 0, 0)
+            _declarar(partes, Declaracion(p, _resolver_var(ca.valor, vars, 0), false), true, 0, 0)
             for k in partes.keys()
-                if k != "font-size"
+                if k != "font-size" and (not de_atajo.has(k) or _gana(ca, de_atajo[k]))
                     e[k] = partes[k].valor
+                    de_atajo[k] = ca
                 end
             end
         end
@@ -1930,6 +1984,9 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
     for p in ganadoras.keys()
         v = ganadoras[p].valor
         if str_starts(p, "--") or _es_atajo(p)
+            continue
+        elif de_atajo.has(p) and not _gana(ganadoras[p], de_atajo[p])
+            # (en la misma regla tienen el mismo orden: entonces gana la suelta, que suele ir detrás)
             continue
         elif str_lower(v) == "inherit"
             if padre.has(p)

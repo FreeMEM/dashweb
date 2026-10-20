@@ -2296,6 +2296,12 @@ func _boton_propio(n: Nodo) -> Bool
     if n.nombre != "button"
         return false
     end
+    # con fondo o borde de la página (la hoja del navegador no le pone), o appearance: none, deja de ser el botón de
+    # siempre, como en los navegadores (el preflight de Tailwind le pone background-color: #0000 y border: 0 solid)
+    e = n.estilo
+    if e.has("background-color") or e.has("border-top-style") or _val(e, "appearance", "") == "none" or _val(e, "-webkit-appearance", "") == "none"
+        return true
+    end
     for h in _hijos(n)
         if h.tipo == DOM_ELEMENTO
             return true

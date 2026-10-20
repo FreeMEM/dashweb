@@ -3,7 +3,8 @@
 # nombra no se guarda, salvo en el atributo style; var() con respaldo, anidado y en otra --x; los atajos
 # partidos una vez por regla (margin, border) con el orden de las declaraciones, y con var() después de
 # sustituirla (también en el atributo style); un ::before solo si su
-# regla con content se cumple; estilo_px con unidades en mayúsculas y blancos.
+# regla con content se cumple; estilo_px con unidades en mayúsculas y blancos. Un atajo con var() compite en la
+# cascada con lo suelto: el padding: 0 de * no le gana al de una clase; dentro de la regla, lo de después gana (37f).
 # memcheck
 # expect-out: a: rgb(1,2,3) 4px
 # expect-out: b: red 4px
@@ -11,6 +12,7 @@
 # expect-out: d: green 2px 9px 1px dashed
 # expect-out: borde: 3px dashed #123
 # expect-out: before: 1 0
+# expect-out: cascada: 4px | 1px 4px
 # expect-out: px: 32 12 0 5
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
@@ -56,5 +58,11 @@ Main
         end
     end
     Print "before: " + x + " " + y
+    h = "<style>:root { --m: 4px } * { padding: 0 } .f { padding: var(--m) } .g { padding: var(--m); padding-left: 1px }</style>"
+    h = h + "<div id=f class=f>f</div><div id=g class=g>g</div>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    g = dom_por_id(doc, "g")
+    Print "cascada: " + dom_por_id(doc, "f").estilo["padding-left"] + " | " + g.estilo["padding-left"] + " " + g.estilo["padding-right"]
     Print "px: " + estilo_px(" 2EM ", 16, 0) + " " + estilo_px("12PX", 0, 0) + " " + estilo_px("3zz", 0, 0) + " " + estilo_px("50%", 0, 10)
 end
