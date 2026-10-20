@@ -2435,3 +2435,5 @@ Formato:
   dashweb.prefs con inicio=https://freemem.space/): sin la directiva sale la consola con las dos líneas; con ella,
   ninguna ventana y la página igual.
 - Dash: fuente0 (D57, D58, D59 y el merge de origin/main, 8c3934d) se sube con PR a main.
+- El usuario lo ha probado en CoffinOS (MUI 3.8) desde el icono: funciona bien. Fusionados FreeMEM/dash#1 y
+  FreeMEM/dashweb#2.
