@@ -345,7 +345,7 @@ tarea, con el estilo de Dash.
            mouseover/out, mouseenter/leave con clientX/Y, sobre el elemento de debajo: la pila de la portada sigue al
            ratón); :hover en el CSS del elemento de debajo (con la ruta ligera de 37d si no mueve nada). Sin inundar:
            un suceso por tic como mucho.
-      37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
+      [x] 37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
            TTF para stb_truetype; las fuentes variables, con su instancia por defecto (o la del peso pedido si cabe).
       37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
@@ -383,7 +383,7 @@ tarea, con el estilo de Dash.
 
 - [ ] 40. **Lo que encontró la sesión dashweb-f7 al rehacer docs/ARQUITECTURA.md (2026-10-20; después de la 37,
       salvo la (a), que va antes de la próxima versión).** Comprobado en el código por ella:
-      (a) tools/paquete.sh compila dashweb y el visor sin --fpu, pero libqjs, libimg y libvideo van con -m68881: la
+      [x] (a) tools/paquete.sh compila dashweb y el visor sin --fpu, pero libqjs, libimg y libvideo van con -m68881: la
       bitácora (28g, 29b) dice que mezclar las dos formas rompía números (Date.now, SVG de 0x0). Mirar si algún
       número con decimales cruza entre las dos partes en la v0.2.0-alfa y, casi seguro, añadir --fpu.
       (b) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
@@ -2910,4 +2910,29 @@ Formato:
   "ratón en 52,68"; "hay ratón". Sin probar: con un ratón de verdad y en CoffinOS; pre.opentimetrack.com con el
   ratón (la pila que lo sigue).
 - Batería 66/66 (1236 s); freemem.space 21,4 s.
+
+### 2026-10-21 — Tarea 37g (WOFF2) y 40a (--fpu en todo lo que se reparte y se mide)
+- third_party/brotli: el descompresor de google/brotli 1.1.0 (MIT; c/common, c/dec y las cabeceras), en libimg.a
+  (tools/build_img.sh; brotli/decode.h en build/img-lib/brotli).
+- lib/fuente_web.dash `_fw_de_woff2`: WOFF 2.0 a TrueType: el directorio (las 63 etiquetas conocidas, UIntBase128),
+  Brotli de una vez, glyf/loca transformadas rehechas (los siete flujos, los tripletes de 5.2, 255UInt16, la caja
+  explícita o calculada, los compuestos tal cual con sus instrucciones), hmtx transformada (los lsb del xMin de cada
+  glifo), el directorio por etiqueta, indexToLocFormat en head. Sin colecciones (ttcf). lib/css.dash: los src
+  woff2 valen. tf_BoldSmear crece con el tamaño (la negrita del Amiga de un titular de 64 px).
+- Comprobado en el PC (el mismo C con AllocVec simulado y stb_truetype): VeraMono.woff2 de woff2_compress da los
+  mismos glifos y métricas que el TTF (32-255); las tres fuentes de pre.opentimetrack.com (Archivo y Doto, variables,
+  e Inter) se convierten y se leen. En el A1200 emulado, convertirlas cuesta 2-7 s.
+- Pero en dashweb no salían: fuente_web daba 0 aunque la conversión iba bien. tools/medir_visor.py (y
+  tools/paquete.sh, y los dashweb dados al usuario) compilaban sin --fpu, y libimg va con -m68881: el float de
+  stbtt_ScaleForMappingEmToPixels llegaba en fp0 y se leía de d0 (el alto salía < 1). Es la 40a: ahora
+  tools/paquete.sh y tools/medir_visor.py compilan con --fpu (su A1200 lleva una 68882, como los tests). Las fuentes
+  web nunca habían salido en el navegador de verdad (sí en los tests, que van con --fpu); la v0.2.0-alfa también
+  va sin --fpu: lo que cruce floats con libimg/libqjs/libvideo puede estar mal en ella.
+- pre.opentimetrack.com: el titular en Archivo grueso, el reloj con los dígitos de puntos de Doto, como Chrome.
+- lib/estilo.dash `_calcular`: las --x de un elemento se ponen todas antes de resolver sus var() (--font-reloj:
+  var(--font-doto) con las dos en <html>, en cualquier orden).
+- Tests: test_fuente_web (WOFF2: medidas y la misma letra pixel a pixel que el TTF; src woff2), test_estilo_vars
+  (var() entre --x del mismo elemento).
+- Batería 66/66 (1245 s); freemem.space 23,5 s (antes 21,4: ahora con --fpu y sus fuentes web de verdad; sin
+  medir por separado).
 

@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DASH = Path(os.environ.get("DASH", Path.home() / "Projects" / "FreeMEMLang-dashweb"))
 PORT = 40861
 MAQUINAS = {
-    "a1200": "",
+    "a1200": "fpu = 68882\n",    # (dashweb va con --fpu, como en tools/paquete.sh y los tests)
     # como una PiStorm: 68040 rápido y 128 MB (las páginas de hoy con su JavaScript no caben en 8 MB)
     "objetivo": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n",
     # la misma con tarjeta gráfica (RTG, uaegfx de FS-UAE y Picasso96): AmigaOS 3.2 a 1024x768 en 16 bits
@@ -82,7 +82,7 @@ def main():
         env = dict(os.environ, DASH_TEST_AUTOCLOSE=str(args.segundos))
         if args.perfil:
             env["DASH_PROFILE"] = "1"
-        r = subprocess.run([str(DASH / "dash")] + (["--memcheck"] if args.memcheck else []) + [str(ROOT / ("tests/bench/fases.dash" if args.fases else args.programa)), "-o", str(exe)],
+        r = subprocess.run([str(DASH / "dash"), "--fpu"] + (["--memcheck"] if args.memcheck else []) + [str(ROOT / ("tests/bench/fases.dash" if args.fases else args.programa)), "-o", str(exe)],
                            cwd=DASH, env=env, capture_output=True, text=True)
         if r.returncode != 0:
             sys.exit("compile failed:\n" + r.stdout + r.stderr)

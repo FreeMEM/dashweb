@@ -14,8 +14,10 @@ mkdir -p "$B/dashweb/Licencias"
 [ -f "$R/build/qjs-lib/libqjs.a" ] || DASH=$DASH "$R/tools/build_qjs.sh" lib
 [ -f "$R/build/img-lib/libimg.a" ] || "$R/tools/build_img.sh"
 cd "$DASH"
-PYTHONPATH=$DASH ./dash "$R/src/dashweb.dash" -o "$B/dashweb/dashweb"
-PYTHONPATH=$DASH ./dash "$R/src/visor.dash" -o "$B/dashweb/visor"
+# con --fpu, como libqjs, libimg y libvideo (-m68881): mezclar las dos formas rompe los números con decimales que
+# cruzan entre ellas (sin él, las fuentes web no salían: la escala de stb_truetype llegaba en fp0; tarea 40a)
+PYTHONPATH=$DASH ./dash --fpu "$R/src/dashweb.dash" -o "$B/dashweb/dashweb"
+PYTHONPATH=$DASH ./dash --fpu "$R/src/visor.dash" -o "$B/dashweb/visor"
 python3 "$R/tools/iconos.py" >/dev/null
 cp -r "$R/iconos" "$B/dashweb/iconos"   # la barra de herramientas (PROGDIR:iconos/)
 # el LEEME y el guion del Installer en Latin-1 (MultiView y el Installer no leen UTF-8)

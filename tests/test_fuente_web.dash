@@ -1,13 +1,17 @@
 # Test: lib/fuente_web.dash (tarea 31h): Bitstream Vera Sans Mono (tests/pages/VeraMono.ttf, su licencia al lado)
 # hecha TextFont del Amiga a 20 px de em: alto 24 (ascendente 19 + descendente 5), todas las letras del mismo
-# ancho (12), "abc" tres veces una, y un fichero que no es una fuente da 0; en WOFF, igual. Y pintada: la W pone tinta.
+# ancho (12), "abc" tres veces una, y un fichero que no es una fuente da 0; en WOFF, igual; en WOFF2 (Brotli y glyf/loca
+# transformadas, tests/pages/VeraMono.woff2 de woff2_compress; tarea 37g), igual y con las mismas letras. Y pintada: la
+# W pone tinta.
 # emu-server: http.py 40853
 # memcheck
 # expect-out: fuente 24 12 true true
 # expect-out: nada 0
 # expect-out: woff 24 12
+# expect-out: woff2 24 12 true
 # expect-out: tinta true
-# expect-out: caras 2: mi fuente 700 italic http://ejemplo.com/f/mi.woff | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2
+# expect-out: woff2 como ttf true
+# expect-out: caras 2: mi fuente 700 italic http://ejemplo.com/f/mi.woff2 | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2
 # expect-out: maqueta 36 sin 0
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
@@ -33,6 +37,10 @@ Main
     font_use(g)
     Print "woff " + font_height() + " " + font_text_width("W")
     fuente_web_liberar(g)
+    http_a_fichero("http://127.0.0.1:40853/pages/VeraMono.woff2", "T:VeraMono.woff2", 10000)
+    g2 = fuente_web("T:VeraMono.woff2", 20)
+    font_use(g2)
+    Print "woff2 " + font_height() + " " + font_text_width("W") + " " + (font_text_width("abc") == 3 * font_text_width("a"))
     W.open
     font_use(f)
     x0 = W.inner_left
@@ -51,9 +59,26 @@ Main
         end
     end
     Print "tinta " + tinta
+    # la misma letra de la WOFF2 que de la TTF: los contornos rehechos de glyf transformada, pixel a pixel
+    gfx_pen(0)
+    gfx_rect(x0, y0, x0 + 180, y0 + 40)
+    gfx_pen(1)
+    gfx_text_at(x0 + 4, y0 + 4 + font_baseline(), "Wag&8")
+    font_use(g2)
+    gfx_text_at(x0 + 94, y0 + 4 + font_baseline(), "Wag&8")
+    iguales = true
+    for x in (0..80)
+        for y in (0..30)
+            if gfx_pixel_read(x0 + 4 + x, y0 + 4 + y) != gfx_pixel_read(x0 + 94 + x, y0 + 4 + y)
+                iguales = false
+            end
+        end
+    end
+    Print "woff2 como ttf " + iguales
+    fuente_web_liberar(g2)
     W.close
     fuente_web_liberar(f)
-    # @font-face en una hoja: familia, peso, estilo y, del src, el primero que se sabe leer (ni woff2 ni local)
+    # @font-face en una hoja: familia, peso, estilo y, del src, el primero que se sabe leer (no local)
     c = "@font-face { font-family: 'Mi Fuente'; src: local('X'), url(/f/mi.woff2) format('woff2'), url(/f/mi.woff) format('woff'); font-weight: bold; font-style: italic }"
     c = c + " @font-face { font-family: Otra; src: url(otra.ttf?v=2) }"
     doc = dom_desde_html("<html><head><style>" + c + "</style></head><body>x</body></html>")

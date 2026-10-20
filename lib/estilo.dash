@@ -1960,12 +1960,14 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
     e["display"] = display
     vars = padre_vars
     propias = false
-    # primero las --x (las demás pueden usarlas)
+    # primero las --x (las demás pueden usarlas): todas tal cual y luego sus var(), que pueden nombrar otra del mismo
+    # elemento en cualquier orden (--font-reloj: var(--font-doto) con las dos en <html>, tarea 37g)
+    var con_var: [String] = []
     for p in ganadoras.keys()
         if str_starts(p, "--")
             v = ganadoras[p].valor
             if str_find(v, "var(") >= 0
-                v = _resolver_var(v, vars, 0)
+                con_var.push(p)
             end
             if not vars.has(p) or vars[p] != v
                 if not propias
@@ -1978,6 +1980,20 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
                 end
                 vars[p] = v
             end
+        end
+    end
+    for p in con_var
+        r = _resolver_var(vars[p], vars, 0)
+        if r != vars[p]
+            if not propias
+                var copia2: {String: String} = {}
+                for k in vars.keys()
+                    copia2[k] = vars[k]
+                end
+                vars = copia2
+                propias = true
+            end
+            vars[p] = r
         end
     end
     # los atajos con var(): se sustituye y se parte; cada parte compite en la cascada con la propiedad suelta (el

@@ -5,6 +5,7 @@
 # sustituirla (también en el atributo style); un ::before solo si su
 # regla con content se cumple; estilo_px con unidades en mayúsculas y blancos. Un atajo con var() compite en la
 # cascada con lo suelto: el padding: 0 de * no le gana al de una clase; dentro de la regla, lo de después gana (37f).
+# Una --x con var() de otra del mismo elemento, en cualquier orden (37g).
 # memcheck
 # expect-out: a: rgb(1,2,3) 4px
 # expect-out: b: red 4px
@@ -13,6 +14,7 @@
 # expect-out: borde: 3px dashed #123
 # expect-out: before: 1 0
 # expect-out: cascada: 4px | 1px 4px
+# expect-out: en orden: ana, serif
 # expect-out: px: 32 12 0 5
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
@@ -63,6 +65,11 @@ Main
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
     g = dom_por_id(doc, "g")
+    h = "<style>html { --b: var(--a), serif; --a: ana } p { font-family: var(--b) }</style><p id=p>x</p>"
+    doc3 = dom_desde_html(h)
+    estilo_aplicar(doc3, estilo_hojas(doc3, "http://x/"))
+    orden = "en orden: " + dom_por_id(doc3, "p").estilo["font-family"]
     Print "cascada: " + dom_por_id(doc, "f").estilo["padding-left"] + " | " + g.estilo["padding-left"] + " " + g.estilo["padding-right"]
+    Print orden
     Print "px: " + estilo_px(" 2EM ", 16, 0) + " " + estilo_px("12PX", 0, 0) + " " + estilo_px("3zz", 0, 0) + " " + estilo_px("50%", 0, 10)
 end

@@ -686,8 +686,8 @@ func _css_cara(hoja: HojaCSS, cuerpo: String)
     hoja.caras.push(CaraFuente(familia, src, peso, estilo))
 end
 
-# De la lista de un src de @font-face, la dirección del primero que dashweb sabe leer (TrueType, OpenType o WOFF;
-# no WOFF2 ni local()): por su format() o, sin él, por la extensión; "" si ninguno
+# De la lista de un src de @font-face, la dirección del primero que dashweb sabe leer (TrueType, OpenType, WOFF o
+# WOFF2; no local()): por su format() o, sin él, por la extensión; "" si ninguno
 func css_fuente_src(src: String) -> String
     for item in css_partir(src, 44)
         t = str_lower(str_trim(item))
@@ -698,7 +698,7 @@ func css_fuente_src(src: String) -> String
         f = str_find(t, "format(")
         if f >= 0
             formato = t[f:]
-            if str_find(formato, "woff2") < 0 and (str_find(formato, "woff") >= 0 or str_find(formato, "truetype") >= 0 or str_find(formato, "opentype") >= 0)
+            if str_find(formato, "woff") >= 0 or str_find(formato, "truetype") >= 0 or str_find(formato, "opentype") >= 0
                 return u
             end
         else
@@ -707,7 +707,7 @@ func css_fuente_src(src: String) -> String
             if q >= 0
                 sin = sin[:q]
             end
-            if str_ends(sin, ".ttf") or str_ends(sin, ".otf") or str_ends(sin, ".woff")
+            if str_ends(sin, ".ttf") or str_ends(sin, ".otf") or str_ends(sin, ".woff") or str_ends(sin, ".woff2")
                 return u
             end
         end
