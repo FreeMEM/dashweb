@@ -278,7 +278,8 @@ tarea, con el estilo de Dash.
            *.js:1:4070) y Next.js no llega a montar nada (React, GSAP). Con test.
       [x] 37a3. Lentitud del JavaScript: de 31 s a 6,7 s (core-js cambiaba el Promise de QuickJS por el suyo), y
            Next.js ya monta la página sin errores.
-      37a5. Maqueta lenta y repetida: cada maqueta de esta página tarda 6,2-7 s (estilo_px, _borde, flex y grid en el
+      [x] 37a5. Maqueta lenta y repetida (hecha la parte de la velocidad: de 6,7 a 2,0 s; que un cambio que no mueve
+           nada no rehaga la maqueta queda en la 37d): cada maqueta de esta página tarda 6,2-7 s (estilo_px, _borde, flex y grid en el
            perfil de Dash) y el JavaScript la rehace entera por cada cambio, aunque sea uno (GSAP y React cambian
            style a cada rato: 6,2 s por fotograma). Hacer la maqueta más rápida y que un cambio de style que no mueve
            nada (opacity, transform, color) no la rehaga (enlaza con 37d).
@@ -2607,3 +2608,14 @@ Formato:
   devuelve ya `_dash_str_dup` en _h5_texto y _h5_atr_valor: 82 ms. Avisada la sesión dash: lo documentó en el
   manual de Dash (1a8e0cc, "Textos de C largos").
 - Test nuevo test_js_utf8. Base: 60/60 (936 s); freemem.space 21,3 s (igual).
+
+### 2026-10-20 — Tarea 37a5 (la maqueta de pre.opentimetrack.com, de 6,7 a 2,0 s); PR #3
+- `_ancho_flotante` (el ancho según el contenido: flex, grid, tablas y flotantes lo piden 2-3 veces por elemento y
+  cada medida maqueta todo lo de dentro, que mide a sus hijos: crecía exponencialmente con el anidamiento) recuerda
+  sus tres últimas medidas por nodo dentro de una maqueta (`_maqueta_pase`; campos af_* de Nodo; clave: el ancho y
+  `_alto_definido`). Maqueta: de 6,7 s a 2,36 s; rehacerla por un cambio del JavaScript: de 6,2 s a 1,65 s.
+- `_borde` sin montar "border-" + lado + ... en cada llamada y `_px` sin medir la letra si el valor no usa em, ch,
+  ex ni calc() (`_sin_letra`): estilo_px pasaba de 884.000 llamadas en una carga con 11 maquetas. Maqueta 2,04 s;
+  rehacerla por un cambio, 1,38 s.
+- freemem.space igual (21,7 s, la misma captura). Base: 60/60 (937 s).
+- La sesión dashweb-f7 subió dev hasta 807292c y la fusionó en main (PR #3, merge 4f56d0b), por encargo del usuario.

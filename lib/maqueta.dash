@@ -227,20 +227,63 @@ func _px(e: {String: String}, prop: String, cien: Int) -> Int
     if not e.has(prop)
         return 0
     end
-    return estilo_px(e[prop], estilo_px(e["font-size"], 0, 0), cien)
+    v = e[prop]
+    # la letra solo hace falta con em, ch, ex o calc() (antes se medía en cada llamada: la mitad de las 884.000
+    # llamadas a estilo_px de pre.opentimetrack.com; tarea 37a5)
+    if _sin_letra(v)
+        return estilo_px(v, 16, cien)
+    end
+    return estilo_px(v, estilo_px(e["font-size"], 0, 0), cien)
+end
+
+# ¿Un valor que se pasa a px sin la letra? "12px", "50%", "0", "auto" (sin calc ni em/ch/ex)
+func _sin_letra(v: String) -> Bool
+    n = v.length
+    if n == 0
+        return true
+    end
+    a = str_code(v, 0)
+    if a == 99 or a == 109 or a == 67 or a == 77
+        return false
+    end
+    u = str_code(v, n - 1)
+    if u == 37 or (u >= 48 and u <= 57)
+        return true
+    end
+    if n >= 2 and u == 120 and str_code(v, n - 2) == 112
+        return true
+    end
+    return v == "auto"
 end
 
 func _borde(e: {String: String}, lado: String) -> Int
-    tipo = "none"
-    if e.has("border-" + lado + "-style")
-        tipo = e["border-" + lado + "-style"]
+    # sin montar los nombres "border-" + lado + ... en cada llamada (se llama decenas de miles de veces por
+    # maqueta: tarea 37a5)
+    ks = "border-left-style"
+    kw = "border-left-width"
+    if lado == "top"
+        ks = "border-top-style"
+        kw = "border-top-width"
+    elif lado == "right"
+        ks = "border-right-style"
+        kw = "border-right-width"
+    elif lado == "bottom"
+        ks = "border-bottom-style"
+        kw = "border-bottom-width"
+    elif lado != "left"
+        ks = "border-" + lado + "-style"
+        kw = "border-" + lado + "-width"
     end
+    if not e.has(ks)
+        return 0
+    end
+    tipo = e[ks]
     if tipo == "none" or tipo == "hidden"
         return 0
     end
     a = "medium"
-    if e.has("border-" + lado + "-width")
-        a = e["border-" + lado + "-width"]
+    if e.has(kw)
+        a = e[kw]
     end
     if a == "thin"
         return 1
@@ -248,6 +291,10 @@ func _borde(e: {String: String}, lado: String) -> Int
         return 3
     elif a == "thick"
         return 5
+    end
+    # la letra solo hace falta con em
+    if str_find(a, "em") < 0
+        return estilo_px(a, 16, 0)
     end
     return estilo_px(a, estilo_px(e["font-size"], 0, 0), 0)
 end
@@ -274,6 +321,7 @@ var _topaz: Int = 0
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
     estilo_vw = ancho              # (vw: el ancho de donde se ve la página)
     _alto_definido = -1
+    _maqueta_pase = _maqueta_pase + 1
     var dibujos: [Dibujo] = []
     p = Pagina(dibujos, ancho, 0, 16777215)
     if _topaz == 0
@@ -1563,7 +1611,59 @@ end
 
 # El ancho que ocupa un flotante, márgenes incluidos: su width, o lo que mide su contenido
 # (maquetándolo aparte y deshaciendo lo dibujado)
+# Cada maqueta lleva su número: lo que se mide en ella (_ancho_flotante) vale hasta la siguiente
+var _maqueta_pase: Int = 0
+
+# El ancho de h según su contenido, con ancho de sitio: flex, grid, tablas y flotantes lo piden varias veces por
+# elemento (mínimo, máximo, el de verdad) y cada medida maqueta todo lo de dentro, que a su vez mide a sus hijos:
+# con cajas anidadas el coste crecía exponencialmente (pre.opentimetrack.com: 5016 medidas, 7173 bloques). Se
+# recuerdan los tres últimos de cada nodo en esta maqueta (tarea 37a5).
 func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
+    if h.af_pase == _maqueta_pase
+        if h.af_a1 == ancho and h.af_h1 == _alto_definido
+            return h.af_v1
+        elif h.af_n >= 2 and h.af_a2 == ancho and h.af_h2 == _alto_definido
+            return h.af_v2
+        elif h.af_n >= 3 and h.af_a3 == ancho and h.af_h3 == _alto_definido
+            return h.af_v3
+        end
+    else
+        h.af_pase = _maqueta_pase
+        h.af_n = 0
+    end
+    alto = _alto_definido
+    v = _ancho_flotante_medir(m, h, ancho)
+    if h.af_n == 0
+        h.af_a1 = ancho
+        h.af_h1 = alto
+        h.af_v1 = v
+    elif h.af_n == 1
+        h.af_a2 = ancho
+        h.af_h2 = alto
+        h.af_v2 = v
+    elif h.af_n == 2
+        h.af_a3 = ancho
+        h.af_h3 = alto
+        h.af_v3 = v
+    else
+        # el más viejo sale
+        h.af_a1 = h.af_a2
+        h.af_h1 = h.af_h2
+        h.af_v1 = h.af_v2
+        h.af_a2 = h.af_a3
+        h.af_h2 = h.af_h3
+        h.af_v2 = h.af_v3
+        h.af_a3 = ancho
+        h.af_h3 = alto
+        h.af_v3 = v
+    end
+    if h.af_n < 3
+        h.af_n = h.af_n + 1
+    end
+    return v
+end
+
+func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     e = h.estilo
     extra = _px(e, "margin-left", ancho) + _px(e, "margin-right", ancho)
     caja = _borde(e, "left") + _borde(e, "right") + _px(e, "padding-left", ancho) + _px(e, "padding-right", ancho)
