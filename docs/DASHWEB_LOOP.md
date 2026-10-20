@@ -185,7 +185,7 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
-- [~] D60. **La red despierta el bucle de MUI por señal** (usuario, 2026-10-20, por la sesión dashweb-f7; encargada a
+- [x] D60. **La red despierta el bucle de MUI por señal** (usuario, 2026-10-20, por la sesión dashweb-f7; encargada a
       la sesión "dash", avisará con el commit). `mui_wait_event_signals`/`mui_signals` existen, pero no hay cómo
       obtener la señal de un socket: un builtin con la máscara de señal de la red (p. ej. `net_signal()`, con
       SocketBaseTags SBTC_SIGEVENTMASK); SO_EVENTMASK por socket (lectura, escritura, conexión, cierre, error),
@@ -269,10 +269,14 @@ tarea, con el estilo de Dash.
       [x] 37a1. Escapes de CSS en los selectores (`\:`, `\[`, `\]`, `\.`, `\/`, `\%` y los de hex, `\31 `): Tailwind los usa
            en todas sus variantes y valores a medida (`.md\:grid-cols-12`, `.h-\[1\.35em\]`) y hoy esas reglas se
            pierden: la cabecera sale en una columna y el logo (svg con h-[1.35em]) gigante. Con test.
-      37a2. URL y URLSearchParams (es la 32b): el runtime de Turbopack cae al empezar ("'URL' is not defined", turbopack-
+      [x] 37a2. URL y URLSearchParams (es la 32b): el runtime de Turbopack cae al empezar ("'URL' is not defined", turbopack-
            *.js:1:4070) y Next.js no llega a montar nada (React, GSAP). Con test.
-      37a3. Maqueta lenta: la primera, 21,7 s (estilo 0,8 s, scripts 5,7 s). Medir con `medir_visor --perfil` y
-           atacar lo que pese (¿el svg gigante? ¿la rejilla de 12 columnas?).
+      37a3. Lentitud: con 37a1 la maqueta bajó de 21,7 a 6,7 s, pero con React ya en marcha (37a2) los scripts
+           tardan 31 s (antes 5,6 s, que no hacían nada). Medir con `medir_visor --perfil` y atacar lo que pese
+           (JavaScript: ¿el DOM de jsdom, QuickJS, el GC?; maqueta: 6,7 s).
+      37a4. El JavaScript con sus caracteres: hoy los scripts pasan a Latin-1 (al traerlos y en el DOM) y lo que no
+           cabe sale "?" ("https://тест"); por eso core-js descarta el URL de dashweb y pone el suyo. Dar a QuickJS el
+           texto UTF-8 de los scripts (traídos y en línea) sin pasar por Latin-1, y punycode en URL.host.
       37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
            offsetTop/Left/Width/Height y offsetParent, getBoundingClientRect y getClientRects (respecto a lo que se
            ve), clientWidth/Height, scrollWidth/Height, window.innerWidth/innerHeight (la zona de dibujo),
@@ -295,8 +299,11 @@ tarea, con el estilo de Dash.
       señal (ev == 0), avanza las cargas de las ventanas. `mui_timer` queda solo para lo que va por reloj
       (setTimeout/setInterval de las páginas, cuadros de vídeo, animaciones); hoy `programar()` pone un tic de 50 ms
       mientras algo llega, que retrasa cada paso de red (DNS, connect, TLS) y despierta la CPU 20 veces por segundo.
-      Medir antes y después una carga HTTPS (tools/medir_visor.py: tiempo y CPU). Corregir docs/ARQUITECTURA.md
-      (dice que ya se usa mui_wait_event_signals). Va delante de la 38 salvo que el usuario diga otra cosa: es
+      D60 está (0389bef, rama dashweb de Dash): `net_signal()` antes de cada espera (vacía la cola de sucesos),
+      `task_signal()` para los decodificadores; la bsdsocket de FS-UAE no tiene SO_EVENTMASK y da 0: ahí sigue el tic
+      de 50 ms, y aunque haya señal, un temporizador lento (~1 s) para los plazos de net_connect_poll. Medir antes y
+      después en Amiberry (en FS-UAE no se puede). docs/ARQUITECTURA.md lo rehace la sesión dashweb-f7: no tocarlo,
+      apuntar el cambio en la bitácora. Va delante de la 38 salvo que el usuario diga otra cosa: es
       pequeña y acelera todas las cargas.
 - [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
       https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
@@ -2516,3 +2523,23 @@ Formato:
 - pre.opentimetrack.com (rtg): la cabecera en dos columnas, el logo a su tamaño, las fichas al lado; la maqueta
   pasa de 21,7 s a 6,7 s y la carga de 28,4 s a 13,2 s. Captura enviada.
 - Base: 57/57 (761 s).
+
+### 2026-10-20 — Tarea 37a2 (el JavaScript de Next.js arranca en pre.opentimetrack.com)
+- URL y URLSearchParams en el preludio (WHATWG: relativas, puertos por defecto, puntos de la ruta, codificación,
+  file:, data:, blob:, IPv6, origin, searchParams enlazado con search, forEach sobre la lista viva, canParse/parse,
+  createObjectURL): iguales a los de Node en 29 casos. Sin punycode (apuntado en 37a4).
+- Detrás de "URL is not defined" salieron, uno a uno: `document.currentScript` (Turbopack lo lee para saber qué
+  trozo se registra; ahora el <script> que corre, null fuera: `jsdom_script_actual`), `script.src` relativo
+  (Next.js hace `new URL(document.currentScript.src)`: href, src y action se leen ya como dirección completa, y
+  a/area tienen protocol, host, pathname, search, hash...), y `ReadableStream` (puesto: estaba apagado por la 28j;
+  con el tope de QuickJS, commodoremalacca.club acaba con "out of memory" dentro de su JavaScript pero sin cerrarse:
+  rc 0, página pintada en 40 s).
+- lib/js.dash avisa de las promesas rechazadas sin capturar (`JS (promesa sin capturar): ...` por la salida):
+  sin eso los errores de React y de la carga de trozos no se veían.
+- Resultado: sin errores de JavaScript; los scripts pasan de 5,6 s a 31 s (React hidratando). La página se ve igual
+  (en Chrome tampoco cambia hasta bajar). Apuntadas 37a3 (lentitud) y 37a4 (UTF-8 en el JavaScript: core-js
+  descarta el URL propio porque "https://тест" llega como "https://????" y pone el suyo).
+- Test nuevo test_js_url (URL, URLSearchParams, currentScript, src/href completos, a.pathname). Base: 58/58 (847 s).
+- D60 hecha por la sesión dash (0389bef): marcada; la 39 dice cómo usarla.
+- Para docs/ARQUITECTURA.md (lo rehace dashweb-f7): el preludio trae URL/URLSearchParams propios,
+  document.currentScript, href/src completos, ReadableStream y el aviso de promesas sin capturar.

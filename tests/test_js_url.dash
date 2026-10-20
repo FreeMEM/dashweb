@@ -1,0 +1,39 @@
+# Test: URL y URLSearchParams en el JavaScript de las páginas (tarea 37a2; el runtime de Turbopack de Next.js
+# los usa al empezar). Relativas a una base, puertos por defecto, puntos de la ruta, codificación, file:, data:,
+# blob:, origin, searchParams enlazado con search, y el orden y la codificación de URLSearchParams. También
+# document.currentScript (el runtime de Turbopack lo lee): el <script> que corre, y null fuera.
+# memcheck
+# expect-out: https://example.com/a/c?x=1%202#h%20b
+# expect-out: https://a.com/b/d/e?y#z | https://cdn.x.org/s.js | https://pre.opentimetrack.com/_next/static/chunks/x.js
+# expect-out: http://a.com:8080/abs | http://a.com/p?q=1 | http://a.com/p?o#f2 | file:///C:/x/y | data:text/plain,hola
+# expect-out: origin https://a.com:8080 null null | host h.com:81 h.com 81 | /~ab ?q=1 #f
+# expect-out: https://a.com/p?a=9&c=x+y | z 1 | 2
+# expect-out: a=1&b=2&b=1 | x=1+%2B+2&y=%C3%A1%21%7E | 3 a,b,b | null true false
+# expect-out: TypeError TypeError true false
+# expect-out: currentScript s1 s2 null
+# expect-out: src http://a.com/_next/x.js | href http://a.com/d/p?q#h /d/p #h a.com | a1c3
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+import "../lib/html5.dash"
+
+Main
+    doc = dom_desde_html5("<html><body><p>x</p></body></html>")
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    Print js_evaluar(js, "new URL('https://Example.COM:443/a/./b/../c?x=1 2#h b').href", "t.js")
+    Print js_evaluar(js, "[new URL('../d/e?y#z', 'https://a.com/b/c/f'), new URL('//cdn.x.org/s.js', 'https://a.com/'), new URL('/_next/static/chunks/x.js', 'https://pre.opentimetrack.com/')].join(' | ')", "t.js")
+    Print js_evaluar(js, "[new URL('/abs', 'http://a.com:8080/x/y'), new URL('?q=1', 'http://a.com/p?o#f'), new URL('#f2', 'http://a.com/p?o'), new URL('file:///C:/x/y'), new URL('data:text/plain,hola')].map(String).join(' | ')", "t.js")
+    Print js_evaluar(js, "var u = new URL('http://u:p@h.com:81/%7Eab?q=1#f'); 'origin ' + new URL('https://a.com:8080/x').origin + ' ' + new URL('file:///x').origin + ' ' + new URL('data:x').origin + ' | host ' + u.host + ' ' + u.hostname + ' ' + u.port + ' | ' + u.pathname.replace('%7E', '~') + ' ' + u.search + ' ' + u.hash", "t.js")
+    Print js_evaluar(js, "var v = new URL('https://a.com/p?a=1&b=2&a=3'); v.searchParams.append('c', 'x y'); v.searchParams.set('a', '9'); v.searchParams.delete('b'); var r = v.href; v.search = '?z=1'; r + ' | z ' + v.searchParams.get('z') + ' | ' + new URL('https://a.com/?a=1&a=2').searchParams.getAll('a').length", "t.js")
+    Print js_evaluar(js, "var q = new URLSearchParams([['b', '2'], ['a', '1'], ['b', '1']]); q.sort(); var p = new URLSearchParams({x: '1 + 2', y: '\\u00e1!~'}); q + ' | ' + p + ' | ' + [...q].length + ' ' + [...q.keys()].join() + ' | ' + q.get('c') + ' ' + q.has('a') + ' ' + q.has('a', '2')", "t.js")
+    Print js_evaluar(js, "var e1, e2; try { new URL('x') } catch (e) { e1 = e.name } try { new URL('http://a b/') } catch (e) { e2 = e.name } e1 + ' ' + e2 + ' ' + URL.canParse('https://a.com') + ' ' + URL.canParse('nada')", "t.js")
+    js_liberar(js)
+    doc2 = dom_desde_html5("<html><head><script id=s1>var vistos = [document.currentScript.id];</script></head><body><script id=s2>vistos.push(document.currentScript.getAttribute('id'));</script><script id=s3 src='/_next/x.js'></script><a id=e href='d/p?q#h'>x</a></body></html>")
+    js2 = js_nuevo()
+    jsdom_preparar(js2, doc2)
+    jsdom_ejecutar_scripts(js2, doc2, "http://a.com/")
+    Print js_evaluar(js2, "'currentScript ' + vistos.join(' ') + ' ' + document.currentScript", "t.js")
+    Print js_evaluar(js2, "var a = document.getElementById('e'); var p = new URLSearchParams('a=1&b=2&c=3'), r = ''; p.forEach(function (v, k) { p.delete('b'); r += k + v; }); 'src ' + document.getElementById('s3').src + ' | href ' + a.href + ' ' + a.pathname + ' ' + a.hash + ' ' + a.host + ' | ' + r", "t.js")
+    js_liberar(js2)
+end

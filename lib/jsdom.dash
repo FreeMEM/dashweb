@@ -516,6 +516,13 @@ func jsdom_titulo(doc: Nodo) -> String
     return str_trim(dom_texto(t))
 end
 
+# El <script> que se está ejecutando (document.currentScript; nil entre uno y otro)
+var jsdom_script_actual: Nodo = nil
+
+func jsdom_script_en_curso() -> Nodo
+    return jsdom_script_actual
+end
+
 # Ejecuta los <script> del documento en orden: los de dentro y los de src (http(s) o fichero,
 # relativo a base). Solo JavaScript (sin type, o type text/javascript, module no). Un error se
 # escribe en la salida y se sigue con el siguiente. Cuántos se ejecutaron.
@@ -544,7 +551,10 @@ func jsdom_ejecutar_scripts_con(js: Int, doc: Nodo, base: String, traidos: {Stri
                     codigo = _jsdom_traer(nombre)
                 end
             end
+            jsdom_script_actual = s
             js_evaluar(js, codigo, nombre)
+            var ninguno: Nodo = nil
+            jsdom_script_actual = ninguno
             if js_error(js) != ""
                 Print "JS: " + str_replace(js_error(js), "\n    ", " | ")
             end
@@ -1163,10 +1173,12 @@ static JSValue _jsdom_calculado(JSContext *ctx, JSValueConst this_val, int argc,
     return v;
 }
 
-/* magic 0: body, 1: documentElement, 2: head (of this document: also those of createHTMLDocument) */
+/* magic 0: body, 1: documentElement, 2: head (of this document: also those of createHTMLDocument),
+   3: currentScript (the <script> running now, or null) */
 static JSValue _jsdom_parte(JSContext *ctx, JSValueConst this_val, int magic) {
     _Dash_Nodo *doc = _jsdom_nodo(ctx, this_val);
     if (!doc) doc = _jsdom_de(ctx)->doc;
+    if (magic == 3) return _jsdom_objeto(ctx, jsdom_script_en_curso());
     return _jsdom_objeto(ctx, magic == 2 ? jsdom_cabeza(doc) : magic ? jsdom_raiz(doc) : jsdom_cuerpo(doc));
 }
 
@@ -1226,6 +1238,7 @@ static const JSCFunctionListEntry _jsdom_documento[] = {
     JS_CGETSET_MAGIC_DEF("body", _jsdom_parte, NULL, 0),
     JS_CGETSET_MAGIC_DEF("documentElement", _jsdom_parte, NULL, 1),
     JS_CGETSET_MAGIC_DEF("head", _jsdom_parte, NULL, 2),
+    JS_CGETSET_MAGIC_DEF("currentScript", _jsdom_parte, NULL, 3),
     JS_CGETSET_DEF("title", _jsdom_title, NULL),
 };
 """

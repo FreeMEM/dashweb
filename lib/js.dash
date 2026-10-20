@@ -244,6 +244,31 @@ static char *_js_excepcion(JSContext *ctx) {
 """
 end
 
+@c
+"""
+/* A promise rejected with nobody to catch it (as browsers do, to the output): without this the errors of
+   async code (React, Turbopack's chunk loading) were lost */
+static void _js_rechazo(JSContext *ctx, JSValueConst promesa, JSValueConst motivo, JS_BOOL atendida, void *op) {
+    char *t, *lugar = NULL, *p;
+    JSValue pila;
+    if (atendida) return;
+    t = _js_texto(ctx, motivo);
+    if (JS_IsError(ctx, motivo)) {
+        pila = JS_GetPropertyStr(ctx, motivo, "stack");
+        if (!JS_IsUndefined(pila)) lugar = _js_texto(ctx, pila);
+        JS_FreeValue(ctx, pila);
+    }
+    for (p = lugar; p && *p; p++) if (*p == '\n') *p = ' ';
+    PutStr((CONST_STRPTR)"JS (promesa sin capturar): ");
+    PutStr((CONST_STRPTR)(t ? t : "?"));
+    if (lugar && *lugar) { PutStr((CONST_STRPTR)" | "); PutStr((CONST_STRPTR)lugar); }
+    PutStr((CONST_STRPTR)"\n");
+    free(t);
+    free(lugar);
+}
+"""
+end
+
 # Un motor nuevo con su contexto y console; 0 si no hay memoria
 @native func js_nuevo() -> Int
 """
@@ -260,6 +285,7 @@ end
         /* a page whose JavaScript wants more gets "out of memory" in its script, instead of leaving the whole
            Amiga without memory (Next.js on commodoremalacca.club took the 128 MB of the RTG machine) */
         JS_SetMemoryLimit(m->rt, JS_MEMORIA);
+        JS_SetHostPromiseRejectionTracker(m->rt, _js_rechazo, NULL);
         m->ctx = JS_NewContext(m->rt);
     }
     if (!m->ctx) {
