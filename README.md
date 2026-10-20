@@ -26,9 +26,9 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
   la página va más rápida.
 - HTML5 con el analizador de NetSurf (Hubbub, `lib/html5.dash`), árbol DOM, entidades, UTF-8 a Latin-1,
   atributos de presentación.
-- Fuentes vectoriales del Amiga (CGTriumvirate, CGTimes, LetterGothic) apagadas de momento: diskfont y bullet
-  de 3.2 escriben fuera de su memoria al abrirlas a 1 píxel o menos, y eso rompía QuickJS (Dash D57). Las
-  letras salen de las fuentes de mapa de bits del Workbench.
+- Fuentes vectoriales del Amiga (CGTriumvirate, CGTimes, LetterGothic) para los tamaños que no hay en mapa de
+  bits. diskfont y bullet de 3.2 escriben fuera de su memoria al abrirlas a 1 píxel o menos, y eso rompía
+  QuickJS: Dash nunca pide menos de 2 (D57).
 - Al cambiar el DOM desde JavaScript solo se recalcula el estilo de lo afectado.
 - CSS 2.1 y CSS3 por módulos, comparado con Chrome en 13 webs reales (`tools/comparar_chrome.py`): cascada con
   `@layer`, `@media` y `@supports`; Selectors 4 (`:is`, `:where`, `:has`, `:not` con listas); Flexbox, Grid y
@@ -44,7 +44,7 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
   `innerHTML`, crear y mover nodos...), eventos, `setTimeout`/`setInterval`, `TextEncoder`/`TextDecoder`. Faltan
   muchas APIs del navegador (`fetch`, `XMLHttpRequest`...). `document.cookie` funciona.
 
-Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D58): textos
+Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D59): textos
 rápidos, listas y diccionarios con tipo, red, TLS, fuentes, imágenes, C de fuera (`@link`, `@c`), etc.
 
 ### Medidas (FS-UAE, 2026-10-16)

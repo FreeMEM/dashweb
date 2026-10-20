@@ -188,8 +188,7 @@ func _fuente_de(m: Maquetador, familia: String, tam: Int) -> Int
         return m.fuentes[clave]
     end
     h = 0
-    # vectoriales apagadas: diskfont/bullet escribe en memoria ya liberada (bitácora 2026-10-18)
-    if false and not _tamano_de_mapa(nombre, tam)
+    if not _tamano_de_mapa(nombre, tam)
         # el tamaño de una vectorial del Amiga es el alto de la línea entera: las letras salen más bajas
         # que con el mismo font-size en un navegador (medido con freemem.space contra Chrome)
         h = font_open(vectorial + ".font", tam * 6 / 5)

@@ -31,9 +31,8 @@ Necesita
   - Una pila TCP/IP con bsdsocket.library: Roadshow, AmiTCP, Genesis o Miami.
   - Para HTTPS (casi todas las webs): AmiSSL 5 (https://github.com/jens-maus/amissl),
     instalado con su instalador (deja los assigns AmiSSL: y AmiSSL:Certs).
-  - Fuentes: helvetica, times y courier del Workbench (en FONTS:); si faltan, la topaz
-    de la ROM. Las vectoriales (CGTriumvirate, CGTimes, LetterGothic) no se usan de
-    momento: las bibliotecas de fuentes de 3.2 fallan con algunos tamaños.
+  - Fuentes: helvetica, times y courier del Workbench (en FONTS:) y, si están, las
+    vectoriales CGTriumvirate, CGTimes y LetterGothic; si faltan, la topaz de la ROM.
     Las fuentes de las propias webs (TTF, OTF y WOFF; Google Fonts) se bajan solas.
 
 Instalar
@@ -71,4 +70,3 @@ Lo que aún no hace
 ------------------
   pestañas, guardar la página, imprimir, fetch y XMLHttpRequest en JavaScript, y
   muchas otras APIs del navegador; las animaciones de CSS se ven en su estado final.
-  Al abrirlo desde el icono sale una ventana de consola con un par de mensajes.
