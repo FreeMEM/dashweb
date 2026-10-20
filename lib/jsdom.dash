@@ -1362,6 +1362,18 @@ end
 """
 end
 
+# Los IntersectionObserver de la página (tarea 37e): con todo, todos (tras maquetar o desplazar); si no, solo si
+# alguien llamó a observe desde la última vez
+@native(borrow) func jsdom_intersecciones(js: Int, todo: Bool)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue a;
+    if (!m || !m->extra) return;
+    a = JS_NewBool(m->ctx, todo);
+    JS_FreeValue(m->ctx, _jsdom_llamar(m->ctx, "__dashweb_intersecciones", 1, &a));
+"""
+end
+
 # Cuántas veces cambió el JS el documento desde jsdom_preparar
 @native(borrow) func jsdom_cambios(js: Int) -> Int
 """

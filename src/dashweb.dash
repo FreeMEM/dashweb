@@ -77,6 +77,7 @@ struct Ventana
     aviso_scroll: Bool = false   # la vista se movió: el evento scroll del JavaScript, en el siguiente tic
     animando: Bool = false       # alguna animación de CSS viva: un fotograma en cada tic (unos 15 por segundo)
     fotograma: Int = 0           # time_ms del último fotograma pintado
+    io_pagina: Pagina = nil      # la maqueta de la última vez que se miraron los IntersectionObserver
 end
 
 var dw_ventanas: [Ventana] = []
@@ -582,6 +583,7 @@ func temporizadores(w: Ventana)
         end
         envio_del_js(w)
         desplazamiento_del_js(w)
+        intersecciones(w, false)
     end
     programar()
 end
@@ -617,6 +619,16 @@ func desplazamiento_del_js(w: Ventana)
     end
 end
 
+# Los IntersectionObserver de la página (todo: todos; si no, solo si hay observe nuevos), con la vista de ahora
+func intersecciones(w: Ventana, todo: Bool)
+    if w.actual == nil or w.actual.js == 0 or w.actual.pagina == nil or w.carga != nil
+        return
+    end
+    jsdom_vista(w.actual.js, mui_width(w.v.pagina), mui_height(w.v.pagina), w.desde, w.actual.pagina.alto)
+    w.io_pagina = w.actual.pagina
+    jsdom_intersecciones(w.actual.js, todo)
+end
+
 # La vista se movió: el evento scroll al JavaScript (uno por tic aunque la barra mande muchos)
 func avisar_desplazamiento(w: Ventana)
     w.aviso_scroll = false
@@ -626,6 +638,7 @@ func avisar_desplazamiento(w: Ventana)
     jsdom_vista(w.actual.js, mui_width(w.v.pagina), mui_height(w.v.pagina), w.desde, w.actual.pagina.alto)
     t0 = time_ms()
     jsdom_desplazado(w.actual.js)
+    intersecciones(w, true)
     if documento_al_dia(w.actual)
         ajustar_barra(w)
         mui_canvas_redraw(w.v.pagina)
@@ -653,6 +666,14 @@ func tic(w: Ventana)
     end
     if w.aviso_scroll
         avisar_desplazamiento(w)
+    end
+    # una maqueta nueva: los IntersectionObserver otra vez
+    if w.actual != nil and w.actual.pagina != nil and w.io_pagina != w.actual.pagina
+        intersecciones(w, true)
+        if documento_al_dia(w.actual)
+            ajustar_barra(w)
+            mui_canvas_redraw(w.v.pagina)
+        end
     end
     animar_ventana(w)
     if w.js_cuando >= 0 and time_ms() >= w.js_cuando

@@ -3,7 +3,8 @@
 # dibuja), offsetTop/offsetParent con position: relative, display: none (cero), y lo que se ve: innerWidth,
 # innerHeight, scrollY y el desplazamiento restado en getBoundingClientRect. Desplazar desde el JavaScript
 # (tarea 37c): scrollTo, scrollBy, scrollIntoView y scrollTop dejan la petición (jsdom_desplazamiento), scrollY la
-# ve ya, y jsdom_desplazado lanza scroll en document y window.
+# ve ya, y jsdom_desplazado lanza scroll en document y window. IntersectionObserver (tarea 37e): la primera vez
+# avisa de todos; luego, al cruzar (con threshold 0.5 y rootMargin), y nada si nada cambia.
 # memcheck
 # expect-out: ninguna 0 0
 # expect-out: a 10 10 114 64 | f 350 50 | ninguna 0 0
@@ -12,6 +13,9 @@
 # expect-out: pedido 200 200 -1
 # expect-out: scrollBy 250 250
 # expect-out: eventos document window 30
+# expect-out: io a:true:63 o:false:0
+# expect-out: io2 nada
+# expect-out: io3 a:true:22
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -41,5 +45,14 @@ Main
     js_evaluar(js, "var oidos = []; document.addEventListener('scroll', function () { oidos.push('document'); }); window.addEventListener('scroll', function () { oidos.push('window'); });", "t.js")
     jsdom_desplazado(js)
     Print js_evaluar(js, "'eventos ' + oidos.join(' ') + ' ' + scrollY", "t.js")
+    js_evaluar(js, "var vistos = []; var io = new IntersectionObserver(function (es) { es.forEach(function (e) { vistos.push(e.target.id + ':' + e.isIntersecting + ':' + Math.round(e.intersectionRatio * 100)); }); }, {threshold: 0.5}); io.observe(document.getElementById('a')); io.observe(document.getElementById('o'));", "t.js")
+    jsdom_vista(js, 800, 50, 0, 2000)
+    jsdom_intersecciones(js, true)
+    Print js_evaluar(js, "var r = 'io ' + vistos.join(' '); vistos = []; r", "t.js")
+    jsdom_intersecciones(js, true)
+    Print js_evaluar(js, "'io2 ' + (vistos.length ? vistos.join(' ') : 'nada')", "t.js")
+    jsdom_vista(js, 800, 50, 60, 2000)
+    jsdom_intersecciones(js, true)
+    Print js_evaluar(js, "'io3 ' + vistos.join(' ')", "t.js")
     js_liberar(js)
 end

@@ -310,8 +310,11 @@ tarea, con el estilo de Dash.
            hace crecer sus círculos con transform: scale dentro del SVG. Hace falta: los guiones en el rasterizado
            (nanosvg no los tiene: añadirlos), las animaciones de los elementos de dentro del SVG, y volver a
            rasterizarlo en cada fotograma mientras dure (2,6 s una vez).
-      37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
+      [x] 37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
            maquetar. Con test.
+      37e2. fetch y XMLHttpRequest (es la 32a): con el IntersectionObserver de verdad, Next.js pide por adelantado
+           las páginas de los enlaces que se ven (prefetch) y su fetch (el de core-js, sobre XMLHttpRequest) falla:
+           "XMLHttpRequest is not defined" (no rompe la página). Sobre las cargas sin espera de lib/http.dash.
       37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
       37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
@@ -2718,3 +2721,14 @@ Formato:
   cuesta ~0,5 s en la máquina rtg; mejorable rasterizando solo la zona del trazo). Capturas enviadas.
 - Tests: test_animacion (scale, color, box-shadow) y test_svg_guiones (nuevo: guiones y pathLength en el emulador).
   Base: 63/63 (1035 s); freemem.space 22,3 s.
+
+### 2026-10-20 — Tarea 37e (IntersectionObserver de verdad)
+- Preludio: IntersectionObserver con threshold (lista), rootMargin (px y %) y root; cada elemento observado guarda
+  el umbral que ha pasado y se avisa al cruzar uno (y siempre la primera vez, como los navegadores); entradas con
+  isIntersecting, intersectionRatio, boundingClientRect, intersectionRect y rootBounds; takeRecords, unobserve,
+  disconnect. `__dashweb_intersecciones(todo)`.
+- lib/jsdom.dash: `jsdom_intersecciones(js, todo)`. src/dashweb.dash: `intersecciones(w, todo)` (con la vista de
+  ahora) tras una maqueta nueva (en el tic), al desplazar, y tras los temporizadores si hubo observe nuevos.
+- pre.opentimetrack.com: los avisos llegan y Next.js empieza a pedir por adelantado los enlaces que se ven, con un
+  fetch sobre XMLHttpRequest que no hay (apuntada 37e2). Las zonas que GSAP deja fijas siguen vacías (37f/37h).
+- test_jsdom_geometria con IntersectionObserver. Base: 63/63 (1052 s); freemem.space 22,5 s.
