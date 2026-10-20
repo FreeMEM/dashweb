@@ -1,0 +1,32 @@
+# Paso 2: la ventana del .dashui y su bucle de eventos. Todavía no baja nada.
+import "bajador.dashui"
+
+# Los números de evento del .dashui
+const ID_BAJAR = 1
+const ID_PARAR = 2
+const ID_SALIR = 9
+
+Main
+    if mui_app_begin("Bajador", "BAJADOR") == 0
+        Print "Bajador necesita MUI y un 68020"
+    else
+        v = Principal_create()
+        mui_window_open(v.window)
+        if arg(0) == "AUTO"
+            mui_press(v.bajar)      # como si se pulsara: para probar sin ratón
+        end
+        while true
+            ev = mui_wait_event()
+            if ev == -1 or ev == ID_SALIR
+                break
+            end
+            if ev == ID_BAJAR
+                pedido = mui_get_text(v.servidor) + mui_get_text(v.ruta)
+                mui_list_add(v.lineas, "Has pedido " + pedido)
+                mui_set_text(v.estado, "Pulsado Bajar")
+                Print "pedido: " + pedido
+            end
+        end
+        mui_app_end()
+    end
+end

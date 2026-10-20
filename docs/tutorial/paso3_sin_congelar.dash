@@ -1,0 +1,70 @@
+# Paso 3: bajar sin congelar la ventana. Un temporizador hace avanzar la descarga.
+import "bajador.dashui"
+import "lib/descarga.dash"
+
+# Los números de evento del .dashui
+const ID_BAJAR = 1
+const ID_PARAR = 2
+const ID_SALIR = 9
+# y los que solo usa el programa
+const ID_TIC = 10
+
+func empezar(v: Principal) -> Descarga
+    servidor = mui_get_text(v.servidor)
+    d = descarga_empezar(descarga_host(servidor), descarga_puerto(servidor), mui_get_text(v.ruta))
+    mui_list_clear(v.lineas)
+    mui_set_text(v.estado, "Conectando con " + servidor)
+    mui_set_enabled(v.bajar, false)
+    mui_set_enabled(v.parar, true)
+    return d
+end
+
+func acabar(v: Principal, d: Descarga)
+    if d.fase == DESCARGA_HECHA
+        for linea in str_split(descarga_cuerpo(d), "\n")
+            mui_list_add(v.lineas, linea)
+        end
+        mui_set_text(v.estado, "Bajados #{d.texto.length} bytes")
+    else
+        mui_set_text(v.estado, "No se pudo: " + d.error)
+    end
+    mui_set_enabled(v.bajar, true)
+    mui_set_enabled(v.parar, false)
+    Print mui_get_text(v.estado)    # para ver en el Shell lo que ha pasado
+end
+
+Main
+    if mui_app_begin("Bajador", "BAJADOR") == 0
+        Print "Bajador necesita MUI y un 68020"
+    else
+        v = Principal_create()
+        mui_window_open(v.window)
+        if arg(0) == "AUTO"
+            mui_press(v.bajar)
+        end
+        var d: Descarga = nil        # la descarga en curso, o nil
+        while true
+            ev = mui_wait_event()
+            if ev == -1 or ev == ID_SALIR
+                break
+            end
+            if ev == ID_BAJAR and d == nil
+                d = empezar(v)
+                mui_timer(50, ID_TIC)           # dentro de 50 ms, ID_TIC
+            elif ev == ID_PARAR and d != nil
+                descarga_cancelar(d)
+                acabar(v, d)
+                d = nil
+            elif ev == ID_TIC and d != nil
+                if descarga_avanzar(d)
+                    acabar(v, d)
+                    d = nil
+                else
+                    mui_set_text(v.estado, "Recibidos #{d.texto.length} bytes")
+                    mui_timer(50, ID_TIC)       # el temporizador da una vez: se vuelve a armar
+                end
+            end
+        end
+        mui_app_end()
+    end
+end

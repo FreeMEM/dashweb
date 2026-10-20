@@ -1,0 +1,21 @@
+# Test de lib/descarga.dash sin ventanas: baja hola.txt de un servidor local.
+# expect-out: 127.0.0.1|8000|ejemplo.org|80
+# expect-out: fase 2
+# expect-out: Hola desde el PC
+import "../lib/descarga.dash"
+
+Main
+    p1 = descarga_puerto("127.0.0.1:8000")
+    p2 = descarga_puerto("ejemplo.org")
+    Print descarga_host("127.0.0.1:8000") + "|#{p1}|" + descarga_host("ejemplo.org") + "|#{p2}"
+    d = descarga_empezar("127.0.0.1", 8000, "/hola.txt")
+    while not descarga_avanzar(d)
+        time_delay_ms(20)
+    end
+    Print "fase #{d.fase}"
+    if d.fase == DESCARGA_HECHA
+        Print str_split(descarga_cuerpo(d), "\n")[0]
+    else
+        Print "error: " + d.error
+    end
+end

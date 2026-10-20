@@ -6,6 +6,9 @@ No enseña Dash ni C. Para eso están el manual de Dash (`docs/MANUAL_REFERENCIA
 `docs/CHULETA_LENGUAJE.md` en el repo de Dash). Aquí se cuenta cómo encajan las piezas: la herramienta, la
 ventana MUI, el bucle de eventos, el C de fuera, las pruebas en el emulador, el paquete y la forma de trabajar.
 
+Para aprender a conectar las piezas (ventana, eventos, temporizador, red, señales, otro proceso, ficheros) con un
+programa que crece paso a paso, empieza por el [tutorial](TUTORIAL.md).
+
 Las rutas de Dash (`compiler/`, `tools/`, `editor/`...) son del repo de Dash. Las de dashweb (`src/`, `lib/`,
 `tests/`...), de este.
 
@@ -212,8 +215,9 @@ Un navegador baja muchas cosas a la vez. Si espera a la red, la ventana se para.
 
 Este patrón sirve para cualquier aplicación que hable con la red o haga trabajos largos.
 
-Existe también `mui_wait_event_signals(mascara)` para despertar con las señales de los sockets. dashweb no la usa:
-el temporizador único es más simple y ha bastado.
+Hoy dashweb pregunta a la red cada 50 ms mientras algo llega. Desde Dash D60 la red puede despertar al programa:
+`mui_wait_event_signals(net_signal())`. dashweb lo usará en la tarea 39 del plan. El [tutorial](TUTORIAL.md), paso 4,
+enseña cómo, con la vuelta al tic cuando la pila TCP/IP no sabe avisar (FS-UAE).
 
 ### 4.7 Lo aprendido con MUI
 
