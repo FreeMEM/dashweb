@@ -244,7 +244,7 @@ tarea, con el estilo de Dash.
 
 ### Encargo 37: pre.opentimetrack.com (usuario, 2026-10-20; delante de todo)
 
-- [ ] 37. **https://pre.opentimetrack.com como en Chrome, con sus animaciones.** Next.js (Turbopack, 12 scripts), 47 KB
+- [~] 37. **https://pre.opentimetrack.com como en Chrome, con sus animaciones.** Next.js (Turbopack, 12 scripts), 47 KB
       de CSS con 11 @keyframes (revelar, tachar, atenuar, pagina-sale/entra, parpadeo, apunte-entra, caracter-cambia,
       estampa, pista-baja, invita). Lo que se anima al bajar por la página es **GSAP con ScrollTrigger**: lee la
       posición de los elementos y el desplazamiento y pone en su `style` translate/rotate/scale/opacity y
@@ -258,8 +258,15 @@ tarea, con el estilo de Dash.
       nada de volver al analizador viejo (lib/html.dash); si Hubbub falla con esta página, se arregla Hubbub o su
       paso al DOM.
       Subtareas, por orden:
-      37a. Primera carga: cómo sale hoy (captura, traza, errores de JavaScript, memoria: ver la 28j, Next.js sin
+      [x] 37a. Primera carga: cómo sale hoy (captura, traza, errores de JavaScript, memoria: ver la 28j, Next.js sin
            memoria), y apuntar aquí lo que falte que no esté en la lista.
+      37a1. Escapes de CSS en los selectores (`\:`, `\[`, `\]`, `\.`, `\/`, `\%` y los de hex, `\31 `): Tailwind los usa
+           en todas sus variantes y valores a medida (`.md\:grid-cols-12`, `.h-\[1\.35em\]`) y hoy esas reglas se
+           pierden: la cabecera sale en una columna y el logo (svg con h-[1.35em]) gigante. Con test.
+      37a2. URL y URLSearchParams (es la 32b): el runtime de Turbopack cae al empezar ("'URL' is not defined", turbopack-
+           *.js:1:4070) y Next.js no llega a montar nada (React, GSAP). Con test.
+      37a3. Maqueta lenta: la primera, 21,7 s (estilo 0,8 s, scripts 5,7 s). Medir con `medir_visor --perfil` y
+           atacar lo que pese (¿el svg gigante? ¿la rejilla de 12 columnas?).
       37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
            offsetTop/Left/Width/Height y offsetParent, getBoundingClientRect y getClientRects (respecto a lo que se
            ve), clientWidth/Height, scrollWidth/Height, window.innerWidth/innerHeight (la zona de dibujo),
@@ -276,6 +283,10 @@ tarea, con el estilo de Dash.
            TTF para stb_truetype; las fuentes variables, con su instancia por defecto (o la del peso pedido si cabe).
       37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
+
+- [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
+      https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
+      como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
 
@@ -2469,3 +2480,15 @@ Formato:
   consola con D59), pre-release https://github.com/FreeMEM/dashweb/releases/tag/v0.2.0-alfa con build/dashweb.lha
   (5,9 MB), hecho con tools/paquete.sh y Dash 8c3934d (= main de FreeMEM/dash tras su PR #1). README enlaza a ella
   (en dev, pendiente de llevar a main).
+
+### 2026-10-20 — Tarea 37a (pre.opentimetrack.com, primera carga)
+- Base: 56/56 (la batería de la alfa, mismo código).
+- Máquina rtg, MUI 5, Hubbub: carga entera en 28,4 s y sin cierres (rc 0). Scripts 5,7 s, estilo 0,8 s y la
+  primera maqueta **21,7 s**. 16 recursos (12 scripts, 2 hojas). Captura enviada al usuario.
+- Lo que se ve: el texto y los colores bien; la cabecera en una columna (en Chrome, dos), el logo (un svg)
+  enorme encima del título, la pila de fichas como franjas, "Menú" como botón gris.
+- Causas: (1) dashweb no entiende los escapes de CSS en los selectores, y Tailwind los pone en todas sus
+  variantes (`.md\:grid-cols-12`) y valores a medida (`.h-\[1\.35em\]`): se pierden esas reglas. (2) El
+  JavaScript cae al empezar: `ReferenceError: 'URL' is not defined` en el runtime de Turbopack, así que Next.js,
+  React y GSAP no arrancan. (3) La maqueta tarda 21,7 s. Apuntadas como 37a1, 37a2 y 37a3, delante de la 37b.
+- Nueva tarea 38 (youtube.com), después de la 37, a petición del usuario.
