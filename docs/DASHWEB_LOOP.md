@@ -185,6 +185,12 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [~] D60. **La red despierta el bucle de MUI por señal** (usuario, 2026-10-20, por la sesión dashweb-f7; encargada a
+      la sesión "dash", avisará con el commit). `mui_wait_event_signals`/`mui_signals` existen, pero no hay cómo
+      obtener la señal de un socket: un builtin con la máscara de señal de la red (p. ej. `net_signal()`, con
+      SocketBaseTags SBTC_SIGEVENTMASK); SO_EVENTMASK por socket (lectura, escritura, conexión, cierre, error),
+      también en los de TLS; si es fácil, una señal para `task_done` (el decodificador de imágenes); test en el
+      emulador; si bsdsocket no lo admite, `net_signal()` da 0 y se sigue sondeando.
 
 ### Fase A: sin MUI
 
@@ -284,6 +290,14 @@ tarea, con el estilo de Dash.
       37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
+- [ ] 39. **Cargas despertadas por la red, no por un tic (necesita D60; después de la 37).** El bucle de
+      src/dashweb.dash espera con `mui_wait_event_signals(net_signal() | señal de las tareas)` y, al llegar una
+      señal (ev == 0), avanza las cargas de las ventanas. `mui_timer` queda solo para lo que va por reloj
+      (setTimeout/setInterval de las páginas, cuadros de vídeo, animaciones); hoy `programar()` pone un tic de 50 ms
+      mientras algo llega, que retrasa cada paso de red (DNS, connect, TLS) y despierta la CPU 20 veces por segundo.
+      Medir antes y después una carga HTTPS (tools/medir_visor.py: tiempo y CPU). Corregir docs/ARQUITECTURA.md
+      (dice que ya se usa mui_wait_event_signals). Va delante de la 38 salvo que el usuario diga otra cosa: es
+      pequeña y acelera todas las cargas.
 - [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
       https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
       como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
