@@ -2416,3 +2416,13 @@ Formato:
   scratchpad); la anterior en dashweb_antes.
 - Desde el Workbench, las dos líneas que dashweb escribe (JQMIGRATE y «entera en») abren una ventana de consola.
   Pendiente: no escribir nada por la salida si no se pide (TRAZA).
+
+### 2026-10-20 — D57 cerrado: vectoriales encendidas otra vez
+- La otra sesión (450d45e en fuente0 de Dash): diskfont 47 y bullet de 3.2 escriben 40-60 bytes fuera de lo suyo
+  al abrir una vectorial con tamaño 1 (y 0); CGTriumvirate deja justo la "máscara" de las cazas (una fila de una
+  letra de 1 píxel). De 2 en adelante, nada. font_open pide como mínimo 2. En dashweb el 0 venía de
+  `font-size: 0` (0 * 6 / 5). Reproductor: tools/amiga/vectoriales_memoria.dash de Dash.
+- Con 450d45e y las vectoriales encendidas: 20 de 20 cargas limpias (la otra sesión) y 20 de 20 aquí (rtg, MUI 5,
+  Dash f946ff9), 21-23 s cada una. Antes, 1 de cada 6. `_fuente_de` vuelve a usarlas.
+- Dash: D58 (7ab1d6c) y D57 (450d45e) en la rama fuente0, sin subir. dashweb main (PR #1) los necesita para MUI
+  3.8 y las vectoriales.
