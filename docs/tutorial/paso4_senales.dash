@@ -1,0 +1,85 @@
+# Paso 4: que la red despierte al programa. Si la pila TCP/IP no sabe, como en el paso 3.
+import "bajador.dashui"
+import "lib/descarga.dash"
+
+# Los números de evento del .dashui
+const ID_BAJAR = 1
+const ID_PARAR = 2
+const ID_SALIR = 9
+# y los que solo usa el programa
+const ID_TIC = 10
+
+func empezar(v: Principal) -> Descarga
+    servidor = mui_get_text(v.servidor)
+    d = descarga_empezar(descarga_host(servidor), descarga_puerto(servidor), mui_get_text(v.ruta))
+    mui_list_clear(v.lineas)
+    mui_set_text(v.estado, "Conectando con " + servidor)
+    mui_set_enabled(v.bajar, false)
+    mui_set_enabled(v.parar, true)
+    return d
+end
+
+func acabar(v: Principal, d: Descarga)
+    if d.fase == DESCARGA_HECHA
+        for linea in str_split(descarga_cuerpo(d), "\n")
+            mui_list_add(v.lineas, linea)
+        end
+        mui_set_text(v.estado, "Bajados #{d.texto.length} bytes")
+    else
+        mui_set_text(v.estado, "No se pudo: " + d.error)
+    end
+    mui_set_enabled(v.bajar, true)
+    mui_set_enabled(v.parar, false)
+    Print mui_get_text(v.estado)    # para ver en el Shell lo que ha pasado
+end
+
+# Espera el siguiente evento. Con una descarga en marcha, también la red lo despierta (ev = 0);
+# si la pila no sabe avisar (net_signal() = 0, como en FS-UAE), un tic cada 50 ms.
+func esperar(con_red: Bool) -> Int
+    if not con_red
+        mui_timer(0, ID_TIC)                # nada en marcha: sin temporizador, el programa duerme
+        return mui_wait_event()
+    end
+    senal = net_signal()                    # antes de cada espera: vacía la cola de sucesos
+    if senal == 0
+        mui_timer(50, ID_TIC)
+        return mui_wait_event()
+    end
+    mui_timer(1000, ID_TIC)                 # lento: los límites de tiempo solo se miran al avanzar
+    return mui_wait_event_signals(senal)
+end
+
+Main
+    if mui_app_begin("Bajador", "BAJADOR") == 0
+        Print "Bajador necesita MUI y un 68020"
+    else
+        v = Principal_create()
+        mui_window_open(v.window)
+        if arg(0) == "AUTO"
+            mui_press(v.bajar)
+        end
+        var d: Descarga = nil        # la descarga en curso, o nil
+        while true
+            ev = esperar(d != nil)
+            if ev == -1 or ev == ID_SALIR
+                break
+            end
+            if ev == ID_BAJAR and d == nil
+                d = empezar(v)
+            elif ev == ID_PARAR and d != nil
+                descarga_cancelar(d)
+                acabar(v, d)
+                d = nil
+            elif (ev == 0 or ev == ID_TIC) and d != nil
+                # 0: llegó una señal de la red; ID_TIC: el temporizador
+                if descarga_avanzar(d)
+                    acabar(v, d)
+                    d = nil
+                else
+                    mui_set_text(v.estado, "Recibidos #{d.texto.length} bytes")
+                end
+            end
+        end
+        mui_app_end()
+    end
+end

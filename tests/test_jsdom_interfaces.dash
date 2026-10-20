@@ -1,0 +1,26 @@
+# Test: lo que pidió el JavaScript de Next.js en pre.opentimetrack.com (tarea 37a3): cada interfaz con su
+# instanceof (HTMLIFrameElement no es todo elemento; SVGElement, Text, Window, EventTarget), classList como lista
+# (Array.from, for...of, [0]), attachShadow, PromiseRejectionEvent (sin él core-js cambia el Promise de QuickJS por
+# el suyo) y selectores largos desde querySelector uno tras otro (la caché de longitudes de Dash y los textos de C).
+# memcheck
+# expect-out: iframe false true | div true false | svg true false true | text true false | window true true
+# expect-out: clases a,b,c a b c a 3
+# expect-out: sombra true 1 true
+# expect-out: function true
+# expect-out: largos 1 1 1 1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+import "../lib/html5.dash"
+
+Main
+    doc = dom_desde_html5("<html><head><link rel=preload as=font href='/_next/static/media/Archivo_latin-s.p.3svcjah2pla0_.woff2'></head><body><div id=d class='a b c'><iframe id=f></iframe><svg id=s><path id=p></path></svg>texto</div></body></html>")
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    Print js_evaluar(js, "var d = document.getElementById('d'), f = document.getElementById('f'), p = document.getElementById('p'), t = d.lastChild; ['iframe ' + (d instanceof HTMLIFrameElement) + ' ' + (f instanceof HTMLIFrameElement), 'div ' + (d instanceof HTMLDivElement) + ' ' + (d instanceof SVGElement), 'svg ' + (p instanceof SVGElement) + ' ' + (p instanceof HTMLElement) + ' ' + (p instanceof Element), 'text ' + (t instanceof Text) + ' ' + (t instanceof Element), 'window ' + (window instanceof Window) + ' ' + (d instanceof EventTarget)].join(' | ')", "t.js")
+    Print js_evaluar(js, "var r = []; for (var c of d.classList) r.push(c); 'clases ' + Array.from(d.classList).join() + ' ' + r.join(' ') + ' ' + d.classList[0] + ' ' + d.classList.length", "t.js")
+    Print js_evaluar(js, "var h = document.createElement('div'); var sr = h.attachShadow({mode: 'open'}); sr.appendChild(document.createElement('span')); 'sombra ' + (h.shadowRoot === sr) + ' ' + sr.childNodes.length + ' ' + (sr.host === h)", "t.js")
+    Print js_evaluar(js, "typeof PromiseRejectionEvent + ' ' + (new PromiseRejectionEvent('unhandledrejection', {reason: 1}).reason === 1)", "t.js")
+    Print js_evaluar(js, "var q = ['link[rel=\"preload\"][as=\"font\"][href=\"/_next/static/media/Archivo_latin-s.p.3svcjah2pla0_.woff2\"]', 'link[rel=\"preload\"][href=\"/_next/static/media/Archivo_latin-s.p.3svcjah2pla0_.woff2\"]', 'html > body > div#d.a.b.c > iframe#f, html > body > div#d > svg#s > path#p', 'link[rel=\"preload\"][as=\"font\"][href=\"/_next/static/media/Archivo_latin-s.p.3svcjah2pla0_.woff2\"]']; 'largos ' + q.map(function (s) { return document.querySelectorAll(s).length >= 1 ? 1 : 0; }).join(' ')", "t.js")
+    js_liberar(js)
+end

@@ -292,8 +292,8 @@ static void _h5_liberar_todo(_H5 *h) {
 """
 end
 
-# El árbol de Hubbub del texto (Latin-1); 0 si no se pudo
-@native(borrow) func _h5_analizar(texto: String) -> Int
+# El árbol de Hubbub del texto (Latin-1, o los bytes UTF-8 tal cual con utf8); 0 si no se pudo
+@native(borrow) func _h5_analizar(texto: String, utf8: Bool) -> Int
 """
     _H5 *h = (_H5 *)calloc(1, sizeof(_H5));
     hubbub_parser *p = NULL;
@@ -301,7 +301,7 @@ end
     hubbub_parser_optparams o;
     hubbub_error e;
     if (!h) return 0;
-    if (_h5_nuevo(h, 9) != 1 || hubbub_parser_create("ISO-8859-1", true, &p) != HUBBUB_OK) {
+    if (_h5_nuevo(h, 9) != 1 || hubbub_parser_create(utf8 ? "UTF-8" : "ISO-8859-1", true, &p) != HUBBUB_OK) {
         _h5_liberar_todo(h);
         return 0;
     }
@@ -360,10 +360,12 @@ end
 """
 end
 
+# (los textos y valores salen como textos de Dash, copiados: uno de C de 64 o más se mediría entero en cada
+# str_code, y el script de React de pre.opentimetrack.com, 26 KB, tardaba 7 s en pasar a Latin-1; D61)
 @native(borrow) func _h5_texto(h: Int, id: Int) -> String
 """
     char *t = _H5N((_H5 *)h, id)->texto;
-    return (STRPTR)(t ? t : "");
+    return _dash_str_dup((STRPTR)(t ? t : ""), TRUE);
 """
 end
 
@@ -394,7 +396,7 @@ end
 @native(borrow) func _h5_atr_valor(h: Int, id: Int, i: Int) -> String
 """
     char *t = _H5N((_H5 *)h, id)->av[i];
-    return (STRPTR)(t ? t : "");
+    return _dash_str_dup((STRPTR)(t ? t : ""), TRUE);
 """
 end
 
@@ -407,8 +409,21 @@ end
 
 # El árbol del documento con las reglas de HTML5 (o el de dom_desde_html si Hubbub no puede)
 func dom_desde_html5(texto: String) -> Nodo
-    h = _h5_analizar(texto)
+    return _dom_desde_html5(texto, false)
+end
+
+# Lo mismo desde los bytes UTF-8 de la página tal cual (tarea 37a4): el DOM sale en Latin-1 como siempre, pero el
+# texto de los <script> conserva lo que no cabe en Latin-1 como \uXXXX (utf8_a_js)
+func dom_desde_html5_utf8(bytes: String) -> Nodo
+    return _dom_desde_html5(bytes, true)
+end
+
+func _dom_desde_html5(texto: String, utf8: Bool) -> Nodo
+    h = _h5_analizar(texto, utf8)
     if h == 0
+        if utf8
+            return dom_desde_html(utf8_a_latin1(texto))
+        end
         return dom_desde_html(texto)
     end
     doc = dom_nodo(DOM_DOCUMENTO, "#document", "")
@@ -434,6 +449,8 @@ func _h5_copiar(h: Int, id: Int, padre: Nodo)
             end
             dom_agregar(padre, e)
             _h5_copiar(h, c, e)
+        elif t == DOM_TEXTO and padre.nombre == "script"
+            dom_agregar(padre, dom_nodo(t, "", utf8_a_js(_h5_texto(h, c))))
         elif t == DOM_TEXTO or t == DOM_COMENTARIO
             dom_agregar(padre, dom_nodo(t, "", utf8_a_latin1(_h5_texto(h, c))))
         end

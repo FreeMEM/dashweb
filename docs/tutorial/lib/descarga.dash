@@ -1,0 +1,96 @@
+# Una descarga HTTP que avanza a trozos y nunca espera: empezar, avanzar, cancelar.
+# No sabe nada de ventanas: se prueba sola (tests/test_descarga.dash).
+
+const DESCARGA_CONECTANDO = 0
+const DESCARGA_RECIBIENDO = 1
+const DESCARGA_HECHA = 2
+const DESCARGA_FALLO = 3
+
+struct Descarga
+    sock: Int = -1            # el socket
+    host: String = ""
+    ruta: String = ""
+    fase: Int = 0
+    texto: String = ""      # lo recibido: cabeceras y cuerpo
+    error: String = ""
+end
+
+# Empieza a conectar y vuelve en seguida
+func descarga_empezar(host: String, puerto: Int, ruta: String) -> Descarga
+    d = Descarga()
+    d.host = host
+    d.ruta = ruta
+    d.sock = net_connect_start(host, puerto, 10000)
+    if d.sock < 0
+        d.fase = DESCARGA_FALLO
+        d.error = net_error()
+    end
+    return d
+end
+
+# Hace lo que se pueda sin esperar. true cuando ha acabado (bien o mal)
+func descarga_avanzar(d: Descarga) -> Bool
+    if d.fase == DESCARGA_CONECTANDO
+        r = net_connect_poll(d.sock)
+        if r == 0
+            return false
+        end
+        if r < 0
+            d.fase = DESCARGA_FALLO
+            d.error = net_error()
+            d.sock = -1
+            return true
+        end
+        net_send(d.sock, "GET #{d.ruta} HTTP/1.0\r\nHost: #{d.host}\r\n\r\n")
+        d.fase = DESCARGA_RECIBIENDO
+    end
+    if d.fase == DESCARGA_RECIBIENDO
+        trozo = net_recv(d.sock, 4096, 0)      # 0 ms: lo que ya haya llegado
+        while trozo != nil and trozo != ""
+            d.texto = d.texto + trozo
+            trozo = net_recv(d.sock, 4096, 0)
+        end
+        if trozo != nil
+            return false                    # "" = nada más por ahora
+        end
+        net_close(d.sock)                      # nil = el servidor cerró: está todo
+        d.sock = -1
+        d.fase = DESCARGA_HECHA
+    end
+    return true
+end
+
+func descarga_cancelar(d: Descarga)
+    if d.sock >= 0
+        net_close(d.sock)
+        d.sock = -1
+    end
+    d.fase = DESCARGA_FALLO
+    d.error = "cancelada"
+end
+
+# El cuerpo de la respuesta, sin las cabeceras
+func descarga_cuerpo(d: Descarga) -> String
+    p = str_find(d.texto, "\r\n\r\n")
+    if p < 0
+        return ""
+    end
+    return d.texto[p + 4:]
+end
+
+# "servidor:puerto" -> el puerto (80 si no lo lleva)
+func descarga_puerto(servidor: String) -> Int
+    p = str_find(servidor, ":")
+    if p < 0
+        return 80
+    end
+    return Int(servidor[p + 1:])
+end
+
+func descarga_host(servidor: String) -> String
+    p = str_find(servidor, ":")
+    if p < 0
+        return servidor
+    end
+    return servidor[0:p]
+end

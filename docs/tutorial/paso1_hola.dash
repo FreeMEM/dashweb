@@ -1,0 +1,8 @@
+# Paso 1: un programa de Shell. Escribe lo que recibe y acaba.
+Main
+    if arg_count() == 0
+        Print "Hola. Prueba: paso1_hola Amiga"
+    else
+        Print "Hola, " + arg(0)
+    end
+end

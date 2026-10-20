@@ -218,6 +218,15 @@ static JSValue _js_console_log(JSContext *ctx, JSValueConst this_val, int argc, 
         if (i) PutStr((CONST_STRPTR)" ");
         PutStr((CONST_STRPTR)(s ? s : "?"));
         free(s);
+        /* an error, with where it happened (React and Next.js report theirs with console.error) */
+        if (JS_IsError(ctx, argv[i])) {
+            JSValue pila = JS_GetPropertyStr(ctx, argv[i], "stack");
+            char *l = JS_IsUndefined(pila) ? NULL : _js_texto(ctx, pila), *p;
+            for (p = l; p && *p; p++) if (*p == '\n') *p = ' ';
+            if (l && *l) { PutStr((CONST_STRPTR)" |"); PutStr((CONST_STRPTR)l); }
+            free(l);
+            JS_FreeValue(ctx, pila);
+        }
     }
     PutStr((CONST_STRPTR)"\n");
     return JS_UNDEFINED;
@@ -244,6 +253,72 @@ static char *_js_excepcion(JSContext *ctx) {
 """
 end
 
+@c
+"""
+/* A promise rejected with nobody to catch it (as browsers do, to the output): without this the errors of
+   async code (React, Turbopack's chunk loading) were lost */
+static void _js_rechazo(JSContext *ctx, JSValueConst promesa, JSValueConst motivo, JS_BOOL atendida, void *op) {
+    char *t, *lugar = NULL, *p;
+    JSValue pila;
+    if (atendida) return;
+    t = _js_texto(ctx, motivo);
+    if (JS_IsError(ctx, motivo)) {
+        pila = JS_GetPropertyStr(ctx, motivo, "stack");
+        if (!JS_IsUndefined(pila)) lugar = _js_texto(ctx, pila);
+        JS_FreeValue(ctx, pila);
+    }
+    for (p = lugar; p && *p; p++) if (*p == '\n') *p = ' ';
+    PutStr((CONST_STRPTR)"JS (promesa sin capturar): ");
+    PutStr((CONST_STRPTR)(t ? t : "?"));
+    if (lugar && *lugar) { PutStr((CONST_STRPTR)" | "); PutStr((CONST_STRPTR)lugar); }
+    PutStr((CONST_STRPTR)"\n");
+    free(t);
+    free(lugar);
+}
+"""
+end
+
+@c
+"""
+#ifdef JS_PERFIL
+/* the profile's samples: a VBlank interrupt server (50 a second) while a runtime lives */
+#include <hardware/intbits.h>
+static struct Interrupt _jp_int;
+static JSRuntime *volatile _jp_rt = NULL;
+static ULONG _jp_vblank(APTR datos __asm("a1")) {
+    if (_jp_rt) JS_PerfilMuestra(_jp_rt);
+    return 0;
+}
+static void _jp_empezar(JSRuntime *rt) {
+    if (_jp_rt) return;
+    _jp_int.is_Node.ln_Type = NT_INTERRUPT;
+    _jp_int.is_Node.ln_Pri = -60;
+    _jp_int.is_Node.ln_Name = (char *)"dashweb perfil JS";
+    _jp_int.is_Data = NULL;
+    _jp_int.is_Code = (void (*)())_jp_vblank;
+    _jp_rt = rt;
+    AddIntServer(INTB_VERTB, &_jp_int);
+}
+static void _jp_parar(JSRuntime *rt) {
+    if (_jp_rt != rt) return;
+    RemIntServer(INTB_VERTB, &_jp_int);
+    _jp_rt = NULL;
+}
+#endif
+"""
+end
+
+# El perfil por muestras del JavaScript (solo con QuickJS y dashweb compilados con -DJS_PERFIL: tools/build_qjs.sh
+# lib -DJS_PERFIL y DASH_CFLAGS=-DJS_PERFIL): las funciones que más pesan, por la salida
+@native func js_perfil_volcar(js: Int, cuantas: Int)
+"""
+#ifdef JS_PERFIL
+    _JsMotor *m = (_JsMotor *)js;
+    if (m) JS_PerfilVolcar(m->ctx, (int)cuantas);
+#endif
+"""
+end
+
 # Un motor nuevo con su contexto y console; 0 si no hay memoria
 @native func js_nuevo() -> Int
 """
@@ -260,6 +335,10 @@ end
         /* a page whose JavaScript wants more gets "out of memory" in its script, instead of leaving the whole
            Amiga without memory (Next.js on commodoremalacca.club took the 128 MB of the RTG machine) */
         JS_SetMemoryLimit(m->rt, JS_MEMORIA);
+        JS_SetHostPromiseRejectionTracker(m->rt, _js_rechazo, NULL);
+#ifdef JS_PERFIL
+        _jp_empezar(m->rt);
+#endif
         m->ctx = JS_NewContext(m->rt);
     }
     if (!m->ctx) {
@@ -348,6 +427,9 @@ end
     _JsMotor *m = (_JsMotor *)js;
     if (!m) return;
     if (m->liberar_extra) m->liberar_extra(m);
+#ifdef JS_PERFIL
+    _jp_parar(m->rt);
+#endif
     JS_FreeContext(m->ctx);
     JS_FreeRuntime(m->rt);
     free(m->error);

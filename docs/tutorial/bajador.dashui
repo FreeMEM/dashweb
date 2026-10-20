@@ -1,0 +1,37 @@
+{
+  "dashui": 1,
+  "windows": [
+    {
+      "name": "Principal",
+      "title": "Bajador",
+      "id": 1,
+      "size": [50, 60],
+      "menus": [
+        { "title": "Proyecto", "items": [ { "label": "Salir", "key": "Q", "event": 9 } ] }
+      ],
+      "root": {
+        "type": "vgroup",
+        "children": [
+          {
+            "type": "columns", "columns": 2,
+            "children": [
+              { "type": "label", "text": "Servidor" },
+              { "type": "string", "name": "servidor", "text": "127.0.0.1:8000", "max": 200, "ack": 1 },
+              { "type": "label", "text": "Ruta" },
+              { "type": "string", "name": "ruta", "text": "/hola.txt", "max": 400, "ack": 1 }
+            ]
+          },
+          {
+            "type": "hgroup",
+            "children": [
+              { "type": "button", "name": "bajar", "label": "_Bajar", "event": 1 },
+              { "type": "button", "name": "parar", "label": "_Parar", "event": 2, "disabled": true }
+            ]
+          },
+          { "type": "list", "name": "lineas", "weight": 300 },
+          { "type": "text", "name": "estado", "text": "Listo" }
+        ]
+      }
+    }
+  ]
+}

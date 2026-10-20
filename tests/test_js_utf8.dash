@@ -1,0 +1,38 @@
+# Test: el JavaScript con sus caracteres (tarea 37a4). Los scripts pasan por utf8_a_js (lo que no cabe en Latin-1,
+# como \uXXXX) y no por utf8_a_latin1, que daba "????" y cambiaba las comillas tipográficas por " (rompía la
+# cadena). Una página en UTF-8 va a Hubbub tal cual (dom_desde_html5_utf8): el texto del DOM sigue en Latin-1 y el
+# de los <script> conserva sus caracteres. URL.host con punycode ("тест" -> "xn--e1aybc").
+# memcheck
+# expect-out: js 10 1090 8220 120 8221 55357 56832 | xn--e1aybc
+# expect-out: dom 233 63
+# expect-out: suelto 4 1090 1077
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+import "../lib/html5.dash"
+
+func b(l: [Int]) -> String
+    r = ""
+    for c in l
+        r = r + str_char(c)
+    end
+    return r
+end
+
+Main
+    test = b([209, 130, 208, 181, 209, 129, 209, 130])
+    comillas_a = b([226, 128, 156])
+    comillas_c = b([226, 128, 157])
+    cara = b([240, 159, 152, 128])
+    e_aguda = b([195, 169])
+    h = "<html><body><p id=p>caf" + e_aguda + " " + test + "</p><script>var s = '" + test + " " + comillas_a + "x" + comillas_c + cara + "'; var u = new URL('https://" + test + "/').host;</script></body></html>"
+    doc = dom_desde_html5_utf8(h)
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    jsdom_ejecutar_scripts(js, doc, "http://a.com/")
+    Print js_evaluar(js, "'js ' + s.length + ' ' + [0, 5, 6, 7, 8, 9].map(function (i) { return s.charCodeAt(i); }).join(' ') + ' | ' + u", "t.js")
+    t = dom_texto(dom_por_id(doc, "p"))
+    Print "dom " + str_code(t, 3) + " " + str_code(t, 5)
+    Print js_evaluar(js, utf8_a_js("var v = '" + test + "'; 'suelto ' + v.length + ' ' + v.charCodeAt(0) + ' ' + v.charCodeAt(1)"), "t.js")
+    js_liberar(js)
+end

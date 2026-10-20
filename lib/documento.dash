@@ -104,11 +104,36 @@ func documento_empezar(direccion: String, r: Respuesta) -> Documento
         texto = _documento_de_tipo(r)
     end
     d.bytes = texto.length
-    d.doc = dom_desde_html5(texto)
+    if r.error == "" and _documento_html_utf8(r)
+        # a Hubbub, los bytes UTF-8 tal cual: los scripts en línea conservan sus caracteres (tarea 37a4)
+        d.doc = dom_desde_html5_utf8(r.cuerpo)
+    else
+        d.doc = dom_desde_html5(texto)
+    end
     d.recursos = recursos_nuevos()
     recursos_del_documento(d.recursos, d.doc, d.direccion)
     d.ms = time_ms() - t0
     return d
+end
+
+# ¿Es una página HTML en UTF-8 (o sin juego dicho), lo que _documento_de_tipo da tal cual?
+func _documento_html_utf8(r: Respuesta) -> Bool
+    tipo = str_lower(r.tipo)
+    if str_starts(tipo, "image/") or str_starts(tipo, "video/") or tipo == "text/plain"
+        return false
+    end
+    if tipo == ""
+        e = str_lower(r.url)
+        q = str_find(e, "?")
+        if q >= 0
+            e = e[:q]
+        end
+        if str_ends(e, ".jpg") or str_ends(e, ".jpeg") or str_ends(e, ".png") or str_ends(e, ".gif") or str_ends(e, ".webp") or str_ends(e, ".bmp") or str_ends(e, ".svg")
+            return false
+        end
+    end
+    j = str_lower(str_trim(r.juego))
+    return not (j == "iso-8859-1" or j == "latin1" or j == "iso8859-1" or j == "us-ascii" or j == "ascii" or j == "windows-1252" or j == "cp1252")
 end
 
 # El HTML de lo que llegó: una imagen o un vídeo abiertos solos van en una página que los muestra (como Chrome:

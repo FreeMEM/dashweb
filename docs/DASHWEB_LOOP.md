@@ -6,6 +6,8 @@ Arranque (desde cualquier directorio):
 /loop Sigue las instrucciones de ~/Projects/dashweb/docs/DASHWEB_LOOP.md: haz UNA tarea y actualiza la bitácora. No hagas pausas entre vuelta y vuelta
 ```
 
+**Encargo actual (usuario, 2026-10-20): la tarea 37, https://pre.opentimetrack.com, pasa delante de todo.**
+
 ## Objetivo
 
 Un navegador ligero para AmigaOS 3.x escrito en Dash, con interfaz MUI 5: XHTML, CSS, JavaScript
@@ -27,34 +29,21 @@ Dos fases:
 
 ## Reglas de cada iteración
 
-1. **Vigilar MUI.** Mira cómo va la otra sesión:
-   `git -C ~/Projects/FreeMEMLang show mui:docs/MUI_LOOP.md | grep -E '^- \[.\] ([1-9]|1[01])\.'`.
-   - Si las tareas 1-11 están todas `[x]` y la fase B aún no está "abierta" en la bitácora: pon al día la
-     rama `dashweb` de Dash (regla 3), apunta en la bitácora "Fase B abierta" y avisa con PushNotification. Desde ahí
-     las tareas de la fase B ya se pueden coger.
-   - Si no quedan tareas `[ ]` de la fase A ni de Dash y MUI no ha terminado: no hagas nada más. Programa la siguiente
-     vuelta con ScheduleWakeup a 1800 s (`noop: true`) y termina.
-2. **Rama.** Trabaja en `~/Projects/dashweb`, rama local `dev` (sale de `main`). Sin push.
-3. **Dash.** Lo que le falte a Dash se añade a Dash, como tarea `D<n>` de la lista (sección "Dash").
-   - **Dónde:** el worktree `~/Projects/FreeMEMLang-dashweb`, rama `dashweb` (sale de `mui`). `DASH` apunta ahí
-     (es el valor por defecto de `tests/run.py`). **No toques `~/Projects/FreeMEMLang`**: allí trabaja la
-     sesión de MUI, en la misma copia.
-   - **Al día con `main`:** (desde el 2026-10-16 la otra sesión trabaja en `main`, que ya tiene `mui` y
-     `dashweb` hasta D25) al empezar la vuelta, si `main` tiene commits que `dashweb` no tiene
-     (`git -C ~/Projects/FreeMEMLang-dashweb log --oneline dashweb..main`), haz
-     `git -C ~/Projects/FreeMEMLang-dashweb rebase main`. Si hay conflictos y no los resuelves bien,
-     `git rebase --abort` y apúntalo en la bitácora.
-   - **Reglas de Dash:** cada cambio con su test en `tests/` de Dash (normal, de error, `# expect-c:` o
-     `# expect-out:`); antes y después `python3 tests/run_tests.py` y `./compile_all.sh`, y al cerrar
-     `python3 tests/run_tests.py --emu --emu-a500 --emu-32`: nada que funcionaba puede romperse. Un programa
-     que no usa lo nuevo sale con el mismo C: compruébalo con `tools/cmp_dash_c.sh <commit> WORK` (no con
-     `python3 -m compiler.main` desde el worktree: carga el compilador del directorio actual). Documenta en `docs/QUICK_REFERENCE.md`,
-     `docs/MANUAL_REFERENCIA.md` y, si hay builtins nuevos, `python3 tools/gen_builtins_doc.py`. Commit en la
-     rama `dashweb`: `dashweb: D<n> - <resumen>`. Sin push.
-   - Para enlazar objetos de C (QuickJS) mientras no exista la tarea D10: `DASH_CFLAGS="... ficheros.o"`.
+1. **Encargo y uso.** Coge la subtarea de la 37 que toque (regla 5) mientras la 37 no esté `[x]`. Si el uso semanal
+   pasa del 90 %, apúntalo en la bitácora, para el loop y avisa con PushNotification (lo pidió el usuario).
+2. **Rama.** Trabaja en `~/Projects/dashweb`, rama `dev` (sale de `main`). Sin push ni PR: eso lo pide el usuario.
+3. **Dash.** Lo que le falte a Dash se añade a Dash, como tarea `D<n>` de la lista (sección "Dash"), pero **no lo
+   hace el loop: se lo encarga a la sesión "dash"** (SendMessage a `dash`; `ListAgents` si no responde). El
+   encargo lleva el porqué, cómo reproducirlo, lo que se propone y que avise con el commit. Mientras, el loop
+   sigue con otra subtarea que no dependa de eso. Al recibir el aviso, el loop compila dashweb con ese Dash y
+   lo apunta en la bitácora.
+   - La sesión "dash" trabaja en el worktree `~/Projects/FreeMEMLang-dashweb` (sus ramas salen de `main` de
+     FreeMEM/dash). El loop **no toca ese worktree** (ni `~/Projects/FreeMEMLang`): solo lo usa para compilar
+     (`DASH` por defecto). Para probar un cambio de Dash antes de que esté hecho, una copia en el scratchpad.
+   - Emulador y puertos de pruebas: antes de una batería o una medida larga, avisa a "dash" para no pisaros.
 4. **Base.** `python3 tests/run.py` (cuando exista) antes de empezar. Anota si cambia respecto a la última entrada.
-5. **Tarea.** Coge la primera tarea `[ ]` de la fase abierta. Si dice "necesita D<n>" y esa tarea de
-   Dash no está `[x]`, haz antes la de Dash (la primera que falte). Márcala `[~]` mientras trabajas. Una por
+5. **Tarea.** Coge la primera subtarea sin hacer de la 37 (después, la primera tarea `[ ]` de la fase abierta). Si
+   necesita algo de Dash que no está, encárgalo (regla 3) y coge la siguiente que no dependa de eso. Márcala `[~]` mientras trabajas. Una por
    iteración. Si es grande, divídela en la lista y haz solo la primera parte.
 6. **Hacer.** Código del navegador en Dash (`src/`), módulos reutilizables en `lib/`. C solo en
    `third_party/` y en el pegamento con él. Cada cosa con su test en `tests/`, ejecutado en el emulador.
@@ -63,6 +52,8 @@ Dos fases:
    `DASH_EMU_SYS=~/.cache/dash-emu/sys31`, para MUI `DASH_EMU_SYS_MUI=~/.cache/dash-emu/sys31mui`, para AmiSSL
    `DASH_EMU_SYS_SSL=~/.cache/dash-emu/sys31ssl` y `DASH_EMU_SYS_32_SSL=~/.cache/dash-emu/sys32ssl`
    (`tools/get_amissl.sh` y `tools/emu_sys_amissl.sh` de Dash).
+   Máquina rtg (`medir_visor --maquina rtg`): `DASH_KICKSTART_32="/home/freemem/Descargas/Telegram Desktop/Kickstart
+   v3.2.3 A1200.47.115_Pack_noSCSI.rom"`; con MUI 3.8: `--sistema ~/.cache/dash-emu/sys32rtg38`.
    **Sin `DASH_KICKSTART` se usa la ROM AROS** y los resultados no valen. Para medir "como el objetivo":
    FS-UAE con `cpu = 68040`, `fpu = 68040`, `jit_compiler = 1`, `uae_cpu_speed = max`.
 7. **Verificar.** Repite el paso 4. Nada que antes funcionaba puede romperse. Si algo se rompe y no lo
@@ -194,6 +185,17 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [x] D61. **Longitudes de textos hechos en C** (hecha por la sesión "dash", 8f04c61: la caché solo apunta los textos
+      de Dash, que llevan una marca en su cabecera; 2026-10-20, tarea 37a3). La caché de
+      longitudes de `_dash_str_len` (textos de 64 o más, por dirección) no se entera de un free() de C: el texto
+      siguiente en esa dirección heredaba la longitud vieja (un selector de 104 caracteres de querySelector salía
+      cortado). dashweb lo parchea con `_jsdom_soltar` (lib/jsdom.dash); el arreglo de fondo va en Dash.
+- [x] D60. **La red despierta el bucle de MUI por señal** (usuario, 2026-10-20, por la sesión dashweb-f7; encargada a
+      la sesión "dash", avisará con el commit). `mui_wait_event_signals`/`mui_signals` existen, pero no hay cómo
+      obtener la señal de un socket: un builtin con la máscara de señal de la red (p. ej. `net_signal()`, con
+      SocketBaseTags SBTC_SIGEVENTMASK); SO_EVENTMASK por socket (lectura, escritura, conexión, cierre, error),
+      también en los de TLS; si es fácil, una señal para `task_done` (el decodificador de imágenes); test en el
+      emulador; si bsdsocket no lo admite, `net_signal()` da 0 y se sigue sondeando.
 
 ### Fase A: sin MUI
 
@@ -250,6 +252,90 @@ tarea, con el estilo de Dash.
       temporizadores), volver a dar estilo y maquetar tras los cambios (`jsdom_cambios`).
 - [x] 17. **Repaso de la fase A.** Tamaño del ejecutable, memoria (`--memcheck`), tiempos por fase en la
       configuración objetivo y en el A1200, páginas de prueba. Resumen en la bitácora y en el README.
+
+### Encargo 37: pre.opentimetrack.com (usuario, 2026-10-20; delante de todo)
+
+- [~] 37. **https://pre.opentimetrack.com como en Chrome, con sus animaciones.** Next.js (Turbopack, 12 scripts), 47 KB
+      de CSS con 11 @keyframes (revelar, tachar, atenuar, pagina-sale/entra, parpadeo, apunte-entra, caracter-cambia,
+      estampa, pista-baja, invita). Lo que se anima al bajar por la página es **GSAP con ScrollTrigger**: lee la
+      posición de los elementos y el desplazamiento y pone en su `style` translate/rotate/scale/opacity y
+      `transform: scaleX()` (una barra de progreso). La pila de fichas de arriba sigue al ratón. Fuentes: archivo
+      (variable, 400-900, font-stretch) y doto (variable, los números de puntos), solo en WOFF2. Hoy en dashweb la
+      geometría del JavaScript es falsa (offsetTop, getBoundingClientRect, scrollY: 0; innerWidth 640), no hay evento
+      scroll, IntersectionObserver no avisa nunca y WOFF2 no se lee. Comparar siempre con Chrome al mismo ancho
+      (tools/comparar_chrome.py) y bajando por la página (capturas a varias alturas con `medir_visor --acciones`),
+      en la máquina rtg (MUI 5) y en sys32rtg38 (MUI 3.8, la del usuario en CoffinOS). Enviar capturas al usuario.
+      Las páginas se leen con Hubbub (`dom_desde_html5`, lib/html5.dash), que es lo que se usa desde el 2026-10-20:
+      nada de volver al analizador viejo (lib/html.dash); si Hubbub falla con esta página, se arregla Hubbub o su
+      paso al DOM.
+      Subtareas, por orden:
+      [x] 37a. Primera carga: cómo sale hoy (captura, traza, errores de JavaScript, memoria: ver la 28j, Next.js sin
+           memoria), y apuntar aquí lo que falte que no esté en la lista.
+      [x] 37a1. Escapes de CSS en los selectores (`\:`, `\[`, `\]`, `\.`, `\/`, `\%` y los de hex, `\31 `): Tailwind los usa
+           en todas sus variantes y valores a medida (`.md\:grid-cols-12`, `.h-\[1\.35em\]`) y hoy esas reglas se
+           pierden: la cabecera sale en una columna y el logo (svg con h-[1.35em]) gigante. Con test.
+      [x] 37a2. URL y URLSearchParams (es la 32b): el runtime de Turbopack cae al empezar ("'URL' is not defined", turbopack-
+           *.js:1:4070) y Next.js no llega a montar nada (React, GSAP). Con test.
+      [x] 37a3. Lentitud del JavaScript: de 31 s a 6,7 s (core-js cambiaba el Promise de QuickJS por el suyo), y
+           Next.js ya monta la página sin errores.
+      37a5. Maqueta lenta y repetida: cada maqueta de esta página tarda 6,2-7 s (estilo_px, _borde, flex y grid en el
+           perfil de Dash) y el JavaScript la rehace entera por cada cambio, aunque sea uno (GSAP y React cambian
+           style a cada rato: 6,2 s por fotograma). Hacer la maqueta más rápida y que un cambio de style que no mueve
+           nada (opacity, transform, color) no la rehaga (enlaza con 37d).
+      [x] 37a4. El JavaScript con sus caracteres: hoy los scripts pasan a Latin-1 (al traerlos y en el DOM) y lo que no
+           cabe sale "?" ("https://тест"); por eso core-js descarta el URL de dashweb y pone el suyo. Dar a QuickJS el
+           texto UTF-8 de los scripts (traídos y en línea) sin pasar por Latin-1, y punycode en URL.host.
+      37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
+           offsetTop/Left/Width/Height y offsetParent, getBoundingClientRect y getClientRects (respecto a lo que se
+           ve), clientWidth/Height, scrollWidth/Height, window.innerWidth/innerHeight (la zona de dibujo),
+           window.scrollY/pageYOffset y documentElement.scrollTop (el desplazamiento de la ventana). Con test.
+      37c. Desplazar y JavaScript: evento scroll en window y document al desplazar (como mucho uno por tic);
+           scrollTo, scrollBy y scrollIntoView mueven la vista de verdad. Con test.
+      37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
+           opacity o transform (lo que hace GSAP), repintar sin rehacer la maqueta. Medir el coste por fotograma.
+      37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
+           maquetar. Con test.
+      37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
+           filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
+      37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
+           TTF para stb_truetype; las fuentes variables, con su instancia por defecto (o la del peso pedido si cabe).
+      37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
+           cuando el usuario lo dé por bueno.
+
+- [ ] 39. **Cargas despertadas por la red, no por un tic (necesita D60; después de la 37).** El bucle de
+      src/dashweb.dash espera con `mui_wait_event_signals(net_signal() | señal de las tareas)` y, al llegar una
+      señal (ev == 0), avanza las cargas de las ventanas. `mui_timer` queda solo para lo que va por reloj
+      (setTimeout/setInterval de las páginas, cuadros de vídeo, animaciones); hoy `programar()` pone un tic de 50 ms
+      mientras algo llega, que retrasa cada paso de red (DNS, connect, TLS) y despierta la CPU 20 veces por segundo.
+      D60 está (0389bef, rama dashweb de Dash): `net_signal()` antes de cada espera (vacía la cola de sucesos),
+      `task_signal()` para los decodificadores; la bsdsocket de FS-UAE no tiene SO_EVENTMASK y da 0: ahí sigue el tic
+      de 50 ms, y aunque haya señal, un temporizador lento (~1 s) para los plazos de net_connect_poll. Medir antes y
+      después en Amiberry (en FS-UAE no se puede). docs/ARQUITECTURA.md lo rehace la sesión dashweb-f7: no tocarlo,
+      apuntar el cambio en la bitácora. Va delante de la 38 salvo que el usuario diga otra cosa: es
+      pequeña y acelera todas las cargas.
+- [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
+      https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
+      como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
+
+- [ ] 40. **Lo que encontró la sesión dashweb-f7 al rehacer docs/ARQUITECTURA.md (2026-10-20; después de la 37,
+      salvo la (a), que va antes de la próxima versión).** Comprobado en el código por ella:
+      (a) tools/paquete.sh compila dashweb y el visor sin --fpu, pero libqjs, libimg y libvideo van con -m68881: la
+      bitácora (28g, 29b) dice que mezclar las dos formas rompía números (Date.now, SVG de 0x0). Mirar si algún
+      número con decimales cruza entre las dos partes en la v0.2.0-alfa y, casi seguro, añadir --fpu.
+      (b) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
+      imágenes, vídeo), sin tope: un .lha grande puede agotar la memoria. Escribir al fichero según llega, o un tope
+      con un aviso claro.
+      (c) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
+      un script que pase de N segundos y decirlo.
+      (d) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
+      la pieza más alta + 2 px en _poner_linea).
+      (e) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
+      fichero).
+      (f) Las animaciones de CSS no corren en dashweb: lib/animacion.dash tiene su test, pero nadie lo importa ni
+      llama a animar() (la 31q no está acabada aunque el README diga otra cosa).
+      (g) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
+      cabeceras de maqueta.dash ("position, más adelante", tablas), video.dash y videos.dash ("sin sonido"), el
+      README (el ahorro de reanudar TLS apenas se nota: D55, 9,0 -> 7,9 s; la tabla de medidas es del 2026-10-16).
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
 
@@ -2435,3 +2521,89 @@ Formato:
   dashweb.prefs con inicio=https://freemem.space/): sin la directiva sale la consola con las dos líneas; con ella,
   ninguna ventana y la página igual.
 - Dash: fuente0 (D57, D58, D59 y el merge de origin/main, 8c3934d) se sube con PR a main.
+- El usuario lo ha probado en CoffinOS (MUI 3.8) desde el icono: funciona bien. Fusionados FreeMEM/dash#1 y
+  FreeMEM/dashweb#2.
+
+### 2026-10-20 — Publicada la v0.2.0-alfa
+- Base: 56/56 (738 s). Etiqueta v0.2.0-alfa sobre main (da9fde3: Hubbub, vectoriales con D57, MUI 3.8 con D58, sin
+  consola con D59), pre-release https://github.com/FreeMEM/dashweb/releases/tag/v0.2.0-alfa con build/dashweb.lha
+  (5,9 MB), hecho con tools/paquete.sh y Dash 8c3934d (= main de FreeMEM/dash tras su PR #1). README enlaza a ella
+  (en dev, pendiente de llevar a main).
+
+### 2026-10-20 — Tarea 37a (pre.opentimetrack.com, primera carga)
+- Base: 56/56 (la batería de la alfa, mismo código).
+- Máquina rtg, MUI 5, Hubbub: carga entera en 28,4 s y sin cierres (rc 0). Scripts 5,7 s, estilo 0,8 s y la
+  primera maqueta **21,7 s**. 16 recursos (12 scripts, 2 hojas). Captura enviada al usuario.
+- Lo que se ve: el texto y los colores bien; la cabecera en una columna (en Chrome, dos), el logo (un svg)
+  enorme encima del título, la pila de fichas como franjas, "Menú" como botón gris.
+- Causas: (1) dashweb no entiende los escapes de CSS en los selectores, y Tailwind los pone en todas sus
+  variantes (`.md\:grid-cols-12`) y valores a medida (`.h-\[1\.35em\]`): se pierden esas reglas. (2) El
+  JavaScript cae al empezar: `ReferenceError: 'URL' is not defined` en el runtime de Turbopack, así que Next.js,
+  React y GSAP no arrancan. (3) La maqueta tarda 21,7 s. Apuntadas como 37a1, 37a2 y 37a3, delante de la 37b.
+- Nueva tarea 38 (youtube.com), después de la 37, a petición del usuario.
+
+### 2026-10-20 — Tarea 37a1 (escapes de CSS en los selectores)
+- lib/css.dash: `_css_fin_nombre` lee los nombres de clase, id y etiqueta con sus escapes (CSS Syntax 3: "\" y un
+  carácter, o "\" y 1-6 cifras hex con un espacio que no cuenta) y `css_desescapar` los quita (lo que no cabe en
+  Latin-1, "?"). `_css_buscar` y `_css_cierre` se saltan lo escapado fuera de comillas (un `\{` o `\,` ya no corta).
+  Test nuevo test_css_escapes: los de Tailwind (`.md\:grid-cols-12`, `.h-\[1\.35em\]`, `.w-1\/2`), hex (`.\31 0`),
+  dentro de @layer y @media, especificidad, y desde querySelectorAll.
+- pre.opentimetrack.com (rtg): la cabecera en dos columnas, el logo a su tamaño, las fichas al lado; la maqueta
+  pasa de 21,7 s a 6,7 s y la carga de 28,4 s a 13,2 s. Captura enviada.
+- Base: 57/57 (761 s).
+
+### 2026-10-20 — Tarea 37a2 (el JavaScript de Next.js arranca en pre.opentimetrack.com)
+- URL y URLSearchParams en el preludio (WHATWG: relativas, puertos por defecto, puntos de la ruta, codificación,
+  file:, data:, blob:, IPv6, origin, searchParams enlazado con search, forEach sobre la lista viva, canParse/parse,
+  createObjectURL): iguales a los de Node en 29 casos. Sin punycode (apuntado en 37a4).
+- Detrás de "URL is not defined" salieron, uno a uno: `document.currentScript` (Turbopack lo lee para saber qué
+  trozo se registra; ahora el <script> que corre, null fuera: `jsdom_script_actual`), `script.src` relativo
+  (Next.js hace `new URL(document.currentScript.src)`: href, src y action se leen ya como dirección completa, y
+  a/area tienen protocol, host, pathname, search, hash...), y `ReadableStream` (puesto: estaba apagado por la 28j;
+  con el tope de QuickJS, commodoremalacca.club acaba con "out of memory" dentro de su JavaScript pero sin cerrarse:
+  rc 0, página pintada en 40 s).
+- lib/js.dash avisa de las promesas rechazadas sin capturar (`JS (promesa sin capturar): ...` por la salida):
+  sin eso los errores de React y de la carga de trozos no se veían.
+- Resultado: sin errores de JavaScript; los scripts pasan de 5,6 s a 31 s (React hidratando). La página se ve igual
+  (en Chrome tampoco cambia hasta bajar). Apuntadas 37a3 (lentitud) y 37a4 (UTF-8 en el JavaScript: core-js
+  descarta el URL propio porque "https://тест" llega como "https://????" y pone el suyo).
+- Test nuevo test_js_url (URL, URLSearchParams, currentScript, src/href completos, a.pathname). Base: 58/58 (847 s).
+- D60 hecha por la sesión dash (0389bef): marcada; la 39 dice cómo usarla.
+- Para docs/ARQUITECTURA.md (lo rehace dashweb-f7): el preludio trae URL/URLSearchParams propios,
+  document.currentScript, href/src completos, ReadableStream y el aviso de promesas sin capturar.
+
+### 2026-10-20 — Tarea 37a3 (el JavaScript de pre.opentimetrack.com, de 31 s a 6,7 s, y Next.js montando la página)
+- Medido: un solo script en línea (`self.__next_f.push([1,"..."])`, los datos de React) tardaba 25 s; el
+  perfil de Dash no veía nada (todo dentro de QuickJS). Probados y descartados: el TextEncoder del preludio (0,4 s),
+  el malloc de libnix (un asignador por tallas, mal medido: no llevaba la cuenta de memoria de QuickJS y el GC no
+  pasaba; se quitó) y el GC (8 MB de margen: igual).
+- Perfil nuevo dentro de QuickJS (`-DJS_PERFIL`, docs/quickjs_amiga.md, cambio 4): muestras desde una interrupción
+  VBlank que miran la función de arriba de la pila. Salió: el 79 % en el Promise de core-js. core-js da por roto el
+  Promise de QuickJS en un navegador sin `PromiseRejectionEvent` y pone el suyo, en JavaScript. Con
+  PromiseRejectionEvent en el preludio: ese script, de 25 s a 0,5-0,9 s; los scripts, de 31 s a 6,7 s.
+- Con React ya trabajando salieron, uno tras otro: un querySelector de 104 caracteres "no válido" (la caché de
+  longitudes de Dash y los textos de C: D61, encargada a "dash"; parcheado con `_jsdom_soltar`), `instanceof
+  HTMLIFrameElement` verdadero para todo (todas las interfaces eran el mismo constructor: ahora cada una con
+  Symbol.hasInstance por tipo y etiqueta, y el mismo prototipo), `Window` y `EventTarget`, `classList` que no se
+  podía recorrer (Lenis: Array.from), y `attachShadow` (el anunciador de rutas de Next.js; una raíz de sombra
+  mínima que no se pinta). console.log/error escriben ya la pila de los errores.
+- Resultado: sin errores de JavaScript; la página queda como la monta React (una ficha, la "huella" calculada) y
+  GSAP, React y Lenis siguen cambiándola. Pero cada cambio rehace la maqueta entera: 6,2 s por fotograma. Apuntada
+  37a5. Tareas de la sesión dashweb-f7 apuntadas como 40.
+- Test nuevo test_jsdom_interfaces. Base: 59/59 (902 s). D61 hecha por "dash" (8f04c61) mientras tanto: el
+  parche `_jsdom_soltar` se queda (no estorba).
+
+### 2026-10-20 — Tarea 37a4 (el JavaScript con sus caracteres; punycode)
+- lib/texto.dash: `utf8_a_js` (y `texto_decodificar_js`): como utf8_a_latin1, pero lo que no cabe en Latin-1 sale
+  como escape \uXXXX (par de ellos fuera del plano básico). Antes "тест" llegaba a QuickJS como "????" y unas
+  comillas “ ” dentro de una cadena de JavaScript salían como " (latin1_de) y rompían el script.
+- Los scripts traídos (recursos.dash, jsdom._jsdom_traer) pasan por ahí. Una página HTML en UTF-8 (o sin juego
+  dicho) va a Hubbub en sus bytes tal cual (`dom_desde_html5_utf8`, `_h5_analizar(texto, utf8)`): el DOM sale en
+  Latin-1 como siempre y el texto de los <script>, con utf8_a_js.
+- URL: punycode en el nombre de servidor (igual que Node en 7 casos); el chequeo de core-js entero pasa ya con el
+  URL de dashweb (antes ponía el suyo).
+- Coste de D61 (la caché de longitudes ya no apunta textos de C): recorrer un texto de C de 64 o más con str_code
+  es cuadrático; pasar a Latin-1 el script de 26 KB que da Hubbub tardaba 7,5 s (antes 0,08). lib/html5.dash
+  devuelve ya `_dash_str_dup` en _h5_texto y _h5_atr_valor: 82 ms. Avisada la sesión dash: lo documentó en el
+  manual de Dash (1a8e0cc, "Textos de C largos").
+- Test nuevo test_js_utf8. Base: 60/60 (936 s); freemem.space 21,3 s (igual).

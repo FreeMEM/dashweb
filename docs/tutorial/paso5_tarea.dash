@@ -1,0 +1,178 @@
+# Paso 5: un trabajo de CPU en otro proceso (contar palabras) y recordar el servidor entre usos.
+import "bajador.dashui"
+import "lib/descarga.dash"
+
+# Los números de evento del .dashui
+const ID_BAJAR = 1
+const ID_PARAR = 2
+const ID_SALIR = 9
+# y los que solo usa el programa
+const ID_TIC = 10
+
+const FICHERO_PREFS = "PROGDIR:bajador.prefs"   # junto al programa: servidor y ruta, una por línea
+
+# Cuenta las palabras de un texto acabado en 0. Corre en otro proceso: solo C, nada de Dash dentro
+@native func contar_palabras(datos: Int) -> Int
+"""
+    const unsigned char *p = (const unsigned char *)datos;
+    long n = 0;
+    int dentro = 0;
+    while (*p) {
+        if (*p <= ' ') dentro = 0;
+        else if (!dentro) { dentro = 1; n++; }
+        p++;
+    }
+    return n;
+"""
+end
+
+# Lo que hace falta mientras cuenta: el proceso y la memoria que lee
+struct Cuenta
+    tarea: Int = 0
+    datos: Int = 0
+end
+
+# Copia el texto a memoria propia (el otro proceso no puede tocar un String de Dash) y lanza la cuenta
+func contar_empezar(texto: String) -> Cuenta
+    c = Cuenta()
+    c.datos = buffer_alloc(texto.length + 1)
+    str_to_buffer(texto, c.datos, 0)
+    buffer_set_byte(c.datos, texto.length, 0)
+    c.tarea = task_start(contar_palabras, c.datos)
+    if c.tarea == 0
+        buffer_free(c.datos)
+        c.datos = 0
+    end
+    return c
+end
+
+# -1 mientras cuenta; al acabar, las palabras (y suelta el proceso y la memoria)
+func contar_resultado(c: Cuenta) -> Int
+    if not task_done(c.tarea)
+        return -1
+    end
+    n = task_result(c.tarea)
+    task_free(c.tarea)
+    buffer_free(c.datos)
+    c.tarea = 0
+    return n
+end
+
+func prefs_cargar(v: Principal)
+    t = file_read_text(FICHERO_PREFS)
+    if t != nil
+        partes = str_split(t, "\n")
+        if partes.length >= 2
+            mui_set_text(v.servidor, partes[0])
+            mui_set_text(v.ruta, partes[1])
+        end
+    end
+end
+
+func prefs_guardar(v: Principal)
+    file_write_text(FICHERO_PREFS, mui_get_text(v.servidor) + "\n" + mui_get_text(v.ruta) + "\n")
+end
+
+func empezar(v: Principal) -> Descarga
+    servidor = mui_get_text(v.servidor)
+    d = descarga_empezar(descarga_host(servidor), descarga_puerto(servidor), mui_get_text(v.ruta))
+    mui_list_clear(v.lineas)
+    mui_set_text(v.estado, "Conectando con " + servidor)
+    mui_set_enabled(v.bajar, false)
+    mui_set_enabled(v.parar, true)
+    return d
+end
+
+func acabar(v: Principal, d: Descarga)
+    if d.fase == DESCARGA_HECHA
+        for linea in str_split(descarga_cuerpo(d), "\n")
+            mui_list_add(v.lineas, linea)
+        end
+        mui_set_text(v.estado, "Bajados #{d.texto.length} bytes")
+    else
+        mui_set_text(v.estado, "No se pudo: " + d.error)
+    end
+    mui_set_enabled(v.bajar, true)
+    mui_set_enabled(v.parar, false)
+    Print mui_get_text(v.estado)    # para ver en el Shell lo que ha pasado
+end
+
+# Espera el siguiente evento. Con una descarga en marcha, también la red lo despierta (ev = 0), y
+# con una cuenta en marcha, el otro proceso al acabar;
+# si la pila no sabe avisar (net_signal() = 0, como en FS-UAE), un tic cada 50 ms.
+func esperar(con_red: Bool, contando: Bool) -> Int
+    if contando
+        mui_timer(0, ID_TIC)
+        senal = task_signal()               # el otro proceso avisa al acabar
+        if con_red
+            senal = senal | net_signal()
+        end
+        if senal == 0
+            mui_timer(50, ID_TIC)
+        end
+        return mui_wait_event_signals(senal)
+    end
+    if not con_red
+        mui_timer(0, ID_TIC)                # nada en marcha: sin temporizador, el programa duerme
+        return mui_wait_event()
+    end
+    senal = net_signal()                    # antes de cada espera: vacía la cola de sucesos
+    if senal == 0
+        mui_timer(50, ID_TIC)
+        return mui_wait_event()
+    end
+    mui_timer(1000, ID_TIC)                 # lento: los límites de tiempo solo se miran al avanzar
+    return mui_wait_event_signals(senal)
+end
+
+Main
+    if mui_app_begin("Bajador", "BAJADOR") == 0
+        Print "Bajador necesita MUI y un 68020"
+    else
+        v = Principal_create()
+        prefs_cargar(v)
+        mui_window_open(v.window)
+        if arg(0) == "AUTO"
+            mui_press(v.bajar)
+        end
+        var d: Descarga = nil        # la descarga en curso, o nil
+        var c: Cuenta = nil          # la cuenta de palabras en curso, o nil
+        while true
+            ev = esperar(d != nil, c != nil)
+            if ev == -1 or ev == ID_SALIR
+                break
+            end
+            if ev == ID_BAJAR and d == nil and c == nil
+                prefs_guardar(v)
+                d = empezar(v)
+            elif ev == ID_PARAR and d != nil
+                descarga_cancelar(d)
+                acabar(v, d)
+                d = nil
+            elif (ev == 0 or ev == ID_TIC) and d != nil
+                # 0: llegó una señal de la red; ID_TIC: el temporizador
+                if descarga_avanzar(d)
+                    acabar(v, d)
+                    if d.fase == DESCARGA_HECHA
+                        c = contar_empezar(descarga_cuerpo(d))
+                        if c.tarea == 0
+                            c = nil
+                        end
+                    end
+                    d = nil
+                else
+                    mui_set_text(v.estado, "Recibidos #{d.texto.length} bytes")
+                end
+            end
+            if (ev == 0 or ev == ID_TIC) and c != nil
+                n = contar_resultado(c)
+                if n >= 0
+                    mui_set_text(v.estado, mui_get_text(v.estado) + ", #{n} palabras")
+                    Print mui_get_text(v.estado)
+                    c = nil
+                end
+            end
+        end
+        mui_app_end()
+    end
+end

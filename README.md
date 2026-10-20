@@ -6,8 +6,8 @@ interfaz **MUI** (3.8 o 5): XHTML, CSS, JavaScript moderno y HTTPS.
 Es también el banco de pruebas de Dash: un programa grande y exigente que obliga a hacer crecer el
 lenguaje, sus librerías y su rendimiento.
 
-**Descarga:** primera versión de prueba,
-[v0.1.0-alfa](https://github.com/FreeMEM/dashweb/releases/tag/v0.1.0-alfa) (`dashweb.lha`). Es una alfa:
+**Descarga:** versión de prueba
+[v0.2.0-alfa](https://github.com/FreeMEM/dashweb/releases/tag/v0.2.0-alfa) (`dashweb.lha`). Es una alfa:
 puede pararse en algunas páginas.
 
 ## Estado

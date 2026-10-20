@@ -7899,10 +7899,98 @@ static void JS_ThrowInterrupted(JSContext *ctx)
     JS_SetUncatchableException(ctx, TRUE);
 }
 
+#ifdef JS_PERFIL
+static int find_line_num(JSContext *ctx, JSFunctionBytecode *b, uint32_t pc_value, int *pcol_num);
+static const char *get_prop_string(JSContext *ctx, JSValueConst obj, JSAtom prop);
+/* dashweb: a sampling profile of the JavaScript (built with -DJS_PERFIL; tools/build_qjs.sh lib -DJS_PERFIL).
+   At each sample (JS_PerfilMuestra, 50 a second from a VBlank interrupt) the function on top counts as "propio" and
+   every function on the stack, once, as "total". JS_PerfilVolcar writes the heaviest ones. */
+#define JS_PERFIL_N 4096
+static struct { void *b; int nativa; unsigned long propio, total, visto; } js_perfil[JS_PERFIL_N];
+static unsigned long js_perfil_muestras, js_perfil_nativas, js_perfil_sin_marco;
+
+static int js_perfil_hueco(void *b)
+{
+    unsigned i = ((unsigned long)b >> 4) & (JS_PERFIL_N - 1), n;
+    for (n = 0; n < JS_PERFIL_N; n++, i = (i + 1) & (JS_PERFIL_N - 1)) {
+        if (js_perfil[i].b == b) return i;
+        if (!js_perfil[i].b) { js_perfil[i].b = b; return i; }
+    }
+    return -1;
+}
+
+/* Called 50 times a second from a VBlank interrupt (lib/js.dash, -DJS_PERFIL): the function on top of the stack,
+   bytecode or native (a native counts the time of the C it runs), and those under it (at most 64) */
+void JS_PerfilMuestra(JSRuntime *rt)
+{
+    JSStackFrame *sf;
+    int primero = 1, i, n = 0;
+    js_perfil_muestras++;
+    if (!rt->current_stack_frame) js_perfil_sin_marco++;
+    for (sf = rt->current_stack_frame; sf != NULL && n < 64; sf = sf->prev_frame, n++) {
+        JSObject *p;
+        void *clave;
+        if (JS_VALUE_GET_TAG(sf->cur_func) != JS_TAG_OBJECT) continue;
+        p = JS_VALUE_GET_OBJ(sf->cur_func);
+        if (!js_class_has_bytecode(p->class_id)) {
+            if (primero) js_perfil_nativas++;
+            clave = p;
+        } else clave = p->u.func.function_bytecode;
+        i = js_perfil_hueco(clave);
+        if (i < 0) continue;
+        js_perfil[i].nativa = !js_class_has_bytecode(p->class_id);
+        if (primero) js_perfil[i].propio++;
+        primero = 0;
+        if (js_perfil[i].visto != js_perfil_muestras) {
+            js_perfil[i].visto = js_perfil_muestras;
+            js_perfil[i].total++;
+        }
+    }
+}
+
+void JS_PerfilVolcar(JSContext *ctx, int cuantas)
+{
+    int k, i, mejor;
+    char nombre[64];
+    printf("perfil JS: %lu muestras (VBlank), %lu con una funcion nativa arriba, %lu fuera de toda funcion\n",
+           js_perfil_muestras, js_perfil_nativas, js_perfil_sin_marco);
+    for (k = 0; k < cuantas; k++) {
+        mejor = -1;
+        for (i = 0; i < JS_PERFIL_N; i++)
+            if (js_perfil[i].b && js_perfil[i].visto != (unsigned long)-1 &&
+                (mejor < 0 || js_perfil[i].propio > js_perfil[mejor].propio)) mejor = i;
+        if (mejor < 0 || !js_perfil[mejor].propio) break;
+        if (js_perfil[mejor].nativa) {
+            const char *nom = get_prop_string(ctx, JS_MKPTR(JS_TAG_OBJECT, js_perfil[mejor].b), JS_ATOM_name);
+            printf("perfil JS: %5.1f%% %5.1f%%  %s  (nativa)\n",
+                   100.0 * js_perfil[mejor].propio / (js_perfil_muestras ? js_perfil_muestras : 1),
+                   100.0 * js_perfil[mejor].total / (js_perfil_muestras ? js_perfil_muestras : 1), nom ? nom : "?");
+            if (nom) JS_FreeCString(ctx, nom);
+        } else {
+            JSFunctionBytecode *b = (JSFunctionBytecode *)js_perfil[mejor].b;
+            int linea = 0, col = 0;
+            const char *f = NULL;
+            if (b->has_debug) {
+                linea = find_line_num(ctx, b, 0, &col);
+                f = JS_AtomToCString(ctx, b->debug.filename);
+            }
+            printf("perfil JS: %5.1f%% %5.1f%%  %s  %s:%d:%d\n",
+                   100.0 * js_perfil[mejor].propio / (js_perfil_muestras ? js_perfil_muestras : 1),
+                   100.0 * js_perfil[mejor].total / (js_perfil_muestras ? js_perfil_muestras : 1),
+                   JS_AtomGetStr(ctx, nombre, sizeof(nombre), b->func_name),
+                   f ? (strrchr(f, '/') ? strrchr(f, '/') + 1 : f) : "?", linea, col);
+            if (f) JS_FreeCString(ctx, f);
+        }
+        js_perfil[mejor].visto = (unsigned long)-1;
+    }
+}
+#endif
+
 static no_inline __exception int __js_poll_interrupts(JSContext *ctx)
 {
     JSRuntime *rt = ctx->rt;
     ctx->interrupt_counter = JS_INTERRUPT_COUNTER_INIT;
+
     if (rt->interrupt_handler) {
         if (rt->interrupt_handler(rt, rt->interrupt_opaque)) {
             JS_ThrowInterrupted(ctx);
