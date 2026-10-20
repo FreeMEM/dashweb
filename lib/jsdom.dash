@@ -475,6 +475,11 @@ func jsdom_estilo_calculado(n: Nodo, propiedad: String) -> String
     return ""
 end
 
+# ¿Tiene n una caja de la última maqueta de doc? (lib/maqueta.dash la pone en sus campos caja_*)
+func jsdom_caja_valida(n: Nodo, doc: Nodo) -> Bool
+    return doc != nil and doc.caja_pase != 0 and n.caja_pase == doc.caja_pase
+end
+
 # ¿Se ve? (offsetWidth/offsetHeight: sin posiciones de la maqueta, 0 si él o un antepasado tiene
 # display: none, en su estilo o en el atributo style; 1 si no; 0 fuera del documento)
 func jsdom_visible(n: Nodo) -> Bool
@@ -618,6 +623,7 @@ typedef struct {
     JSValue *objetos;
     LONG capacidad, usados;
     LONG cambios;
+    LONG vista[4];           /* jsdom_vista: what is seen (width, height), the scroll (y) and the page's height */
 } _JsDom;
 
 static void _jsdom_finalizar(JSRuntime *rt, JSValue val) {
@@ -1038,12 +1044,36 @@ static JSValue _jsdom_defaultValue(JSContext *ctx, JSValueConst this_val) {
     return _jsdom_cadena(ctx, jsdom_atributo(n, (STRPTR)"value"));
 }
 
-/* offsetWidth/offsetHeight... without the layout's positions: 0 if not shown (display: none
-   here or above, or out of the document); otherwise a nominal size (magic 0: width, 1: height) */
+/* offsetWidth/offsetHeight...: its box in the last layout (tarea 37b); before the first one, 0 if not shown
+   (display: none here or above, or out of the document) and otherwise a nominal size (magic 0: width, 1: height) */
 static JSValue _jsdom_tamano(JSContext *ctx, JSValueConst this_val, int magic) {
     _JSDOM_ESTE;
-    if (n->tipo != DOM_ELEMENTO || !jsdom_visible(n)) return JS_NewInt32(ctx, 0);
+    if (n->tipo != DOM_ELEMENTO) return JS_NewInt32(ctx, 0);
+    if (jsdom_caja_valida(n, _jsdom_de(ctx)->doc)) return JS_NewInt32(ctx, magic ? n->caja_h : n->caja_w);
+    if (_jsdom_de(ctx)->doc->caja_pase || !jsdom_visible(n)) return JS_NewInt32(ctx, 0);
     return JS_NewInt32(ctx, magic ? 16 : 100);
+}
+
+/* __dashweb_caja(node): [x, y, width, height] of its box in the page, or null (not laid out, or no layout yet) */
+static JSValue _jsdom_caja(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *n = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    JSValue a;
+    if (!n || !jsdom_caja_valida(n, _jsdom_de(ctx)->doc)) return JS_NULL;
+    a = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, a, 0, JS_NewInt32(ctx, n->caja_x));
+    JS_SetPropertyUint32(ctx, a, 1, JS_NewInt32(ctx, n->caja_y));
+    JS_SetPropertyUint32(ctx, a, 2, JS_NewInt32(ctx, n->caja_w));
+    JS_SetPropertyUint32(ctx, a, 3, JS_NewInt32(ctx, n->caja_h));
+    return a;
+}
+
+/* __dashweb_vista(): [width, height, scroll y, page height] (jsdom_vista) */
+static JSValue _jsdom_vista(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _JsDom *d = _jsdom_de(ctx);
+    JSValue a = JS_NewArray(ctx);
+    int i;
+    for (i = 0; i < 4; i++) JS_SetPropertyUint32(ctx, a, i, JS_NewInt32(ctx, d ? d->vista[i] : 0));
+    return a;
 }
 
 /* attributes: [{name, value}] (a copy: changing it does not change the element) */
@@ -1278,11 +1308,28 @@ end
     JS_SetPropertyStr(m->ctx, global, "window", JS_DupValue(m->ctx, global));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_reloj", JS_NewCFunction(m->ctx, _jsdom_reloj, "__dashweb_reloj", 0));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_galletas", JS_NewCFunction(m->ctx, _jsdom_galletas, "__dashweb_galletas", 1));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_caja", JS_NewCFunction(m->ctx, _jsdom_caja, "__dashweb_caja", 1));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_vista", JS_NewCFunction(m->ctx, _jsdom_vista, "__dashweb_vista", 0));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_galleta", JS_NewCFunction(m->ctx, _jsdom_galleta, "__dashweb_galleta", 2));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_calculado", JS_NewCFunction(m->ctx, _jsdom_calculado, "__dashweb_calculado", 2));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_media", JS_NewCFunction(m->ctx, _jsdom_media, "__dashweb_media", 1));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_documento_nuevo", JS_NewCFunction(m->ctx, _jsdom_documento_nuevo, "__dashweb_documento_nuevo", 1));
     JS_FreeValue(m->ctx, global);
+"""
+end
+
+# Lo que se ve de la página en la ventana, para el JavaScript (innerWidth/innerHeight, scrollY, el alto de la
+# página): dashweb lo pone al pintar y al desplazar
+@native(borrow) func jsdom_vista(js: Int, ancho: Int, alto: Int, desde: Int, total: Int)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    _JsDom *d;
+    if (!m || !m->extra) return;
+    d = (_JsDom *)m->extra;
+    d->vista[0] = ancho;
+    d->vista[1] = alto;
+    d->vista[2] = desde;
+    d->vista[3] = total;
 """
 end
 

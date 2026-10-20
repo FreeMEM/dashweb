@@ -257,6 +257,10 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         mui_timer(1, ID_RANGO)
     end
     imagenes_hasta(w.actual.im, w.desde, alto)
+    # lo que se ve, para el JavaScript (innerWidth/innerHeight, scrollY, getBoundingClientRect)
+    if w.actual.js != 0 and w.actual.pagina != nil
+        jsdom_vista(w.actual.js, ancho, alto, w.desde, w.actual.pagina.alto)
+    end
     pintor_foco = w.foco
     pintor_videos = w.actual.videos
     if mui_canvas_updating()

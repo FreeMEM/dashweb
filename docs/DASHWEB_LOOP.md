@@ -286,7 +286,7 @@ tarea, con el estilo de Dash.
       [x] 37a4. El JavaScript con sus caracteres: hoy los scripts pasan a Latin-1 (al traerlos y en el DOM) y lo que no
            cabe sale "?" ("https://тест"); por eso core-js descarta el URL de dashweb y pone el suyo. Dar a QuickJS el
            texto UTF-8 de los scripts (traídos y en línea) sin pasar por Latin-1, y punycode en URL.host.
-      37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
+      [x] 37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
            offsetTop/Left/Width/Height y offsetParent, getBoundingClientRect y getClientRects (respecto a lo que se
            ve), clientWidth/Height, scrollWidth/Height, window.innerWidth/innerHeight (la zona de dibujo),
            window.scrollY/pageYOffset y documentElement.scrollTop (el desplazamiento de la ventana). Con test.
@@ -2619,3 +2619,17 @@ Formato:
   rehacerla por un cambio, 1,38 s.
 - freemem.space igual (21,7 s, la misma captura). Base: 60/60 (937 s).
 - La sesión dashweb-f7 subió dev hasta 807292c y la fusionó en main (PR #3, merge 4f56d0b), por encargo del usuario.
+
+### 2026-10-20 — Tarea 37b (la geometría de la maqueta en el JavaScript)
+- lib/maqueta.dash: al acabar cada bloque (no al medir: `_midiendo` en _ancho_flotante) apunta su caja de borde y
+  uno de sus dibujos (`CajaNodo`); al acabar la maqueta (`_cajas_finales`) la caja se mueve lo que se movió ese
+  dibujo (flex, alineación, transform mueven los dibujos ya puestos) y va a los campos caja_* del Nodo; lo que va en
+  línea (a, span...) toma la unión de sus dibujos. El documento lleva el número de la maqueta (caja_pase): una caja
+  vale si es de la última (`jsdom_caja_valida`).
+- lib/jsdom.dash: `__dashweb_caja(n)` y `__dashweb_vista()`, `jsdom_vista(js, ancho, alto, desde, total)` (por motor;
+  src/dashweb.dash lo llama al pintar). offsetWidth/offsetHeight dan la caja (antes 100x16 fijos).
+- Preludio: getBoundingClientRect y getClientRects (restando el desplazamiento), offsetTop/Left/Parent
+  (position), clientWidth/Height y scrollWidth/Height (de la vista en documentElement), scrollTop de la raíz,
+  innerWidth/innerHeight, scrollY/pageYOffset, document.scrollingElement, DOMRect.
+- Test nuevo test_jsdom_geometria (margen+relleno+borde, flex-end, span, offsetParent relativo, display none,
+  desplazamiento). pre.opentimetrack.com carga igual (9,6 s, sin errores). Base: 61/61 (983 s); freemem.space 20,9 s.

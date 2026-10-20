@@ -116,10 +116,24 @@ func _hijos(n: Nodo) -> [Nodo]
     return r
 end
 
+# La caja de un bloque al maquetarlo y uno de sus dibujos: al acabar, la caja se mueve lo que se haya movido ese
+# dibujo (flex, alineación, transform... mueven los dibujos ya puestos)
+struct CajaNodo
+    nodo: Nodo
+    ref: Dibujo
+    rx: Int
+    ry: Int
+    x: Int
+    y: Int
+    w: Int
+    h: Int
+end
+
 struct Maquetador
     pagina: Pagina
     fuentes: {String: Int}
     topaz: Int
+    cajas: [CajaNodo] = nil
     blanco: Int = 0      # un blanco detrás de una imagen: el ancho del espacio que toma la pieza siguiente
     ancho_linea: Int = 0 # el ancho de las líneas del bloque que se está maquetando
 end
@@ -328,6 +342,8 @@ func maquetar(doc: Nodo, ancho: Int) -> Pagina
         _topaz = font_open("topaz.font", 8)
     end
     m = Maquetador(p, _fuentes_abiertas, _topaz)
+    var cajas: [CajaNodo] = []
+    m.cajas = cajas
     html = dom_buscar(doc, "html")
     if html == nil
         return p
@@ -339,8 +355,61 @@ func maquetar(doc: Nodo, ancho: Int) -> Pagina
         end
     end
     p.alto = _bloque(m, html, 0, 0, ancho)
+    _cajas_finales(m, doc)
     _por_capas(p)
     return p
+end
+
+# Las cajas de los elementos (tarea 37b): la de cada bloque, movida con su dibujo de referencia; la de lo que va en
+# línea (a, span...), la unión de lo que dibujan él y lo de dentro. El documento guarda el número de esta maqueta.
+func _cajas_finales(m: Maquetador, doc: Nodo)
+    pase = _maqueta_pase
+    doc.caja_pase = pase
+    for c in m.cajas
+        n = c.nodo
+        dx = 0
+        dy = 0
+        if c.ref != nil
+            dx = c.ref.x - c.rx
+            dy = c.ref.y - c.ry
+        end
+        n.caja_pase = pase
+        n.caja_bloque = pase
+        n.caja_x = c.x + dx
+        n.caja_y = c.y + dy
+        n.caja_w = c.w
+        n.caja_h = c.h
+    end
+    for d in m.pagina.dibujos
+        n = d.nodo
+        while n != nil and n.tipo == DOM_ELEMENTO and n.caja_bloque != pase
+            if n.caja_pase != pase
+                n.caja_pase = pase
+                n.caja_x = d.x
+                n.caja_y = d.y
+                n.caja_w = d.ancho
+                n.caja_h = d.alto
+            else
+                x1 = n.caja_x + n.caja_w
+                y1 = n.caja_y + n.caja_h
+                if d.x < n.caja_x
+                    n.caja_x = d.x
+                end
+                if d.y < n.caja_y
+                    n.caja_y = d.y
+                end
+                if d.x + d.ancho > x1
+                    x1 = d.x + d.ancho
+                end
+                if d.y + d.alto > y1
+                    y1 = d.y + d.alto
+                end
+                n.caja_w = x1 - n.caja_x
+                n.caja_h = y1 - n.caja_y
+            end
+            n = n.padre
+        end
+    end
 end
 
 # z-index: los dibujos de menor a mayor capa, sin cambiar el orden dentro de cada una
@@ -697,6 +766,18 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     # overflow (hidden, clip, auto, scroll): lo de dentro, recortado a su caja
     if _recorta(e)
         _recortar(m, inicio, x + ml, y + mt, x + ml + interior + bl + br + pl + pr - 1, y + mt + alto_caja - 1)
+    end
+    # su caja para el JavaScript (no al medir: _ancho_flotante maqueta en 0,0 para saber el ancho)
+    if _midiendo == 0 and m.cajas != nil
+        var ref: Dibujo = nil
+        rx = 0
+        ry = 0
+        if inicio < m.pagina.dibujos.length
+            ref = m.pagina.dibujos[inicio]
+            rx = ref.x
+            ry = ref.y
+        end
+        m.cajas.push(CajaNodo(n, ref, rx, ry, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja))
     end
     return mt + alto_caja + mb
 end
@@ -1613,6 +1694,8 @@ end
 # (maquetándolo aparte y deshaciendo lo dibujado)
 # Cada maqueta lleva su número: lo que se mide en ella (_ancho_flotante) vale hasta la siguiente
 var _maqueta_pase: Int = 0
+# > 0 mientras se maqueta solo para medir (no se apuntan cajas)
+var _midiendo: Int = 0
 
 # El ancho de h según su contenido, con ancho de sitio: flex, grid, tablas y flotantes lo piden varias veces por
 # elemento (mínimo, máximo, el de verdad) y cada medida maqueta todo lo de dentro, que a su vez mide a sus hijos:
@@ -1678,7 +1761,9 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     end
     # de lo más a la izquierda a lo más a la derecha (con texto centrado, el borde derecho no basta)
     antes = m.pagina.dibujos.length
+    _midiendo = _midiendo + 1
     _bloque_de(m, h, 0, 0, ancho, ancho)
+    _midiendo = _midiendo - 1
     derecha = 0
     izquierda = ancho
     i = antes

@@ -45,6 +45,14 @@ struct Nodo
     af_h3: Int = 0
     af_v3: Int = 0
     af_n: Int = 0
+    # la caja (borde incluido) en la última maqueta del documento, en coordenadas de la página (lib/maqueta.dash;
+    # la leen getBoundingClientRect y offset* del JavaScript): vale si caja_pase es el caja_pase del documento
+    caja_pase: Int = 0
+    caja_bloque: Int = 0     # = caja_pase si la puso la maqueta de su bloque (si no, la unión de sus dibujos)
+    caja_x: Int = 0
+    caja_y: Int = 0
+    caja_w: Int = 0
+    caja_h: Int = 0
 end
 
 # Un cambio del JavaScript, apuntado en el documento para rehacer después solo el estilo al que afecta
