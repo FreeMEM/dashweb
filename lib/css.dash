@@ -119,6 +119,8 @@ func _css_buscar(s: String, c: Int, desde: Int) -> Int
             elif x == comilla
                 comilla = 0
             end
+        elif x == 92
+            i = i + 1
         elif x == 34 or x == 39
             comilla = x
         elif x == c and nivel == 0
@@ -149,6 +151,8 @@ func _css_cierre(s: String, i: Int) -> Int
             elif x == comilla
                 comilla = 0
             end
+        elif x == 92
+            j = j + 1
         elif x == 34 or x == 39
             comilla = x
         elif x == 123
@@ -212,6 +216,85 @@ func _css_nombre(c: Int) -> Bool
     return (c >= 97 and c <= 122) or (c >= 65 and c <= 90) or (c >= 48 and c <= 57) or c == 45 or c == 95 or c >= 160 or c == 92
 end
 
+# Dónde acaba el nombre que empieza en i: letras, cifras, "-", "_", Latin-1 alto y escapes (CSS Syntax 3:
+# "\" y un carácter, o "\" y de 1 a 6 cifras hex con un espacio detrás que no cuenta)
+func _css_fin_nombre(s: String, i: Int) -> Int
+    n = s.length
+    j = i
+    while j < n
+        c = str_code(s, j)
+        if c == 92 and j + 1 < n
+            k = j + 1
+            while k < n and k < j + 7 and _css_hex(str_code(s, k))
+                k = k + 1
+            end
+            if k == j + 1
+                j = j + 2
+            else
+                if k < n and (str_code(s, k) == 32 or str_code(s, k) == 9 or str_code(s, k) == 10)
+                    k = k + 1
+                end
+                j = k
+            end
+        elif c != 92 and _css_nombre(c)
+            j = j + 1
+        else
+            return j
+        end
+    end
+    return j
+end
+
+func _css_hex(c: Int) -> Bool
+    return (c >= 48 and c <= 57) or (c >= 97 and c <= 102) or (c >= 65 and c <= 70)
+end
+
+# El nombre sin sus escapes: "md\:grid" -> "md:grid", "\31 0" -> "10" (lo que no cabe en Latin-1, "?")
+func css_desescapar(t: String) -> String
+    if str_find(t, "\\") < 0
+        return t
+    end
+    r = ""
+    n = t.length
+    i = 0
+    while i < n
+        c = str_code(t, i)
+        if c == 92 and i + 1 < n
+            k = i + 1
+            v = 0
+            while k < n and k < i + 7 and _css_hex(str_code(t, k))
+                h = str_code(t, k)
+                if h <= 57
+                    v = v * 16 + h - 48
+                elif h <= 70
+                    v = v * 16 + h - 55
+                else
+                    v = v * 16 + h - 87
+                end
+                k = k + 1
+            end
+            if k == i + 1
+                r = r + t[i + 1:i + 2]
+                i = i + 2
+            else
+                if k < n and (str_code(t, k) == 32 or str_code(t, k) == 9 or str_code(t, k) == 10)
+                    k = k + 1
+                end
+                if v > 0 and v <= 255
+                    r = r + str_char(v)
+                else
+                    r = r + "?"
+                end
+                i = k
+            end
+        else
+            r = r + t[i:i + 1]
+            i = i + 1
+        end
+    end
+    return r
+end
+
 # Un selector completo (sin comas); nil si no se entiende
 func css_selector(texto: String) -> Selector
     s = str_trim(texto)
@@ -248,11 +331,8 @@ func css_selector(texto: String) -> Selector
             vacio = false
             i = i + 1
         elif c == 35 or c == 46
-            j = i + 1
-            while j < n and _css_nombre(str_code(s, j))
-                j = j + 1
-            end
-            nombre = s[i + 1:j]
+            j = _css_fin_nombre(s, i + 1)
+            nombre = css_desescapar(s[i + 1:j])
             if c == 35
                 actual.id = nombre
                 ids = ids + 1
@@ -323,11 +403,8 @@ func css_selector(texto: String) -> Selector
             vacio = false
             i = j
         elif _css_nombre(c)
-            j = i
-            while j < n and _css_nombre(str_code(s, j))
-                j = j + 1
-            end
-            actual.etiqueta = str_lower(s[i:j])
+            j = _css_fin_nombre(s, i)
+            actual.etiqueta = str_lower(css_desescapar(s[i:j]))
             tipos = tipos + 1
             vacio = false
             i = j

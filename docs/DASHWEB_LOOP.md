@@ -266,7 +266,7 @@ tarea, con el estilo de Dash.
       Subtareas, por orden:
       [x] 37a. Primera carga: cómo sale hoy (captura, traza, errores de JavaScript, memoria: ver la 28j, Next.js sin
            memoria), y apuntar aquí lo que falte que no esté en la lista.
-      37a1. Escapes de CSS en los selectores (`\:`, `\[`, `\]`, `\.`, `\/`, `\%` y los de hex, `\31 `): Tailwind los usa
+      [x] 37a1. Escapes de CSS en los selectores (`\:`, `\[`, `\]`, `\.`, `\/`, `\%` y los de hex, `\31 `): Tailwind los usa
            en todas sus variantes y valores a medida (`.md\:grid-cols-12`, `.h-\[1\.35em\]`) y hoy esas reglas se
            pierden: la cabecera sale en una columna y el logo (svg con h-[1.35em]) gigante. Con test.
       37a2. URL y URLSearchParams (es la 32b): el runtime de Turbopack cae al empezar ("'URL' is not defined", turbopack-
@@ -2506,3 +2506,13 @@ Formato:
   JavaScript cae al empezar: `ReferenceError: 'URL' is not defined` en el runtime de Turbopack, así que Next.js,
   React y GSAP no arrancan. (3) La maqueta tarda 21,7 s. Apuntadas como 37a1, 37a2 y 37a3, delante de la 37b.
 - Nueva tarea 38 (youtube.com), después de la 37, a petición del usuario.
+
+### 2026-10-20 — Tarea 37a1 (escapes de CSS en los selectores)
+- lib/css.dash: `_css_fin_nombre` lee los nombres de clase, id y etiqueta con sus escapes (CSS Syntax 3: "\" y un
+  carácter, o "\" y 1-6 cifras hex con un espacio que no cuenta) y `css_desescapar` los quita (lo que no cabe en
+  Latin-1, "?"). `_css_buscar` y `_css_cierre` se saltan lo escapado fuera de comillas (un `\{` o `\,` ya no corta).
+  Test nuevo test_css_escapes: los de Tailwind (`.md\:grid-cols-12`, `.h-\[1\.35em\]`, `.w-1\/2`), hex (`.\31 0`),
+  dentro de @layer y @media, especificidad, y desde querySelectorAll.
+- pre.opentimetrack.com (rtg): la cabecera en dos columnas, el logo a su tamaño, las fichas al lado; la maqueta
+  pasa de 21,7 s a 6,7 s y la carga de 28,4 s a 13,2 s. Captura enviada.
+- Base: 57/57 (761 s).
