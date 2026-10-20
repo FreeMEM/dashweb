@@ -39,6 +39,14 @@ struct Documento
     remaquetada: Bool = false  # documento_imagenes volvió a maquetar (hay que repintar sí o sí)
     anims: [Animacion] = nil   # las animaciones de CSS de la última maqueta (lib/animacion.dash; tarea 37d2)
     anim_t0: Int = 0           # time_ms de su principio (la primera maqueta): su reloj
+    svgs: [SvgAnimado] = nil   # los <svg> con animaciones dentro (se rasterizan otra vez en cada fotograma; 37d4)
+end
+
+# Un <svg> de la página con animaciones de CSS en sus elementos (la curva de trainalong.fit: stroke-dashoffset)
+struct SvgAnimado
+    svg: Nodo
+    anims: [Animacion]
+    acabado: Bool = false
 end
 
 # Las imágenes que llegan se pintan juntas: mientras siguen llegando, como mucho cada tanto (pintar
@@ -334,6 +342,13 @@ func _documento_vistas(d: Documento)
     end
     if d.hojas != nil
         d.anims = animaciones_pagina(d.pagina, d.hojas)
+        var svgs: [SvgAnimado] = []
+        _documento_svgs(d, d.doc, svgs)
+        d.svgs = svgs
+        # su primer fotograma ya, antes de pintar (si no, se veía un momento su estado final: la curva entera)
+        if svgs.length > 0
+            _documento_animar_svgs(d)
+        end
     end
     imagenes_posicion(d.im, "", 0, true)
     for dib in d.pagina.dibujos
@@ -347,15 +362,113 @@ end
 # Un fotograma de las animaciones de CSS (tarea 37d2): mueve y vela lo dibujado de cada elemento animado según
 # el tiempo desde que se maquetó la página por primera vez; true si alguna sigue viva (hará falta otro)
 func documento_animar(d: Documento) -> Bool
-    if d.pagina == nil or d.anims == nil or d.anims.length == 0
+    if d.pagina == nil
         return false
     end
-    return animar(d.pagina, d.anims, time_ms() - d.anim_t0)
+    viva = false
+    if d.anims != nil and d.anims.length > 0
+        viva = animar(d.pagina, d.anims, time_ms() - d.anim_t0)
+    end
+    if d.svgs != nil and d.svgs.length > 0 and _documento_animar_svgs(d)
+        viva = true
+    end
+    return viva
 end
 
 # ¿Tiene animaciones de CSS?
 func documento_animado(d: Documento) -> Bool
-    return d.pagina != nil and d.anims != nil and d.anims.length > 0
+    return d.pagina != nil and ((d.anims != nil and d.anims.length > 0) or (d.svgs != nil and d.svgs.length > 0))
+end
+
+# Los <svg> ya puestos como imagen con animaciones en lo de dentro
+func _documento_svgs(d: Documento, n: Nodo, r: [SvgAnimado])
+    if n.tipo != DOM_ELEMENTO and n.tipo != DOM_DOCUMENTO
+        return
+    end
+    if n.tipo == DOM_ELEMENTO and n.nombre == "svg"
+        if dom_atributo(n, "data-dashweb-svg") != ""
+            var anims: [Animacion] = []
+            _documento_svg_anims(d, n, anims)
+            if anims.length > 0
+                r.push(SvgAnimado(n, anims))
+            end
+        end
+        return
+    end
+    for h in n.hijos
+        _documento_svgs(d, h, r)
+    end
+end
+
+func _documento_svg_anims(d: Documento, n: Nodo, r: [Animacion])
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO
+            for a in animaciones_de(h, d.hojas)
+                r.push(a)
+            end
+            _documento_svg_anims(d, h, r)
+        end
+    end
+end
+
+# Un fotograma de cada <svg> animado: los valores de este instante en svg_sobre de sus elementos (stroke-dashoffset,
+# opacity, fill, stroke...; scale de un <circle>, en su r) y otra vez rasterizado. Acabadas sus animaciones, se
+# deja en su estado final y ya no se toca. true si alguno sigue vivo.
+func _documento_animar_svgs(d: Documento) -> Bool
+    viva = false
+    t = time_ms() - d.anim_t0
+    for g in d.svgs
+        if g.acabado
+            continue
+        end
+        alguna = false
+        for a in g.anims
+            if a.vueltas < 0 or t < a.retardo + a.vueltas / 100 * a.duracion / 10
+                alguna = true
+            end
+            prog = animacion_progreso(a, t)
+            var sobre: {String: String} = {}
+            if prog >= 0
+                for p in ["stroke-dashoffset", "stroke-dasharray", "opacity", "fill-opacity", "stroke-opacity", "fill", "stroke", "stroke-width"]
+                    v = animacion_valor(a, p, prog)
+                    if v != ""
+                        sobre[p] = v
+                    end
+                end
+                tr = animacion_valor(a, "transform", prog)
+                if tr != "" and a.nodo.nombre == "circle" and dom_atributo(a.nodo, "r") != ""
+                    s = maqueta_escala(tr)
+                    sobre["@r"] = animacion_mezcla("0", dom_atributo(a.nodo, "r"), s[0])
+                end
+            else
+                # antes de empezar (su retardo), como estaba debajo de la animación
+                for p in ["stroke-dashoffset", "opacity", "transform"]
+                    if a.nodo.estilo.has("~" + p) and animacion_valor(a, p, 0) != ""
+                        sobre[p] = a.nodo.estilo["~" + p]
+                    end
+                end
+                if sobre.has("transform")
+                    if a.nodo.nombre == "circle" and dom_atributo(a.nodo, "r") != ""
+                        s = maqueta_escala(sobre["transform"])
+                        sobre["@r"] = animacion_mezcla("0", dom_atributo(a.nodo, "r"), s[0])
+                    end
+                    sobre.remove("transform")
+                end
+            end
+            a.nodo.svg_sobre = sobre
+        end
+        imagenes_svg_rehacer(d.im, g.svg)
+        for a in g.anims
+            var nada: {String: String} = nil
+            a.nodo.svg_sobre = nada
+        end
+        if not alguna
+            g.acabado = true
+        else
+            viva = true
+        end
+    end
+    return viva
 end
 
 # Si el JavaScript cambió el documento desde la última maqueta: estilo, imágenes y maqueta otra vez
@@ -516,6 +629,8 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
                 # (un dibujo animado: su sitio de antes de animarse va con él)
                 dib.bx = dib.bx + dx
                 dib.by = dib.by + dy
+                dib.bcx = dib.bcx + dx
+                dib.bcy = dib.bcy + dy
             end
         end
         if vis

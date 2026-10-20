@@ -87,6 +87,8 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
                 _icono_pintar(d, x, y)
             end
+        elif d.tipo == D_ELIPSE and d.espaciado > 0 and d.estilo == 0
+            _elipse_mezcla(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_ELIPSE
             if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
                 _elipse_pintar(d, x, y)
@@ -616,6 +618,24 @@ end
 
 # Un color semitransparente mezclado con lo que hay debajo (gfx_blend_rect: en RTG de verdad, en pantallas de
 # paleta un tramado)
+# Una elipse rellena y semitransparente (la sombra de una caja redonda: el pulso de "late" en trainalong.fit; tarea
+# 37d3): fila a fila, cada tramo mezclado como un rectángulo
+func _elipse_mezcla(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    if d.ancho <= 0 or d.alto <= 0
+        return
+    end
+    rx = d.ancho / 2
+    cx = x + rx
+    for f in (0..d.alto - 1)
+        # la fila en medios píxeles desde el centro: de -alto a alto
+        dy = f * 2 + 1 - d.alto
+        mitad = _raiz(rx * rx * (d.alto * d.alto - dy * dy)) / d.alto
+        if mitad > 0
+            _mezcla_recortada(cx - mitad, y + f, mitad * 2, 1, x0, y0, x1, y1, d.color, d.espaciado)
+        end
+    end
+end
+
 func _mezcla_recortada(x: Int, y: Int, ancho: Int, alto: Int, x0: Int, y0: Int, x1: Int, y1: Int, rgb: Int, alfa: Int)
     a = x
     b = y

@@ -1672,6 +1672,7 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
             end
         end
     end
+    var debajo: [Declaracion] = nil
     if ganadoras.has("animation") or ganadoras.has("animation-name") or ganadoras.has("-webkit-animation")
         final = _animacion_final(ganadoras, hojas)
         if final.length > 0
@@ -1680,13 +1681,24 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
             for k in ganadoras.keys()
                 con[k] = ganadoras[k]
             end
+            # (lo que había debajo del estado final: el origen de una animación sin fotograma 0 %, tarea 37d4)
+            var bajo: [Declaracion] = []
             for d in final
+                if ganadoras.has(d.propiedad)
+                    bajo.push(Declaracion(d.propiedad, ganadoras[d.propiedad].valor, false))
+                end
                 _declarar(con, Declaracion(d.propiedad, d.valor, false), true, 2000000000, 2000000)
             end
+            debajo = bajo
             ganadoras = con
         end
     end
     e = _calcular(ganadoras, padre, padre_vars, "inline")
+    if debajo != nil
+        for d in debajo
+            e["~" + d.propiedad] = d.valor
+        end
+    end
     vars = _calc_vars
     if _oculto_a_la_vista(e)
         e["display"] = "none"

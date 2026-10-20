@@ -152,6 +152,7 @@ typedef struct NSVGshape
 	float strokeDashOffset;		// Stroke dash offset (scaled).
 	float strokeDashArray[8];	// Stroke dash array (scaled).
 	char strokeDashCount;		// Number of dash values in dash array.
+	float pathLength;			// dashweb: the pathLength attribute (scaled), 0 if none: dashes are relative to it
 	char strokeLineJoin;		// Stroke join type.
 	char strokeLineCap;			// Stroke cap type.
 	float miterLimit;			// Miter limit
@@ -434,6 +435,7 @@ typedef struct NSVGattrib
 	float strokeDashOffset;
 	float strokeDashArray[NSVG_MAX_DASHES];
 	int strokeDashCount;
+	float pathLength;
 	char strokeLineJoin;
 	char strokeLineCap;
 	float miterLimit;
@@ -784,6 +786,7 @@ static void nsvg__pushAttr(NSVGparser* p)
 	if (p->attrHead < NSVG_MAX_ATTR-1) {
 		p->attrHead++;
 		memcpy(&p->attr[p->attrHead], &p->attr[p->attrHead-1], sizeof(NSVGattrib));
+		p->attr[p->attrHead].pathLength = 0.0f;	/* dashweb: not inherited */
 	}
 }
 
@@ -1000,6 +1003,7 @@ static void nsvg__addShape(NSVGparser* p)
 	shape->strokeDashCount = (char)attr->strokeDashCount;
 	for (i = 0; i < attr->strokeDashCount; i++)
 		shape->strokeDashArray[i] = attr->strokeDashArray[i] * scale;
+	shape->pathLength = attr->pathLength * scale;
 	shape->strokeLineJoin = attr->strokeLineJoin;
 	shape->strokeLineCap = attr->strokeLineCap;
 	shape->miterLimit = attr->miterLimit;
@@ -1897,6 +1901,8 @@ static int nsvg__parseAttr(NSVGparser* p, const char* name, const char* value)
 		attr->strokeWidth = nsvg__parseCoordinate(p, value, 0.0f, nsvg__actualLength(p));
 	} else if (strcmp(name, "stroke-dasharray") == 0) {
 		attr->strokeDashCount = nsvg__parseStrokeDashArray(p, value, attr->strokeDashArray);
+	} else if (strcmp(name, "pathLength") == 0) {
+		attr->pathLength = nsvg__atof(value);
 	} else if (strcmp(name, "stroke-dashoffset") == 0) {
 		attr->strokeDashOffset = nsvg__parseCoordinate(p, value, 0.0f, nsvg__actualLength(p));
 	} else if (strcmp(name, "stroke-opacity") == 0) {
@@ -3137,6 +3143,7 @@ static void nsvg__scaleToViewbox(NSVGparser* p, const char* units)
 		shape->strokeDashOffset *= avgs;
 		for (i = 0; i < shape->strokeDashCount; i++)
 			shape->strokeDashArray[i] *= avgs;
+		shape->pathLength *= avgs;
 	}
 }
 

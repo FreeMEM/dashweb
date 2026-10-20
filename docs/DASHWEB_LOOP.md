@@ -301,12 +301,12 @@ tarea, con el estilo de Dash.
            viva y repintar (solo la parte que cambia si se puede); transitions al cambiar style o clases desde el
            JavaScript (lo que hace GSAP con CSS). Medir el coste en la máquina rtg. Probar con trainalong.fit (la curva
            que se dibuja, el punto que parpadea) y pre.opentimetrack.com (revelar, parpadeo, invita, pista-baja).
-      37d3. Más propiedades en los fotogramas (lib/animacion.dash `animar` solo mueve con translate y vela con
+      [x] 37d3. Más propiedades en los fotogramas (lib/animacion.dash `animar` solo mueve con translate y vela con
            opacity < 0,5): scale (posición y tamaño de las cajas; el texto se queda en su letra), box-shadow (el pulso
            de "late" en trainalong.fit, "invita" en pre.opentimetrack.com), color y background-color (recolorear
            los dibujos), opacity de verdad en los fondos (ya se mezclan), clip-path: inset(). Repintar solo la caja de
            lo animado, no la página entera.
-      37d4. SVG animado: trainalong.fit dibuja su curva con stroke-dasharray/stroke-dashoffset (@keyframes dibuja) y
+      [x] 37d4. SVG animado: trainalong.fit dibuja su curva con stroke-dasharray/stroke-dashoffset (@keyframes dibuja) y
            hace crecer sus círculos con transform: scale dentro del SVG. Hace falta: los guiones en el rasterizado
            (nanosvg no los tiene: añadirlos), las animaciones de los elementos de dentro del SVG, y volver a
            rasterizarlo en cada fotograma mientras dure (2,6 s una vez).
@@ -2697,3 +2697,24 @@ Formato:
   Apuntadas 37d3 (scale, box-shadow, colores, clip-path; repintar solo lo animado) y 37d4 (SVG animado:
   guiones en nanosvg y volver a rasterizar).
 - Base: 62/62 (1028 s); freemem.space 21,7 s.
+
+### 2026-10-20 — Tareas 37d3 y 37d4 (más propiedades en los fotogramas; SVG animado)
+- 37d3: `animar` (lib/animacion.dash) escala alrededor del centro de la caja (cajas e imágenes de tamaño; el texto
+  solo de sitio, velado por debajo de 0,3), recolorea (color, background-color) y rehace la sombra (box-shadow:
+  `maqueta_sombra`, con la caja del elemento guardada en el dibujo de la sombra: Dibujo.sombra, cx, cy, cw, ch y
+  su base bcx, bcy; `_mover` la mueve con él). Una sombra que el estado final de su animación deja transparente se
+  crea igual, velada. Lo de antes de animarse (bw, bh, bcolor, bespaciado) vuelve al acabar. El mezclador junta un
+  0 sin unidad con 10px (`_ceros_px`, fuera de paréntesis: el alfa 0 de un rgba() se queda). El pintor mezcla las
+  elipses semitransparentes (`_elipse_mezcla`, fila a fila). trainalong.fit: el punto de "En construcción" late
+  (box-shadow de 0 a 10 px desvaneciéndose).
+- 37d4: los <svg> con animaciones dentro (`SvgAnimado` en lib/documento.dash) se reescriben y rasterizan otra vez
+  en cada fotograma (`imagenes_svg_rehacer`) con los valores del instante en `Nodo.svg_sobre` (propiedades, o "@r"
+  para un atributo: el scale de un <circle>, en su r). El SVG lleva ya stroke-dasharray y stroke-dashoffset, y
+  pathLength con su caja (_svg_nombre). nanosvg (third_party): pathLength (los guiones relativos a él, escalados
+  por la longitud de verdad) y sin fmodf de -lm en los guiones. lib/estilo.dash guarda lo que hay debajo del estado
+  final de una animación en "~propiedad": el origen de una animación sin fotograma 0 % (la curva iba de 0 a 0).
+  Primer fotograma antes de pintar (si no, la curva entera un momento).
+- trainalong.fit: la curva se dibuja al cargar, a saltos (~4 fotogramas en 1,5 s: rasterizar su SVG de 1100x1100
+  cuesta ~0,5 s en la máquina rtg; mejorable rasterizando solo la zona del trazo). Capturas enviadas.
+- Tests: test_animacion (scale, color, box-shadow) y test_svg_guiones (nuevo: guiones y pathLength en el emulador).
+  Base: 63/63 (1035 s); freemem.space 22,3 s.

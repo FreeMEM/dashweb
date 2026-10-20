@@ -603,6 +603,48 @@ func _imagenes_svg(im: Imagenes, n: Nodo)
     end
 end
 
+# Vuelve a escribir y rasterizar un <svg> ya puesto (un fotograma de las animaciones de lo de dentro, con sus
+# svg_sobre: tarea 37d4) y cambia su imagen por la nueva; false si no se pudo (se queda la que había)
+func imagenes_svg_rehacer(im: Imagenes, n: Nodo) -> Bool
+    fichero = dom_atributo(n, "data-dashweb-svg")
+    if fichero == "" or not im.por_src.has(fichero)
+        return false
+    end
+    raiz = n
+    while raiz.padre != nil
+        raiz = raiz.padre
+    end
+    color = "#000000"
+    if n.estilo.has("color") and css_color(n.estilo["color"]) >= 0
+        color = _hex6(css_color(n.estilo["color"]))
+    end
+    texto = _svg_elemento(n, raiz, true, svg_ancho(n), svg_alto(n))
+    texto = str_replace(str_replace(str_replace(texto, "currentColor", color), "currentcolor", color), "CurrentColor", color)
+    temporal = fichero + ".f"
+    if not file_write_text(temporal, texto)
+        return false
+    end
+    nueva = imagen_cargar_a(temporal, IMAGEN_MAX_ANCHO, IMAGEN_MAX_ALTO)
+    file_delete(temporal)
+    if nueva == 0
+        return false
+    end
+    # las copias a otro tamaño de la vieja ya no valen
+    var fuera: [String] = []
+    for clave in im.escaladas.keys()
+        if str_starts(clave, fichero + " ")
+            fuera.push(clave)
+        end
+    end
+    for clave in fuera
+        image_free(im.escaladas[clave])
+        im.escaladas.remove(clave)
+    end
+    image_free(im.por_src[fichero])
+    im.por_src[fichero] = nueva
+    return true
+end
+
 func _oculto_svg(n: Nodo) -> Bool
     return n.estilo.has("display") and n.estilo["display"] == "none"
 end
@@ -652,6 +694,8 @@ func _svg_nombre(x: String) -> String
         return "clipPathUnits"
     elif x == "patternunits"
         return "patternUnits"
+    elif x == "pathlength"
+        return "pathLength"
     end
     return x
 end
@@ -700,12 +744,24 @@ func _svg_elemento(n: Nodo, raiz: Nodo, es_raiz: Bool, w: Int, h: Int) -> String
         if str_starts(a.nombre, "on")
             continue
         end
-        r = r + " " + _svg_nombre(a.nombre) + "=\"" + _svg_escapar(a.valor) + "\""
+        v = a.valor
+        if n.svg_sobre != nil and n.svg_sobre.has("@" + a.nombre)
+            v = n.svg_sobre["@" + a.nombre]
+        end
+        r = r + " " + _svg_nombre(a.nombre) + "=\"" + _svg_escapar(v) + "\""
     end
-    # lo que le da el CSS de la página
-    for p in ["fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "opacity", "fill-rule", "stroke-linecap", "stroke-linejoin"]
+    # lo que le da el CSS de la página (con los guiones: la curva de trainalong.fit se dibuja con ellos)
+    for p in ["fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "opacity", "fill-rule", "stroke-linecap", "stroke-linejoin", "stroke-dasharray", "stroke-dashoffset"]
         if n.estilo.has(p)
             estilo = estilo + ";" + p + ":" + n.estilo[p]
+        end
+    end
+    # y lo de este fotograma de su animación (tarea 37d4)
+    if n.svg_sobre != nil
+        for k in n.svg_sobre.keys()
+            if not str_starts(k, "@")
+                estilo = estilo + ";" + k + ":" + n.svg_sobre[k]
+            end
         end
     end
     if estilo != ""

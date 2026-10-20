@@ -66,6 +66,19 @@ struct Dibujo
     bx: Int = 0
     by: Int = 0
     velado: Bool = false
+    # (y su tamaño, color y mezcla de antes: scale, color y box-shadow animados, tarea 37d3)
+    bw: Int = 0
+    bh: Int = 0
+    bcolor: Int = 0
+    bespaciado: Int = 0
+    # la sombra (box-shadow) de una caja, con la caja del elemento (para volver a ponerla en cada fotograma)
+    sombra: Bool = false
+    cx: Int = 0
+    cy: Int = 0
+    cw: Int = 0
+    ch: Int = 0
+    bcx: Int = 0         # (cx, cy antes de animarse)
+    bcy: Int = 0
 end
 
 struct Pagina
@@ -590,11 +603,21 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     sombra_v = [0, 0, 0, 0]
     if e.has("box-shadow") and e["box-shadow"] != "none"
         sombra = _sombra(e["box-shadow"], estilo_px(_val(e, "font-size", "16px"), 0, 0), sombra_v)
+        if sombra == nil and (e.has("animation") or e.has("animation-name"))
+            # una sombra que no se ve ahora (el estado final de su animación: "late" acaba transparente) pero que
+            # los fotogramas sí enseñan (tarea 37d3): velada
+            sombra = _dibujo(D_RECT, 0, 0, 0, 0, 0)
+            sombra.velado = true
+        end
         if sombra != nil
             sombra.x = x + ml + sombra_v[0] - sombra_v[3]
             sombra.y = y + mt + sombra_v[1] - sombra_v[3]
             sombra.ancho = interior + bl + br + pl + pr + sombra_v[3] * 2
             sombra.nodo = n
+            sombra.sombra = true
+            sombra.cx = x + ml
+            sombra.cy = y + mt
+            sombra.cw = interior + bl + br + pl + pr
             m.pagina.dibujos.push(sombra)
         end
     end
@@ -721,7 +744,11 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     end
     if sombra != nil
         sombra.alto = alto_caja + sombra_v[3] * 2
-        if radios != 0
+        sombra.ch = alto_caja
+        if redonda
+            sombra.tipo = D_ELIPSE
+            sombra.estilo = 0
+        elif radios != 0
             sombra.radio = radios
             sombra.tipo = D_REDONDO
             sombra.estilo = 0
@@ -1241,6 +1268,58 @@ func maqueta_desplazamiento(t: String, ancho: Int, alto: Int, em: Int) -> [Int]
     return [dx, dy]
 end
 
+# La escala de un transform (scale, scaleX, scaleY, scale3d), [x, y] en milésimas (1000: ninguna)
+func maqueta_escala(t: String) -> [Int]
+    sx = 1000
+    sy = 1000
+    resto = str_lower(t)
+    while true
+        p = str_find(resto, "(")
+        if p < 0
+            break
+        end
+        c = _cierre(resto, p)
+        if c < 0
+            break
+        end
+        f = str_trim(resto[:p])
+        args = _transform_args(resto[p + 1:c])
+        resto = resto[c + 1:]
+        if (f == "scale" or f == "scale3d") and args.length > 0
+            a = _mil(args[0])
+            b = a
+            if args.length > 1
+                b = _mil(args[1])
+            end
+            sx = sx * a / 1000
+            sy = sy * b / 1000
+        elif f == "scalex" and args.length > 0
+            sx = sx * _mil(args[0]) / 1000
+        elif f == "scaley" and args.length > 0
+            sy = sy * _mil(args[0]) / 1000
+        end
+    end
+    return [sx, sy]
+end
+
+# Una sombra (box-shadow) con otro valor (un fotograma): sobre la caja del elemento que guarda el dibujo, movida dx,
+# dy; velada si no se ve (transparente)
+func maqueta_sombra(d: Dibujo, valor: String, em: Int, dx: Int, dy: Int)
+    v = [0, 0, 0, 0]
+    t = _sombra(valor, em, v)
+    if t == nil
+        d.velado = true
+        return
+    end
+    d.velado = false
+    d.color = t.color
+    d.espaciado = t.espaciado
+    d.x = d.cx + dx + v[0] - v[3]
+    d.y = d.cy + dy + v[1] - v[3]
+    d.ancho = d.cw + v[3] * 2
+    d.alto = d.ch + v[3] * 2
+end
+
 # El paréntesis que cierra el abierto en p (con calc() y otros dentro); -1 si no hay
 func _cierre(v: String, p: Int) -> Int
     nivel = 0
@@ -1698,6 +1777,10 @@ end
 func _mover(d: Dibujo, dx: Int, dy: Int)
     d.x = d.x + dx
     d.y = d.y + dy
+    if d.sombra
+        d.cx = d.cx + dx
+        d.cy = d.cy + dy
+    end
     if d.recorte
         d.rx0 = d.rx0 + dx
         d.rx1 = d.rx1 + dx

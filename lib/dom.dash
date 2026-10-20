@@ -59,6 +59,9 @@ struct Nodo
     lig_dx: Int = 0
     lig_dy: Int = 0
     lig_vis: Bool = false
+    # lib/imagenes.dash, al volver a escribir un <svg> en un fotograma de sus animaciones: lo que cambia en este
+    # elemento ("@r": un atributo; lo demás, propiedades de su style); nil si nada
+    svg_sobre: {String: String} = nil
 end
 
 # Un cambio del JavaScript, apuntado en el documento para rehacer después solo el estilo al que afecta
