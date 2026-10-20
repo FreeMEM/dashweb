@@ -290,7 +290,7 @@ tarea, con el estilo de Dash.
            offsetTop/Left/Width/Height y offsetParent, getBoundingClientRect y getClientRects (respecto a lo que se
            ve), clientWidth/Height, scrollWidth/Height, window.innerWidth/innerHeight (la zona de dibujo),
            window.scrollY/pageYOffset y documentElement.scrollTop (el desplazamiento de la ventana). Con test.
-      37c. Desplazar y JavaScript: evento scroll en window y document al desplazar (como mucho uno por tic);
+      [x] 37c. Desplazar y JavaScript: evento scroll en window y document al desplazar (como mucho uno por tic);
            scrollTo, scrollBy y scrollIntoView mueven la vista de verdad. Con test.
       37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
            opacity o transform (lo que hace GSAP), repintar sin rehacer la maqueta. Medir el coste por fotograma.
@@ -2633,3 +2633,16 @@ Formato:
   innerWidth/innerHeight, scrollY/pageYOffset, document.scrollingElement, DOMRect.
 - Test nuevo test_jsdom_geometria (margen+relleno+borde, flex-end, span, offsetParent relativo, display none,
   desplazamiento). pre.opentimetrack.com carga igual (9,6 s, sin errores). Base: 61/61 (983 s); freemem.space 20,9 s.
+
+### 2026-10-20 — Tarea 37c (el desplazamiento y el JavaScript)
+- Preludio: scrollTo/scroll/scrollBy de window, scrollIntoView (start, center, end, nearest), scrollTo/scrollBy y
+  scrollTop de la raíz dejan la petición en `__dashweb_desplazar` (recortada a la página) y scrollY ya la ve;
+  `__dashweb_desplazado` lanza scroll en document (sube a window).
+- lib/jsdom.dash: `jsdom_desplazamiento(js)` (la petición, -1 si ninguna) y `jsdom_desplazado(js)`.
+- src/dashweb.dash: tras los temporizadores (y los clics) se aplica la petición (`desplazamiento_del_js`); al
+  moverse la vista (la barra, la rueda, las teclas, la petición) `aviso_scroll` y, en el siguiente tic (programar:
+  30 ms), `avisar_desplazamiento`: la vista al JavaScript y el evento, uno por tic.
+- pre.opentimetrack.com bajando con la barra espaciadora (`--acciones`): cuatro eventos scroll, cada uno en
+  ~1,4 s, y GSAP responde cambiando estilos (5, 4, 1, 3 cambios...); cada cambio rehace la maqueta (1,3 s: la 37d).
+  Faltan los elementos que GSAP deja fijos al bajar (grandes huecos). Capturas enviadas.
+- test_jsdom_geometria con scrollTo, scrollBy y los eventos. Base: 61/61 (990 s); freemem.space 21,8 s.

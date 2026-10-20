@@ -1333,6 +1333,35 @@ end
 """
 end
 
+# El desplazamiento que pidió el JavaScript (scrollTo, scrollIntoView, scrollTop...), en px desde arriba de la
+# página; -1 si ninguno. Lo olvida.
+@native(borrow) func jsdom_desplazamiento(js: Int) -> Int
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue g, v;
+    int32_t y = -1;
+    if (!m || !m->extra) return -1;
+    g = JS_GetGlobalObject(m->ctx);
+    v = JS_GetPropertyStr(m->ctx, g, "__dashweb_desplazar");
+    if (JS_IsNumber(v)) {
+        JS_ToInt32(m->ctx, &y, v);
+        JS_SetPropertyStr(m->ctx, g, "__dashweb_desplazar", JS_UNDEFINED);
+    }
+    JS_FreeValue(m->ctx, v);
+    JS_FreeValue(m->ctx, g);
+    return y;
+"""
+end
+
+# La vista se ha movido: el evento scroll en document (y window) para el JavaScript
+@native(borrow) func jsdom_desplazado(js: Int)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    if (!m || !m->extra) return;
+    JS_FreeValue(m->ctx, _jsdom_llamar(m->ctx, "__dashweb_desplazado", 0, NULL));
+"""
+end
+
 # Cuántas veces cambió el JS el documento desde jsdom_preparar
 @native(borrow) func jsdom_cambios(js: Int) -> Int
 """

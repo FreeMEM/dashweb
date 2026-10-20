@@ -74,6 +74,7 @@ struct Ventana
     empezada: Int = 0        # time_ms de cuando se pidió la página (para medir la carga entera)
     descarga: Carga = nil    # algo que se está guardando en un fichero (un .lha, un .zip...)
     descarga_ruta: String = ""
+    aviso_scroll: Bool = false   # la vista se movió: el evento scroll del JavaScript, en el siguiente tic
 end
 
 var dw_ventanas: [Ventana] = []
@@ -532,6 +533,9 @@ func programar()
             if trayendo and (espera < 0 or espera > 50)
                 espera = 50
             end
+            if w.aviso_scroll and (espera < 0 or espera > 30)
+                espera = 30
+            end
             # un vídeo sonando: el tic, cuando toca su siguiente imagen
             if w.actual != nil and w.actual.videos != nil
                 ev = videos_espera(w.actual.videos)
@@ -563,8 +567,42 @@ func temporizadores(w: Ventana)
             w.js_cuando = time_ms() + espera
         end
         envio_del_js(w)
+        desplazamiento_del_js(w)
     end
     programar()
+end
+
+# Si el JavaScript pidió desplazar la vista (scrollTo, scrollIntoView...), se desplaza
+func desplazamiento_del_js(w: Ventana)
+    if w.actual == nil or w.actual.js == 0 or w.actual.pagina == nil
+        return
+    end
+    y = jsdom_desplazamiento(w.actual.js)
+    if y >= 0 and y != w.desde
+        w.desde = y
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+        w.aviso_scroll = true
+    end
+end
+
+# La vista se movió: el evento scroll al JavaScript (uno por tic aunque la barra mande muchos)
+func avisar_desplazamiento(w: Ventana)
+    w.aviso_scroll = false
+    if w.actual == nil or w.actual.js == 0 or w.actual.pagina == nil or w.carga != nil
+        return
+    end
+    jsdom_vista(w.actual.js, mui_width(w.v.pagina), mui_height(w.v.pagina), w.desde, w.actual.pagina.alto)
+    t0 = time_ms()
+    jsdom_desplazado(w.actual.js)
+    if documento_al_dia(w.actual)
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+    end
+    if traza_activa
+        traza("evento scroll (desde " + w.desde + ") en " + (time_ms() - t0) + " ms")
+    end
+    desplazamiento_del_js(w)
 end
 
 # Un tic: cargas, imágenes y temporizadores de una ventana
@@ -581,6 +619,9 @@ func tic(w: Ventana)
         dw_estado(w, "Listo")
         # (en la salida: para medir la página entera, con sus imágenes)
         Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms"
+    end
+    if w.aviso_scroll
+        avisar_desplazamiento(w)
     end
     if w.js_cuando >= 0 and time_ms() >= w.js_cuando
         temporizadores(w)
@@ -975,6 +1016,9 @@ Main
                 mui_set_visible(w.v.separador, w.con_historial)
             end
             if ev == ID_SCROLL
+                if w.desde != mui_get_value(w.v.barra)
+                    w.aviso_scroll = true
+                end
                 w.desde = mui_get_value(w.v.barra)
                 mui_canvas_redraw(w.v.pagina)
                 # (las imágenes perezosas que ahora quedan cerca empiezan a bajarse: el tic otra vez)
