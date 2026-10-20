@@ -2,13 +2,15 @@
 # el atributo style mueve los dibujos del elemento y de lo de dentro (y su caja para el JavaScript); opacity: 0 los
 # vela y opacity: 1 los enseña; algo que sí mueve (width) maqueta otra vez. Un elemento con opacity: 0 desde el
 # principio tiene sus dibujos (velados) y su caja. Un texto que cambia sin cambiar de forma (un reloj) se cambia
-# en sus dibujos; si cambia de largo, maqueta otra vez. Una escala casi 1 (GSAP) cuenta como 1.
+# en sus dibujos; si cambia de largo, maqueta otra vez. Una escala casi 1 (GSAP) cuenta como 1. view-transition-name
+# (las transiciones de React) no mueve nada; un <script> que entra tampoco, un <div> sí (tarea 37e3).
 # memcheck
 # expect-out: misma página: true | y +40: true | caja +40: true
 # expect-out: velado: true true | enseñado: false
 # expect-out: rotate: false | width: false
 # expect-out: oculto desde el principio: true 50
 # expect-out: reloj: true 34 | más largo: false | escala 0.98: true
+# expect-out: view-transition-name: true | script: true | div: false
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -70,5 +72,15 @@ Main
     js_evaluar(d.js, "a.style.transform = 'translateY(5px) scale(0.98)'", "t.js")
     documento_al_dia(d)
     Print reloj + " | escala 0.98: " + (d.pagina == p5)
+    p6 = d.pagina
+    js_evaluar(d.js, "a.style.viewTransitionName = '_t_0_'; a.style.setProperty('view-transition-name', '_t_0_')", "t.js")
+    documento_al_dia(d)
+    vt = "view-transition-name: " + (d.pagina == p6)
+    js_evaluar(d.js, "var sc = document.createElement('script'); sc.textContent = '1'; document.body.appendChild(sc)", "t.js")
+    documento_al_dia(d)
+    vt = vt + " | script: " + (d.pagina == p6)
+    js_evaluar(d.js, "var dv = document.createElement('div'); dv.textContent = 'nuevo'; document.body.appendChild(dv)", "t.js")
+    documento_al_dia(d)
+    Print vt + " | div: " + (d.pagina == p6)
     documento_liberar(d)
 end

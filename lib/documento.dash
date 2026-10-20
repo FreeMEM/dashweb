@@ -537,18 +537,34 @@ func _documento_puede_ligero(d: Documento, toques: [Toque]) -> Bool
     end
     for t in toques
         if t.nodo == nil or t.nodo.tipo != DOM_ELEMENTO
-            return false
+            return _lig_no("un toque sin elemento", t.nodo)
         end
         if t.tipo == TOQUE_ATRIBUTO
             k = t.nombre
             if not (k == "class" or k == "style" or k == "id" or k == "title" or k == "role" or k == "tabindex" or str_starts(k, "data-") or str_starts(k, "aria-"))
-                return false
+                return _lig_no("el atributo " + k, t.nodo)
             end
-        elif t.tipo != TOQUE_CONTENIDO
-            return false
+        elif t.tipo != TOQUE_CONTENIDO and t.tipo != TOQUE_ENTRA and t.tipo != TOQUE_VECINO
+            # (lo que entra se mira con su estilo, en _documento_sin_maqueta: si no se ve, no mueve nada)
+            return _lig_no("un toque de tipo " + t.tipo, t.nodo)
         end
     end
     return true
+end
+
+# (con TRAZA: por qué los cambios del JavaScript necesitan la maqueta entera)
+func _lig_no(por: String, n: Nodo) -> Bool
+    if traza_activa
+        quien = "?"
+        if n != nil
+            quien = n.nombre + "." + str_replace(str_trim(dom_atributo(n, "class")), " ", ".")
+            if quien.length > 70
+                quien = quien[:70]
+            end
+        end
+        traza("maqueta entera por " + por + " en " + quien)
+    end
+    return false
 end
 
 # ¿Solo cambió lo que no mueve nada? Entonces se aplica sobre los dibujos (una pasada: cada dibujo suma los
@@ -557,30 +573,43 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
     # primero, comprobarlo todo (sin tocar nada)
     for t in toques
         if t.tipo == TOQUE_CONTENIDO and not _documento_texto_igual(d, t.nodo, false)
-            return false
+            return _lig_no("un texto que cambia de forma", t.nodo)
+        end
+        if t.tipo == TOQUE_ENTRA and not _documento_sin_caja(t.nodo)
+            return _lig_no("un elemento que entra", t.nodo)
         end
     end
     var dxs: [Int] = []
     var dys: [Int] = []
     for c in cambios
         n = c.nodo
+        if not c.pseudo and _documento_sin_caja(n) and (c.viejo == nil or not c.viejo.has("display") or c.viejo["display"] == "none")
+            # (uno que acaba de entrar y no se ve, como un <script>, o que ya no se veía)
+            dxs.push(0)
+            dys.push(0)
+            continue
+        end
         if c.pseudo or c.viejo == nil
-            return false
+            return _lig_no("un estilo nuevo o de ::before/::after", n)
         end
         for k in n.estilo.keys()
             if not _documento_ligera(k) and (not c.viejo.has(k) or c.viejo[k] != n.estilo[k])
-                return false
+                viejo = "(nada)"
+                if c.viejo.has(k)
+                    viejo = c.viejo[k]
+                end
+                return _lig_no(k + ": " + viejo + " -> " + n.estilo[k], n)
             end
         end
         for k in c.viejo.keys()
             if not _documento_ligera(k) and not n.estilo.has(k)
-                return false
+                return _lig_no(k + ": " + c.viejo[k] + " -> (nada)", n)
             end
         end
         a = _documento_traslacion(c.viejo, n)
         b = _documento_traslacion(n.estilo, n)
         if a == nil or b == nil
-            return false
+            return _lig_no("un transform que no es traslación", n)
         end
         dxs.push(b[0] - a[0])
         dys.push(b[1] - a[1])
@@ -599,6 +628,10 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
     i = 0
     for c in cambios
         n = c.nodo
+        if dxs[i] == 0 and dys[i] == 0 and _documento_sin_caja(n)
+            i = i + 1
+            continue
+        end
         n.lig_marca = marca
         n.lig_dx = dxs[i]
         n.lig_dy = dys[i]
@@ -641,8 +674,20 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
 end
 
 # Propiedades que no mueven la maqueta (lo que se aplica sobre los dibujos, y lo que ni se ve)
+# ¿No tiene caja (display: none él o uno de fuera)? Entonces entrar o cambiar no mueve nada
+func _documento_sin_caja(n: Nodo) -> Bool
+    p = n
+    while p != nil and p.tipo == DOM_ELEMENTO
+        if p.estilo != nil and p.estilo.has("display") and p.estilo["display"] == "none"
+            return true
+        end
+        p = p.padre
+    end
+    return false
+end
+
 func _documento_ligera(k: String) -> Bool
-    return k == "transform" or k == "translate" or k == "opacity" or k == "visibility" or k == "will-change" or str_starts(k, "transition") or k == "pointer-events" or k == "cursor"
+    return k == "view-transition-name" or k == "view-transition-class" or k == "transform" or k == "translate" or k == "opacity" or k == "visibility" or k == "will-change" or str_starts(k, "transition") or k == "pointer-events" or k == "cursor"
 end
 
 # El desplazamiento de transform y translate en px, [x, y]; nil si hay algo más que desplazar (giro, escala...)

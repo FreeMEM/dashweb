@@ -315,12 +315,13 @@ tarea, con el estilo de Dash.
       [x] 37e2. fetch y XMLHttpRequest (es la 32a): con el IntersectionObserver de verdad, Next.js pide por adelantado
            las páginas de los enlaces que se ven (prefetch) y su fetch (el de core-js, sobre XMLHttpRequest) falla:
            "XMLHttpRequest is not defined" (no rompe la página). Sobre las cargas sin espera de lib/http.dash.
-      37e3. Rehacer la maqueta cuesta demasiado tras los cambios del JavaScript en pre.opentimetrack.com: 6-8 s por 2 o
-           3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje. Cada bloque
+      [x] 37e3. Rehacer la maqueta cuesta demasiado tras los cambios del JavaScript en pre.opentimetrack.com: 6-8 s por 2 o
+           3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje.
+      37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez). Cada bloque
            maquetado cuesta ~0,9 ms (márgenes, rellenos y bordes leídos del estilo como texto: estilo_px, _val, _borde,
            600.000 llamadas) y cada elemento se maqueta ~6 veces por las medidas de las cajas flex. Ideas: guardar en
            el nodo las cajas ya leídas (por maqueta, con el % del contenedor); rehacer solo la parte que cambió
-           cuando su caja no cambia de tamaño (la ruta ligera de 37d ampliada a "misma caja").
+           cuando su caja no cambia de tamaño. Y los toques de tipo SALE (un nodo que sale de body) aún la piden.
       37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
       37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
@@ -2761,4 +2762,19 @@ Formato:
 - test_js_fetch: fetch POST con cabeceras y JSON (y una ñ), XHR con sus sucesos, abort, Response/Headers/Blob
   sueltos, error de red (tests/servers/http.py `/eco_js`). Sin probar en test: arrayBuffer, blob, redirecciones.
 - Batería: 64/64 (1164 s, con la de Dash a la vez); freemem.space 21,5 s.
+
+### 2026-10-20 — Tarea 37e3 (los cambios que se repiten, sin maqueta)
+- Con TRAZA, lib/documento.dash dice por qué unos cambios del JavaScript necesitan la maqueta entera
+  (`_lig_no`: "maqueta entera por view-transition-name: (nada) -> _t_0_ en div."). En pre.opentimetrack.com, tras el
+  montaje, eran las transiciones de React (`view-transition-name` puesto y quitado cada pocos segundos) y un
+  `<script>` que entra.
+- Ruta ligera (37d): `view-transition-name` y `view-transition-class` no mueven nada; un elemento que entra (y sus
+  vecinos) no mueve nada si no tiene caja (display: none él o uno de fuera: `_documento_sin_caja`).
+- lib/estilo.dash `_estilo_solo`: si en el estilo propio solo cambia lo que no llega a los de dentro
+  (`_estilo_no_baja`: view-transition-*, transform, translate, scale, rotate, opacity, will-change, transition*,
+  cursor, z-index), no se rehace todo lo suyo (un "inherit" explícito de esas no se mira).
+- pre.opentimetrack.com tras el montaje: cada cambio de las transiciones, de 7,4 s (maqueta entera) a 12 ms. Queda
+  la maqueta del montaje (13,8 s, una vez) y la de tres toques SALE al cargar: apuntada 37e4.
+- Tests: test_documento_ligero (view-transition-name, un script y un div que entran), test_estilo_partes
+  (transform en el padre no rehace al hijo; color sí). Batería 64/64 (1170 s); freemem.space 22,5 s.
 

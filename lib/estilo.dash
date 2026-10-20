@@ -1538,7 +1538,37 @@ func _estilo_solo(n: Nodo, hojas: Hojas) -> Bool
     _estilo_cadena(n.padre, 1)
     _estilo_propio(n, hojas, n.padre.estilo, _estilo_vars_de(n.padre))
     _estilo_cadena(n.padre, -1)
-    return not (_estilo_iguales(viejo, n.estilo) and _estilo_iguales(viejas, n.vars))
+    if not _estilo_iguales(viejas, n.vars)
+        return true
+    end
+    # lo que cambia y no llega a los de dentro (view-transition-name de React, transform y opacity de GSAP): solo él
+    # (tarea 37e3; _estilo_propio ya lo apuntó en estilo_cambios)
+    if _estilo_solo_suyo(viejo, n.estilo)
+        return false
+    end
+    return not _estilo_iguales(viejo, n.estilo)
+end
+
+func _estilo_solo_suyo(a: {String: String}, b: {String: String}) -> Bool
+    if a == nil or b == nil
+        return false
+    end
+    for k in a.keys()
+        if (not b.has(k) or b[k] != a[k]) and not _estilo_no_baja(k)
+            return false
+        end
+    end
+    for k in b.keys()
+        if not a.has(k) and not _estilo_no_baja(k)
+            return false
+        end
+    end
+    return true
+end
+
+# Propiedades que no se heredan ni las mira nadie de dentro (salvo un "inherit" explícito, que no se usa con ellas)
+func _estilo_no_baja(k: String) -> Bool
+    return k == "view-transition-name" or k == "view-transition-class" or k == "transform" or k == "translate" or k == "scale" or k == "rotate" or k == "opacity" or k == "will-change" or str_starts(k, "transition") or k == "cursor" or k == "z-index"
 end
 
 func _estilo_iguales(a: {String: String}, b: {String: String}) -> Bool
