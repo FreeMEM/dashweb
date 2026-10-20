@@ -396,6 +396,31 @@ Detalles que importan en el Amiga:
 - La pila: los módulos que la necesitan grande la piden (`@stack 262144` en `lib/js.dash`).
 - MUI 5 y MUI 3.8 piden 68020 o mejor. dashweb además se compila para FPU (`--fpu`).
 
+### 9.1 La red en el Amiga
+
+dashweb usa la red a través de `bsdsocket.library`, la forma estándar de AmigaOS desde AmiTCP. Todas las pilas
+TCP/IP la traen: Roadshow, AmiTCP, Genesis o Miami. dashweb solo habla con esa librería: no depende del hardware
+ni de qué pila haya debajo.
+
+**En el emulador no hay que configurar nada.** FS-UAE la imita: con la opción `bsdsocket_library = 1` (la ponen los
+tests y `tools/medir_visor.py`), el Amiga emulado tiene una `bsdsocket.library` que pasa cada llamada a la red de
+Linux. No hay pila dentro del Amiga. WinUAE y Amiberry tienen la misma opción ("bsdsocket.library emulation").
+
+**En un Amiga real hacen falta tres cosas:**
+
+1. Hardware de red con su driver SANA-II: una tarjeta Zorro, una PCMCIA en el A1200, o el puerto serie como último
+   recurso.
+2. Una pila TCP/IP instalada y configurada. Roadshow es la más usada hoy.
+3. AmiSSL 5 para HTTPS.
+
+**Con PiStorm** el driver de red puede venir de la propia Raspberry Pi. Emu68 tiene drivers SANA-II para la red
+de la Pi: `genet.device` para el Ethernet de la Pi 4 o CM4 y `wifipi.device` para el WiFi. Sobre ese driver se pone
+Roadshow y ya hay red. Sin comprobar: qué driver vale depende del modelo de PiStorm y de Pi; mira la documentación
+de Emu68 de tu versión.
+
+**Sin probar:** dashweb solo ha corrido con la `bsdsocket.library` imitada de FS-UAE, nunca con una pila real.
+Debería ir igual, porque la librería es la misma, pero no está verificado.
+
 ## 10. La forma de trabajar
 
 dashweb se ha hecho casi entero con Claude Code en bucle (`/loop`), con estas reglas (`docs/DASHWEB_LOOP.md`):
