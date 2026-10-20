@@ -16,6 +16,7 @@ import "pintor.dash"
 import "jsdom.dash"
 import "recursos.dash"
 import "html5.dash"
+import "animacion.dash"
 
 struct Documento
     direccion: String
@@ -36,6 +37,8 @@ struct Documento
     sin_pintar: Int = 0        # imágenes llegadas que aún no se han pintado
     pintada: Int = 0           # time_ms del último repintado por imágenes
     remaquetada: Bool = false  # documento_imagenes volvió a maquetar (hay que repintar sí o sí)
+    anims: [Animacion] = nil   # las animaciones de CSS de la última maqueta (lib/animacion.dash; tarea 37d2)
+    anim_t0: Int = 0           # time_ms de su principio (la primera maqueta): su reloj
 end
 
 # Las imágenes que llegan se pintan juntas: mientras siguen llegando, como mucho cada tanto (pintar
@@ -325,6 +328,13 @@ end
 
 # A qué tamaño se ve cada imagen (las que aún no han llegado se decodificarán a ese tamaño)
 func _documento_vistas(d: Documento)
+    # las animaciones de CSS de esta maqueta (sus dibujos son otros: se recogen otra vez; el reloj sigue)
+    if d.anim_t0 == 0
+        d.anim_t0 = time_ms()
+    end
+    if d.hojas != nil
+        d.anims = animaciones_pagina(d.pagina, d.hojas)
+    end
     imagenes_posicion(d.im, "", 0, true)
     for dib in d.pagina.dibujos
         if dib.tipo == D_IMAGEN or dib.tipo == D_FONDO
@@ -332,6 +342,20 @@ func _documento_vistas(d: Documento)
             imagenes_posicion(d.im, dib.texto, dib.y, false)
         end
     end
+end
+
+# Un fotograma de las animaciones de CSS (tarea 37d2): mueve y vela lo dibujado de cada elemento animado según
+# el tiempo desde que se maquetó la página por primera vez; true si alguna sigue viva (hará falta otro)
+func documento_animar(d: Documento) -> Bool
+    if d.pagina == nil or d.anims == nil or d.anims.length == 0
+        return false
+    end
+    return animar(d.pagina, d.anims, time_ms() - d.anim_t0)
+end
+
+# ¿Tiene animaciones de CSS?
+func documento_animado(d: Documento) -> Bool
+    return d.pagina != nil and d.anims != nil and d.anims.length > 0
 end
 
 # Si el JavaScript cambió el documento desde la última maqueta: estilo, imágenes y maqueta otra vez
@@ -488,6 +512,11 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
         end
         if dx != 0 or dy != 0
             maqueta_mover(dib, dx, dy)
+            if dib.base
+                # (un dibujo animado: su sitio de antes de animarse va con él)
+                dib.bx = dib.bx + dx
+                dib.by = dib.by + dy
+            end
         end
         if vis
             dib.velado = maqueta_escondido(dib.nodo)

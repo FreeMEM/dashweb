@@ -294,13 +294,22 @@ tarea, con el estilo de Dash.
            scrollTo, scrollBy y scrollIntoView mueven la vista de verdad. Con test.
       [x] 37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
            opacity o transform (lo que hace GSAP), repintar sin rehacer la maqueta. Medir el coste por fotograma.
-      37d2. LAS ANIMACIONES CSS NO CORREN (el usuario, 2026-10-20: "no veo que las animaciones estén funcionando", y
+      [x] 37d2. LAS ANIMACIONES CSS NO CORREN (el usuario, 2026-10-20: "no veo que las animaciones estén funcionando", y
            trainalong.fit, con sus @keyframes, tampoco se mueve). lib/animacion.dash calcula fotogramas (31q paso 1,
            con test) pero nadie lo usa: dashweb pinta el estado final. Conectarlo: tras cada maqueta,
            animaciones_pagina; en el tic, animar(p, anims, ms) a 10-20 fotogramas por segundo mientras haya alguna
            viva y repintar (solo la parte que cambia si se puede); transitions al cambiar style o clases desde el
            JavaScript (lo que hace GSAP con CSS). Medir el coste en la máquina rtg. Probar con trainalong.fit (la curva
            que se dibuja, el punto que parpadea) y pre.opentimetrack.com (revelar, parpadeo, invita, pista-baja).
+      37d3. Más propiedades en los fotogramas (lib/animacion.dash `animar` solo mueve con translate y vela con
+           opacity < 0,5): scale (posición y tamaño de las cajas; el texto se queda en su letra), box-shadow (el pulso
+           de "late" en trainalong.fit, "invita" en pre.opentimetrack.com), color y background-color (recolorear
+           los dibujos), opacity de verdad en los fondos (ya se mezclan), clip-path: inset(). Repintar solo la caja de
+           lo animado, no la página entera.
+      37d4. SVG animado: trainalong.fit dibuja su curva con stroke-dasharray/stroke-dashoffset (@keyframes dibuja) y
+           hace crecer sus círculos con transform: scale dentro del SVG. Hace falta: los guiones en el rasterizado
+           (nanosvg no los tiene: añadirlos), las animaciones de los elementos de dentro del SVG, y volver a
+           rasterizarlo en cada fotograma mientras dure (2,6 s una vez).
       37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
            maquetar. Con test.
       37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
@@ -2673,3 +2682,18 @@ Formato:
 - El usuario lo probó: no ve animaciones (las CSS no corren: lib/animacion.dash no está conectado) y youtube.com sale
   como esqueletos grises (tarea 38). Apuntada 37d2 (animaciones CSS de verdad) delante de la 37e.
 - Test nuevo test_documento_ligero. Base: 62/62 tras ajustar los dos tests; freemem.space 21,2 s.
+
+### 2026-10-20 — Tarea 37d2 (las animaciones de CSS conectadas a dashweb)
+- lib/documento.dash: tras cada maqueta (`_documento_vistas`) recoge las animaciones de la página
+  (`animaciones_pagina`; el reloj, `anim_t0`, empieza con la primera maqueta y sigue); `documento_animar` pinta un
+  fotograma (`animar`: translate y opacity < 0,5) y `documento_animado`. El camino sin maqueta de la 37d mueve también
+  la base (bx, by) de los dibujos animados.
+- src/dashweb.dash: `animar_ventana` en cada tic, un fotograma como mucho cada 66 ms y se repinta; programar pide el
+  tic mientras haya alguna viva (o recién maquetada). Al cambiar de página, desde cero.
+- Medido: trainalong.fit pinta un fotograma cada ~85 ms (24 ms cada uno) con 2 animaciones vivas, pero no cambia
+  ningún píxel: sus animaciones son stroke-dashoffset dentro de un SVG (la curva), scale dentro del SVG (los
+  círculos), box-shadow (el punto que late) y un translateX que queda fuera de la vista. pre.opentimetrack.com tiene
+  4 al cargar y ninguna tras la hidratación de React (en Chrome tampoco quedan casi; lo que se mueve es GSAP).
+  Apuntadas 37d3 (scale, box-shadow, colores, clip-path; repintar solo lo animado) y 37d4 (SVG animado:
+  guiones en nanosvg y volver a rasterizar).
+- Base: 62/62 (1028 s); freemem.space 21,7 s.

@@ -75,6 +75,8 @@ struct Ventana
     descarga: Carga = nil    # algo que se está guardando en un fichero (un .lha, un .zip...)
     descarga_ruta: String = ""
     aviso_scroll: Bool = false   # la vista se movió: el evento scroll del JavaScript, en el siguiente tic
+    animando: Bool = false       # alguna animación de CSS viva: un fotograma en cada tic (unos 15 por segundo)
+    fotograma: Int = 0           # time_ms del último fotograma pintado
 end
 
 var dw_ventanas: [Ventana] = []
@@ -481,6 +483,8 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
         documento_liberar(w.actual)
     end
     w.actual = d
+    w.fotograma = 0
+    w.animando = false
     if direccion != ""
         mui_set_text(w.v.url, w.actual.direccion)
     end
@@ -536,6 +540,16 @@ func programar()
             if w.aviso_scroll and (espera < 0 or espera > 30)
                 espera = 30
             end
+            # una página con animaciones de CSS vivas (o recién maquetada: aún no se sabe): el siguiente fotograma
+            if w.actual != nil and w.carga == nil and documento_animado(w.actual) and (w.animando or w.fotograma == 0)
+                e = ANIMACION_MS - (time_ms() - w.fotograma)
+                if e < 10
+                    e = 10
+                end
+                if espera < 0 or e < espera
+                    espera = e
+                end
+            end
             # un vídeo sonando: el tic, cuando toca su siguiente imagen
             if w.actual != nil and w.actual.videos != nil
                 ev = videos_espera(w.actual.videos)
@@ -570,6 +584,23 @@ func temporizadores(w: Ventana)
         desplazamiento_del_js(w)
     end
     programar()
+end
+
+# Las animaciones de CSS de la página: un fotograma (como mucho cada ANIMACION_MS) y se repinta
+const ANIMACION_MS = 66
+
+func animar_ventana(w: Ventana)
+    if w.actual == nil or w.carga != nil or not documento_animado(w.actual)
+        w.animando = false
+        return
+    end
+    if time_ms() - w.fotograma < ANIMACION_MS
+        w.animando = true
+        return
+    end
+    w.fotograma = time_ms()
+    w.animando = documento_animar(w.actual)
+    mui_canvas_redraw(w.v.pagina)
 end
 
 # Si el JavaScript pidió desplazar la vista (scrollTo, scrollIntoView...), se desplaza
@@ -623,6 +654,7 @@ func tic(w: Ventana)
     if w.aviso_scroll
         avisar_desplazamiento(w)
     end
+    animar_ventana(w)
     if w.js_cuando >= 0 and time_ms() >= w.js_cuando
         temporizadores(w)
     end
