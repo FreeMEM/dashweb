@@ -479,10 +479,15 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if _midiendo > 0 and n != _medido
         # al medir, lo de dentro de una caja flex se maqueta una vez por cada medida de cada caja de fuera (con
         # 20 niveles, cientos de veces): lo ya maquetado igual en esta maqueta se resume en dos dibujos
-        clave = _medida_clave(m, n, ancho, contenedor)
+        fw = -2
+        fh = -2
+        if n == _forzado
+            fw = _forzado_w
+            fh = _forzado_h
+        end
         if n.med_pase == _maqueta_pase
             for md in n.medidas
-                if md.clave == clave
+                if md.ancho == ancho and md.contenedor == contenedor and md.alto_def == _alto_definido and md.linea == m.ancho_linea and md.blanco0 == m.blanco and md.fz_w == fw and md.fz_h == fh
                     _medida_poner(m, md, x, y)
                     return md.alto
                 end
@@ -493,8 +498,10 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             n.med_pase = _maqueta_pase
         end
         antes = m.pagina.dibujos.length
+        md = Medida(ancho, contenedor, _alto_definido, m.ancho_linea, m.blanco, fw, fh, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         r = _bloque_de_ya(m, n, x, y, ancho, contenedor)
-        n.medidas.push(_medida_de(m, clave, r, antes, x, y))
+        _medida_de(m, md, r, antes, x, y)
+        n.medidas.push(md)
         return r
     end
     return _bloque_de_ya(m, n, x, y, ancho, contenedor)
@@ -551,21 +558,37 @@ end
 # no. Con él se resuelve un height en % (CSS 2.1, 10.5); el de html y body no se fija (como antes)
 var _alto_definido: Int = -1
 
+# Márgenes, bordes y rellenos de n en px (arriba, abajo, izquierda, derecha de cada uno), leídos del estilo una vez por
+# maqueta y ancho del contenedor (los % van con él): cada elemento se maqueta varias veces al medir las cajas flex
+# (tarea 37e4). Una caja flex fuerza width y height, no estos.
+func _caja_leida(n: Nodo, contenedor: Int) -> [Int]
+    if n.cl_pase == _maqueta_pase and n.cl_cont == contenedor
+        return n.cl
+    end
+    e = n.estilo
+    var c: [Int] = [_px(e, "margin-top", contenedor), _px(e, "margin-bottom", contenedor), _px(e, "margin-left", contenedor), _px(e, "margin-right", contenedor), _borde(e, "top"), _borde(e, "bottom"), _borde(e, "left"), _borde(e, "right"), _px(e, "padding-top", contenedor), _px(e, "padding-bottom", contenedor), _px(e, "padding-left", contenedor), _px(e, "padding-right", contenedor)]
+    n.cl = c
+    n.cl_pase = _maqueta_pase
+    n.cl_cont = contenedor
+    return c
+end
+
 func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
     e = n.estilo
     inicio = m.pagina.dibujos.length
-    mt = _px(e, "margin-top", contenedor)
-    mb = _px(e, "margin-bottom", contenedor)
-    ml = _px(e, "margin-left", contenedor)
-    mr = _px(e, "margin-right", contenedor)
-    bt = _borde(e, "top")
-    bb = _borde(e, "bottom")
-    bl = _borde(e, "left")
-    br = _borde(e, "right")
-    pt = _px(e, "padding-top", contenedor)
-    pb = _px(e, "padding-bottom", contenedor)
-    pl = _px(e, "padding-left", contenedor)
-    pr = _px(e, "padding-right", contenedor)
+    c = _caja_leida(n, contenedor)
+    mt = c[0]
+    mb = c[1]
+    ml = c[2]
+    mr = c[3]
+    bt = c[4]
+    bb = c[5]
+    bl = c[6]
+    br = c[7]
+    pt = c[8]
+    pb = c[9]
+    pl = c[10]
+    pr = c[11]
     interior = ancho - ml - mr - bl - br - pl - pr
     if e.has("width") and e["width"] != "auto"
         w = _px(e, "width", contenedor)
@@ -1849,24 +1872,23 @@ func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
     return v
 end
 
-# De qué depende maquetar n al medir: los anchos, el alto definido, cómo está el maquetador y el tamaño que le
-# fuerce una caja flex en su estilo (_flex_maquetar)
-func _medida_clave(m: Maquetador, n: Nodo, ancho: Int, contenedor: Int) -> String
-    e = n.estilo
-    c = "" + ancho + " " + contenedor + " " + _alto_definido + " " + m.ancho_linea + " " + m.blanco
-    for k in ["width", "min-width", "max-width", "height", "min-height", "max-height", "box-sizing"]
-        if e.has(k)
-            c = c + " " + e[k]
-        else
-            c = c + " -"
-        end
-    end
-    return c
-end
+# La caja flex que _flex_maquetar está maquetando con width y height forzados en su estilo (-1: ese no), que entran
+# en la clave de lo medido (el resto de lo que depende maquetar al medir va en Medida)
+var _forzado: Nodo = nil
+var _forzado_w: Int = -1
+var _forzado_h: Int = -1
 
 # El resumen de lo que se acaba de dibujar desde antes (en x, y)
-func _medida_de(m: Maquetador, clave: String, alto: Int, antes: Int, x: Int, y: Int) -> Medida
-    md = Medida(clave, alto, 1000000, 1000000, -1000000, -1000000, 1000000, -1000000, 0, 0, 0, m.blanco, m.ancho_linea)
+func _medida_de(m: Maquetador, md: Medida, alto: Int, antes: Int, x: Int, y: Int)
+    md.alto = alto
+    md.x1 = 1000000
+    md.y1 = 1000000
+    md.x2 = -1000000
+    md.y2 = -1000000
+    md.izq = 1000000
+    md.der = -1000000
+    md.blanco = m.blanco
+    md.ancho_linea = m.ancho_linea
     i = antes
     while i < m.pagina.dibujos.length
         d = m.pagina.dibujos[i]
@@ -1910,7 +1932,6 @@ func _medida_de(m: Maquetador, clave: String, alto: Int, antes: Int, x: Int, y: 
     md.y2 = md.y2 - y
     md.izq = md.izq - x
     md.der = md.der - x
-    return md
 end
 
 # Lo medido otra vez, en x, y: un rectángulo sin elemento con lo que abarca (no cuenta para un ancho) y un texto
@@ -3397,7 +3418,16 @@ func _flex_maquetar(m: Maquetador, it: FlexHijo, ancho_ext: Int, contenedor: Int
         e["box-sizing"] = "content-box"
     end
     antes = m.pagina.dibujos.length
+    forzado = _forzado
+    forzado_w = _forzado_w
+    forzado_h = _forzado_h
+    _forzado = it.nodo
+    _forzado_w = w
+    _forzado_h = h
     alto = _bloque_de(m, it.nodo, 0, 0, ancho_ext, contenedor)
+    _forzado = forzado
+    _forzado_w = forzado_w
+    _forzado_h = forzado_h
     var suyos: [Dibujo] = []
     i = antes
     while i < m.pagina.dibujos.length

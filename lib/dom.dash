@@ -20,7 +20,13 @@ const DOM_FRAGMENTO = 11       # document.createDocumentFragment(): al añadirlo
 # lib/maqueta.dash: lo que dio maquetar un elemento al medir (_bloque_de con _midiendo): con la misma clave en la
 # misma maqueta no se maqueta otra vez, se ponen dos dibujos que lo resumen (_medida_poner)
 struct Medida
-    clave: String
+    ancho: Int       # la clave: anchos, alto definido, cómo estaba el maquetador y el tamaño forzado por flex (-2: no)
+    contenedor: Int
+    alto_def: Int
+    linea: Int
+    blanco0: Int
+    fz_w: Int
+    fz_h: Int
     alto: Int
     x1: Int          # lo que abarca todo lo dibujado (desde x, y)
     y1: Int
@@ -55,6 +61,9 @@ struct Nodo
     af_pase: Int = 0
     af_lista: [Int] = nil
     medidas: [Medida] = nil   # (de la maqueta med_pase)
+    cl: [Int] = nil           # márgenes, bordes y rellenos en px con el contenedor cl_cont en la maqueta cl_pase
+    cl_pase: Int = 0
+    cl_cont: Int = 0
     med_pase: Int = 0
     # la caja (borde incluido) en la última maqueta del documento, en coordenadas de la página (lib/maqueta.dash;
     # la leen getBoundingClientRect y offset* del JavaScript): vale si caja_pase es el caja_pase del documento
@@ -83,7 +92,7 @@ const TOQUE_CONTENIDO = 2      # nodo: el elemento al que le han cambiado todos 
 const TOQUE_ENTRA = 3          # nodo: el que acaba de entrar en el árbol
 const TOQUE_SALE = 4           # nodo: el padre del que ha salido
 const TOQUE_VECINO = 5         # nodo: un hermano del que ha entrado o salido
-const DOM_TOQUES_MAX = 200
+const DOM_TOQUES_MAX = 1000
 
 struct Toque
     tipo: Int

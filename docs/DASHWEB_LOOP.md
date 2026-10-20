@@ -185,7 +185,7 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
-- [ ] D62. **Imágenes con alfa de verdad** (2026-10-20, tarea 37; encargada a la sesión "dash"). `image_draw` e
+- [x] D62. **Imágenes con alfa de verdad** (hecha por la sesión "dash", 31fd909) (2026-10-20, tarea 37; encargada a la sesión "dash"). `image_draw` e
       `image_draw_part` de una imagen de `image_from_rgb(..., alfa)` pintan el pixel si su alfa es 128 o más y si no
       nada: lo translúcido sale opaco o no sale. En trainalong.fit, el círculo y la curva grises (opacity .35 en el
       SVG) salen como una mancha blanca opaca junto a "En construcción" y sin la curva. Se propone: en pantallas RTG
@@ -325,11 +325,10 @@ tarea, con el estilo de Dash.
            "XMLHttpRequest is not defined" (no rompe la página). Sobre las cargas sin espera de lib/http.dash.
       [x] 37e3. Rehacer la maqueta cuesta demasiado tras los cambios del JavaScript en pre.opentimetrack.com: 6-8 s por 2 o
            3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje.
-      37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez). Cada bloque
-           maquetado cuesta ~0,9 ms (márgenes, rellenos y bordes leídos del estilo como texto: estilo_px, _val, _borde,
-           600.000 llamadas) y cada elemento se maqueta ~6 veces por las medidas de las cajas flex. Ideas: guardar en
-           el nodo las cajas ya leídas (por maqueta, con el % del contenedor); rehacer solo la parte que cambió
-           cuando su caja no cambia de tamaño. Y los toques de tipo SALE (un nodo que sale de body) aún la piden.
+      [x] 37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez).
+      37e5. La maqueta del montaje sigue en ~8,5 s (más 1,7 de estilo): cada elemento se maqueta ~6 veces por las
+           medidas de las cajas flex y cada bloque cuesta ~0,7 ms. Ideas: rehacer solo la parte que cambió cuando su
+           caja no cambia de tamaño; los toques SALE (un nodo que sale de body) aún piden la maqueta entera.
       37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
       37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
@@ -2798,4 +2797,18 @@ Formato:
   amplía: la máscara (BitMapScale) pierde una fila cada ~14.
 - Las dos cosas son de Dash: encargada D62 a la sesión "dash". Que el punto no lata en CoffinOS: pendiente de una
   traza del usuario.
+
+### 2026-10-20 — Tarea 37e4 (la maqueta y el estilo del montaje, más baratos); D62 en Dash
+- lib/maqueta.dash: `_caja_leida(n, contenedor)`: márgenes, bordes y rellenos en px se leen del estilo una vez por
+  maqueta y contenedor (cada elemento se maqueta ~6 veces al medir las cajas flex). La clave de la caché de medidas
+  (37e2) son siete números y no un texto: el tamaño que fuerza `_flex_maquetar` solo cuenta para su elemento
+  (`_forzado`).
+- lib/dom.dash: `DOM_TOQUES_MAX` de 200 a 1000: el montaje de pre.opentimetrack.com hace 235 cambios y con 201 se
+  rehacía el estilo entero (3,6 s); por partes, 1,7 s.
+- pre.opentimetrack.com, el montaje: de 13,8 s a 10,2 s (estilo 1,7, maqueta ~8,5). Apuntada 37e5.
+- D62 hecha por la sesión dash (31fd909, main 9d3bb56): en RTG de 15 a 32 bits las imágenes con alfa se mezclan;
+  `image_scale` escala máscara y alfa a mano. trainalong.fit en la máquina rtg: la curva y el círculo grises,
+  translúcidos detrás de "En construcción" como en Chrome; las rayas de la curva ya no salen (con D62; no las
+  reproduje con un programa suelto).
+- Batería 64/64 (1166 s, con el Dash de D62); freemem.space 20,9 s.
 
