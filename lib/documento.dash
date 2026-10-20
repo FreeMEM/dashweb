@@ -544,7 +544,7 @@ func _documento_puede_ligero(d: Documento, toques: [Toque]) -> Bool
             if not (k == "class" or k == "style" or k == "id" or k == "title" or k == "role" or k == "tabindex" or str_starts(k, "data-") or str_starts(k, "aria-"))
                 return _lig_no("el atributo " + k, t.nodo)
             end
-        elif t.tipo != TOQUE_CONTENIDO and t.tipo != TOQUE_ENTRA and t.tipo != TOQUE_VECINO
+        elif t.tipo != TOQUE_CONTENIDO and t.tipo != TOQUE_ENTRA and t.tipo != TOQUE_VECINO and t.tipo != TOQUE_SALE
             # (lo que entra se mira con su estilo, en _documento_sin_maqueta: si no se ve, no mueve nada)
             return _lig_no("un toque de tipo " + t.tipo, t.nodo)
         end
@@ -571,6 +571,7 @@ end
 # desplazamientos de los suyos que cambiaron) y da true
 func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambio]) -> Bool
     # primero, comprobarlo todo (sin tocar nada)
+    var fuera: [Nodo] = []
     for t in toques
         if t.tipo == TOQUE_CONTENIDO and not _documento_texto_igual(d, t.nodo, false)
             return _lig_no("un texto que cambia de forma", t.nodo)
@@ -578,11 +579,26 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
         if t.tipo == TOQUE_ENTRA and not _documento_sin_caja(t.nodo)
             return _lig_no("un elemento que entra", t.nodo)
         end
+        if t.tipo == TOQUE_SALE and not _documento_sin_caja(t.nodo)
+            # lo que sale sin ocupar sitio (display: none, position: absolute o fixed): se quitan sus dibujos
+            q = t.quitado
+            if q == nil or (q.tipo == DOM_ELEMENTO and not _documento_fuera_del_flujo(q.estilo))
+                return _lig_no("un elemento que sale", t.nodo)
+            end
+            fuera.push(q)
+        end
     end
     var dxs: [Int] = []
     var dys: [Int] = []
     for c in cambios
         n = c.nodo
+        if not c.pseudo and c.viejo != nil and _val_estilo(n.estilo, "display", "") == "none" and _val_estilo(c.viejo, "display", "none") != "none" and _documento_fuera_del_flujo(c.viejo)
+            # (uno absoluto o fijo que se esconde: se quitan sus dibujos)
+            fuera.push(n)
+            dxs.push(0)
+            dys.push(0)
+            continue
+        end
         if not c.pseudo and _documento_sin_caja(n) and (c.viejo == nil or not c.viejo.has("display") or c.viejo["display"] == "none")
             # (uno que acaba de entrar y no se ve, como un <script>, o que ya no se veía)
             dxs.push(0)
@@ -619,6 +635,9 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
         if t.tipo == TOQUE_CONTENIDO
             _documento_texto_igual(d, t.nodo, true)
         end
+    end
+    if fuera.length > 0
+        _documento_quitar_dibujos(d, fuera)
     end
     if cambios.length == 0
         return true
@@ -671,6 +690,43 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
         end
     end
     return true
+end
+
+# ¿Un estilo que no ocupa sitio en el flujo (display: none, position: absolute o fixed)?
+func _documento_fuera_del_flujo(e: {String: String}) -> Bool
+    if e == nil
+        return true
+    end
+    if _val_estilo(e, "display", "inline") == "none"
+        return true
+    end
+    p = _val_estilo(e, "position", "static")
+    return p == "absolute" or p == "fixed"
+end
+
+# Quita de la página los dibujos de esos nodos y de lo de dentro
+func _documento_quitar_dibujos(d: Documento, nodos: [Nodo])
+    _lig_vuelta = _lig_vuelta + 1
+    marca = _lig_vuelta
+    for n in nodos
+        n.lig_fuera = marca
+    end
+    var quedan: [Dibujo] = []
+    for dib in d.pagina.dibujos
+        p = dib.nodo
+        sale = false
+        while p != nil
+            if p.lig_fuera == marca
+                sale = true
+                break
+            end
+            p = p.padre
+        end
+        if not sale
+            quedan.push(dib)
+        end
+    end
+    d.pagina.dibujos = quedan
 end
 
 # Propiedades que no mueven la maqueta (lo que se aplica sobre los dibujos, y lo que ni se ve)

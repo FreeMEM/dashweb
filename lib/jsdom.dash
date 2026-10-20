@@ -158,7 +158,7 @@ func jsdom_quitar(padre: Nodo, hijo: Nodo) -> Bool
     while i < padre.hijos.length
         if padre.hijos[i] == hijo
             if hijo.tipo == DOM_ELEMENTO
-                dom_apuntar(padre, TOQUE_SALE, "", "", "")
+                dom_apuntar_salida(padre, hijo)
                 dom_apuntar(dom_hermano_elemento(hijo, false), TOQUE_VECINO, "", "", "")
                 dom_apuntar(dom_hermano_elemento(hijo, true), TOQUE_VECINO, "", "", "")
             end

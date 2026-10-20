@@ -326,9 +326,11 @@ tarea, con el estilo de Dash.
       [x] 37e3. Rehacer la maqueta cuesta demasiado tras los cambios del JavaScript en pre.opentimetrack.com: 6-8 s por 2 o
            3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje.
       [x] 37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez).
-      37e5. La maqueta del montaje sigue en ~8,5 s (más 1,7 de estilo): cada elemento se maqueta ~6 veces por las
-           medidas de las cajas flex y cada bloque cuesta ~0,7 ms. Ideas: rehacer solo la parte que cambió cuando su
-           caja no cambia de tamaño; los toques SALE (un nodo que sale de body) aún piden la maqueta entera.
+      [x] 37e5. Los toques SALE (un nodo que sale) y un absoluto o fijo que pasa a display: none, sin maqueta.
+      37e6. La maqueta del montaje de pre.opentimetrack.com sigue en ~8,5 s (más 1,7 de estilo) por elementos visibles
+           que entran (React monta secciones): cada elemento se maqueta ~6 veces por las medidas de las cajas flex y
+           cada bloque cuesta ~0,7 ms. Idea: rehacer solo la parte que cambió cuando la caja de su contenedor no cambia
+           de tamaño (maqueta por trozos), o medir min/max-content sin maquetar.
       37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
       37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
@@ -2811,4 +2813,14 @@ Formato:
   translúcidos detrás de "En construcción" como en Chrome; las rayas de la curva ya no salen (con D62; no las
   reproduje con un programa suelto).
 - Batería 64/64 (1166 s, con el Dash de D62); freemem.space 20,9 s.
+
+### 2026-10-20 — Tarea 37e5 (lo que sale sin ocupar sitio, sin maqueta)
+- lib/dom.dash: `Toque.quitado` (el nodo que salió, `dom_apuntar_salida` desde jsdom_quitar) y `Nodo.lig_fuera`.
+- lib/documento.dash: en la ruta ligera, un TOQUE_SALE vale si lo que salió no ocupaba sitio (display: none,
+  position: absolute o fixed) o su padre no tiene caja; y un estilo que pasa a display: none en uno absoluto o fijo
+  también. Sus dibujos (y los de dentro) se quitan de la página (`_documento_quitar_dibujos`).
+- pre.opentimetrack.com: ya no hay maquetas enteras por SALE; las que quedan son de elementos visibles que entran
+  (el montaje, 10,3 s: apuntada 37e6). freemem.space: el botón fijo "go-to-top" que se esconde, sin maqueta.
+- test_documento_ligero: sale un absoluto, un fijo pasa a none (sin maqueta y sin sus dibujos), sale uno normal
+  (con maqueta). Batería 64/64 (1168 s); freemem.space 20,9 s.
 
