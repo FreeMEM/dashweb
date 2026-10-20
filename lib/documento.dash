@@ -15,6 +15,7 @@
 import "pintor.dash"
 import "jsdom.dash"
 import "recursos.dash"
+import "html5.dash"
 
 struct Documento
     direccion: String
@@ -103,7 +104,7 @@ func documento_empezar(direccion: String, r: Respuesta) -> Documento
         texto = _documento_de_tipo(r)
     end
     d.bytes = texto.length
-    d.doc = dom_desde_html(texto)
+    d.doc = dom_desde_html5(texto)
     d.recursos = recursos_nuevos()
     recursos_del_documento(d.recursos, d.doc, d.direccion)
     d.ms = time_ms() - t0
@@ -257,7 +258,7 @@ end
 
 func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
     d.bytes = texto.length
-    d.doc = dom_desde_html(texto)
+    d.doc = dom_desde_html5(texto)
     if dom_buscar(d.doc, "script") != nil
         d.js = js_nuevo()
         jsdom_preparar(d.js, d.doc)
