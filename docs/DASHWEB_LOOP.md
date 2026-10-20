@@ -312,9 +312,15 @@ tarea, con el estilo de Dash.
            rasterizarlo en cada fotograma mientras dure (2,6 s una vez).
       [x] 37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
            maquetar. Con test.
-      37e2. fetch y XMLHttpRequest (es la 32a): con el IntersectionObserver de verdad, Next.js pide por adelantado
+      [x] 37e2. fetch y XMLHttpRequest (es la 32a): con el IntersectionObserver de verdad, Next.js pide por adelantado
            las páginas de los enlaces que se ven (prefetch) y su fetch (el de core-js, sobre XMLHttpRequest) falla:
            "XMLHttpRequest is not defined" (no rompe la página). Sobre las cargas sin espera de lib/http.dash.
+      37e3. Rehacer la maqueta cuesta demasiado tras los cambios del JavaScript en pre.opentimetrack.com: 6-8 s por 2 o
+           3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje. Cada bloque
+           maquetado cuesta ~0,9 ms (márgenes, rellenos y bordes leídos del estilo como texto: estilo_px, _val, _borde,
+           600.000 llamadas) y cada elemento se maqueta ~6 veces por las medidas de las cajas flex. Ideas: guardar en
+           el nodo las cajas ya leídas (por maqueta, con el % del contenedor); rehacer solo la parte que cambió
+           cuando su caja no cambia de tamaño (la ruta ligera de 37d ampliada a "misma caja").
       37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
       37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
@@ -2732,3 +2738,27 @@ Formato:
 - pre.opentimetrack.com: los avisos llegan y Next.js empieza a pedir por adelantado los enlaces que se ven, con un
   fetch sobre XMLHttpRequest que no hay (apuntada 37e2). Las zonas que GSAP deja fijas siguen vacías (37f/37h).
 - test_jsdom_geometria con IntersectionObserver. Base: 63/63 (1052 s); freemem.space 22,5 s.
+
+### 2026-10-20 — Tarea 37e2 (fetch y XMLHttpRequest); medidas de flex guardadas
+- lib/http.dash: `http_empezar_metodo(direccion, metodo, cuerpo, tipo, extra, espera_ms)`: cualquier método con
+  cuerpo y cabeceras de más (`Carga.extra`).
+- lib/jsdom.dash: la cola de peticiones del JavaScript (`jsdom_pedir`, `jsdom_peticiones_avanzar`, `_pendientes`,
+  `_cancelar`; quita las cabeceras prohibidas, 20 s sin llegar nada = error) y `_jsdom_responder` (texto UTF-8 y
+  ArrayBuffer). src/dashweb.dash las avanza en el tic (cada 50 ms mientras haya). documento_liberar las cancela.
+- Preludio: XMLHttpRequest (readyState, onload/onerror/onabort/ontimeout/onreadystatechange, responseType text,
+  json, arraybuffer y blob, getResponseHeader, abort), fetch sobre él (Request, Response con text/json/arrayBuffer/
+  blob/clone/body, Headers, AbortController/AbortSignal), Blob, File y FormData.
+- lib/js.dash: las promesas rechazadas sin manejar se dicen al final de los trabajos pendientes (antes salían las
+  que se manejaban un momento después).
+- pre.opentimetrack.com: los prefetch de Next.js (`?_rsc=`) llegan (307 y luego 200, 0,3 s en el servidor), pero
+  la respuesta se lee tarde: dashweb pasa hasta 25 s rehaciendo la maqueta tras los cambios del JavaScript.
+- lib/maqueta.dash: al medir (`_midiendo`), lo que se maqueta dentro de una caja flex se hacía una vez por cada
+  medida de cada caja de fuera (con 20 niveles, cientos de veces). Ahora cada nodo guarda lo que dio con la misma
+  clave en la misma maqueta (anchos, alto definido, estado del maquetador, el tamaño forzado por flex) y lo repite
+  con dos dibujos que lo resumen (lo que abarca, y lo que cuenta para un ancho con la letra de su último texto).
+  La memoria de `_ancho_flotante` pasa de tres anchos a una lista. pre.opentimetrack.com: la maqueta tras los 201
+  cambios de 25,5 a 13,7 s; las de 2-3 cambios, de 15 a 6,5-8 s. Sigue siendo mucho: apuntada 37e3.
+- test_js_fetch: fetch POST con cabeceras y JSON (y una ñ), XHR con sus sucesos, abort, Response/Headers/Blob
+  sueltos, error de red (tests/servers/http.py `/eco_js`). Sin probar en test: arrayBuffer, blob, redirecciones.
+- Batería: 64/64 (1164 s, con la de Dash a la vez); freemem.space 21,5 s.
+

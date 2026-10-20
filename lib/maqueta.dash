@@ -476,6 +476,31 @@ end
 # Lo mismo con los tantos por ciento (width, márgenes, rellenos) del ancho del contenedor: un flotante
 # o un absoluto recibe su ancho ya resuelto (el 25 % del contenedor) y no hay que volver a aplicarlo
 func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
+    if _midiendo > 0 and n != _medido
+        # al medir, lo de dentro de una caja flex se maqueta una vez por cada medida de cada caja de fuera (con
+        # 20 niveles, cientos de veces): lo ya maquetado igual en esta maqueta se resume en dos dibujos
+        clave = _medida_clave(m, n, ancho, contenedor)
+        if n.med_pase == _maqueta_pase
+            for md in n.medidas
+                if md.clave == clave
+                    _medida_poner(m, md, x, y)
+                    return md.alto
+                end
+            end
+        else
+            var nuevas: [Medida] = []
+            n.medidas = nuevas
+            n.med_pase = _maqueta_pase
+        end
+        antes = m.pagina.dibujos.length
+        r = _bloque_de_ya(m, n, x, y, ancho, contenedor)
+        n.medidas.push(_medida_de(m, clave, r, antes, x, y))
+        return r
+    end
+    return _bloque_de_ya(m, n, x, y, ancho, contenedor)
+end
+
+func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
     _maqueta_nivel = _maqueta_nivel + 1
     antes = m.pagina.dibujos.length
     r = _bloque_en(m, n, x, y, ancho, contenedor)
@@ -1795,6 +1820,7 @@ end
 var _maqueta_pase: Int = 0
 # > 0 mientras se maqueta solo para medir (no se apuntan cajas)
 var _midiendo: Int = 0
+var _medido: Nodo = nil     # el que se está midiendo (sus cajas no cuentan para su ancho)
 
 # El ancho de h según su contenido, con ancho de sitio: flex, grid, tablas y flotantes lo piden varias veces por
 # elemento (mínimo, máximo, el de verdad) y cada medida maqueta todo lo de dentro, que a su vez mide a sus hijos:
@@ -1802,47 +1828,104 @@ var _midiendo: Int = 0
 # recuerdan los tres últimos de cada nodo en esta maqueta (tarea 37a5).
 func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
     if h.af_pase == _maqueta_pase
-        if h.af_a1 == ancho and h.af_h1 == _alto_definido
-            return h.af_v1
-        elif h.af_n >= 2 and h.af_a2 == ancho and h.af_h2 == _alto_definido
-            return h.af_v2
-        elif h.af_n >= 3 and h.af_a3 == ancho and h.af_h3 == _alto_definido
-            return h.af_v3
+        l = h.af_lista
+        i = 0
+        while i < l.length
+            if l[i] == ancho and l[i + 1] == _alto_definido
+                return l[i + 2]
+            end
+            i = i + 3
         end
     else
+        var nueva: [Int] = []
+        h.af_lista = nueva
         h.af_pase = _maqueta_pase
-        h.af_n = 0
     end
     alto = _alto_definido
     v = _ancho_flotante_medir(m, h, ancho)
-    if h.af_n == 0
-        h.af_a1 = ancho
-        h.af_h1 = alto
-        h.af_v1 = v
-    elif h.af_n == 1
-        h.af_a2 = ancho
-        h.af_h2 = alto
-        h.af_v2 = v
-    elif h.af_n == 2
-        h.af_a3 = ancho
-        h.af_h3 = alto
-        h.af_v3 = v
-    else
-        # el más viejo sale
-        h.af_a1 = h.af_a2
-        h.af_h1 = h.af_h2
-        h.af_v1 = h.af_v2
-        h.af_a2 = h.af_a3
-        h.af_h2 = h.af_h3
-        h.af_v2 = h.af_v3
-        h.af_a3 = ancho
-        h.af_h3 = alto
-        h.af_v3 = v
-    end
-    if h.af_n < 3
-        h.af_n = h.af_n + 1
-    end
+    h.af_lista.push(ancho)
+    h.af_lista.push(alto)
+    h.af_lista.push(v)
     return v
+end
+
+# De qué depende maquetar n al medir: los anchos, el alto definido, cómo está el maquetador y el tamaño que le
+# fuerce una caja flex en su estilo (_flex_maquetar)
+func _medida_clave(m: Maquetador, n: Nodo, ancho: Int, contenedor: Int) -> String
+    e = n.estilo
+    c = "" + ancho + " " + contenedor + " " + _alto_definido + " " + m.ancho_linea + " " + m.blanco
+    for k in ["width", "min-width", "max-width", "height", "min-height", "max-height", "box-sizing"]
+        if e.has(k)
+            c = c + " " + e[k]
+        else
+            c = c + " -"
+        end
+    end
+    return c
+end
+
+# El resumen de lo que se acaba de dibujar desde antes (en x, y)
+func _medida_de(m: Maquetador, clave: String, alto: Int, antes: Int, x: Int, y: Int) -> Medida
+    md = Medida(clave, alto, 1000000, 1000000, -1000000, -1000000, 1000000, -1000000, 0, 0, 0, m.blanco, m.ancho_linea)
+    i = antes
+    while i < m.pagina.dibujos.length
+        d = m.pagina.dibujos[i]
+        if d.x < md.x1
+            md.x1 = d.x
+        end
+        if d.y < md.y1
+            md.y1 = d.y
+        end
+        if d.x + d.ancho > md.x2
+            md.x2 = d.x + d.ancho
+        end
+        if d.y + d.alto > md.y2
+            md.y2 = d.y + d.alto
+        end
+        # (lo que cuenta para un ancho, como en _ancho_flotante_medir: de dentro, nunca es lo medido)
+        decoracion = d.tipo == D_RECT or d.tipo == D_LINEA or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE
+        cuenta = not decoracion
+        if decoracion and d.nodo != nil
+            w = _val(d.nodo.estilo, "width", "auto")
+            cuenta = w != "auto" and not str_ends(w, "%")
+        end
+        if cuenta
+            if d.x < md.izq
+                md.izq = d.x
+            end
+            if d.x + d.ancho > md.der
+                md.der = d.x + d.ancho
+            end
+        end
+        if (d.tipo == D_TEXTO or d.tipo == D_ICONO) and d.fuente != 0
+            md.fuente = d.fuente
+            md.fy = d.y - y
+            md.fh = d.alto
+        end
+        i = i + 1
+    end
+    md.x1 = md.x1 - x
+    md.y1 = md.y1 - y
+    md.x2 = md.x2 - x
+    md.y2 = md.y2 - y
+    md.izq = md.izq - x
+    md.der = md.der - x
+    return md
+end
+
+# Lo medido otra vez, en x, y: un rectángulo sin elemento con lo que abarca (no cuenta para un ancho) y un texto
+# vacío con lo que cuenta y la letra del último texto (su línea base)
+func _medida_poner(m: Maquetador, md: Medida, x: Int, y: Int)
+    if md.x2 > md.x1
+        m.pagina.dibujos.push(_dibujo(D_RECT, x + md.x1, y + md.y1, md.x2 - md.x1, md.y2 - md.y1, 0))
+    end
+    if md.der >= md.izq
+        t = _dibujo(D_TEXTO, x + md.izq, y + md.fy, md.der - md.izq, md.fh, 0)
+        t.fuente = md.fuente
+        m.pagina.dibujos.push(t)
+    end
+    m.blanco = md.blanco
+    m.ancho_linea = md.ancho_linea
 end
 
 func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
@@ -1861,7 +1944,10 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     # de lo más a la izquierda a lo más a la derecha (con texto centrado, el borde derecho no basta)
     antes = m.pagina.dibujos.length
     _midiendo = _midiendo + 1
+    medido = _medido
+    _medido = h
     _bloque_de(m, h, 0, 0, ancho, ancho)
+    _medido = medido
     _midiendo = _midiendo - 1
     derecha = 0
     izquierda = ancho

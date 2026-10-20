@@ -17,6 +17,24 @@ const DOM_COMENTARIO = 8
 const DOM_DOCUMENTO = 9
 const DOM_FRAGMENTO = 11       # document.createDocumentFragment(): al añadirlo pasan sus hijos
 
+# lib/maqueta.dash: lo que dio maquetar un elemento al medir (_bloque_de con _midiendo): con la misma clave en la
+# misma maqueta no se maqueta otra vez, se ponen dos dibujos que lo resumen (_medida_poner)
+struct Medida
+    clave: String
+    alto: Int
+    x1: Int          # lo que abarca todo lo dibujado (desde x, y)
+    y1: Int
+    x2: Int
+    y2: Int
+    izq: Int         # lo que cuenta para un ancho (_ancho_flotante_medir); izq >= der si nada
+    der: Int
+    fuente: Int      # el último texto (su línea base, para un inline-block); 0 si no hay
+    fy: Int
+    fh: Int
+    blanco: Int      # cómo deja el maquetador
+    ancho_linea: Int
+end
+
 struct Nodo
     tipo: Int
     nombre: String
@@ -33,18 +51,11 @@ struct Nodo
     id_cache: String = nil         # se piden (dom_olvidar_atributos al cambiar un atributo)
     vars: {String: String} = nil   # las propiedades --x que le llegan a sus hijos (lib/estilo.dash)
     toques: [Toque] = nil          # en el documento: lo que ha cambiado el JavaScript (lib/jsdom.dash)
-    # lib/maqueta.dash: sus tres últimos anchos medidos en la maqueta af_pase (ancho, alto definido, resultado)
+    # lib/maqueta.dash: los anchos medidos en la maqueta af_pase (de tres en tres: ancho, alto definido, resultado)
     af_pase: Int = 0
-    af_a1: Int = 0
-    af_h1: Int = 0
-    af_v1: Int = 0
-    af_a2: Int = 0
-    af_h2: Int = 0
-    af_v2: Int = 0
-    af_a3: Int = 0
-    af_h3: Int = 0
-    af_v3: Int = 0
-    af_n: Int = 0
+    af_lista: [Int] = nil
+    medidas: [Medida] = nil   # (de la maqueta med_pase)
+    med_pase: Int = 0
     # la caja (borde incluido) en la última maqueta del documento, en coordenadas de la página (lib/maqueta.dash;
     # la leen getBoundingClientRect y offset* del JavaScript): vale si caja_pase es el caja_pase del documento
     caja_pase: Int = 0

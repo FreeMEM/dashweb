@@ -139,7 +139,7 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
         var nada: Conexion = nil
         return nada
     end
-    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, "", false, comprimir))
+    if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, "", false, comprimir, ""))
         r.error = c.error
         red_cerrar(c)
         var nada: Conexion = nil
@@ -150,7 +150,8 @@ end
 
 # agente: el User-Agent ("" el de dashweb; YouTube contesta según el cliente que dice ser). comprimir: pide gzip
 # (HTML, CSS y JS ocupan de 4 a 6 veces menos); lo que va a un fichero (imágenes, vídeo, fuentes) llega tal cual
-func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente: String, seguir: Bool, comprimir: Bool) -> String
+# (extra: cabeceras de más, "Nombre: valor" separadas por \r\n, las del XMLHttpRequest y el fetch del JavaScript)
+func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente: String, seguir: Bool, comprimir: Bool, extra: String) -> String
     ruta = u.ruta
     if ruta == ""
         ruta = "/"
@@ -181,8 +182,14 @@ func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente
     if galletas != ""
         peticion = peticion + "\r\nCookie: " + galletas
     end
-    if metodo == "POST"
-        peticion = peticion + "\r\nContent-Type: " + tipo + "\r\nContent-Length: " + cuerpo.length
+    if extra != ""
+        peticion = peticion + "\r\n" + extra
+    end
+    if metodo == "POST" or (cuerpo != "" and metodo != "GET" and metodo != "HEAD")
+        if tipo != ""
+            peticion = peticion + "\r\nContent-Type: " + tipo
+        end
+        peticion = peticion + "\r\nContent-Length: " + cuerpo.length
     end
     return peticion + "\r\n\r\n" + cuerpo
 end
@@ -450,6 +457,7 @@ struct Carga
     fichero: String = ""   # el cuerpo de una respuesta 2xx va a este fichero (http_empezar_a_fichero)
     metodo: String = "GET"
     cuerpo: String = ""    # lo que se manda con POST
+    extra: String = ""     # cabeceras de más ("Nombre: valor" separadas por \r\n; XMLHttpRequest y fetch)
     tipo: String = ""      # su Content-Type
     agente: String = ""    # el User-Agent, si no es el de dashweb (http_con_agente)
     cabecera: Int = -1     # bytes de la línea de estado y las cabeceras, cuando ya llegaron (http_parcial)
@@ -491,6 +499,23 @@ func http_empezar_post(direccion: String, cuerpo: String, tipo: String, espera_m
     c.tipo = tipo
     if tipo == ""
         c.tipo = "application/x-www-form-urlencoded"
+    end
+    _carga_conectar(c)
+    return c
+end
+
+# Cualquier método, con su cuerpo, su Content-Type y cabeceras de más (el XMLHttpRequest y el fetch del JavaScript,
+# tarea 37e2), sin esperar
+func http_empezar_metodo(direccion: String, metodo: String, cuerpo: String, tipo: String, extra: String, espera_ms: Int) -> Carga
+    var sin: Conexion = nil
+    c = Carga(url_parse(direccion), sin, espera_ms, 0, false, _respuesta_vacia(direccion), -1, time_ms())
+    c.t0 = c.ultimo
+    c.metodo = metodo
+    c.cuerpo = cuerpo
+    c.tipo = tipo
+    c.extra = extra
+    if traza_activa
+        traza("pide " + metodo + " " + direccion + " (JavaScript)")
     end
     _carga_conectar(c)
     return c
@@ -564,7 +589,7 @@ func http_avanzar(c: Carga) -> Bool
         end
     end
     if not c.enviada
-        if not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo, c.agente, http_seguir, c.fichero == ""))
+        if not red_enviar(c.conexion, _http_peticion(c.actual, c.metodo, c.cuerpo, c.tipo, c.agente, http_seguir, c.fichero == "", c.extra))
             if c.reusada
                 _carga_otra_conexion(c)
                 return false

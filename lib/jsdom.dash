@@ -475,6 +475,91 @@ func jsdom_estilo_calculado(n: Nodo, propiedad: String) -> String
     return ""
 end
 
+# === XMLHttpRequest y fetch (tarea 37e2) ===
+# Las peticiones del JavaScript de cada motor van sin esperar (lib/http.dash); jsdom_peticiones_avanzar, en cada
+# tic de dashweb, las avanza y da al JavaScript las que acaban (__dashweb_respuesta)
+
+struct PeticionJS
+    js: Int
+    id: Int
+    carga: Carga
+end
+
+var jsdom_peticiones: [PeticionJS] = []
+
+# (desde __dashweb_pedir) cabeceras: "Nombre: valor" por línea; las que pone el navegador no se dejan cambiar
+func jsdom_pedir(js: Int, id: Int, metodo: String, url: String, cabeceras: String, cuerpo: String)
+    tipo = ""
+    extra = ""
+    for linea in str_split(cabeceras, "\n")
+        p = str_find(linea, ":")
+        if p <= 0
+            continue
+        end
+        nombre = str_lower(str_trim(linea[:p]))
+        valor = str_trim(linea[p + 1:])
+        if nombre == "content-type"
+            tipo = valor
+        elif nombre == "host" or nombre == "content-length" or nombre == "cookie" or nombre == "connection" or nombre == "user-agent" or nombre == "accept-encoding" or str_starts(nombre, "sec-") or str_starts(nombre, "proxy-")
+            continue
+        else
+            if extra != ""
+                extra = extra + "\r\n"
+            end
+            extra = extra + str_trim(linea[:p]) + ": " + valor
+        end
+    end
+    if tipo == "" and cuerpo != "" and metodo != "GET"
+        tipo = "text/plain;charset=UTF-8"
+    end
+    jsdom_peticiones.push(PeticionJS(js, id, http_empezar_metodo(url, metodo, cuerpo, tipo, extra, 20000)))
+end
+
+# Avanza las peticiones de ese motor; cuántas acabaron (ya entregadas al JavaScript)
+func jsdom_peticiones_avanzar(js: Int) -> Int
+    hechas = 0
+    i = 0
+    while i < jsdom_peticiones.length
+        p = jsdom_peticiones[i]
+        if p.js == js and http_avanzar(p.carga)
+            r = p.carga.respuesta
+            cab = ""
+            for k in r.cabeceras.keys()
+                cab = cab + k + ": " + r.cabeceras[k] + "\r\n"
+            end
+            jsdom_peticiones.remove(i)
+            _jsdom_responder(js, p.id, r.estado, r.razon, cab, r.url, r.cuerpo, r.error)
+            hechas = hechas + 1
+            continue
+        end
+        i = i + 1
+    end
+    return hechas
+end
+
+func jsdom_peticiones_pendientes(js: Int) -> Int
+    n = 0
+    for p in jsdom_peticiones
+        if p.js == js
+            n = n + 1
+        end
+    end
+    return n
+end
+
+# Las de un motor que se va (antes de js_liberar: su respuesta ya no tiene a quién ir)
+func jsdom_peticiones_cancelar(js: Int)
+    i = 0
+    while i < jsdom_peticiones.length
+        if jsdom_peticiones[i].js == js
+            http_cancelar(jsdom_peticiones[i].carga)
+            jsdom_peticiones.remove(i)
+            continue
+        end
+        i = i + 1
+    end
+end
+
 # ¿Tiene n una caja de la última maqueta de doc? (lib/maqueta.dash la pone en sus campos caja_*)
 func jsdom_caja_valida(n: Nodo, doc: Nodo) -> Bool
     return doc != nil and doc.caja_pase != 0 and n.caja_pase == doc.caja_pase
@@ -624,6 +709,7 @@ typedef struct {
     LONG capacidad, usados;
     LONG cambios;
     LONG vista[4];           /* jsdom_vista: what is seen (width, height), the scroll (y) and the page's height */
+    LONG motor;              /* its _JsMotor (the js handle of Dash): XMLHttpRequest/fetch requests go with it */
 } _JsDom;
 
 static void _jsdom_finalizar(JSRuntime *rt, JSValue val) {
@@ -1068,6 +1154,25 @@ static JSValue _jsdom_caja(JSContext *ctx, JSValueConst this_val, int argc, JSVa
 }
 
 /* __dashweb_vista(): [width, height, scroll y, page height] (jsdom_vista) */
+/* __dashweb_pedir(id, method, url, headers "k: v\n...", body): a request of XMLHttpRequest/fetch (jsdom_pedir) */
+static JSValue _jsdom_pedir(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _JsDom *d = _jsdom_de(ctx);
+    int32_t id = 0;
+    char *metodo, *url, *cab, *cuerpo;
+    if (!d || argc < 5 || JS_ToInt32(ctx, &id, argv[0])) return JS_UNDEFINED;
+    metodo = _jsdom_arg(ctx, argc, argv, 1);
+    url = _jsdom_arg(ctx, argc, argv, 2);
+    cab = _jsdom_arg(ctx, argc, argv, 3);
+    cuerpo = _jsdom_arg(ctx, argc, argv, 4);
+    if (metodo && url && cab && cuerpo)
+        jsdom_pedir(d->motor, id, (STRPTR)metodo, (STRPTR)url, (STRPTR)cab, (STRPTR)cuerpo);
+    if (metodo) _jsdom_soltar(metodo);
+    if (url) _jsdom_soltar(url);
+    if (cab) _jsdom_soltar(cab);
+    if (cuerpo) _jsdom_soltar(cuerpo);
+    return JS_UNDEFINED;
+}
+
 static JSValue _jsdom_vista(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     _JsDom *d = _jsdom_de(ctx);
     JSValue a = JS_NewArray(ctx);
@@ -1295,6 +1400,7 @@ end
     if (!JS_IsRegisteredClass(m->rt, _jsdom_clase)) JS_NewClass(m->rt, _jsdom_clase, &clase);
     _dash_retain(doc);
     d->doc = doc;
+    d->motor = (LONG)m;
     m->extra = d;
     m->liberar_extra = _jsdom_liberar;
     JS_SetContextOpaque(m->ctx, d);
@@ -1310,6 +1416,7 @@ end
     JS_SetPropertyStr(m->ctx, global, "__dashweb_galletas", JS_NewCFunction(m->ctx, _jsdom_galletas, "__dashweb_galletas", 1));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_caja", JS_NewCFunction(m->ctx, _jsdom_caja, "__dashweb_caja", 1));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_vista", JS_NewCFunction(m->ctx, _jsdom_vista, "__dashweb_vista", 0));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_pedir", JS_NewCFunction(m->ctx, _jsdom_pedir, "__dashweb_pedir", 5));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_galleta", JS_NewCFunction(m->ctx, _jsdom_galleta, "__dashweb_galleta", 2));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_calculado", JS_NewCFunction(m->ctx, _jsdom_calculado, "__dashweb_calculado", 2));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_media", JS_NewCFunction(m->ctx, _jsdom_media, "__dashweb_media", 1));
@@ -1371,6 +1478,28 @@ end
     if (!m || !m->extra) return;
     a = JS_NewBool(m->ctx, todo);
     JS_FreeValue(m->ctx, _jsdom_llamar(m->ctx, "__dashweb_intersecciones", 1, &a));
+"""
+end
+
+# __dashweb_respuesta(id, estado, razón, cabeceras, url, texto, bytes, error): el cuerpo como texto (sus bytes
+# tal cual, que QuickJS lee como UTF-8) y como ArrayBuffer
+@native(borrow) func _jsdom_responder(js: Int, id: Int, estado: Int, razon: String, cabeceras: String, url: String, cuerpo: String, error: String)
+"""
+    _JsMotor *m = (_JsMotor *)js;
+    JSValue a[8];
+    LONG n = cuerpo ? strlen((char *)cuerpo) : 0;
+    int i;
+    if (!m || !m->extra) return;
+    a[0] = JS_NewInt32(m->ctx, id);
+    a[1] = JS_NewInt32(m->ctx, estado);
+    a[2] = _jsdom_cadena(m->ctx, razon);
+    a[3] = _jsdom_cadena(m->ctx, cabeceras);
+    a[4] = _jsdom_cadena(m->ctx, url);
+    a[5] = JS_NewStringLen(m->ctx, cuerpo ? (const char *)cuerpo : "", n);
+    a[6] = JS_NewArrayBufferCopy(m->ctx, (const uint8_t *)(cuerpo ? (const char *)cuerpo : ""), n);
+    a[7] = _jsdom_cadena(m->ctx, error);
+    JS_FreeValue(m->ctx, _jsdom_llamar(m->ctx, "__dashweb_respuesta", 8, a));
+    for (i = 0; i < 8; i++) JS_FreeValue(m->ctx, a[i]);
 """
 end
 

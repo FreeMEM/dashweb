@@ -1,0 +1,46 @@
+# Test: XMLHttpRequest y fetch del JavaScript de las páginas (tarea 37e2), por la red de dashweb sin esperar
+# (jsdom_peticiones_avanzar, como el tic de dashweb). fetch con POST, una cabecera propia y JSON, Headers de la
+# respuesta, el texto en UTF-8 (una ñ), una dirección relativa a la página; XMLHttpRequest con sus eventos y
+# readyState; AbortController antes de mandar (sin aviso de promesa sin capturar: se captura enseguida); Response
+# y Headers sueltos (un cuerpo de texto lleva su Content-Type); un servidor que no existe da error.
+# emu-server: http.py 40862
+# memcheck
+# expect-out: fetch 200 true POST hola application/json {"a":1} 241 si
+# expect-out: xhr 4 200 load loadend 4 true
+# expect-out: abortada AbortError
+# expect-out: sueltos 201 content-type:text/plain;charset=UTF-8,x-uno:1 7 json 3
+# expect-out: error TypeError
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+import "../lib/html5.dash"
+
+func esperar(js: Int)
+    vueltas = 0
+    while jsdom_peticiones_pendientes(js) > 0 and vueltas < 3000
+        jsdom_peticiones_avanzar(js)
+        time_delay(1)
+        vueltas = vueltas + 1
+    end
+end
+
+Main
+    doc = dom_desde_html5("<html><body><p>x</p></body></html>")
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    js_evaluar(js, "__dashweb_lugar('http://127.0.0.1:40862/pages/x.html')", "t.js")
+    js_evaluar(js, "var r1 = ''; fetch('/eco_js', {method: 'POST', headers: {'X-Prueba': 'hola', 'Content-Type': 'application/json'}, body: JSON.stringify({a: 1})}).then(function (r) { r1 = 'fetch ' + r.status + ' ' + r.ok + ' '; return r.json().then(function (j) { r1 += j.metodo + ' ' + j.prueba + ' ' + j.tipo + ' ' + j.cuerpo + ' ' + j.letra.charCodeAt(0) + ' ' + r.headers.get('X-Respuesta'); }); });", "t.js")
+    esperar(js)
+    Print js_evaluar(js, "r1", "t.js")
+    js_evaluar(js, "var r2 = [], x = new XMLHttpRequest(); x.onreadystatechange = function () { if (x.readyState == 4) r2.push(4); }; x.addEventListener('load', function () { r2.push('load'); }); x.onloadend = function () { r2.push('loadend'); }; x.open('GET', 'prueba.html'); x.send(); var r2b = '';", "t.js")
+    esperar(js)
+    Print js_evaluar(js, "'xhr ' + x.readyState + ' ' + x.status + ' ' + r2.filter(function (e) { return e != 4; }).join(' ') + ' ' + r2[0] + ' ' + (x.responseText.length > 100)", "t.js")
+    js_evaluar(js, "var r3 = ''; var c = new AbortController(); c.abort(); fetch('/eco_js', {signal: c.signal}).catch(function (e) { r3 = 'abortada ' + e.name; });", "t.js")
+    Print js_evaluar(js, "r3", "t.js")
+    js_evaluar(js, "var r4 = ''; var resp = new Response('{\"b\":[1,2,3]}', {status: 201, headers: {'X-Uno': '1'}}); var h = []; resp.headers.forEach(function (v, k) { h.push(k + ':' + v); }); resp.json().then(function (j) { r4 = 'sueltos ' + resp.status + ' ' + h.join(',') + ' ' + new Blob(['abc', new Uint8Array([100, 101, 102, 103])]).size + ' ' + 'json ' + j.b.length; });", "t.js")
+    Print js_evaluar(js, "r4", "t.js")
+    js_evaluar(js, "var r5 = ''; fetch('http://127.0.0.1:1/nada').catch(function (e) { r5 = 'error ' + e.name; });", "t.js")
+    esperar(js)
+    Print js_evaluar(js, "r5", "t.js")
+    js_liberar(js)
+end

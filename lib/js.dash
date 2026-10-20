@@ -159,11 +159,13 @@ static size_t _jg_tamano(const void *p) { return p ? ((const _JgCab *)p - 1)->n 
 static const JSMallocFunctions _jg_funciones = { _jg_malloc, _jg_free, _jg_realloc, _jg_tamano };
 #endif
 
+static void _js_rechazos_decir(void);
 /* The jobs waiting (Promise.then, async functions): run them all, up to a limit */
 static void _js_trabajos(JSRuntime *rt) {
     JSContext *c;
     int i;
     for (i = 0; i < 10000 && JS_ExecutePendingJob(rt, &c) > 0; i++) ;
+    _js_rechazos_decir();
 #ifdef _JS_GUARDAS
     _jg_todo();
 #endif
@@ -256,11 +258,38 @@ end
 @c
 """
 /* A promise rejected with nobody to catch it (as browsers do, to the output): without this the errors of
-   async code (React, Turbopack's chunk loading) were lost */
+   async code (React, Turbopack's chunk loading) were lost. Like browsers, it is said after the jobs (a promise
+   rejected and caught right away, fetch(...).catch(...), is not a rejection without a catch): _js_rechazos_decir */
+#define _JS_RECHAZOS 16
+static void *_js_rech_p[_JS_RECHAZOS];
+static char *_js_rech_t[_JS_RECHAZOS];
+static int _js_rech_n = 0;
+static void _js_rechazos_decir(void) {
+    int i;
+    for (i = 0; i < _js_rech_n; i++) {
+        PutStr((CONST_STRPTR)"JS (promesa sin capturar): ");
+        PutStr((CONST_STRPTR)_js_rech_t[i]);
+        PutStr((CONST_STRPTR)"\n");
+        free(_js_rech_t[i]);
+    }
+    _js_rech_n = 0;
+}
 static void _js_rechazo(JSContext *ctx, JSValueConst promesa, JSValueConst motivo, JS_BOOL atendida, void *op) {
-    char *t, *lugar = NULL, *p;
+    char *t, *lugar = NULL, *p, *r;
     JSValue pila;
-    if (atendida) return;
+    void *clave = JS_VALUE_GET_PTR(promesa);
+    int i;
+    if (atendida) {
+        for (i = 0; i < _js_rech_n; i++)
+            if (_js_rech_p[i] == clave) {
+                free(_js_rech_t[i]);
+                _js_rech_n--;
+                _js_rech_p[i] = _js_rech_p[_js_rech_n];
+                _js_rech_t[i] = _js_rech_t[_js_rech_n];
+                break;
+            }
+        return;
+    }
     t = _js_texto(ctx, motivo);
     if (JS_IsError(ctx, motivo)) {
         pila = JS_GetPropertyStr(ctx, motivo, "stack");
@@ -268,12 +297,15 @@ static void _js_rechazo(JSContext *ctx, JSValueConst promesa, JSValueConst motiv
         JS_FreeValue(ctx, pila);
     }
     for (p = lugar; p && *p; p++) if (*p == '\n') *p = ' ';
-    PutStr((CONST_STRPTR)"JS (promesa sin capturar): ");
-    PutStr((CONST_STRPTR)(t ? t : "?"));
-    if (lugar && *lugar) { PutStr((CONST_STRPTR)" | "); PutStr((CONST_STRPTR)lugar); }
-    PutStr((CONST_STRPTR)"\n");
+    r = (char *)malloc((t ? strlen(t) : 1) + (lugar ? strlen(lugar) : 0) + 4);
+    if (r) sprintf(r, "%s%s%s", t ? t : "?", lugar && *lugar ? " | " : "", lugar && *lugar ? lugar : "");
     free(t);
     free(lugar);
+    if (!r) return;
+    if (_js_rech_n == _JS_RECHAZOS) _js_rechazos_decir();
+    _js_rech_p[_js_rech_n] = clave;
+    _js_rech_t[_js_rech_n] = r;
+    _js_rech_n++;
 }
 """
 end

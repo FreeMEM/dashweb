@@ -541,6 +541,9 @@ func programar()
             if w.aviso_scroll and (espera < 0 or espera > 30)
                 espera = 30
             end
+            if w.actual != nil and w.actual.js != 0 and jsdom_peticiones_pendientes(w.actual.js) > 0 and (espera < 0 or espera > 50)
+                espera = 50
+            end
             # una página con animaciones de CSS vivas (o recién maquetada: aún no se sabe): el siguiente fotograma
             if w.actual != nil and w.carga == nil and documento_animado(w.actual) and (w.animando or w.fotograma == 0)
                 e = ANIMACION_MS - (time_ms() - w.fotograma)
@@ -666,6 +669,14 @@ func tic(w: Ventana)
     end
     if w.aviso_scroll
         avisar_desplazamiento(w)
+    end
+    # las respuestas a los XMLHttpRequest y fetch del JavaScript (tarea 37e2)
+    if w.actual != nil and w.actual.js != 0 and w.carga == nil and jsdom_peticiones_avanzar(w.actual.js) > 0
+        if documento_al_dia(w.actual)
+            ajustar_barra(w)
+            mui_canvas_redraw(w.v.pagina)
+        end
+        temporizadores(w)
     end
     # una maqueta nueva: los IntersectionObserver otra vez
     if w.actual != nil and w.actual.pagina != nil and w.io_pagina != w.actual.pagina

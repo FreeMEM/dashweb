@@ -906,6 +906,7 @@ func documento_liberar(d: Documento)
         videos_liberar(d.videos)
     end
     if d.js != 0
+        jsdom_peticiones_cancelar(d.js)
         js_liberar(d.js)
         d.js = 0
     end
