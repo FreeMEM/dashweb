@@ -2463,3 +2463,9 @@ Formato:
 - Dash: fuente0 (D57, D58, D59 y el merge de origin/main, 8c3934d) se sube con PR a main.
 - El usuario lo ha probado en CoffinOS (MUI 3.8) desde el icono: funciona bien. Fusionados FreeMEM/dash#1 y
   FreeMEM/dashweb#2.
+
+### 2026-10-20 — Publicada la v0.2.0-alfa
+- Base: 56/56 (738 s). Etiqueta v0.2.0-alfa sobre main (da9fde3: Hubbub, vectoriales con D57, MUI 3.8 con D58, sin
+  consola con D59), pre-release https://github.com/FreeMEM/dashweb/releases/tag/v0.2.0-alfa con build/dashweb.lha
+  (5,9 MB), hecho con tools/paquete.sh y Dash 8c3934d (= main de FreeMEM/dash tras su PR #1). README enlaza a ella
+  (en dev, pendiente de llevar a main).
