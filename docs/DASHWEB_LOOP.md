@@ -3029,3 +3029,16 @@ Formato:
 - Test: test_jsdom_geometria (sticky y lo de dentro con la página desplazada; fixed). Batería 71/71 (1487 s);
   freemem.space 24,2 s.
 
+### 2026-10-21 — Tarea 37h2, tercera parte (menos maquetas enteras al bajar)
+- Bajando por pre.opentimetrack.com, 13 maquetas enteras (6-10 s cada una); los motivos (la traza de 37e3): un
+  atributo name de un <input>, un transform de un <g> de un SVG, un rotate de la pila de tarjetas.
+- lib/documento.dash, ruta ligera: un atributo que no mueve nada (los que sí, `_documento_atributo_mueve`: src,
+  width, value, type...) y que el CSS no nombra, sin maqueta; lo de dentro de un <svg> (toques y estilos) no se
+  maqueta: su imagen se rasteriza otra vez (`_documento_svgs_tocados`, también por la maqueta entera: antes un
+  cambio dentro de un SVG no se veía nunca); un rotate o una matriz con giro en algo con hijos no cuenta (dashweb solo
+  gira una barra suelta).
+- Ahora las maquetas enteras al bajar son de cosas que mueven de verdad (textos que cambian de largo, elementos que
+  entran); el coste de cada una es la 37e6.
+- Test: test_documento_ligero (name, dentro de un <svg>, rotate en una caja con hijos; el rotate de #a, que tiene
+  texto, ya no pide maqueta). Batería 71/71 (1488 s); freemem.space 24,1 s.
+

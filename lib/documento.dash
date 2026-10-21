@@ -572,6 +572,7 @@ func documento_al_dia(d: Documento) -> Bool
     if not parte
         estilo_aplicar(d.doc, d.hojas)
     end
+    _documento_svgs_tocados(d, toques)
     if ligero and parte and _documento_sin_maqueta(d, toques, estilo_cambios)
         if traza_activa
             traza("el JavaScript hizo " + toques.length + " cambios que no mueven nada (" + estilo_cambios.length + " estilos): aplicados sin maqueta en " + (time_ms() - t0) + " ms")
@@ -610,6 +611,50 @@ var _lig_vuelta: Int = 0
 
 # ¿Pueden ser cambios sin maqueta? Solo atributos que actúan por el estilo (class, style, id, data-*, aria-*...) y
 # textos cambiados (TOQUE_CONTENIDO, que _documento_texto_igual mira después)
+# ¿Un atributo que cambia lo que se maqueta o se pinta? (los demás, como name o lang, sin maqueta si el CSS no los
+# nombra; tarea 37h2)
+func _documento_atributo_mueve(k: String) -> Bool
+    return k == "src" or k == "srcset" or k == "width" or k == "height" or k == "value" or k == "type" or k == "colspan" or k == "rowspan" or k == "size" or k == "rows" or k == "cols" or k == "hidden" or k == "open" or k == "checked" or k == "selected" or k == "alt" or k == "dir" or k == "align" or k == "valign" or k == "bgcolor" or k == "color" or k == "face" or k == "border" or k == "cellpadding" or k == "cellspacing" or k == "nowrap" or k == "poster" or k == "data" or k == "placeholder" or k == "start" or k == "reversed" or k == "multiple" or k == "disabled" or k == "viewbox" or k == "d" or k == "points" or k == "href"
+end
+
+# ¿Está dentro de un <svg> (no el <svg> mismo)? Lo de dentro no se maqueta: es parte de su imagen
+func _documento_en_svg(n: Nodo) -> Bool
+    p = n.padre
+    while p != nil and p.tipo == DOM_ELEMENTO
+        if p.nombre == "svg"
+            return true
+        end
+        p = p.padre
+    end
+    return false
+end
+
+# Los <svg> con algo de dentro tocado: su imagen otra vez (un transform de un <g>, un fill...)
+func _documento_svgs_tocados(d: Documento, toques: [Toque])
+    if toques == nil
+        return
+    end
+    var hechos: [Nodo] = []
+    for t in toques
+        p = t.nodo
+        while p != nil and p.tipo == DOM_ELEMENTO and p.nombre != "svg"
+            p = p.padre
+        end
+        if p != nil and p.tipo == DOM_ELEMENTO and p.nombre == "svg" and dom_tiene_atributo(p, "data-dashweb-svg")
+            ya = false
+            for h in hechos
+                if h == p
+                    ya = true
+                end
+            end
+            if not ya
+                hechos.push(p)
+                imagenes_svg_rehacer(d.im, p)
+            end
+        end
+    end
+end
+
 func _documento_puede_ligero(d: Documento, toques: [Toque]) -> Bool
     if toques == nil or d.pagina == nil or d.ancho <= 0 or toques.length == 0
         return false
@@ -618,9 +663,13 @@ func _documento_puede_ligero(d: Documento, toques: [Toque]) -> Bool
         if t.nodo == nil or t.nodo.tipo != DOM_ELEMENTO
             return _lig_no("un toque sin elemento", t.nodo)
         end
+        if _documento_en_svg(t.nodo)
+            # (dentro de un <svg>: solo cambia su imagen, que se rasteriza otra vez: _documento_svgs_tocados)
+            continue
+        end
         if t.tipo == TOQUE_ATRIBUTO
             k = t.nombre
-            if not (k == "class" or k == "style" or k == "id" or k == ":hover" or k == "title" or k == "role" or k == "tabindex" or str_starts(k, "data-") or str_starts(k, "aria-"))
+            if not (k == "class" or k == "style" or k == "id" or k == ":hover" or str_starts(k, "data-") or str_starts(k, "aria-") or not (_documento_atributo_mueve(k) or (d.hojas != nil and d.hojas.atributos_usados.has(k))))
                 return _lig_no("el atributo " + k, t.nodo)
             end
         elif t.tipo != TOQUE_CONTENIDO and t.tipo != TOQUE_ENTRA and t.tipo != TOQUE_VECINO and t.tipo != TOQUE_SALE
@@ -652,6 +701,9 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
     # primero, comprobarlo todo (sin tocar nada)
     var fuera: [Nodo] = []
     for t in toques
+        if _documento_en_svg(t.nodo)
+            continue
+        end
         if t.tipo == TOQUE_CONTENIDO and not _documento_texto_igual(d, t.nodo, false)
             return _lig_no("un texto que cambia de forma", t.nodo)
         end
@@ -671,6 +723,11 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
     var dys: [Int] = []
     for c in cambios
         n = c.nodo
+        if _documento_en_svg(n)
+            dxs.push(0)
+            dys.push(0)
+            continue
+        end
         if not c.pseudo and c.viejo != nil and _val_estilo(n.estilo, "display", "") == "none" and _val_estilo(c.viejo, "display", "none") != "none" and _documento_fuera_del_flujo(c.viejo)
             # (uno absoluto o fijo que se esconde: se quitan sus dibujos)
             fuera.push(n)
@@ -726,7 +783,7 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
     i = 0
     for c in cambios
         n = c.nodo
-        if dxs[i] == 0 and dys[i] == 0 and _documento_sin_caja(n)
+        if dxs[i] == 0 and dys[i] == 0 and (_documento_sin_caja(n) or _documento_en_svg(n))
             i = i + 1
             continue
         end
@@ -825,6 +882,15 @@ func _documento_ligera(k: String) -> Bool
     return k == "view-transition-name" or k == "view-transition-class" or k == "transform" or k == "translate" or k == "opacity" or k == "visibility" or k == "will-change" or str_starts(k, "transition") or k == "pointer-events" or k == "cursor"
 end
 
+func _documento_con_hijos(n: Nodo) -> Bool
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO or (h.tipo == DOM_TEXTO and str_trim(h.texto) != "")
+            return true
+        end
+    end
+    return false
+end
+
 # El desplazamiento de transform y translate en px, [x, y]; nil si hay algo más que desplazar (giro, escala...)
 func _documento_traslacion(e: {String: String}, n: Nodo) -> [Int]
     var nada: [Int] = nil
@@ -869,12 +935,14 @@ func _documento_traslacion(e: {String: String}, n: Nodo) -> [Int]
             elif f == "translatez"
                 x = x
             elif f == "matrix" and args.length == 6
-                if args[0] != "1" or args[1] != "0" or args[2] != "0" or args[3] != "1"
+                # (con giro, en algo con hijos: el giro no se pinta, solo cuenta lo que desplaza)
+                if not (_casi_uno(args[0]) and _casi_uno(args[3])) or ((args[1] != "0" or args[2] != "0") and not _documento_con_hijos(n))
                     return nada
                 end
                 x = x + estilo_px(args[4], em, w)
                 y = y + estilo_px(args[5], em, h)
-            elif (f == "rotate" or f == "rotatez" or f == "skew" or f == "skewx" or f == "skewy") and args.length >= 1 and (args[0] == "0" or args[0] == "0deg" or args[0] == "0rad" or args[0] == "0turn")
+            elif (f == "rotate" or f == "rotatez" or f == "skew" or f == "skewx" or f == "skewy") and args.length >= 1 and (args[0] == "0" or args[0] == "0deg" or args[0] == "0rad" or args[0] == "0turn" or _documento_con_hijos(n))
+                # (dashweb solo gira una barra suelta, sin nada dentro: lo demás no cambia al girar)
                 x = x
             elif (f == "scale" or f == "scalex" or f == "scaley" or f == "scale3d") and args.length >= 1 and _casi_uno(args[0]) and (args.length < 2 or _casi_uno(args[1]))
                 # (una escala entre 0,9 y 1,1 no se aplica: GSAP las pone a cada fotograma y rehacer la maqueta por

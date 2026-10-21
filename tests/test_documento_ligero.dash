@@ -1,19 +1,22 @@
 # Test: cambios del JavaScript que no mueven nada se aplican sin rehacer la maqueta (tarea 37d). Un translateY en
 # el atributo style mueve los dibujos del elemento y de lo de dentro (y su caja para el JavaScript); opacity: 0 los
-# vela y opacity: 1 los enseña; algo que sí mueve (width) maqueta otra vez. Un elemento con opacity: 0 desde el
+# vela y opacity: 1 los enseña; un rotate en una caja con texto (no se pinta girada), sin maqueta; algo que sí
+# mueve (width), con maqueta. Un elemento con opacity: 0 desde el
 # principio tiene sus dibujos (velados) y su caja. Un texto que cambia sin cambiar de forma (un reloj) se cambia
 # en sus dibujos; si cambia de largo, maqueta otra vez. Una escala casi 1 (GSAP) cuenta como 1. view-transition-name
 # (las transiciones de React) no mueve nada; un <script> que entra tampoco, un <div> sí (tarea 37e3). Un elemento
 # absoluto que sale, o uno fijo que pasa a display: none, se quita de los dibujos sin maqueta; uno normal que sale,
-# con maqueta (tarea 37e5).
+# con maqueta (tarea 37e5). Un atributo que no mueve nada (name), algo de dentro de un <svg> (su imagen se hace
+# otra vez; en 3.1 sin RTG no hay imagen que mirar) y un rotate en una caja con hijos (no se pinta girada), sin maqueta (37h2).
 # memcheck
 # expect-out: misma página: true | y +40: true | caja +40: true
 # expect-out: velado: true true | enseñado: false
-# expect-out: rotate: false | width: false
+# expect-out: rotate: true | width: false
 # expect-out: oculto desde el principio: true 50
 # expect-out: reloj: true 34 | más largo: false | escala 0.98: true
 # expect-out: view-transition-name: true | script: true | div: false
 # expect-out: sale absoluto: true false | fijo a none: true false | sale normal: false
+# expect-out: name: true | svg: true | rotate: true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -29,7 +32,7 @@ func dibujo_de(p: Pagina, n: Nodo) -> Dibujo
 end
 
 Main
-    h = "<body style='margin:0'><div id=a style='background:red;height:30px'><span id=s>hola</span></div><div id=o style='opacity:0;height:50px;background:blue'>x</div><p><span id=r>12</span> horas</p><div id=abs style='position:absolute;top:0;left:200px;background:green;width:20px;height:20px'></div><div id=fij style='position:fixed;top:0;left:250px;background:green;width:20px;height:20px'></div><div id=nor style='height:10px;background:gray'></div><script>var a = document.getElementById('a');</script></body>"
+    h = "<body style='margin:0'><div id=a style='background:red;height:30px'><span id=s>hola</span></div><div id=o style='opacity:0;height:50px;background:blue'>x</div><p><span id=r>12</span> horas</p><div id=abs style='position:absolute;top:0;left:200px;background:green;width:20px;height:20px'></div><div id=fij style='position:fixed;top:0;left:250px;background:green;width:20px;height:20px'></div><div id=nor style='height:10px;background:gray'></div><input id=in name=uno><svg id=sv width=20 height=20><rect id=re width=20 height=20 fill=red /></svg><div id=gi><p>x</p></div><script>var a = document.getElementById('a');</script></body>"
     d = documento_html("http://x/", h)
     documento_maquetar(d, 300)
     # (el primer cambio tras maquetar a otro ancho rehace el índice de las hojas: estilo entero)
@@ -98,5 +101,15 @@ Main
     js_evaluar(d.js, "document.body.removeChild(document.getElementById('nor'))", "t.js")
     documento_al_dia(d)
     Print sa + " | sale normal: " + (d.pagina == p7)
+    p8 = d.pagina
+    js_evaluar(d.js, "document.getElementById('in').setAttribute('name', 'dos')", "t.js")
+    documento_al_dia(d)
+    r8 = "name: " + (d.pagina == p8)
+    js_evaluar(d.js, "document.getElementById('re').setAttribute('fill', 'blue')", "t.js")
+    documento_al_dia(d)
+    r8 = r8 + " | svg: " + (d.pagina == p8)
+    js_evaluar(d.js, "document.getElementById('gi').style.transform = 'rotate(5deg)'", "t.js")
+    documento_al_dia(d)
+    Print r8 + " | rotate: " + (d.pagina == p8)
     documento_liberar(d)
 end
