@@ -3198,3 +3198,10 @@ Formato:
 - (usuario) Créditos en "Acerca de...": hecho en Dash con MUI y AmiSSL; adaptados para AmigaOS QuickJS (Bellard y
   Gordon) y Hubbub con LibParserUtils (NetSurf); también stb, NanoSVG, Brotli, libwebp, TJpgDec, fdlibm y MintVID;
   licencias en el cajón Licencias. tools/paquete.sh no copiaba la licencia de Brotli (llegó con la 37g): añadida.
+
+### 2026-10-21 — Batería con lo de la otra sesión
+- Tras el reinicio hubo dos sesiones dashweb en esta carpeta; el usuario dejó el loop en esta. La otra subió
+  9f520b1 (data:, about:... dan NIL:; <noscript> escondido), b4d3d3d y 09e799c ("Acerca de..." y licencia de Brotli
+  en el paquete) con solo test_url y test_estilo*. Batería entera con todo ello: 72/72.
+- D68 (dos_requesters, base64_to_file) la lleva ahora este loop: cuando esté en main, dos_requesters(false) al
+  arrancar y las data: (base64 a T: con base64_to_file; las de %XX con file_write_text) para imágenes y fuentes.
