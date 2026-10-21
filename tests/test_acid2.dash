@@ -1,14 +1,16 @@
 # Test: lo que Acid2 (acid2.acidtests.org, CSS 2.1) pide, pieza a pieza (tarea 41a). Una hoja en una dirección
 # data: (<link rel="appendix stylesheet" href="data:text/css,...">) se aplica; un borde transparent no se pinta (ni
 # con el color del texto), uno semitransparente se mezcla y uno con un color que no se entiende va con el del texto.
+# Ir a #top lleva al borde de arriba de su caja, con su relleno (no a su texto).
 # memcheck
 # expect-out: hoja data: none
 # expect-out: borde transparente: 0 dibujos
 # expect-out: borde rgba: true 127
 # expect-out: borde raro: 16711680
+# expect-out: ancla: 100 true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
-import "../lib/maqueta.dash"
+import "../lib/documento.dash"
 
 func rects(estilo: String) -> [Dibujo]
     doc = dom_desde_html("<style>html { color: red } .p { height: 20px; " + estilo + " }</style><body><div class=p></div></body>")
@@ -40,4 +42,14 @@ Main
     Print "borde rgba: " + (a.length == 4 and a[0].color == 255) + " " + a[0].espaciado
     b = rects("border: 2px solid nocolor")
     Print "borde raro: " + b[0].color
+    d = documento_html("http://x/", "<body style='margin:0'><div style='height:100px'></div><h2 id=top style='margin:0;padding-top:40px;font:24px/24px sans-serif'>Hola</h2></body>")
+    documento_maquetar(d, 300)
+    t = 0
+    for dib in d.pagina.dibujos
+        if dib.tipo == D_TEXTO and str_trim(dib.texto) == "Hola"
+            t = dib.y
+        end
+    end
+    Print "ancla: " + documento_y_de(d, "top") + " " + (t >= 140)
+    documento_liberar(d)
 end

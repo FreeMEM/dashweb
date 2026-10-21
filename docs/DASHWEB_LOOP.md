@@ -3306,3 +3306,17 @@ Formato:
 - Tests que esperaban las medidas de 13 px puestos al día (test_estilo, test_maqueta, test_maqueta_css,
   test_animacion, test_jsdom_geometria): los nuevos valores cuadran con 16 (h1 2em 32 px, 0.8em 13 px...).
 - Batería: 76/77 con solo test_maqueta pendiente de poner al día (sus 21 líneas, en tres pasadas); después las de maqueta 14/14. freemem.space entera en 23.623 ms.
+
+### 2026-10-21 — Tarea 41a, segunda parte (ir a un #ancla: al borde de su caja)
+- documento_y_de daba la y del primer dibujo del elemento (su texto): en Acid2 #top lleva padding-top 2em y todo
+  salía 48 px más arriba que la referencia. Ahora da el borde de arriba de su caja (caja_y de la última maqueta;
+  sin caja, como antes). Con eso "Hello World!" queda a 48 px y lo de arriba de la cara a 108, como la referencia.
+- tests/test_acid2.dash: ancla a 100 con su texto debajo de los 40 px de relleno.
+- Para comparar: la captura de dashweb y reference.png en (72, 108) lado a lado y ampliadas (guion en el
+  scratchpad; Acid2 sigue sin copiarse al repo).
+- Batería: 77/77.
+
+### 2026-10-21 — $VER para el comando Version (usuario; hecho por la otra sesión dashweb, 56b0388)
+- src/dashweb.dash: el @native texto_version lleva "$VER: dashweb 0.3.0-dev (21.10.2026)" (con
+  __attribute__((used))). La fecha y la versión se cambian junto a DASHWEB_VERSION. Comprobado con strings en el
+  ejecutable; en el Amiga sin probar. Copiado a Traspaso a las 21:17, compilado desde un HEAD limpio.

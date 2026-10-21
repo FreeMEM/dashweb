@@ -1299,6 +1299,11 @@ func documento_y_de(d: Documento, id: String) -> Int
     if objetivo == nil
         return -1
     end
+    # el borde de arriba de su caja, con su relleno (Acid2: #top lleva padding-top 2em; tarea 41a); sin caja, su
+    # primer dibujo
+    if d.doc.caja_pase != 0 and objetivo.caja_pase == d.doc.caja_pase and not objetivo.caja_fija
+        return objetivo.caja_y
+    end
     y = -1
     for dib in d.pagina.dibujos
         if dib.nodo != nil and (y < 0 or dib.y < y) and _documento_dentro(dib.nodo, objetivo)
