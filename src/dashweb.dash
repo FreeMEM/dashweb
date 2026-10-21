@@ -938,11 +938,13 @@ func desplazar(w: Ventana, n: Int)
     mui_set_value(w.v.barra, mui_get_value(w.v.barra) + n)
 end
 
-# La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló
+# La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló; y para el comando Version del Amiga,
+# la cadena $VER del ejecutable (con la fecha del día en que se cambia la versión: van juntas)
 const DASHWEB_VERSION = "0.3.0-dev"
 
 @native(borrow) func texto_version(v: String) -> String
 """
+    static const char __attribute__((used)) ver[] = "$VER: dashweb 0.3.0-dev (21.10.2026)";
     static char b[160];
     sprintf(b, "\033c\033bdashweb %s\033n\n\033ccompilado el %s a las %s", (char *)v, __DATE__, __TIME__);
     return (STRPTR)b;
