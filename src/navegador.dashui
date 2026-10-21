@@ -190,7 +190,12 @@
         "children": [
           {
             "type": "text",
-            "text": "\u001bcdashweb\n\u001bcun navegador para Amiga hecho en Dash\n\u001bcQuickJS, AmiSSL y MUI"
+            "name": "version",
+            "text": "\u001bcdashweb"
+          },
+          {
+            "type": "text",
+            "text": "\u001bcun navegador para Amiga hecho en Dash\n\u001bcQuickJS, AmiSSL y MUI"
           },
           {
             "type": "button",

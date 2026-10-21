@@ -897,6 +897,17 @@ func desplazar(w: Ventana, n: Int)
     mui_set_value(w.v.barra, mui_get_value(w.v.barra) + n)
 end
 
+# La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló
+const DASHWEB_VERSION = "0.3.0-dev"
+
+@native(borrow) func texto_version(v: String) -> String
+"""
+    static char b[160];
+    sprintf(b, "\033c\033bdashweb %s\033n\n\033ccompilado el %s a las %s", (char *)v, __DATE__, __TIME__);
+    return (STRPTR)b;
+"""
+end
+
 # Corre la ventana (las del mismo .dashui salen en el mismo sitio)
 @native func mover_ventana(win: Int, dx: Int, dy: Int)
 """
@@ -999,6 +1010,7 @@ Main
         Print "dashweb necesita MUI (3.8 o 5) y un 68020"
     else
         a = Acerca_create()
+        mui_set_text(a.version, texto_version(DASHWEB_VERSION))
         # cada argumento en su ventana (hasta 4); sin argumentos, la página de inicio
         # TRAZA: la línea de tiempo de las cargas por la salida (lib/traza.dash)
         paginas = 0
