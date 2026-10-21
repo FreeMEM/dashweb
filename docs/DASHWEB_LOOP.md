@@ -2952,3 +2952,17 @@ Formato:
 - Test: test_maqueta_fijo (nuevo: fixed y sticky pintados y bajo el ratón). Batería 67/67 (1256 s); freemem.space
   23,7 s.
 
+### 2026-10-21 — Tarea 37h, segunda parte (el móvil y el portátil de la historia)
+- El móvil de la historia salía vacío y a la izquierda. Con su HTML (sacado de Chrome) y la hoja de la página en una
+  prueba aparte, cuatro fallos:
+  - aspect-ratio no daba un alto definido a los de dentro (el h-full del móvil, una columna flex con flex-1, salía
+    de 40 px); y con border-box la proporción es de la caja con su relleno (280 de ancho: 591, no 571).
+  - el atajo inset no existía (Tailwind: inset-0): los absolutos con inset: 0 medían su contenido.
+  - place-items, place-content y place-self no se repartían en align-* y justify-*.
+  - al medir (_ancho_flotante_medir y la caché de 37e2), lo que desborda un overflow: hidden contaba entero: la
+    pantalla del portátil hacía mínimo de 10.021 px una columna de grid.
+- pre.opentimetrack.com: el móvil y el portátil, centrados y con su contenido ("Hola, Lucía", el contador que corre,
+  "Mi jornada", "Por decidir"), como en Chrome.
+- Test: test_maqueta_inset (nuevo: inset, absoluto en un flex-1, aspect-ratio con border-box y height: 100%,
+  place-items: center, overflow que no ensancha). Batería 68/68 (1268 s); freemem.space 22,9 s.
+

@@ -1091,7 +1091,7 @@ func _es_atajo(p: String) -> Bool
     if (str_ends(p, "-inline") or str_ends(p, "-block") or str_ends(p, "-start") or str_ends(p, "-end")) and _logica_lados(p) != nil
         return true
     end
-    return p == "margin" or p == "padding" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap"
+    return p == "margin" or p == "padding" or p == "inset" or p == "place-items" or p == "place-content" or p == "place-self" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap"
 end
 
 # Las declaraciones de una regla con los atajos partidos (margin en margin-top..., border, background,
@@ -1139,6 +1139,21 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
         end
     elif p == "margin" or p == "padding"
         _cuatro(ganadoras, p + "-", "", v, d.importante, autor, esp, orden)
+    elif p == "inset"
+        # top, right, bottom y left de una vez (Tailwind: inset-0; tarea 37h)
+        _cuatro(ganadoras, "", "", v, d.importante, autor, esp, orden)
+    elif p == "place-items" or p == "place-content" or p == "place-self"
+        # align-* y justify-* (el segundo valor, o el mismo): "place-items: center" centra en la celda de un grid
+        partes = _palabras(v)
+        if partes.length > 0
+            resto = p[6:]
+            _proponer(ganadoras, "align-" + resto, Candidata(partes[0], d.importante, autor, esp, orden))
+            segundo = partes[0]
+            if partes.length > 1
+                segundo = partes[1]
+            end
+            _proponer(ganadoras, "justify-" + resto, Candidata(segundo, d.importante, autor, esp, orden))
+        end
     elif p == "border-width" or p == "border-style" or p == "border-color"
         _cuatro(ganadoras, "border-", p[6:], v, d.importante, autor, esp, orden)
     elif p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left"

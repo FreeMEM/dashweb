@@ -855,6 +855,25 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             alto_pct = 0
         end
     end
+    # aspect-ratio con el alto sin fijar: un alto definido para los de dentro (el h-full del móvil de
+    # pre.opentimetrack.com; con border-box, la proporción es de la caja con su relleno y borde, tarea 37h)
+    alto_ratio = -1
+    if e.has("aspect-ratio") and e["aspect-ratio"] != "auto" and _val(e, "height", "auto") == "auto"
+        proporcion = _proporcion(e["aspect-ratio"])
+        if proporcion > 0
+            if _val(e, "box-sizing", "content-box") == "border-box"
+                alto_ratio = (interior + pl + pr + bl + br) * 1000 / proporcion - pt - pb - bt - bb
+            else
+                alto_ratio = interior * 1000 / proporcion
+            end
+            if alto_ratio < 0
+                alto_ratio = 0
+            end
+            if alto_pct < 0
+                alto_pct = alto_ratio
+            end
+        end
+    end
     antes_definido = _alto_definido
     _alto_definido = alto_pct
     if e.has("height") and e["height"] != "auto" and not str_ends(e["height"], "%")
@@ -906,14 +925,8 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         end
     end
     # aspect-ratio con el alto sin fijar: el alto que da la proporción con el ancho (o el contenido, si es más)
-    if e.has("aspect-ratio") and e["aspect-ratio"] != "auto" and _val(e, "height", "auto") == "auto"
-        proporcion = _proporcion(e["aspect-ratio"])
-        if proporcion > 0
-            por_ancho = interior * 1000 / proporcion
-            if alto < por_ancho
-                alto = por_ancho
-            end
-        end
+    if alto_ratio >= 0 and alto < alto_ratio
+        alto = alto_ratio
     end
     if e.has("min-height") and not str_ends(e["min-height"], "%")
         minimo = _px(e, "min-height", 0)
@@ -2061,11 +2074,23 @@ func _medida_de(m: Maquetador, md: Medida, alto: Int, antes: Int, x: Int, y: Int
             cuenta = w != "auto" and not str_ends(w, "%")
         end
         if cuenta
-            if d.x < md.izq
-                md.izq = d.x
+            dx0 = d.x
+            dx1 = d.x + d.ancho
+            if d.recorte
+                if dx0 < d.rx0
+                    dx0 = d.rx0
+                end
+                if dx1 > d.rx1 + 1
+                    dx1 = d.rx1 + 1
+                end
             end
-            if d.x + d.ancho > md.der
-                md.der = d.x + d.ancho
+            if dx1 > dx0
+                if dx0 < md.izq
+                    md.izq = dx0
+                end
+                if dx1 > md.der
+                    md.der = dx1
+                end
             end
         end
         if (d.tipo == D_TEXTO or d.tipo == D_ICONO) and d.fuente != 0
@@ -2133,11 +2158,24 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
             cuenta = w != "auto" and not str_ends(w, "%")
         end
         if cuenta
-            if d.x + d.ancho > derecha
-                derecha = d.x + d.ancho
+            # (lo recortado por un overflow, solo hasta su recorte: lo que desborda no ensancha)
+            dx0 = d.x
+            dx1 = d.x + d.ancho
+            if d.recorte
+                if dx0 < d.rx0
+                    dx0 = d.rx0
+                end
+                if dx1 > d.rx1 + 1
+                    dx1 = d.rx1 + 1
+                end
             end
-            if d.x < izquierda
-                izquierda = d.x
+            if dx1 > dx0
+                if dx1 > derecha
+                    derecha = dx1
+                end
+                if dx0 < izquierda
+                    izquierda = dx0
+                end
             end
         end
         i = i + 1
