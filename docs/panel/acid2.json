@@ -1,0 +1,13 @@
+[
+ {"pieza": "Hoja en dirección data: (fondo rojo)", "estado": "hecha", "nota": "41a (1)"},
+ {"pieza": "Bordes transparentes", "estado": "hecha", "nota": "41a (1)"},
+ {"pieza": "Ir a #top (posición de todo)", "estado": "hecha", "nota": "41a (2)"},
+ {"pieza": "Parser de CSS (.parser)", "estado": "hecha", "nota": "41a (3): sin unidad, ';' suelto"},
+ {"pieza": "Nariz: max-height", "estado": "pendiente", "nota": "60 de alto en vez de 48"},
+ {"pieza": "Barbilla: alto de línea del bloque", "estado": "pendiente", "nota": "4 en vez de 12"},
+ {"pieza": "Segunda línea: selector con espacio escapado", "estado": "pendiente", "nota": "[class=second\\ two]"},
+ {"pieza": "Frente: hijo más ancho que el padre", "estado": "pendiente", "nota": "se recorta a 8em"},
+ {"pieza": "Ojos: floats detrás de bloques", "estado": "pendiente", "nota": "#eyes-c baja bajo el float"},
+ {"pieza": "Sonrisa: floats anidados", "estado": "pendiente", "nota": "el ancho no sube"},
+ {"pieza": "Última línea: display: table en ul/li", "estado": "pendiente", "nota": "tabla anónima"}
+]

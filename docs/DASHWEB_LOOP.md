@@ -61,6 +61,11 @@ Dos fases:
 7b. **Capturas.** El usuario quiere ver cómo evoluciona (2026-10-16): cuando una tarea cambie lo que se ve, una
    captura del emulador enviada con SendUserFile (sin esperar al final).
 8. **Cerrar.** Marca `[x]`, añade una entrada a la bitácora y haz commit local `<tarea> - <resumen>`.
+8b. **Panel de progreso** (usuario, 2026-10-21): https://claude.ai/artifact/6RpPSBd7iEVaXduBDX9QEA ("Progreso de
+   dashweb"). Tras cada commit: pon al día `docs/panel/medidas.json`, `acid2.json` y `estandares.json` si cambian,
+   `python3 tools/panel_progreso.py <dir del scratchpad>` y, por cada JSON que cambie, súbelo (Artifact publish con
+   `url` del panel, `asset: true`) y actualiza su `datasets/<id>` con ArtifactData `update`: `source.url`, `name` y
+   `updated` ({at, by}). Las tareas, las baterías ("Batería: N/M" en la bitácora) y los commits salen solos.
 9. **Fin.** Si no quedan tareas `[ ]` en ninguna fase, escribe el resumen final, para el loop y avisa
    con PushNotification.
 
@@ -3320,3 +3325,26 @@ Formato:
 - src/dashweb.dash: el @native texto_version lleva "$VER: dashweb 0.3.0-dev (21.10.2026)" (con
   __attribute__((used))). La fecha y la versión se cambian junto a DASHWEB_VERSION. Comprobado con strings en el
   ejecutable; en el Amiga sin probar. Copiado a Traspaso a las 21:17, compilado desde un HEAD limpio.
+
+### 2026-10-21 — Tarea 41a, tercera parte (el parser de Acid2: sin unidad y ";" suelto)
+- Cajas de cada pieza de Acid2 en dashweb (un test suelto, no guardado) contra las de Chrome (getBoundingClientRect
+  relativo a .picture): lo que sale distinto, por orden: .parser (272x36 en vez de 96x12), la nariz (max-height 3em
+  no se aplica: 60 de alto en vez de 48), la barbilla (sin el alto de línea del bloque: 4 en vez de 12), el
+  blockquote y el address (el selector [class=second\ two] y el abs que envuelve un float), la frente (un hijo de
+  12em se recorta a los 8em del padre), los ojos (#eyes-c baja bajo el float en vez de quedar detrás; .eyes no
+  encoge), la sonrisa (floats anidados con width que no suben) y la tabla de ul/li (display: table en otros).
+- lib/html5.dash guarda el modo de Hubbub: en quirks el documento lleva modo="quirks". lib/estilo.dash `_declarar`:
+  fuera de quirks, una longitud sin unidad distinta de 0 en una propiedad de longitudes no cuenta (width: 200).
+- lib/css.dash: un ";" entre reglas ya no se salta: va con el selector de la siguiente, que no vale y no cuenta
+  (CSS Syntax 3), como en los navegadores. .parser sale ya de 96x12 como en Chrome.
+- test_acid2: parser 2em/1em en estándar; en quirks width: 200 vale 200.
+- Batería: 77/77.
+
+### 2026-10-21 — Panel de progreso (usuario)
+- El usuario quiere un artefacto que vaya señalando los progresos, las pruebas y lo que queda: "Progreso de
+  dashweb" (https://claude.ai/artifact/6RpPSBd7iEVaXduBDX9QEA, del tipo Dashboard): tareas hechas, última batería,
+  commits desde la v0.2.0-alfa, piezas de Acid2, el gráfico de las baterías, medidas antes y ahora, las pruebas de
+  estándares, las tareas con filtro por estado y los commits.
+- tools/panel_progreso.py saca los datos del plan, la bitácora y git; docs/panel/*.json, lo que no sale solo. Regla
+  8b del loop: ponerlo al día tras cada commit.
+

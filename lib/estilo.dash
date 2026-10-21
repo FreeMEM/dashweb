@@ -1142,9 +1142,17 @@ func _proponer(ganadoras: {String: Candidata}, propiedad: String, c: Candidata)
 end
 
 # Una declaración, con los atajos ya repartidos en sus propiedades
+# La página está en modo quirks (sin doctype o uno viejo): ahí width: 200 vale 200px, como en los navegadores
+var estilo_raro: Bool = false
+
 func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp: Int, orden: Int)
     p = d.propiedad
     v = d.valor
+    # una longitud sin unidad (que no sea 0) no vale en modo estándar: la declaración no cuenta (Acid2: .parser {
+    # width: 200 }; tarea 41a)
+    if not estilo_raro and v.length > 0 and str_code(v, v.length - 1) >= 48 and str_code(v, v.length - 1) <= 57 and _de_longitud(p) and _sin_unidad(v)
+        return
+    end
     if str_find(v, "var(") >= 0 and _es_atajo(p)
         # con var() se parte en _calcular, cuando ya se sabe el valor
         _proponer(ganadoras, p, Candidata(v, d.importante, autor, esp, orden))
@@ -1410,6 +1418,34 @@ func _es_color(t: String) -> Bool
     return str_starts(t, "#") or str_starts(t, "rgb") or str_starts(t, "hsl") or (not _es_longitud(t) and not str_starts(t, "url(") and t != "none" and t != "no-repeat" and t != "repeat" and t != "repeat-x" and t != "repeat-y" and t != "center" and t != "top" and t != "left" and t != "right" and t != "bottom" and t != "fixed" and t != "scroll")
 end
 
+# Propiedades que solo admiten longitudes (un número suelto, que no sea 0, no vale en ellas)
+func _de_longitud(p: String) -> Bool
+    return p == "width" or p == "height" or p == "min-width" or p == "min-height" or p == "max-width" or p == "max-height" or p == "top" or p == "left" or p == "right" or p == "bottom" or p == "font-size" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or str_starts(p, "margin") or str_starts(p, "padding") or (str_starts(p, "border") and str_ends(p, "width"))
+end
+
+# ¿Algún número sin unidad distinto de 0 entre sus palabras? ("200", "10 5px")
+func _sin_unidad(v: String) -> Bool
+    for t in _palabras(v)
+        sin = t.length > 0
+        cero = true
+        i = 0
+        while i < t.length
+            c = str_code(t, i)
+            if not ((c >= 48 and c <= 57) or c == 46 or c == 45 or c == 43)
+                sin = false
+            end
+            if c >= 49 and c <= 57
+                cero = false
+            end
+            i = i + 1
+        end
+        if sin and not cero
+            return true
+        end
+    end
+    return false
+end
+
 # (para la maqueta: el estilo de una caja anónima, lo que hereda de su padre)
 func estilo_se_hereda(p: String) -> Bool
     return _se_hereda(p)
@@ -1441,6 +1477,7 @@ end
 
 # Calcula el estilo de todo el árbol
 func estilo_aplicar(doc: Nodo, hojas: Hojas)
+    estilo_raro = dom_atributo(doc, "modo") == "quirks"
     if hojas.indice == nil or hojas.indice_ancho != css_vista_ancho()
         _estilo_indexar(hojas)
     end
@@ -1467,6 +1504,7 @@ end
 #   con ~ o :nth-child, todo el padre.
 # false si no se puede (:has() en las hojas, demasiados cambios, o hay que rehacer <html> entero): estilo_aplicar.
 func estilo_aplicar_partes(doc: Nodo, hojas: Hojas, toques: [Toque]) -> Bool
+    estilo_raro = dom_atributo(doc, "modo") == "quirks"
     if hojas.con_has or hojas.indice == nil or hojas.indice_ancho != css_vista_ancho() or hojas.invalida == nil
         if traza_activa
             traza("estilo entero: :has() " + hojas.con_has)

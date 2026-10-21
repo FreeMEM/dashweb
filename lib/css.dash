@@ -567,7 +567,7 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
     n = s.length
     i = 0
     while i < n
-        while i < n and (str_code(s, i) == 32 or str_code(s, i) == 9 or str_code(s, i) == 10 or str_code(s, i) == 13 or str_code(s, i) == 59)
+        while i < n and (str_code(s, i) == 32 or str_code(s, i) == 9 or str_code(s, i) == 10 or str_code(s, i) == 13)
             i = i + 1
         end
         if i >= n
@@ -635,6 +635,12 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
                 break
             end
             cierre = _css_cierre(s, llave)
+            # un ";" suelto (".a { } ; .b { }") es parte del selector de la regla siguiente, que entonces no vale y
+            # no cuenta (CSS Syntax 3; Acid2: ".parser { m\argin: 2em; };" deja fuera ".parser { height: 3em }")
+            if _css_buscar(s[i:llave], 59, 0) >= 0
+                i = cierre + 1
+                continue
+            end
             var selectores: [Selector] = []
             for parte in css_partir(s[i:llave], 44)
                 sel = css_selector(parte)

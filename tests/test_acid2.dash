@@ -1,13 +1,15 @@
 # Test: lo que Acid2 (acid2.acidtests.org, CSS 2.1) pide, pieza a pieza (tarea 41a). Una hoja en una dirección
 # data: (<link rel="appendix stylesheet" href="data:text/css,...">) se aplica; un borde transparent no se pinta (ni
 # con el color del texto), uno semitransparente se mezcla y uno con un color que no se entiende va con el del texto.
-# Ir a #top lleva al borde de arriba de su caja, con su relleno (no a su texto).
+# Ir a #top lleva al borde de arriba de su caja, con su relleno (no a su texto). En modo estándar "width: 200" no
+# vale (en quirks, sí: 200px) y un ";" suelto tras una regla deja fuera la siguiente.
 # memcheck
 # expect-out: hoja data: none
 # expect-out: borde transparente: 0 dibujos
 # expect-out: borde rgba: true 127
 # expect-out: borde raro: 16711680
 # expect-out: ancla: 100 true
+# expect-out: parser: 2em 1em | quirks: 200
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -52,4 +54,12 @@ Main
     end
     Print "ancla: " + documento_y_de(d, "top") + " " + (t >= 140)
     documento_liberar(d)
+    css = "<style>.parser { width: 2em; height: 1em } .parser { m\\argin: 2em; }; .parser { height: 3em; } .parser { width: 200; }</style>"
+    e1 = dom_desde_html5("<!DOCTYPE html><html><head>" + css + "</head><body><div class=parser></div></body></html>")
+    estilo_aplicar(e1, estilo_hojas(e1, "http://x/"))
+    n1 = jsdom_selector(e1, ".parser", false)[0]
+    e2 = dom_desde_html5("<html><head>" + css + "</head><body><div class=parser></div></body></html>")
+    estilo_aplicar(e2, estilo_hojas(e2, "http://x/"))
+    n2 = jsdom_selector(e2, ".parser", false)[0]
+    Print "parser: " + n1.estilo["width"] + " " + n1.estilo["height"] + " | quirks: " + n2.estilo["width"]
 end
