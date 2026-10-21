@@ -464,6 +464,62 @@ struct Carga
     enviada: Bool = false  # la petición ya salió por la conexión
     reusada: Bool = false  # la conexión venía de otra respuesta (si resulta cerrada, se abre otra)
     t0: Int = 0            # time_ms de cuando se pidió (traza)
+    # http_volcar: el cuerpo de una respuesta 2xx va a su fichero según llega, sin juntarlo entero en memoria (un
+    # .lha grande agotaba la memoria; tarea 40b). volcando: ya se escribe en el fichero f; restan: bytes del cuerpo
+    # que faltan (-1: hasta el cierre)
+    volcar: Bool = false
+    volcando: Bool = false
+    f: Int = 0
+    volcados: Int = 0
+    restan: Int = -1
+end
+
+# Que el cuerpo de esta carga a fichero (http_empezar_a_fichero) se escriba según llega, sin juntarlo entero en
+# memoria (las descargas): cuando son 2xx sin chunked ni compresión; si no, como siempre. No con http_parcial (lo
+# que ya llegó se va al fichero)
+func http_volcar(c: Carga) -> Carga
+    c.volcar = true
+    return c
+end
+
+# ¿Ya llegaron las cabeceras de una respuesta que se puede volcar? Entonces las lee (quedan en c.respuesta), abre el
+# fichero y empieza a volcar
+func _carga_empezar_volcado(c: Carga)
+    cab = http_cabeceras_ya(c)
+    if cab == nil
+        return
+    end
+    # (una redirección o un error van como siempre: la carga sigue volcando la respuesta de la redirección)
+    if cab.estado < 200 or cab.estado >= 300
+        return
+    end
+    if cab.cabeceras.has("content-encoding")
+        c.volcar = false
+        return
+    end
+    if cab.cabeceras.has("transfer-encoding") and str_find(str_lower(cab.cabeceras["transfer-encoding"]), "chunked") >= 0
+        c.volcar = false
+        return
+    end
+    r = c.respuesta
+    _leer_estado(c.conexion, r)
+    if r.error == ""
+        _leer_cabeceras(c.conexion, r)
+    end
+    if r.error != ""
+        c.volcar = false
+        return
+    end
+    c.f = file_open(c.fichero, 1006)
+    if c.f == 0
+        r.error = "no se puede escribir " + c.fichero
+        return
+    end
+    c.restan = -1
+    if r.cabeceras.has("content-length")
+        c.restan = Int(r.cabeceras["content-length"])
+    end
+    c.volcando = true
 end
 
 func http_empezar(direccion: String, espera_ms: Int) -> Carga
@@ -619,6 +675,17 @@ func http_avanzar(c: Carga) -> Bool
         _carga_otra_conexion(c)
         return false
     end
+    if c.volcar and not c.volcando and c.fichero != ""
+        _carga_empezar_volcado(c)
+        if c.respuesta.error != ""
+            red_cerrar(c.conexion)
+            c.hecha = true
+            return true
+        end
+    end
+    if c.volcando
+        return _carga_volcar(c, n < 0)
+    end
     if c.total == -1
         c.total = _carga_total(c.conexion)
     end
@@ -662,6 +729,52 @@ func http_avanzar(c: Carga) -> Bool
     c.hecha = true
     if traza_activa
         traza("llega " + url_text(c.actual) + ": " + r.estado + " " + r.error + ", " + (r.cuerpo.length + r.bytes) + " bytes en " + (time_ms() - c.t0) + " ms")
+    end
+    return true
+end
+
+# Lo que ha llegado, al fichero (cerrada: el servidor cerró la conexión); true cuando acaba
+func _carga_volcar(c: Carga, cerrada: Bool) -> Bool
+    hay = red_pendientes(c.conexion)
+    if c.restan >= 0 and hay > c.restan
+        hay = c.restan
+    end
+    if hay > 0
+        # (no más de lo que ya hay: red_copiar no espera a la red)
+        escritos = red_copiar(c.conexion, c.f, hay)
+        c.volcados = c.volcados + escritos
+        if c.restan >= 0
+            c.restan = c.restan - escritos
+        end
+        if escritos < hay
+            c.respuesta.error = "no se puede escribir " + c.fichero
+        end
+    end
+    r = c.respuesta
+    acabada = c.restan == 0 or cerrada or r.error != ""
+    if not acabada
+        if time_ms() - c.ultimo > c.espera
+            r.error = "tiempo agotado"
+        else
+            return false
+        end
+    end
+    file_close(c.f)
+    c.f = 0
+    c.volcando = false
+    r.bytes = c.volcados
+    if r.error == "" and c.restan > 0
+        r.error = "cuerpo cortado"
+    end
+    _http_cookies(c.actual, r)
+    if r.error == "" and c.restan == 0
+        _http_soltar(c.conexion, r, cerrada)
+    else
+        red_cerrar(c.conexion)
+    end
+    c.hecha = true
+    if traza_activa
+        traza("llega " + url_text(c.actual) + ": " + r.estado + " " + r.error + ", " + r.bytes + " bytes (volcados) en " + (time_ms() - c.t0) + " ms")
     end
     return true
 end
@@ -710,7 +823,7 @@ func http_recibidos(c: Carga) -> Int
     if c.conexion == nil or c.conexion.fase != 0
         return 0
     end
-    return red_pendientes(c.conexion)
+    return c.volcados + red_pendientes(c.conexion)
 end
 
 func http_total(c: Carga) -> Int
@@ -722,6 +835,10 @@ end
 
 func http_cancelar(c: Carga)
     if not c.hecha
+        if c.f != 0
+            file_close(c.f)
+            c.f = 0
+        end
         red_cerrar(c.conexion)     # también si aún se estaba abriendo
         c.respuesta.error = "cancelada"
         c.hecha = true

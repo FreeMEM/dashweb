@@ -454,7 +454,8 @@ func empezar_descarga(w: Ventana, r: Respuesta)
     if w.descarga != nil
         http_cancelar(w.descarga)
     end
-    w.descarga = http_empezar_a_fichero(direccion, ruta, 30000)
+    # (según llega, sin juntarla en memoria: un fichero grande no cabría; tarea 40b)
+    w.descarga = http_volcar(http_empezar_a_fichero(direccion, ruta, 30000))
     w.descarga_ruta = ruta
     dw_estado(w, "Bajando " + nombre + " a " + ruta + "...")
     actualizar_giro(w)

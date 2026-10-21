@@ -408,7 +408,7 @@ tarea, con el estilo de Dash.
       [x] (a) tools/paquete.sh compila dashweb y el visor sin --fpu, pero libqjs, libimg y libvideo van con -m68881: la
       bitácora (28g, 29b) dice que mezclar las dos formas rompía números (Date.now, SVG de 0x0). Mirar si algún
       número con decimales cruza entre las dos partes en la v0.2.0-alfa y, casi seguro, añadir --fpu.
-      (b) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
+      [x] (b) (2026-10-21) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
       imágenes, vídeo), sin tope: un .lha grande puede agotar la memoria. Escribir al fichero según llega, o un tope
       con un aviso claro.
       [x] (c) (2026-10-21) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
@@ -3253,3 +3253,14 @@ Formato:
   unas 50 veces más despacio que la máquina RTG emulada.
 - tests/test_js_tope.dash: un 1 + 2 no se corta; while (true) se corta a los 2 s (js_tope(2)) y el motor sigue.
 - Batería: 75/75; freemem.space entera en 23.915 ms; pre.opentimetrack.com 90 s sin ningún corte.
+
+### 2026-10-21 — Tarea 40b (las descargas van al fichero según llegan)
+- lib/http.dash `http_volcar(carga)`: en una carga a fichero, cuando llegan las cabeceras de una respuesta 2xx sin
+  chunked ni compresión, se leen, se abre el fichero y cada http_avanzar escribe lo recibido (`_carga_volcar`, con
+  red_copiar de lo que ya hay, sin esperar a la red) en vez de juntar el cuerpo entero en la memoria de la conexión.
+  Acaba con Content-Length o al cerrar; las redirecciones siguen volcando la respuesta final; chunked y comprimido,
+  como siempre. Solo para las descargas del usuario (src/dashweb.dash `empezar_descarga`): los vídeos que se ven
+  mientras bajan leen lo llegado del búfer (http_parcial) y las imágenes son pequeñas.
+- tests/test_http_volcar.dash: a mitad de un goteo de 300 KB, lo volcado ya pasa de 64 KB y en la conexión quedan
+  menos de 4 KB; el fichero sale entero; sin longitud, tras redirección y chunked, también.
+- Batería: 76/76; freemem.space entera en 23.509 ms.
