@@ -1,0 +1,43 @@
+# Test: lo que Acid2 (acid2.acidtests.org, CSS 2.1) pide, pieza a pieza (tarea 41a). Una hoja en una dirección
+# data: (<link rel="appendix stylesheet" href="data:text/css,...">) se aplica; un borde transparent no se pinta (ni
+# con el color del texto), uno semitransparente se mezcla y uno con un color que no se entiende va con el del texto.
+# memcheck
+# expect-out: hoja data: none
+# expect-out: borde transparente: 0 dibujos
+# expect-out: borde rgba: true 127
+# expect-out: borde raro: 16711680
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+func rects(estilo: String) -> [Dibujo]
+    doc = dom_desde_html("<style>html { color: red } .p { height: 20px; " + estilo + " }</style><body><div class=p></div></body>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 300)
+    var r: [Dibujo] = []
+    for d in p.dibujos
+        if d.tipo == D_RECT
+            r.push(d)
+        end
+    end
+    return r
+end
+
+Main
+    doc = dom_desde_html("<head><style>.p { background: red }</style><link rel=\"appendix stylesheet\" href=\"data:text/css,.p%20%7B%20background%3A%20none%3B%20%7D\"></head><body><div class=p>x</div></body>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    n = dom_buscar(dom_buscar(doc, "body"), "div")
+    fondo = "?"
+    if n.estilo.has("background-color")
+        fondo = n.estilo["background-color"]
+    end
+    if n.estilo.has("background-image")
+        fondo = n.estilo["background-image"]
+    end
+    Print "hoja data: " + fondo
+    Print "borde transparente: " + rects("border: 1em solid transparent").length + " dibujos"
+    a = rects("border: 2px solid rgba(0, 0, 255, 0.5)")
+    Print "borde rgba: " + (a.length == 4 and a[0].color == 255) + " " + a[0].espaciado
+    b = rects("border: 2px solid nocolor")
+    Print "borde raro: " + b[0].color
+end

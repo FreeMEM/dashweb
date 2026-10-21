@@ -3285,3 +3285,17 @@ Formato:
 - Límite: si después se ve más grande (otra maqueta más ancha), se escala desde la reducida (más borrosa); el
   fichero sigue en T: por si hace falta decodificarla otra vez.
 - Batería: 76/76.
+
+### 2026-10-21 — Tarea 41a, primera parte (Acid2: hoja data: y bordes transparentes)
+- Acid2 (http://acid2.acidtests.org/#top, abierta por la red; su referencia es una cara amarilla de 168x168) salía
+  como un bloque rojo con la cara a trozos. No se copia al repo (no sé su licencia): tests/test_acid2.dash copia
+  cada pieza que se arregla.
+- La hoja <link rel="appendix stylesheet" href="data:text/css,..."> (quita el fondo rojo de .picture) no se leía:
+  lib/estilo.dash `_estilo_cargar` lee las data: (con %XX o base64) y lib/recursos.dash no las pide por la red.
+- border: 1em solid transparent se pintaba con el color del texto (rojo): css_color da -1 a transparent y a lo que
+  no entiende. lib/maqueta.dash `_borde_lado`: alfa 0 no se pinta, alfa < 255 se mezcla, lo desconocido con color.
+- Queda (mirando la captura): la barra roja de .eyes (los <object> con fallback, el fondo fixed, el orden de pintado
+  del apéndice E), la nariz (:before/:after con bordes), la sonrisa (floats anidados, alturas negativas), la barbilla
+  (line-height 4px en inline), la línea de la tabla (display: table en ul/li), el pelo (position: fixed con
+  min/max-height) y la frente (overflow con width).
+- Batería: 77/77.

@@ -77,7 +77,7 @@ end
 
 func _recursos_en(r: Recursos, n: Nodo, base: Url)
     if n.tipo == DOM_ELEMENTO
-        if n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0 and dom_atributo(n, "href") != ""
+        if n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0 and dom_atributo(n, "href") != "" and not url_es_data(dom_atributo(n, "href"))
             recursos_pedir(r, url_text(url_resolve(base, dom_atributo(n, "href"))), true, 0)
         elif n.nombre == "script" and dom_atributo(n, "src") != ""
             recursos_pedir(r, url_text(url_resolve(base, dom_atributo(n, "src"))), false, 0)

@@ -3400,17 +3400,37 @@ end
 # Bordes como rectángulos llenos
 func _bordes(m: Maquetador, e: {String: String}, x: Int, y: Int, ancho: Int, alto: Int, bt: Int, br: Int, bb: Int, bl: Int)
     if bt > 0
-        m.pagina.dibujos.push(_dibujo(D_RECT, x, y, ancho, bt, _color_borde(e, "top")))
+        _borde_lado(m, e, "top", x, y, ancho, bt)
     end
     if bb > 0
-        m.pagina.dibujos.push(_dibujo(D_RECT, x, y + alto - bb, ancho, bb, _color_borde(e, "bottom")))
+        _borde_lado(m, e, "bottom", x, y + alto - bb, ancho, bb)
     end
     if bl > 0
-        m.pagina.dibujos.push(_dibujo(D_RECT, x, y, bl, alto, _color_borde(e, "left")))
+        _borde_lado(m, e, "left", x, y, bl, alto)
     end
     if br > 0
-        m.pagina.dibujos.push(_dibujo(D_RECT, x + ancho - br, y, br, alto, _color_borde(e, "right")))
+        _borde_lado(m, e, "right", x + ancho - br, y, br, alto)
     end
+end
+
+# Un lado del borde: transparente no se pinta (Acid2: border: 1em solid transparent; tarea 41a), con alfa se mezcla
+func _borde_lado(m: Maquetador, e: {String: String}, lado: String, x: Int, y: Int, ancho: Int, alto: Int)
+    alfa = 255
+    if e.has("border-" + lado + "-color")
+        v = e["border-" + lado + "-color"]
+        if css_color_opaco(v) >= 0
+            alfa = css_alfa(v)
+        end
+    end
+    if alfa == 0
+        return
+    end
+    d = _dibujo(D_RECT, x, y, ancho, alto, _color_borde(e, lado))
+    if alfa < 255
+        d.color = css_color_opaco(e["border-" + lado + "-color"])
+        d.espaciado = alfa
+    end
+    m.pagina.dibujos.push(d)
 end
 
 func _color_borde(e: {String: String}, lado: String) -> Int

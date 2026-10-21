@@ -190,7 +190,12 @@ func _estilo_recoger(h: Hojas, n: Nodo, base: Url)
     if n.tipo == DOM_ELEMENTO and n.nombre == "style"
         _estilo_agregar(h, css_leer(dom_texto(n), h.lista.length * ESTILO_ORDEN_HOJA), base, 0)
     elif n.tipo == DOM_ELEMENTO and n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0
-        _estilo_cargar(h, url_text(url_resolve(base, dom_atributo(n, "href"))), 0)
+        href = dom_atributo(n, "href")
+        if url_es_data(href)
+            _estilo_cargar(h, href, 0)
+        else
+            _estilo_cargar(h, url_text(url_resolve(base, href)), 0)
+        end
     end
     for hijo in n.hijos
         _estilo_recoger(h, hijo, base)
@@ -258,6 +263,25 @@ end
 
 # Una hoja por URL: http(s), o un fichero (file: o una ruta del Amiga)
 func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
+    # una hoja dentro de la dirección (data:text/css,...: Acid2; tarea 41a)
+    if url_es_data(direccion)
+        coma = str_find(direccion, ",")
+        if coma > 0
+            datos = url_deshacer(direccion[coma + 1:])
+            if str_ends(str_lower(direccion[:coma]), ";base64")
+                if base64_to_file(datos, "T:dashweb_hoja") < 0
+                    return
+                end
+                datos = file_read_text("T:dashweb_hoja")
+                file_delete("T:dashweb_hoja")
+                if datos == nil
+                    return
+                end
+            end
+            _estilo_agregar(h, css_leer(datos, h.lista.length * ESTILO_ORDEN_HOJA), url_parse("about:blank"), nivel)
+        end
+        return
+    end
     u = url_parse(direccion)
     texto = ""
     if h.traidas != nil and h.traidas.has(direccion)
