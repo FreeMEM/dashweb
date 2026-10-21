@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Los iconos de Workbench del paquete de dashweb: ficheros .info clásicos (DiskObject, 4 colores del Workbench:
+"""Los iconos de Workbench del paquete de Tachyon: ficheros .info clásicos (DiskObject, 4 colores del Workbench:
 gris, negro, blanco, azul), que lee cualquier Workbench de 3.0 a 3.2.
 
     python3 tools/iconos_wb.py DIR        # escribe en DIR los .info del paquete (tools/paquete.sh lo usa)
 
-En DIR deja: dashweb.info (el cajón, para dejarlo junto al cajón dashweb/) y, en DIR/dashweb/, dashweb.info (el
+En DIR deja: Tachyon.info (el cajón, para dejarlo junto al cajón Tachyon/) y, en DIR/Tachyon/, Tachyon.info (el
 navegador), visor.info, LEEME.info (se abre con MultiView) e Instalar.info (el guion del Installer del sistema)."""
 
 import struct
@@ -78,15 +78,42 @@ def cajon():
     return l
 
 
+# El logo de Tachyon (docs/logo/tachyon_marca.svg) en 54x23 y 4 colores (. gris, N negro, A azul, B blanco): la esfera
+# con sus dos cortes y el anillo plano. Lo saca tools/logo_tachyon.py --icono; los píxeles se cuentan 1,35 veces más
+# altos que anchos (entre los de hires 640x256 y los cuadrados de RTG): se ve redonda en los dos. Se puede retocar a mano.
+ICONO_TACHYON = [
+    "......................................................",
+    "........................AAAAAA........................",
+    "....................AAAAAAAAAAAAAA....................",
+    "..................AAAAAAAAAAAAAAAAAA..................",
+    ".................AAAAAAAAAAAAAAAAAAAA.................",
+    "..................AAAAAAAAAAAAAAAAAAAA..NNNNNNNNN.....",
+    "..........................AAAAAAAAAAAAA..NNNNNNNNNN...",
+    "..............AAAAAAAAAAAAAAAAAAAAAAAAAA..NNNNNNNNNN..",
+    "..............AAAAAAAAAAAAAAAAAAAAAAAAAA...NNNNNNNNN..",
+    "..........NN..AAAAAAAAAAAAAAAAAAA..AAAAAA..NNNNNNNN...",
+    "........NNNN....AAAAAAAAAAAA....AAAAAAAA...NNNNNNN....",
+    "......NNNNN.................AAAAAAAAAA...NNNNNNNN.....",
+    "....NNNNNNN..AAA......AAAAAAAAAAAAA....NNNNNNNN.......",
+    "...NNNNNNNN...AAAAAAAAAAAAAAAAA.....NNNNNNNN..........",
+    "..NNNNNNNNN...AAAAAAAAAA.........NNNNNNNN.............",
+    "..NNNNNNNNNN...............NNNNNNNNNNN................",
+    "...NNNNNNNNNNNNNNNNNNNNNNNNNNNNNN.....................",
+    ".....NNNNNNNNNNNNNNNNNNNNNNN.......AAA................",
+    ".............NNN..............AAAAAAA.................",
+    ".......................AAAAAAAAAAAAA..................",
+    "....................AAAAAAAAAAAAAA....................",
+    ".......................AAAAAAAA.......................",
+    "......................................................",
+]
+
+
 def navegador():
-    l = Lienzo(36, 22)
-    l.elipse(17, 11, 15, 10, AZUL, llena=True)
-    l.elipse(17, 11, 15, 10, NEGRO)
-    l.elipse(17, 11, 6, 10, BLANCO)
-    l.linea(3, 11, 31, 11, BLANCO)
-    l.linea(6, 5, 28, 5, BLANCO)
-    l.linea(6, 17, 28, 17, BLANCO)
-    l.linea(17, 1, 17, 21, BLANCO)
+    filas = ICONO_TACHYON
+    l = Lienzo(len(filas[0]), len(filas))
+    for y, fila in enumerate(filas):
+        for x, c in enumerate(fila):
+            l.punto(x, y, {".": GRIS, "N": NEGRO, "A": AZUL, "B": BLANCO}[c])
     return l
 
 
@@ -160,14 +187,14 @@ def info(lienzo, tipo, herramienta=None, tooltypes=None, pila=0):
 
 def main():
     dest = Path(sys.argv[1] if len(sys.argv) > 1 else "build/paquete")
-    (dest / "dashweb").mkdir(parents=True, exist_ok=True)
-    (dest / "dashweb.info").write_bytes(info(cajon(), WBDRAWER))
-    (dest / "dashweb" / "dashweb.info").write_bytes(info(navegador(), WBTOOL, pila=65536))
-    (dest / "dashweb" / "visor.info").write_bytes(info(visor(), WBTOOL, pila=65536))
-    (dest / "dashweb" / "LEEME.info").write_bytes(info(documento(), WBPROJECT, herramienta="SYS:Utilities/MultiView"))
-    (dest / "dashweb" / "Instalar.info").write_bytes(
+    (dest / "Tachyon").mkdir(parents=True, exist_ok=True)
+    (dest / "Tachyon.info").write_bytes(info(cajon(), WBDRAWER))
+    (dest / "Tachyon" / "Tachyon.info").write_bytes(info(navegador(), WBTOOL, pila=65536))
+    (dest / "Tachyon" / "visor.info").write_bytes(info(visor(), WBTOOL, pila=65536))
+    (dest / "Tachyon" / "LEEME.info").write_bytes(info(documento(), WBPROJECT, herramienta="SYS:Utilities/MultiView"))
+    (dest / "Tachyon" / "Instalar.info").write_bytes(
         info(instalador(), WBPROJECT, herramienta="Installer",
-             tooltypes=["APPNAME=dashweb", "MINUSER=AVERAGE", "DEFUSER=AVERAGE"]))
+             tooltypes=["APPNAME=Tachyon", "MINUSER=AVERAGE", "DEFUSER=AVERAGE"]))
 
 
 if __name__ == "__main__":

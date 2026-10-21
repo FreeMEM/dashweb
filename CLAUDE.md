@@ -1,4 +1,8 @@
-# dashweb — guía para Claude
+# Tachyon (antes dashweb) — guía para Claude
+
+El navegador se llama **Tachyon** desde el 2026-10-21 (usuario). Lo que ve quien lo usa dice Tachyon (ventana,
+Acerca de, $VER, User-Agent, paquete, LEEME, ficheros PROGDIR:Tachyon.*, direcciones tachyon:); por dentro (la
+carpeta, src/dashweb.dash, nombres de funciones, la rama dashweb de Dash) sigue dashweb.
 
 Navegador web ligero para AmigaOS 3.x escrito en Dash (`~/Projects/FreeMEMLang`, repo FreeMEM/dash), con
 interfaz MUI 5, QuickJS (`third_party/quickjs`) y HTTPS (AmiSSL). Objetivo: PiStorm (Emu68) y emulación

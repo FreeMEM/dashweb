@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Los datos del panel de progreso (artefacto "Progreso de dashweb"): las tareas del plan, las baterías de la
+"""Los datos del panel de progreso (artefacto "Progreso de Tachyon"): las tareas del plan, las baterías de la
 bitácora y los commits desde la última versión, de docs/DASHWEB_LOOP.md y git; las medidas, Acid2 y las pruebas de
 estándares y el avance por áreas (a ojo), de docs/panel/*.json (los mantiene el loop). Escribe un JSON por dataset en el directorio que se le dé.
 

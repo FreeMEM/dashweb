@@ -1,6 +1,8 @@
-# dashweb
+# Tachyon
 
-Navegador web ligero para **Commodore Amiga**, escrito en [Dash](https://github.com/FreeMEM/dash) con
+(Antes **dashweb**: el nombre cambió el 2026-10-21 porque ya había un navegador "Dash Web".)
+
+Navegador web para **Commodore Amiga**, escrito en [Dash](https://github.com/FreeMEM/dash) con
 interfaz **MUI** (3.8 o 5): XHTML, CSS, JavaScript moderno y HTTPS.
 
 Es también el banco de pruebas de Dash: un programa grande y exigente que obliga a hacer crecer el

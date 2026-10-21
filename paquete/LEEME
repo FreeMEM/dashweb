@@ -1,17 +1,20 @@
-dashweb
+Tachyon
 =======
+
+(Antes se llamaba dashweb. Los marcadores, preferencias y cookies de dashweb pasan
+solos a los de Tachyon la primera vez que se abre.)
 
 Un navegador web para AmigaOS 3.x escrito en Dash (https://github.com/FreeMEM/dash):
 HTML, CSS, imágenes, JavaScript (QuickJS) y HTTPS (AmiSSL), con ventana MUI.
 
 Contenido
 ---------
-  dashweb       el navegador (MUI)
+  Tachyon       el navegador (MUI)
   visor         visor sin MUI: abre una página en una ventana normal (para probar)
   iconos/       los iconos de la barra de herramientas
   Instalar      el instalador (para el Installer del sistema)
   LEEME         esto
-  Licencias/    las de dashweb y de las librerías que lleva dentro: QuickJS (MIT),
+  Licencias/    las de Tachyon y de las librerías que lleva dentro: QuickJS (MIT),
                 fdlibm (Sun), Hubbub y LibParserUtils de NetSurf (MIT),
                 libwebp (BSD), nanosvg (zlib), stb_image y stb_truetype
                 (dominio público), TJpgDec (ChaN) y MintVID (MIT)
@@ -38,17 +41,17 @@ Necesita
 Instalar
 --------
   Doble clic en el icono Instalar (usa el Installer del sistema): pregunta dónde
-  dejar el cajón dashweb, lo copia con sus iconos y avisa si falta algo de lo de
-  arriba. A mano: copiar el cajón dashweb donde se quiera (por ejemplo Work:). Los
-  marcadores y las preferencias se guardan junto al programa (dashweb.marcadores,
-  dashweb.prefs).
+  dejar el cajón Tachyon, lo copia con sus iconos y avisa si falta algo de lo de
+  arriba. A mano: copiar el cajón Tachyon donde se quiera (por ejemplo Work:). Los
+  marcadores y las preferencias se guardan junto al programa (Tachyon.marcadores,
+  Tachyon.prefs).
 
 Usar
 ----
   Desde el Shell:
-    dashweb                          la página de inicio
-    dashweb http://aminet.net/       esa página
-    dashweb http://a/ http://b/      una ventana para cada una (hasta 4)
+    Tachyon                          la página de inicio
+    Tachyon http://aminet.net/       esa página
+    Tachyon http://a/ http://b/      una ventana para cada una (hasta 4)
     visor pagina.html                el visor sin MUI (teclas: cursores, espacio, Esc)
 
   En la ventana: escribir la dirección y Return; atrás, adelante, recargar, parar;
@@ -56,9 +59,9 @@ Usar
   volver a una). Arriba a la derecha sale un punto mientras algo llega, y abajo la
   barra de progreso hasta que llegan todas las imágenes; la ventana sigue respondiendo
   mientras busca el servidor, conecta o negocia HTTPS.
-  Lo que no es una página (un .lha, un .zip...) se guarda en disco: dashweb pregunta
-  dónde. Las cookies se guardan entre sesiones (dashweb.cookies) y se ven y se borran
-  en la dirección dashweb:cookies. Los scripts de rastreo y publicidad conocidos no
+  Lo que no es una página (un .lha, un .zip...) se guarda en disco: Tachyon pregunta
+  dónde. Las cookies se guardan entre sesiones (Tachyon.cookies) y se ven y se borran
+  en la dirección tachyon:cookies. Los scripts de rastreo y publicidad conocidos no
   se bajan.
   La rueda, la barra y las teclas (arriba, abajo, espacio, retroceso) desplazan. Clic en enlaces y en formularios (texto,
   casillas, desplegables, botones; GET y POST).

@@ -3348,3 +3348,24 @@ Formato:
 - tools/panel_progreso.py saca los datos del plan, la bitácora y git; docs/panel/*.json, lo que no sale solo. Regla
   8b del loop: ponerlo al día tras cada commit.
 
+
+### 2026-10-21 — El navegador se llama Tachyon (usuario)
+- El usuario encontró un navegador "Dash Web" para iPhone/iPad y quiso otro nombre; tras buscar libres (Astrolabe,
+  Valkyrie, Gaviero, DashNav... comprobados con búsquedas), eligió **Tachyon** (ningún programa de Amiga con ese
+  nombre; fuera, solo proyectos pequeños sin relación).
+- Cambiado lo que se ve: título de la ventana ("<página> - Tachyon"), "Acerca de Tachyon", $VER "Tachyon 0.3.0-dev",
+  mui_app_begin("Tachyon", "TACHYON"), User-Agent "Tachyon/0.3 (AmigaOS)", la página de inicio, las direcciones
+  internas tachyon:inicio, tachyon:marcadores y tachyon:cookies (abrir acepta también dashweb:...), los ficheros
+  PROGDIR:Tachyon.marcadores, .prefs y .cookies (al arrancar, `ficheros_de_antes` renombra los dashweb.* si no hay
+  nuevos), lo que escribe por la salida ("Tachyon: ... entera en"), el paquete (build/tachyon.lha con el cajón y el
+  programa Tachyon, iconos Tachyon.info, LEEME e Instalar), el README y CLAUDE.md. Por dentro sigue dashweb (la
+  carpeta, src/dashweb.dash, funciones y ganchos __dashweb_ del JavaScript, la rama dashweb de Dash).
+- Sin tocar, pendiente del usuario: el repositorio de GitHub (FreeMEM/dashweb, que "Acerca de" enlaza) y el nombre en
+  Traspaso.
+- Logo (elegido por el usuario tras muchas vueltas): una esfera azul con un anillo plano en perspectiva y dos cortes
+  gruesos que siguen sus paralelos (la esfera queda incompleta y el ojo la completa; nada de líneas finas, para que
+  aguante en iconos pequeños); letras Audiowide. `tools/logo_tachyon.py docs/logo` saca docs/logo/tachyon(_oscuro)
+  .svg/.png (letras en trazos) y tachyon_marca(_oscuro) (cuadrada). El icono del Workbench (`ICONO_TACHYON` en
+  tools/iconos_wb.py, 54x23 en 4 colores, píxel 1,35 veces más alto) lo saca `tools/logo_tachyon.py --icono`.
+- Comprobado en el emulador con MUI 3.8: "Acerca de Tachyon" con "Tachyon 0.3.0-dev".
+- Batería: 77/77 (1655 s; la primera, con la máquina cargada, dio 20 TIMEOUT en el grupo de red, que pasaron solos).

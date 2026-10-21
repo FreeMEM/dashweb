@@ -46,10 +46,10 @@ const ID_COMPLETA = 90    # la ventana del vídeo a pantalla completa: un clic o
 const ID_COMPLETA_CERRADA = 91
 
 const MAX_VENTANAS = 4
-const FICHERO_MARCADORES = "PROGDIR:dashweb.marcadores"
-const FICHERO_PREFERENCIAS = "PROGDIR:dashweb.prefs"
+const FICHERO_MARCADORES = "PROGDIR:Tachyon.marcadores"
+const FICHERO_PREFERENCIAS = "PROGDIR:Tachyon.prefs"
 # Las cookies que duran más que la sesión (lib/cookies.dash), de una vez para otra
-const FICHERO_COOKIES = "PROGDIR:dashweb.cookies"
+const FICHERO_COOKIES = "PROGDIR:Tachyon.cookies"
 
 # Una ventana del navegador y lo que tiene
 struct Ventana
@@ -85,12 +85,12 @@ end
 var dw_ventanas: [Ventana] = []
 
 func dw_inicio() -> String
-    h = "<html><head><title>dashweb</title><style>body { font-family: sans-serif; margin: 12px }"
+    h = "<html><head><title>Tachyon</title><style>body { font-family: sans-serif; margin: 12px }"
     h = h + " h1 { color: #036 } .nota { color: #555 }</style></head><body>"
-    h = h + "<h1>dashweb</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
+    h = h + "<h1>Tachyon</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
     h = h + "<p>Escribe una dirección arriba (http o https) y pulsa Return.</p>"
     h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
-    h = h + "<p><a href=\"dashweb:marcadores\">Marcadores</a> · <a href=\"dashweb:cookies\">Cookies</a></p>"
+    h = h + "<p><a href=\"tachyon:marcadores\">Marcadores</a> · <a href=\"tachyon:cookies\">Cookies</a></p>"
     h = h + "<p class=nota>Fase B: ventanas con MUI 5.</p></body></html>"
     return h
 end
@@ -131,7 +131,7 @@ func pantalla_completa(w: Ventana, r: Reproductor)
         return
     end
     if dw_completa_win == 0
-        dw_completa_win = mui_window_begin("dashweb: vídeo", 0)
+        dw_completa_win = mui_window_begin("Tachyon: vídeo", 0)
         dw_completa_lienzo = mui_canvas(320, 200)
         mui_window_end()
         mui_canvas_on_draw(dw_completa_lienzo, pinta_completa)
@@ -321,6 +321,10 @@ end
 # vuelve: la página llega en los tics (la ventana sigue respondiendo y se puede parar).
 func abrir(w: Ventana, direccion: String)
     parar_carga(w)
+    # (las direcciones internas de antes del nombre Tachyon: dashweb:marcadores...)
+    if str_starts(str_lower(direccion), "dashweb:")
+        direccion = "tachyon:" + direccion[8:]
+    end
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
         dw_estado(w, "Conectando con " + direccion + "...")
         mui_set_value(w.v.progreso, 5)
@@ -335,21 +339,21 @@ func abrir(w: Ventana, direccion: String)
     dw_estado(w, "Abriendo " + direccion + "...")
     vista(w)
     var d: Documento = nil
-    if direccion == "" or direccion == "dashweb:inicio"
-        d = documento_html("dashweb:inicio", dw_inicio())
-    elif direccion == "dashweb:marcadores"
-        d = documento_html("dashweb:marcadores", marcadores_html(FICHERO_MARCADORES))
-    elif str_starts(direccion, "dashweb:cookies")
+    if direccion == "" or direccion == "tachyon:inicio"
+        d = documento_html("tachyon:inicio", dw_inicio())
+    elif direccion == "tachyon:marcadores"
+        d = documento_html("tachyon:marcadores", marcadores_html(FICHERO_MARCADORES))
+    elif str_starts(direccion, "tachyon:cookies")
         # dashweb:cookies?borrar (todas) o ?borrar=dominio
-        if str_starts(direccion, "dashweb:cookies?borrar")
+        if str_starts(direccion, "tachyon:cookies?borrar")
             dominio = ""
-            if str_starts(direccion, "dashweb:cookies?borrar=")
+            if str_starts(direccion, "tachyon:cookies?borrar=")
                 dominio = direccion[23:]
             end
             cookies_borrar(dominio)
             cookies_guardar(FICHERO_COOKIES)
         end
-        d = documento_html("dashweb:cookies", cookies_html())
+        d = documento_html("tachyon:cookies", cookies_html())
     else
         d = documento_abrir(direccion)
     end
@@ -519,9 +523,9 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     var nadie: Nodo = nil
     w.foco = nadie
     if w.actual.titulo != ""
-        mui_set_text(w.v.window, w.actual.titulo + " - dashweb")
+        mui_set_text(w.v.window, w.actual.titulo + " - Tachyon")
     else
-        mui_set_text(w.v.window, "dashweb")
+        mui_set_text(w.v.window, "Tachyon")
     end
     ajustar_barra(w)
     if w.actual.error != ""
@@ -716,7 +720,7 @@ func tic(w: Ventana)
     # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
     if js_cortado()
         dw_estado(w, "Un script de la página tardaba demasiado: cortado")
-        Print "dashweb: un script de la página pasaba de 30 s y se cortó"
+        Print "tachyon: un script de la página pasaba de 30 s y se cortó"
     end
     if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
         ajustar_barra(w)
@@ -731,7 +735,7 @@ func tic(w: Ventana)
         if w.actual.js != 0
             kb_js = js_memoria(w.actual.js) / 1024
         end
-        Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB, " + imagenes_kb(w.actual.im) + ")"
+        Print "tachyon: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB, " + imagenes_kb(w.actual.im) + ")"
     end
     if w.aviso_scroll
         avisar_desplazamiento(w)
@@ -944,9 +948,9 @@ const DASHWEB_VERSION = "0.3.0-dev"
 
 @native(borrow) func texto_version(v: String) -> String
 """
-    static const char __attribute__((used)) ver[] = "$VER: dashweb 0.3.0-dev (21.10.2026)";
+    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.3.0-dev (21.10.2026)";
     static char b[160];
-    sprintf(b, "\033c\033bdashweb %s\033n\n\033ccompilado el %s a las %s", (char *)v, __DATE__, __TIME__);
+    sprintf(b, "\033c\033bTachyon %s\033n\n\033ccompilado el %s a las %s", (char *)v, __DATE__, __TIME__);
     return (STRPTR)b;
 """
 end
@@ -1040,19 +1044,30 @@ end
 func pagina_inicio() -> String
     inicio = preferencia(FICHERO_PREFERENCIAS, "inicio")
     if inicio == ""
-        inicio = "dashweb:inicio"
+        inicio = "tachyon:inicio"
     end
     return inicio
 end
 
+# Los marcadores, preferencias y cookies de cuando el navegador se llamaba dashweb (2026-10-21) pasan a su nombre
+# nuevo la primera vez (se renombran: los de antes no se pierden)
+func ficheros_de_antes()
+    for par in [["PROGDIR:dashweb.marcadores", FICHERO_MARCADORES], ["PROGDIR:dashweb.prefs", FICHERO_PREFERENCIAS], ["PROGDIR:dashweb.cookies", FICHERO_COOKIES]]
+        if not file_exists(par[1]) and file_exists(par[0])
+            file_rename(par[0], par[1])
+        end
+    end
+end
+
 Main
+    ficheros_de_antes()
     # las conexiones siguen abiertas para los recursos del mismo servidor (sin volver a negociar TLS)
     http_seguir = true
     cookies_cargar(FICHERO_COOKIES)
     # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)
     dos_requesters(false)
-    if mui_app_begin("dashweb", "DASHWEB") == 0
-        Print "dashweb necesita MUI (3.8 o 5) y un 68020"
+    if mui_app_begin("Tachyon", "TACHYON") == 0
+        Print "Tachyon necesita MUI (3.8 o 5) y un 68020"
     else
         a = Acerca_create()
         mui_set_text(a.version, texto_version(DASHWEB_VERSION))
@@ -1212,7 +1227,7 @@ Main
                 end
             end
             if ev == ID_MARCADORES
-                navegar(w, "dashweb:marcadores")
+                navegar(w, "tachyon:marcadores")
             end
             if ev == ID_ANADIR and w.actual != nil
                 if marcadores_agregar(FICHERO_MARCADORES, w.actual.direccion, w.actual.titulo)

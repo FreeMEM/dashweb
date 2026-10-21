@@ -383,7 +383,7 @@ func cookies_html() -> String
     if cookies_todas.length == 0
         return h + "<p>No hay ninguna guardada.</p></body></html>"
     end
-    h = h + "<p>" + cookies_todas.length + " guardadas. <a href=\"dashweb:cookies?borrar\">Borrarlas todas</a></p>"
+    h = h + "<p>" + cookies_todas.length + " guardadas. <a href=\"tachyon:cookies?borrar\">Borrarlas todas</a></p>"
     h = h + "<table><tr><th>Dominio</th><th>Nombre</th><th>Valor</th><th>Caduca</th><th></th></tr>"
     for c in cookies_todas
         v = c.valor
@@ -402,7 +402,7 @@ func cookies_html() -> String
             extra = extra + " HttpOnly"
         end
         h = h + "<tr><td>" + _cookies_escapar(c.dominio) + "</td><td>" + _cookies_escapar(c.nombre) + "</td><td class=gris>" + _cookies_escapar(v) + "</td><td>" + caduca + "<span class=gris>" + extra + "</span></td>"
-        h = h + "<td><a href=\"dashweb:cookies?borrar=" + _cookies_escapar(c.dominio) + "\">borrar las de este dominio</a></td></tr>"
+        h = h + "<td><a href=\"tachyon:cookies?borrar=" + _cookies_escapar(c.dominio) + "\">borrar las de este dominio</a></td></tr>"
     end
     return h + "</table></body></html>"
 end

@@ -3,7 +3,7 @@
   "windows": [
     {
       "name": "Navegador",
-      "title": "dashweb",
+      "title": "Tachyon",
       "id": 1,
       "menus": [
         {
@@ -182,7 +182,7 @@
     },
     {
       "name": "Acerca",
-      "title": "Acerca de dashweb",
+      "title": "Acerca de Tachyon",
       "id": 2,
       "close": 8,
       "root": {
@@ -191,7 +191,7 @@
           {
             "type": "text",
             "name": "version",
-            "text": "\u001bcdashweb"
+            "text": "\u001bcTachyon"
           },
           {
             "type": "text",
