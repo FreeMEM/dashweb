@@ -3299,3 +3299,10 @@ Formato:
   (line-height 4px en inline), la línea de la tabla (display: table en ul/li), el pelo (position: fixed con
   min/max-height) y la frente (overflow con width).
 - Batería: 77/77.
+
+### 2026-10-21 — font-size normal de 16 px (usuario)
+- Comparando 13 y 16 px en freemem.space, meneame.net (fijan px: iguales) y pre.opentimetrack.com (rem: con 16 sale
+  como en Chrome, hasta la tarjeta que parte la hora), el usuario eligió 16. lib/estilo.dash ESTILO_MEDIUM = 16.
+- Tests que esperaban las medidas de 13 px puestos al día (test_estilo, test_maqueta, test_maqueta_css,
+  test_animacion, test_jsdom_geometria): los nuevos valores cuadran con 16 (h1 2em 32 px, 0.8em 13 px...).
+- Batería: 76/77 con solo test_maqueta pendiente de poner al día (sus 21 líneas, en tres pasadas); después las de maqueta 14/14. freemem.space entera en 23.623 ms.

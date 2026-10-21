@@ -16,7 +16,7 @@
 # expect-out: io a:true:63 o:false:0
 # expect-out: io2 nada
 # expect-out: io3 a:true:22
-# expect-out: sticky 10 23 | 300 | fijo 5
+# expect-out: sticky 10 26 | 300 | fijo 5
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"

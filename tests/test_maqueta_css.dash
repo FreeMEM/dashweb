@@ -10,8 +10,8 @@
 # expect-out: T [x] c=0 8,1 8x8
 # expect-out: T [>] c=0 16,1 8x8
 # expect-out: T [rojo] c=cc0000 0,11 32x8
-# expect-out: I f002 0,21 13x8
-# expect-out: T [busca] c=0 13,21 40x8
+# expect-out: I f002 0,21 16x8
+# expect-out: T [busca] c=0 16,21 40x8
 # expect-out: R c=ff 50,31 20x10
 # expect-out: T [aaaa bbbb] c=0 0,43 80x8
 # expect-out: T [cc dd ee ff gg] c=0 0,54 112x8

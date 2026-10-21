@@ -5,9 +5,9 @@
 # propiedades lógicas (padding-inline, margin-block, inset-inline-start...), también con var() (tarea 37f); svh, dvh,
 # lvh y sus -vw como vh y vw (37f2). @media (hover: hover), (pointer: fine) y la sintaxis de rango (37f3).
 # memcheck
-# expect-out: h1: block bold 26px rojo
-# expect-out: p.nota: block 10px green italic
-# expect-out: span: inline 10px green
+# expect-out: h1: block bold 32px rojo
+# expect-out: p.nota: block 13px green italic
+# expect-out: span: inline 13px green
 # expect-out: em: 15px blue italic
 # expect-out: li1: list-item 20px 5px 20px 5px | 1px solid red
 # expect-out: li2: 0 | 2px dotted #00f

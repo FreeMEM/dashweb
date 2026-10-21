@@ -9,7 +9,7 @@
 # expect-out: 0.25 translateX(-15px) rgb(128, 0, 127)
 # expect-out: ease true steps 500 linear 600
 # expect-out: pagina 3 -22 true -2 false 8 false true false
-# expect-out: anims 3 | s 25,3 50x5 | k 80007f | l -5,41 30x30 a153 false
+# expect-out: anims 3 | s 25,3 50x5 | k 80007f | l -5,47 30x30 a153 false
 # expect-out: fin | s 0,0 100x10 | l 20x20
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 

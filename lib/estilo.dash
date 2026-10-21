@@ -5,13 +5,14 @@
 #   estilo_aplicar(doc, hojas)                          # cada elemento: nodo.estilo["color"]...
 #
 # Los valores quedan como texto, salvo font-size, que se guarda en píxeles ("16px"). El tamaño
-# normal (medium) es 13 píxeles: lo que cabe bien en una pantalla de Amiga con sus fuentes.
+# normal (medium) es 16 píxeles, como en los navegadores (usuario, 2026-10-21: antes 13 para las pantallas de
+# Amiga; las webs de hoy miden con rem y se ven como en Chrome; las que fijan px no cambian).
 
 import "dom.dash"
 import "css.dash"
 import "http.dash"
 
-const ESTILO_MEDIUM = 13
+const ESTILO_MEDIUM = 16
 const ESTILO_ORDEN_HOJA = 100000     # orden de la primera regla de cada hoja (una hoja puede tener miles)
 
 # Un selector de una regla, en el índice de las hojas
