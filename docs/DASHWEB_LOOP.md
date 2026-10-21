@@ -352,7 +352,7 @@ tarea, con el estilo de Dash.
            de tamaño (maqueta por trozos), o medir min/max-content sin maquetar.
            (2026-10-21: lo medido se guarda de una maqueta a otra, 37e6 (4-5): al bajar casi todas en 1,6-3 s; quedan
            los montajes grandes, 5-12 s.)
-      [ ] 37e7. Repintar solo lo que cambia: cada fotograma de una animación del JS pinta toda la vista (~40 ms en el
+      [x] 37e7. (2026-10-21, D67) Repintar solo lo que cambia: cada fotograma de una animación del JS pinta toda la vista (~40 ms en el
            emulador, 2300 pintadas al bajar; pintar es ya el 29,5 % y la maqueta el 18 %). La ruta ligera sabe qué
            dibujos movió: pintar solo la unión de sus rectángulos de antes y de después (puede necesitar en Dash
            repintar una parte del lienzo de MUI: tarea D si falta).
@@ -3218,3 +3218,18 @@ Formato:
 - La traza de cada maqueta del JS cuenta bloques, medidas hechas y guardadas: un cambio pequeño maqueta la página
   entera (~2600 bloques, 1,4-1,7 s en pre.opentimetrack.com); el montaje de 12 s, 10.058 bloques y 4344 medidas.
 - Batería con Dash d39d8d9: 73/73; freemem.space entera en 22.361 ms.
+
+### 2026-10-21 — Tarea 37h: comparando con Chrome al bajar (botones, font-stretch, letter-spacing negativo)
+- Capturas de dashweb a 1788, 3576, 5364, 7152 y 8576 px (3 a 15 espacios) contra Chrome a 954x615 (el mismo
+  clientWidth, 939). dashweb va por delante: la portada mide menos. Causa: el titular (.titular-portada) usa la
+  fuente variable Archivo con font-stretch: 125 %, peso 800 y letter-spacing -0,035em: en Chrome las letras son
+  más anchas, cortan en más líneas y la sección crece (1146 px contra ~526); lo de debajo se descoloca.
+- La línea de tiempo de la historia: <button><span class=block>Mié 14</span>08:02</button> salía en una línea; un
+  <button> que dibuja la página va ahora como inline-block (lib/maqueta.dash `boton_caja`): fecha arriba, hora debajo.
+- font-stretch (heredada): lib/fuente_web.dash `fuente_web_ancha` / `fuente_web_para_ancha` hacen la letra a ese %
+  de anchura (escala x de stb_truetype: se acerca al eje wdth); lib/maqueta.dash `_estiramiento` y `_fuente_ancha`.
+- letter-spacing negativo (hasta -font-size/4) ya no se queda en 0; el pintor pone las letras una a una con != 0.
+- Tests: test_maqueta_boton (span de bloque en un botón), test_fuente_web (estirada 54 y apretada 30).
+- Con ello, en pre.opentimetrack.com el titular corta en 3 líneas como en Chrome (antes 2) y la línea de tiempo pone
+  la fecha encima de la hora; la portada sigue más baja: line-height no se aplica (40d) y la tarjeta de la derecha
+  no se parte igual. Batería: 73/73; freemem.space entera en 23.157 ms.

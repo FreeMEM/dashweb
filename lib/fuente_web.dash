@@ -378,9 +378,9 @@ static void _fw_olvidar_todas(void) {
 #define _FW_N (_FW_HI - _FW_LO + 2)      /* y uno más: el que sale con los que no tiene */
 
 /* Un TextFont (y sus tablas y su plano, en un solo AllocVec) con los glifos de datos a tam px de em */
-static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam) {
+static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam, LONG ancho) {
     stbtt_fontinfo fi;
-    float esc;
+    float esc, escx;
     int asc, desc, gap, c, i, base, alto, total = 0, x0, y0, x1, y1, adv, lsb;
     int ws[_FW_N], xs[_FW_N], ads[_FW_N], gl[_FW_N];
     LONG modulo, tam_bloque;
@@ -391,6 +391,8 @@ static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam) {
     if (tam < 4 || tam > 200) return NULL;
     if (!stbtt_InitFont(&fi, datos, stbtt_GetFontOffsetForIndex(datos, 0))) return NULL;
     esc = stbtt_ScaleForMappingEmToPixels(&fi, (float)tam);
+    /* font-stretch (ancho en %): las letras más anchas o estrechas, como el eje wdth de una fuente variable */
+    escx = ancho > 0 ? esc * (float)ancho / 100.0f : esc;
     stbtt_GetFontVMetrics(&fi, &asc, &desc, &gap);
     base = (int)(asc * esc + 0.999f);
     alto = base + (int)(-desc * esc + 0.999f);
@@ -399,8 +401,8 @@ static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam) {
         c = i < _FW_N - 1 ? _FW_LO + i : '?';
         gl[i] = stbtt_FindGlyphIndex(&fi, c);
         stbtt_GetGlyphHMetrics(&fi, gl[i], &adv, &lsb);
-        ads[i] = (int)(adv * esc + 0.5f);
-        stbtt_GetGlyphBitmapBox(&fi, gl[i], esc, esc, &x0, &y0, &x1, &y1);
+        ads[i] = (int)(adv * escx + 0.5f);
+        stbtt_GetGlyphBitmapBox(&fi, gl[i], escx, esc, &x0, &y0, &x1, &y1);
         if (x1 < x0 || c == ' ') x1 = x0;
         ws[i] = x1 - x0;
         xs[i] = x0;
@@ -423,10 +425,10 @@ static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam) {
         ker[i] = (WORD)xs[i];
         esp[i] = (WORD)(ads[i] - xs[i]);
         if (w > 0) {
-            stbtt_GetGlyphBitmapBox(&fi, gl[i], esc, esc, &gx0, &gy0, &gx1, &gy1);
+            stbtt_GetGlyphBitmapBox(&fi, gl[i], escx, esc, &gx0, &gy0, &gx1, &gy1);
             gh = gy1 - gy0;
             if (gh > 0 && (gris = (UBYTE *)AllocVec(w * gh, MEMF_CLEAR))) {
-                stbtt_MakeGlyphBitmap(&fi, gris, w, gh, w, esc, esc, gl[i]);
+                stbtt_MakeGlyphBitmap(&fi, gris, w, gh, w, escx, esc, gl[i]);
                 for (yy = 0; yy < gh; yy++) {
                     int fila = base + gy0 + yy;
                     if (fila < 0 || fila >= alto) continue;
@@ -466,7 +468,12 @@ end
 # El TextFont de la fuente del fichero a tam px (el em); 0 si no se puede leer o no es una fuente TrueType. La
 # fuente leída (y sacada del WOFF/WOFF2) se guarda para los demás tamaños (tarea 37e6: Brotli y rehacer glyf con
 # cada tamaño costaba un 3 % del tiempo al bajar por pre.opentimetrack.com); fuente_web_olvidar la suelta.
-@native(borrow) func fuente_web(fichero: String, tam: Int) -> Int
+func fuente_web(fichero: String, tam: Int) -> Int
+    return fuente_web_ancha(fichero, tam, 100)
+end
+
+# Lo mismo con las letras a ancho % de su anchura (font-stretch; tarea 37h)
+@native(borrow) func fuente_web_ancha(fichero: String, tam: Int, ancho: Int) -> Int
 """
     LONG largo = 0, largo2 = 0, i;
     UBYTE *d = NULL, *t;
@@ -496,7 +503,7 @@ end
         _fw_guardadas[i].datos = d;
         _fw_guardadas[i].largo = largo;
     }
-    return (LONG)_fw_crear(d, largo, tam);
+    return (LONG)_fw_crear(d, largo, tam, ancho);
 """
 end
 
@@ -554,6 +561,11 @@ end
 # La fuente de la web para un font-family (la primera familia de la lista que tenga alguna, con el peso más
 # cercano a peso y, si hay, del mismo estilo) a tam px; 0 si ninguna
 func fuente_web_para(familias: String, peso: Int, estilo: String, tam: Int) -> Int
+    return fuente_web_para_ancha(familias, peso, estilo, tam, 100)
+end
+
+# Lo mismo con font-stretch: ancho en % (100: normal)
+func fuente_web_para_ancha(familias: String, peso: Int, estilo: String, tam: Int, ancho: Int) -> Int
     if fuentes_web == nil or fuentes_web.length == 0
         return 0
     end
@@ -583,9 +595,9 @@ func fuente_web_para(familias: String, peso: Int, estilo: String, tam: Int) -> I
                 var h: {String: Int} = {}
                 _fuentes_web_hechas = h
             end
-            clave = fichero + "|" + tam
+            clave = fichero + "|" + tam + "|" + ancho
             if not _fuentes_web_hechas.has(clave)
-                _fuentes_web_hechas[clave] = fuente_web(fichero, tam)
+                _fuentes_web_hechas[clave] = fuente_web_ancha(fichero, tam, ancho)
             end
             return _fuentes_web_hechas[clave]
         end

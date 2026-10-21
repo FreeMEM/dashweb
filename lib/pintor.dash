@@ -124,7 +124,7 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                 font_use(d.fuente)
                 font_style(d.estilo)
                 gfx_pen(_lapiz(d.color))
-                if d.espaciado > 0 and d.texto.length > 0
+                if d.espaciado != 0 and d.texto.length > 0
                     # letter-spacing: letra a letra
                     lx = x
                     for i in (0..d.texto.length - 1)

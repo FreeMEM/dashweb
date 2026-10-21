@@ -201,13 +201,18 @@ end
 # si no la vectorial parecida (CGTriumvirate, CGTimes, LetterGothic: bullet.library las dibuja a
 # cualquier tamaño) y, si no hay, la de mapa de bits más cercana; la topaz de la ROM si no hay otra
 func _fuente(m: Maquetador, familia: String, tam: Int) -> Int
+    return _fuente_ancha(m, familia, tam, 100)
+end
+
+# Con font-stretch (ancho en %, _estiramiento): solo en las fuentes de la página (las del Amiga no se estiran)
+func _fuente_ancha(m: Maquetador, familia: String, tam: Int, ancho: Int) -> Int
     # primero por el font-family tal cual (suele ser una lista larga: mirarla entera cuesta)
-    cruda = familia + "|" + tam + "|" + fuentes_web_version
+    cruda = familia + "|" + tam + "|" + fuentes_web_version + "|" + ancho
     if m.fuentes.has(cruda)
         return m.fuentes[cruda]
     end
     # las de la página (@font-face) primero
-    h = fuente_web_para(familia, 400, "normal", tam)
+    h = fuente_web_para_ancha(familia, 400, "normal", tam, ancho)
     if h != 0
         m.fuentes[cruda] = h
         return h
@@ -215,6 +220,28 @@ func _fuente(m: Maquetador, familia: String, tam: Int) -> Int
     h = _fuente_de(m, familia, tam)
     m.fuentes[cruda] = h
     return h
+end
+
+# font-stretch en %: "125%" o las palabras (expanded...); 100 si no hay o no se entiende
+func _estiramiento(e: {String: String}) -> Int
+    v = _val(e, "font-stretch", "normal")
+    if v == "normal"
+        return 100
+    end
+    if str_ends(v, "%")
+        n = Int(v[:v.length - 1])
+        if n >= 50 and n <= 200
+            return n
+        end
+        return 100
+    end
+    for par in ["ultra-condensed 50", "extra-condensed 62", "semi-condensed 87", "condensed 75", "semi-expanded 112", "extra-expanded 150", "ultra-expanded 200", "expanded 125"]
+        trozos = str_split(par, " ")
+        if v == trozos[0]
+            return Int(trozos[1])
+        end
+    end
+    return 100
 end
 
 func _fuente_de(m: Maquetador, familia: String, tam: Int) -> Int
@@ -2620,7 +2647,10 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
-    if (e["display"] == "inline-block" or e["display"] == "inline-flex" or e["display"] == "inline-grid") and not (e.has("float") and (e["float"] == "left" or e["float"] == "right"))
+    # (un <button> que dibuja la página es inline-block, como en los navegadores: lo de dentro en su caja; un
+    # <span class=block> dentro baja de línea, tarea 37h)
+    boton_caja = n.nombre == "button" and e["display"] == "inline" and _boton_propio(n)
+    if (e["display"] == "inline-block" or e["display"] == "inline-flex" or e["display"] == "inline-grid" or boton_caja) and not (e.has("float") and (e["float"] == "left" or e["float"] == "right"))
         _pieza_caja(m, n, piezas, enlace)
         return
     end
@@ -2845,11 +2875,12 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
     ls = 0
     if e.has("letter-spacing") and e["letter-spacing"] != "normal"
         ls = estilo_px(e["letter-spacing"], tam, 0)
-        if ls < 0
-            ls = 0
+        # (negativo, como en los titulares apretados, hasta un cuarto de la letra)
+        if ls < 0 - tam / 4
+            ls = 0 - tam / 4
         end
     end
-    f = _fuente(m, e["font-family"], tam)
+    f = _fuente_ancha(m, e["font-family"], tam, _estiramiento(e))
     estilo = _estilo_texto(e)
     deco = ""
     if e.has("text-decoration")

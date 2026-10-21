@@ -1,11 +1,13 @@
 # Test: un <button> con texto es el botón de siempre (un D_CONTROL que dibuja el pintor); con fondo o borde de la
 # página (el preflight de Tailwind: background-color #0000, border 0 solid) o appearance: none, lo dibuja su CSS,
-# como en los navegadores: su texto va como texto (tarea 37f).
+# como en los navegadores: su texto va como texto (tarea 37f). Ese botón es inline-block: un <span> con display: block
+# dentro va en su línea y el texto de detrás, debajo (la línea de tiempo de pre.opentimetrack.com; tarea 37h).
 # memcheck
 # expect-out: normal: control
 # expect-out: con fondo: texto
 # expect-out: con borde: texto
 # expect-out: appearance none: texto
+# expect-out: span de bloque: debajo true | mismo x true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -30,4 +32,17 @@ Main
     Print "con fondo: " + como("background-color: #0000")
     Print "con borde: " + como("border: 0 solid")
     Print "appearance none: " + como("appearance: none")
+    doc = dom_desde_html("<body><button style='background-color: #0000; width: 100%; text-align: left'><span style='display: block'>Mie 14</span>08:02</button></body>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 300)
+    var a: Dibujo = nil
+    var b: Dibujo = nil
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and str_trim(d.texto) == "Mie 14"
+            a = d
+        elif d.tipo == D_TEXTO and str_trim(d.texto) == "08:02"
+            b = d
+        end
+    end
+    Print "span de bloque: debajo " + (b.y >= a.y + a.alto) + " | mismo x " + (b.x == a.x)
 end

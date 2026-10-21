@@ -2,7 +2,7 @@
 # hecha TextFont del Amiga a 20 px de em: alto 24 (ascendente 19 + descendente 5), todas las letras del mismo
 # ancho (12), "abc" tres veces una, y un fichero que no es una fuente da 0; en WOFF, igual; en WOFF2 (Brotli y glyf/loca
 # transformadas, tests/pages/VeraMono.woff2 de woff2_compress; tarea 37g), igual y con las mismas letras. Y pintada: la
-# W pone tinta.
+# W pone tinta. Con font-stretch: 150 % las letras son 1,5 veces más anchas y un letter-spacing negativo las junta (tarea 37h).
 # emu-server: http.py 40853
 # memcheck
 # expect-out: fuente 24 12 true true
@@ -13,6 +13,7 @@
 # expect-out: woff2 como ttf true
 # expect-out: caras 2: mi fuente 700 italic http://ejemplo.com/f/mi.woff2 | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2
 # expect-out: maqueta 36 sin 0
+# expect-out: estirada 54 | apretada 30
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/fuente_web.dash"
@@ -104,4 +105,15 @@ Main
         end
     end
     Print "maqueta " + ancho + " sin " + fuente_web_para("otra, serif", 400, "normal", 20)
+    # font-stretch: 150% (letras de 18 px en vez de 12) y letter-spacing negativo (-2 px por letra; tarea 37h)
+    doc3 = dom_desde_html("<html><body style='margin:0'><p style=\"font-family: 'Vera Mono'; font-size: 20px; font-stretch: 150%\">WWW</p><p style=\"font-family: 'Vera Mono'; font-size: 20px; letter-spacing: -2px\">WWW</p></body></html>")
+    estilo_aplicar(doc3, estilo_hojas(doc3, "prueba.html"))
+    p3 = maquetar(doc3, 280)
+    var anchos: [Int] = []
+    for d in p3.dibujos
+        if d.tipo == D_TEXTO
+            anchos.push(d.ancho)
+        end
+    end
+    Print "estirada " + anchos[0] + " | apretada " + anchos[1]
 end
