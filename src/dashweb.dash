@@ -712,6 +712,11 @@ end
 func tic(w: Ventana)
     avanzar_carga(w)
     avanzar_descarga(w)
+    # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
+    if js_cortado()
+        dw_estado(w, "Un script de la página tardaba demasiado: cortado")
+        Print "dashweb: un script de la página pasaba de 30 s y se cortó"
+    end
     if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
         ajustar_barra(w)
         mui_canvas_redraw(w.v.pagina)

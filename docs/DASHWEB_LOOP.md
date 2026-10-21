@@ -411,7 +411,7 @@ tarea, con el estilo de Dash.
       (b) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
       imágenes, vídeo), sin tope: un .lha grande puede agotar la memoria. Escribir al fichero según llega, o un tope
       con un aviso claro.
-      (c) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
+      [x] (c) (2026-10-21) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
       un script que pase de N segundos y decirlo.
       [x] (d) (2026-10-21) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
       la pieza más alta + 2 px en _poner_linea).
@@ -3244,3 +3244,12 @@ Formato:
   pantalla de Amiga); en Chrome 16. Todo lo de rem sale un 19 % más pequeño (la entradilla: 15 px contra 18,4). Es
   decisión del usuario: preguntado.
 - Batería: 74/74; freemem.space entera en 23.787 ms y se ve bien (captura).
+
+### 2026-10-21 — Tarea 40c (un script que no acaba ya no cuelga el navegador)
+- lib/js.dash: JS_SetInterruptHandler con `_js_interrumpir`: cada entrada al JavaScript (js_evaluar, los trabajos de
+  promesas y _jsdom_llamar de lib/jsdom.dash: temporizadores y eventos) apunta la hora (DateStamp) y, pasados
+  JS_SEGUNDOS (30; `js_tope` lo cambia), el script recibe "InternalError: interrupted". `js_cortado()` dice si se
+  cortó alguno; src/dashweb.dash `tic` lo pone en la barra de estado. 30 s porque un A1200 de verdad ejecuta el JS
+  unas 50 veces más despacio que la máquina RTG emulada.
+- tests/test_js_tope.dash: un 1 + 2 no se corta; while (true) se corta a los 2 s (js_tope(2)) y el motor sigue.
+- Batería: 75/75; freemem.space entera en 23.915 ms; pre.opentimetrack.com 90 s sin ningún corte.

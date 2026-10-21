@@ -1389,6 +1389,7 @@ static JSValue _jsdom_reloj(JSContext *ctx, JSValueConst this_val, int argc, JSV
    writing the exception in one line */
 static JSValue _jsdom_llamar(JSContext *ctx, const char *name, int argc, JSValueConst *argv) {
     JSValue global = JS_GetGlobalObject(ctx), f = JS_GetPropertyStr(ctx, global, name), r;
+    _js_empieza();
     r = JS_Call(ctx, f, global, argc, argv);
     JS_FreeValue(ctx, f);
     JS_FreeValue(ctx, global);
