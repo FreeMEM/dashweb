@@ -1167,6 +1167,17 @@ static JSValue _jsdom_caja(JSContext *ctx, JSValueConst this_val, int argc, JSVa
     JS_SetPropertyUint32(ctx, a, 2, JS_NewInt32(ctx, n->caja_w));
     JS_SetPropertyUint32(ctx, a, 3, JS_NewInt32(ctx, n->caja_h));
     JS_SetPropertyUint32(ctx, a, 4, JS_NewBool(ctx, n->caja_fija));
+    {
+        /* el sticky más cercano hacia fuera (él incluido): [5..7] = su sitio, su top y lo más abajo que va */
+        _Dash_Nodo *p = n;
+        LONG pase = _jsdom_de(ctx)->doc->caja_pase;
+        while (p && p->pg_pase != pase) p = p->padre;
+        if (p) {
+            JS_SetPropertyUint32(ctx, a, 5, JS_NewInt32(ctx, p->pg_y0));
+            JS_SetPropertyUint32(ctx, a, 6, JS_NewInt32(ctx, p->pg_top));
+            JS_SetPropertyUint32(ctx, a, 7, JS_NewInt32(ctx, p->pg_fin));
+        }
+    }
     return a;
 }
 

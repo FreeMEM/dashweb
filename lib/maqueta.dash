@@ -489,6 +489,11 @@ func _pegajosos(m: Maquetador)
         if pg.fin < pg.y0
             pg.fin = pg.y0
         end
+        # (para el JavaScript: getBoundingClientRect de él y lo de dentro, con lo que lo empuja el desplazamiento)
+        n.pg_pase = _maqueta_pase
+        n.pg_y0 = pg.y0
+        n.pg_top = pg.top
+        n.pg_fin = pg.fin
     end
 end
 

@@ -3016,3 +3016,16 @@ Formato:
   marca): el esquema de "Ficha desde donde..." sale como en Chrome. Batería 71/71 (1458 s; parte compilada antes de
   llegar D64); freemem.space 22,7 s.
 
+### 2026-10-21 — Tarea 37h2, segunda parte (getBoundingClientRect de lo pegajoso)
+- En pre.opentimetrack.com las secciones "escena" son sticky dentro de <main> (top negativo que pone GSAP: tarjetas
+  que se apilan), y lo de dentro lo mueve GSAP al bajar según getBoundingClientRect, que no contaba lo que empuja
+  el sticky: el esquema de "Ficha desde donde..." salía 500 px más arriba, encima de su título.
+- lib/maqueta.dash `_pegajosos`: cada sticky guarda en su nodo (pg_pase, pg_y0, pg_top, pg_fin) dónde está, su top y
+  lo más abajo que va. lib/jsdom.dash `__dashweb_caja` da además los del sticky más cercano hacia fuera, y
+  getBoundingClientRect suma lo que lo empuja el desplazamiento.
+- pre.opentimetrack.com: la sección "Ficha desde donde..." en orden (título, texto, esquema, la tabla "Fichajes").
+- Visto de paso: un position: fixed sin dibujos (sin fondo ni contenido) da su caja en y 0 (CajaNodo se apunta antes
+  de bajarlo a su top). Sin arreglar.
+- Test: test_jsdom_geometria (sticky y lo de dentro con la página desplazada; fixed). Batería 71/71 (1487 s);
+  freemem.space 24,2 s.
+

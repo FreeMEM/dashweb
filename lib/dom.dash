@@ -76,6 +76,10 @@ struct Nodo
     caja_w: Int = 0
     caja_h: Int = 0
     caja_fija: Bool = false  # su caja es de lo fijo (position: fixed): va con la ventana, no con la página
+    pg_pase: Int = 0         # position: sticky en la maqueta pg_pase: dónde está, su top y lo más abajo que va
+    pg_y0: Int = 0
+    pg_top: Int = 0
+    pg_fin: Int = 0
     # lib/documento.dash, al aplicar cambios del JavaScript sin maqueta: marca (el número de la vuelta), lo que se
     # desplaza y si puede haber cambiado su visibilidad
     lig_marca: Int = 0
