@@ -1,0 +1,33 @@
+# Test: crypto en el JavaScript (tarea 37h2: la huella SHA-256 del informe de pre.opentimetrack.com). subtle.digest
+# con SHA-256 y SHA-1 de "abc" (los valores de la norma), randomUUID con su forma (versión 4) y getRandomValues que
+# rellena y devuelve la misma vista. Y lo de SVG que piden GSAP y otras: ownerSVGElement, getBBox, getCTM,
+# transform.baseVal, getTotalLength.
+# memcheck
+# expect-out: SHA-256 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+# expect-out: SHA-1 a9993e364706816aba3e25717850c26c9cd0d89d
+# expect-out: uuid true | aleatorio true true
+# expect-out: svg: svg 10,20 30x40 | 1 0 | 0 | 10 | html: null undefined
+# expect-out: transform: 2 | 2 0 0 2 5 7
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+Main
+    d = documento_html("http://x/", "<html><body><script>var r = {};</script></body></html>")
+    c = "function hex(b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return (x + 256).toString(16).slice(1) }).join('') }"
+    c = c + "var abc = new Uint8Array([97, 98, 99]);"
+    c = c + "crypto.subtle.digest('SHA-256', abc).then(function (b) { r.a = hex(b) });"
+    c = c + "crypto.subtle.digest({name: 'SHA-1'}, abc.buffer).then(function (b) { r.b = hex(b) });"
+    js_evaluar(d.js, c, "t.js")
+    js_evaluar(d.js, "1", "t.js")
+    Print "SHA-256 " + js_evaluar(d.js, "r.a", "t.js")
+    Print "SHA-1 " + js_evaluar(d.js, "r.b", "t.js")
+    Print js_evaluar(d.js, "var v = new Uint32Array(4); 'uuid ' + /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(crypto.randomUUID()) + ' | aleatorio ' + (crypto.getRandomValues(v) === v) + ' ' + (v[0] + v[1] + v[2] + v[3] > 0)", "t.js")
+    c = "var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); var q = document.createElementNS('http://www.w3.org/2000/svg', 'rect');"
+    c = c + "q.setAttribute('x', 10); q.setAttribute('y', 20); q.setAttribute('width', 30); q.setAttribute('height', 40); s.appendChild(q);"
+    c = c + "var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', 'M0 0 L6 8'); s.appendChild(p); document.body.appendChild(s);"
+    c = c + "var b = q.getBBox(), m = q.getCTM(); 'svg: ' + q.ownerSVGElement.localName + ' ' + b.x + ',' + b.y + ' ' + b.width + 'x' + b.height + ' | ' + m.a + ' ' + m.e + ' | ' + q.transform.baseVal.numberOfItems + ' | ' + p.getTotalLength() + ' | html: ' + document.body.ownerSVGElement + ' ' + document.body.transform"
+    Print js_evaluar(d.js, c, "t.js")
+    Print js_evaluar(d.js, "q.setAttribute('transform', 'translate(5, 7) scale(2)'); var k = q.transform.baseVal, n = k.consolidate().matrix; 'transform: ' + k.numberOfItems + ' | ' + [n.a, n.b, n.c, n.d, n.e, n.f].join(' ')", "t.js")
+    documento_liberar(d)
+end

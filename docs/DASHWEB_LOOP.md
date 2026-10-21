@@ -185,6 +185,10 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [x] D64. **Más de 64 imágenes vivas** (hecha por la sesión "dash", 1204998; 2026-10-21, tarea 37h2). `_DASH_IMG_MAX 64`
+      en codegen.py: pre.opentimetrack.com tiene más de 100 iconos SVG (más las copias de image_scale); desde la
+      65, image_from_rgb da 0 (ni iconos ni el esquema grande). Sin tope fijo (lista, o una marca en _DashImg para
+      no buscar lineal en cada image_draw).
 - [x] D63. **El ratón sobre un mui_canvas sin clic** (hecha por la sesión "dash", 3980c80; 2026-10-20, tarea 37f3).
       `mui_canvas_on_move(canvas, id)` (un aviso al mover dentro del área y al salir; varios seguidos, uno),
       `mui_canvas_pointer_x/_y(canvas)` (dónde está ahora) y `mui_canvas_pointer_inside(canvas)`; MUI 3.8 y 5.
@@ -330,7 +334,7 @@ tarea, con el estilo de Dash.
            3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje.
       [x] 37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez).
       [x] 37e5. Los toques SALE (un nodo que sale) y un absoluto o fijo que pasa a display: none, sin maqueta.
-      37h2. Lo que queda bajando por pre.opentimetrack.com (2026-10-21): crypto (getRandomValues, randomUUID,
+      [~] 37h2. Lo que queda bajando por pre.opentimetrack.com (2026-10-21): crypto (getRandomValues, randomUUID,
            subtle.digest SHA-256) para la huella del informe; un "TypeError: not a function" en un trozo cargado al
            vuelo (init de una librería); el dibujo del esquema de "Ficha desde donde ya trabaja tu gente" no sale (sus
            rótulos sí) cuando lo monta el JavaScript; el móvil de la historia asoma sobre la sección siguiente (el fin
@@ -2994,4 +2998,21 @@ Formato:
 - Tests: test_jsdom_scripts (nuevo: en línea, con src, currentScript, load, error, moverlo, JSON; document.title y
   defaultValue/defaultChecked), test_svg_texto (nuevo: width en %, <text>, rgba y var() en el SVG escrito).
   Batería 70/70 (1345 s); freemem.space 22,5 s.
+
+### 2026-10-21 — Tarea 37h2, primera parte (crypto, la API de SVG que piden las librerías; D64 encargada)
+- Preludio: crypto (getRandomValues, randomUUID, subtle.digest con SHA-256 y SHA-1 en JavaScript; comprobado con
+  sha256sum/sha1sum en el PC y en el emulador; sin generador de verdad: no vale para claves).
+- El "TypeError: not a function" de un trozo cargado al vuelo era el CSSPlugin de GSAP: getCTM() de lo que anima
+  dentro de un <svg>. Preludio: ownerSVGElement, getBBox (de los atributos de rect/circle/ellipse/line, de los
+  puntos de path/polygon o de la caja), getCTM/getScreenCTM, createSVGMatrix/createSVGPoint, DOMMatrix, getTotalLength
+  (los tramos entre los puntos de d) y transform.baseVal (las funciones del atributo transform como matrices, con
+  consolidate). Sin errores de JavaScript al bajar por pre.opentimetrack.com.
+- El esquema de "Ficha desde donde..." no salía porque su imagen era la número 65: Dash solo deja 64 vivas
+  (`_DASH_IMG_MAX`); encargada D64.
+- Queda de la 37h2: el móvil que asoma (el fin de su sticky) y que cada cambio del JavaScript al bajar rehace la
+  maqueta en 6-10 s (al bajar con espacios la página casi no avanza): 37e6.
+- Test: test_js_crypto (nuevo: digest, randomUUID, getRandomValues; la API de SVG y transform.baseVal).
+- D64 hecha por la sesión dash (1204998, main 5370bee: imágenes en una lista, sin tope; _dash_img en O(1) con una
+  marca): el esquema de "Ficha desde donde..." sale como en Chrome. Batería 71/71 (1458 s; parte compilada antes de
+  llegar D64); freemem.space 22,7 s.
 
