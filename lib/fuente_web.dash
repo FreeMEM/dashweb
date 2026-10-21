@@ -363,6 +363,16 @@ mal:
     return NULL;
 }
 
+/* Las últimas fuentes leídas, ya en TrueType: (fichero, datos) */
+#define _FW_GUARDADAS 8
+static struct { char nombre[64]; UBYTE *datos; LONG largo; } _fw_guardadas[_FW_GUARDADAS];
+static LONG _fw_siguiente = 0;
+static int _fw_con_salida = 0;
+static void _fw_olvidar_todas(void) {
+    LONG i;
+    for (i = 0; i < _FW_GUARDADAS; i++) if (_fw_guardadas[i].datos) { FreeVec(_fw_guardadas[i].datos); _fw_guardadas[i].datos = NULL; }
+}
+
 #define _FW_LO 32
 #define _FW_HI 255
 #define _FW_N (_FW_HI - _FW_LO + 2)      /* y uno más: el que sale con los que no tiene */
@@ -453,23 +463,52 @@ static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam) {
 """
 end
 
-# El TextFont de la fuente del fichero a tam px (el em); 0 si no se puede leer o no es una fuente TrueType
+# El TextFont de la fuente del fichero a tam px (el em); 0 si no se puede leer o no es una fuente TrueType. La
+# fuente leída (y sacada del WOFF/WOFF2) se guarda para los demás tamaños (tarea 37e6: Brotli y rehacer glyf con
+# cada tamaño costaba un 3 % del tiempo al bajar por pre.opentimetrack.com); fuente_web_olvidar la suelta.
 @native(borrow) func fuente_web(fichero: String, tam: Int) -> Int
 """
-    LONG largo = 0, largo2 = 0;
-    UBYTE *d = _fw_leer((const char *)fichero, &largo), *t;
-    struct TextFont *tf;
-    if (!d) return 0;
-    if (largo >= 4 && (_fw_u32(d) == 0x774F4646 || _fw_u32(d) == 0x774F4632)) {   /* "wOFF", "wOF2": la fuente de dentro */
-        t = _fw_u32(d) == 0x774F4646 ? _fw_de_woff(d, largo, &largo2) : _fw_de_woff2(d, largo, &largo2);
-        FreeVec(d);
-        if (!t) return 0;
-        d = t;
-        largo = largo2;
+    LONG largo = 0, largo2 = 0, i;
+    UBYTE *d = NULL, *t;
+    for (i = 0; i < _FW_GUARDADAS; i++)
+        if (_fw_guardadas[i].datos && !strcmp(_fw_guardadas[i].nombre, (const char *)fichero)) {
+            d = _fw_guardadas[i].datos;
+            largo = _fw_guardadas[i].largo;
+            break;
+        }
+    if (!d) {
+        d = _fw_leer((const char *)fichero, &largo);
+        if (!d) return 0;
+        if (largo >= 4 && (_fw_u32(d) == 0x774F4646 || _fw_u32(d) == 0x774F4632)) {   /* "wOFF", "wOF2": la fuente de dentro */
+            t = _fw_u32(d) == 0x774F4646 ? _fw_de_woff(d, largo, &largo2) : _fw_de_woff2(d, largo, &largo2);
+            FreeVec(d);
+            if (!t) return 0;
+            d = t;
+            largo = largo2;
+        }
+        /* a la primera libre, o a la más vieja (y AllocVec no se libera solo al salir: atexit) */
+        if (!_fw_con_salida) { _fw_con_salida = 1; atexit(_fw_olvidar_todas); }
+        i = _fw_siguiente;
+        _fw_siguiente = (_fw_siguiente + 1) % _FW_GUARDADAS;
+        if (_fw_guardadas[i].datos) FreeVec(_fw_guardadas[i].datos);
+        strncpy(_fw_guardadas[i].nombre, (const char *)fichero, sizeof(_fw_guardadas[i].nombre) - 1);
+        _fw_guardadas[i].nombre[sizeof(_fw_guardadas[i].nombre) - 1] = 0;
+        _fw_guardadas[i].datos = d;
+        _fw_guardadas[i].largo = largo;
     }
-    tf = _fw_crear(d, largo, tam);
-    FreeVec(d);
-    return (LONG)tf;
+    return (LONG)_fw_crear(d, largo, tam);
+"""
+end
+
+# Olvida la fuente guardada de ese fichero (se registra otra con el mismo nombre: otra página)
+@native(borrow) func fuente_web_olvidar(fichero: String)
+"""
+    LONG i;
+    for (i = 0; i < _FW_GUARDADAS; i++)
+        if (_fw_guardadas[i].datos && !strcmp(_fw_guardadas[i].nombre, (const char *)fichero)) {
+            FreeVec(_fw_guardadas[i].datos);
+            _fw_guardadas[i].datos = NULL;
+        }
 """
 end
 
@@ -490,6 +529,20 @@ var _fuentes_web_hechas: {String: Int} = nil
 var fuentes_web_version: Int = 0
 
 func fuente_web_registrar(clave: String, fichero: String)
+    # (el mismo fichero puede ser otra fuente: otra página usa los mismos nombres; las hechas antes no se sueltan,
+    # que una página de antes aún puede pintarlas)
+    fuente_web_olvidar(fichero)
+    if _fuentes_web_hechas != nil
+        var fuera: [String] = []
+        for k in _fuentes_web_hechas.keys()
+            if str_starts(k, fichero + "|")
+                fuera.push(k)
+            end
+        end
+        for k in fuera
+            _fuentes_web_hechas.remove(k)
+        end
+    end
     if fuentes_web == nil
         var f: {String: String} = {}
         fuentes_web = f

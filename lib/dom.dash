@@ -66,6 +66,7 @@ struct Nodo
     cl: [Int] = nil           # márgenes, bordes y rellenos en px con el contenedor cl_cont en la maqueta cl_pase
     cl_pase: Int = 0
     cl_cont: Int = 0
+    cl_pct: Bool = false      # (alguno va en %: depende del contenedor)
     med_pase: Int = 0
     # la caja (borde incluido) en la última maqueta del documento, en coordenadas de la página (lib/maqueta.dash;
     # la leen getBoundingClientRect y offset* del JavaScript): vale si caja_pase es el caja_pase del documento

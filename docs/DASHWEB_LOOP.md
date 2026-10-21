@@ -339,7 +339,7 @@ tarea, con el estilo de Dash.
            vuelo (init de una librería); el dibujo del esquema de "Ficha desde donde ya trabaja tu gente" no sale (sus
            rótulos sí) cuando lo monta el JavaScript; el móvil de la historia asoma sobre la sección siguiente (el fin
            de su sticky); cada cambio del JavaScript al bajar rehace la maqueta en 6-10 s.
-      37e6. (Después de la 37h: tras el montaje la página ya no está ocupada, 37e3.) La maqueta del montaje de pre.opentimetrack.com sigue en ~8,5 s (más 1,7 de estilo) por elementos visibles
+      [~] 37e6. (Después de la 37h: tras el montaje la página ya no está ocupada, 37e3.) La maqueta del montaje de pre.opentimetrack.com sigue en ~8,5 s (más 1,7 de estilo) por elementos visibles
            que entran (React monta secciones): cada elemento se maqueta ~6 veces por las medidas de las cajas flex y
            cada bloque cuesta ~0,7 ms. Idea: rehacer solo la parte que cambió cuando la caja de su contenedor no cambia
            de tamaño (maqueta por trozos), o medir min/max-content sin maquetar.
@@ -3041,4 +3041,19 @@ Formato:
   entran); el coste de cada una es la 37e6.
 - Test: test_documento_ligero (name, dentro de un <svg>, rotate en una caja con hijos; el rotate de #a, que tiene
   texto, ya no pide maqueta). Batería 71/71 (1488 s); freemem.space 24,1 s.
+
+### 2026-10-21 — Tarea 37e6, primera parte (dos cachés)
+- Perfil bajando por pre.opentimetrack.com (150 s): _val 2 millones de llamadas (8 %), estilo_px, _borde 627.000,
+  _palabras y _calcular (el estilo), _flex_maquetar 65 % del total; fuente_web_para un 3 % en 45 llamadas.
+- lib/maqueta.dash `_caja_leida`: casi nunca acertaba (la clave llevaba el ancho del contenedor, que al medir las
+  cajas flex cambia en cada llamada): ahora solo cuenta si algún margen o relleno va en % (`Nodo.cl_pct`). _borde
+  de 627.000 a 384.000 llamadas.
+- lib/fuente_web.dash: la fuente leída y sacada del WOFF/WOFF2 se guarda (las 8 últimas, por fichero) para los demás
+  tamaños; se suelta al salir (atexit: AllocVec no se libera solo) y al registrar otra con el mismo nombre de fichero
+  (otra página). Al registrar se olvidan también las ya hechas de ese fichero (antes, otra página con
+  T:dashweb_fuente0 recibía la fuente de la anterior). Lo que pesa de fuente_web_para es rasterizar 225 letras para
+  cada tamaño (la página usa tamaños fluidos: muchos); sigue en un 2,6 %.
+- Lo que queda: _val (2,4 millones: las consultas de estilo de cada bloque maquetado) y las ~6 maquetas por elemento
+  de las medidas flex. Las maquetas al bajar siguen en 6-12 s.
+- Batería 71/71 (1488 s).
 

@@ -713,10 +713,18 @@ var _alto_definido: Int = -1
 # maqueta y ancho del contenedor (los % van con él): cada elemento se maqueta varias veces al medir las cajas flex
 # (tarea 37e4). Una caja flex fuerza width y height, no estos.
 func _caja_leida(n: Nodo, contenedor: Int) -> [Int]
-    if n.cl_pase == _maqueta_pase and n.cl_cont == contenedor
+    # (sin % en ellos, no dependen del contenedor: al medir las cajas flex cambia en cada llamada)
+    if n.cl_pase == _maqueta_pase and (n.cl_cont == contenedor or not n.cl_pct)
         return n.cl
     end
     e = n.estilo
+    pct = false
+    for k in ["margin-top", "margin-bottom", "margin-left", "margin-right", "padding-top", "padding-bottom", "padding-left", "padding-right"]
+        if e.has(k) and str_find(e[k], "%") >= 0
+            pct = true
+        end
+    end
+    n.cl_pct = pct
     var c: [Int] = [_px(e, "margin-top", contenedor), _px(e, "margin-bottom", contenedor), _px(e, "margin-left", contenedor), _px(e, "margin-right", contenedor), _borde(e, "top"), _borde(e, "bottom"), _borde(e, "left"), _borde(e, "right"), _px(e, "padding-top", contenedor), _px(e, "padding-bottom", contenedor), _px(e, "padding-left", contenedor), _px(e, "padding-right", contenedor)]
     n.cl = c
     n.cl_pase = _maqueta_pase
