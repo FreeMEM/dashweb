@@ -648,7 +648,7 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             for md in n.medidas
                 if md.ancho == ancho and md.contenedor == contenedor and md.alto_def == _alto_definido and md.linea == m.ancho_linea and md.blanco0 == m.blanco and md.fz_w == fw and md.fz_h == fh
                     maqueta_guardadas = maqueta_guardadas + 1
-                    _medida_poner(m, md, x, y)
+                    _medida_poner(m, md, n, x, y)
                     return md.alto
                 end
             end
@@ -662,7 +662,7 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         maqueta_medidas = maqueta_medidas + 1
         md = Medida(ancho, contenedor, _alto_definido, m.ancho_linea, m.blanco, fw, fh, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         r = _bloque_de_ya(m, n, x, y, ancho, contenedor)
-        _medida_de(m, md, r, antes, x, y)
+        _medida_de(m, md, n, r, antes, x, y)
         n.medidas.push(md)
         return r
     end
@@ -989,6 +989,17 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     # aspect-ratio con el alto sin fijar: el alto que da la proporción con el ancho (o el contenido, si es más)
     if alto_ratio >= 0 and alto < alto_ratio
         alto = alto_ratio
+    end
+    # max-height y después min-height, que gana si chocan (CSS 2.1 10.7); en % solo con el alto del padre fijo, y
+    # eso aún no: se quedan sin efecto
+    if e.has("max-height") and e["max-height"] != "none" and not str_ends(e["max-height"], "%")
+        maximo = _px(e, "max-height", 0)
+        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            maximo = maximo - bt - bb - pt - pb
+        end
+        if alto > maximo
+            alto = maximo
+        end
     end
     if e.has("min-height") and not str_ends(e["min-height"], "%")
         minimo = _px(e, "min-height", 0)
@@ -2246,7 +2257,8 @@ var _forzado_w: Int = -1
 var _forzado_h: Int = -1
 
 # El resumen de lo que se acaba de dibujar desde antes (en x, y)
-func _medida_de(m: Maquetador, md: Medida, alto: Int, antes: Int, x: Int, y: Int)
+func _medida_de(m: Maquetador, md: Medida, n: Nodo, alto: Int, antes: Int, x: Int, y: Int)
+    tope = n.padre
     md.alto = alto
     md.x1 = 1000000
     md.y1 = 1000000
@@ -2289,6 +2301,16 @@ func _medida_de(m: Maquetador, md: Medida, alto: Int, antes: Int, x: Int, y: Int
                     dx1 = d.rx1 + 1
                 end
             end
+            if d.nodo != nil
+                # (con los márgenes, bordes y rellenos de sus cajas hasta la medida, ella incluida)
+                if decoracion
+                    _sangrias(d.nodo.padre, tope)
+                else
+                    _sangrias(d.nodo, tope)
+                end
+                dx0 = dx0 - _sangria_izq
+                dx1 = dx1 + _sangria_der
+            end
             if dx1 > dx0
                 if dx0 < md.izq
                     md.izq = dx0
@@ -2315,17 +2337,38 @@ end
 
 # Lo medido otra vez, en x, y: un rectángulo sin elemento con lo que abarca (no cuenta para un ancho) y un texto
 # vacío con lo que cuenta y la letra del último texto (su línea base)
-func _medida_poner(m: Maquetador, md: Medida, x: Int, y: Int)
+func _medida_poner(m: Maquetador, md: Medida, n: Nodo, x: Int, y: Int)
     if md.x2 > md.x1
         m.pagina.dibujos.push(_dibujo(D_RECT, x + md.x1, y + md.y1, md.x2 - md.x1, md.y2 - md.y1, 0))
     end
     if md.der >= md.izq
         t = _dibujo(D_TEXTO, x + md.izq, y + md.fy, md.der - md.izq, md.fh, 0)
         t.fuente = md.fuente
+        t.nodo = n.padre
         m.pagina.dibujos.push(t)
     end
     m.blanco = md.blanco
     m.ancho_linea = md.ancho_linea
+end
+
+# Lo que dejan a la izquierda y a la derecha de un contenido los márgenes, bordes y rellenos de sus cajas (las que no
+# van en línea), desde n hacia arriba hasta tope (sin él). Al medir un ancho por lo dibujado, el texto de un <a> con
+# display: block y padding 0 10px cuenta 20 px más (el menú de freemem.space salía partido: cada <li> del ancho de
+# su texto sin el relleno del enlace)
+var _sangria_izq: Int = 0
+var _sangria_der: Int = 0
+func _sangrias(n: Nodo, tope: Nodo)
+    _sangria_izq = 0
+    _sangria_der = 0
+    p = n
+    while p != nil and p != tope
+        if p.tipo == DOM_ELEMENTO and _val(p.estilo, "display", "inline") != "inline"
+            e = p.estilo
+            _sangria_izq = _sangria_izq + _px(e, "margin-left", 0) + _borde(e, "left") + _px(e, "padding-left", 0)
+            _sangria_der = _sangria_der + _px(e, "margin-right", 0) + _borde(e, "right") + _px(e, "padding-right", 0)
+        end
+        p = p.padre
+    end
 end
 
 func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
@@ -2373,6 +2416,16 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
                 if dx1 > d.rx1 + 1
                     dx1 = d.rx1 + 1
                 end
+            end
+            if d.nodo != nil
+                # (con los márgenes, bordes y rellenos de sus cajas de dentro de h)
+                if decoracion
+                    _sangrias(d.nodo.padre, h)
+                else
+                    _sangrias(d.nodo, h)
+                end
+                dx0 = dx0 - _sangria_izq
+                dx1 = dx1 + _sangria_der
             end
             if dx1 > dx0
                 if dx1 > derecha

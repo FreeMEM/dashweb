@@ -3,6 +3,8 @@
 # ancho (12), "abc" tres veces una, y un fichero que no es una fuente da 0; en WOFF, igual; en WOFF2 (Brotli y glyf/loca
 # transformadas, tests/pages/VeraMono.woff2 de woff2_compress; tarea 37g), igual y con las mismas letras. Y pintada: la
 # W pone tinta. Con font-stretch: 150 % las letras son 1,5 veces más anchas y un letter-spacing negativo las junta (tarea 37h).
+# Una fuente fina (Lato Light, tests/pages/LatoLight.woff2 y su licencia) a 15 px: el palo de la L sale entero en el
+# plano de 1 bit (caía entre dos píxeles al 50 % y desaparecía: "_os" por "Los" en freemem.space).
 # emu-server: http.py 40853
 # memcheck
 # expect-out: fuente 24 12 true true
@@ -11,6 +13,7 @@
 # expect-out: woff2 24 12 true
 # expect-out: tinta true
 # expect-out: woff2 como ttf true
+# expect-out: palo de la L entero: true
 # expect-out: caras 2: mi fuente 700 italic http://ejemplo.com/f/mi.woff2 | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2
 # expect-out: maqueta 36 sin 0
 # expect-out: estirada 54 | apretada 30
@@ -77,6 +80,39 @@ Main
     end
     Print "woff2 como ttf " + iguales
     fuente_web_liberar(g2)
+    http_a_fichero("http://127.0.0.1:40853/pages/LatoLight.woff2", "T:LatoLight.woff2", 10000)
+    g3 = fuente_web("T:LatoLight.woff2", 15)
+    font_use(g3)
+    gfx_pen(0)
+    gfx_rect(x0, y0, x0 + 180, y0 + 40)
+    gfx_pen(1)
+    gfx_text_at(x0 + 4, y0 + 4 + font_baseline(), "L")
+    arriba = -1
+    abajo = -1
+    for y in (0..30)
+        for x in (0..5)
+            if gfx_pixel_read(x0 + 4 + x, y0 + 4 + y) != gfx_pixel_read(x0 + 170, y0 + 35)
+                if arriba < 0
+                    arriba = y
+                end
+                abajo = y
+            end
+        end
+    end
+    entero = arriba >= 0 and abajo - arriba >= 8
+    for y in (arriba..abajo)
+        hay = false
+        for x in (0..5)
+            if gfx_pixel_read(x0 + 4 + x, y0 + 4 + y) != gfx_pixel_read(x0 + 170, y0 + 35)
+                hay = true
+            end
+        end
+        if not hay
+            entero = false
+        end
+    end
+    Print "palo de la L entero: " + entero
+    fuente_web_liberar(g3)
     W.close
     fuente_web_liberar(f)
     # @font-face en una hoja: familia, peso, estilo y, del src, el primero que se sabe leer (no local)

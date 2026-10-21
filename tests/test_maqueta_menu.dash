@@ -1,0 +1,29 @@
+# Test: un flotante que se ajusta a su contenido cuenta los márgenes, bordes y rellenos de las cajas de dentro (el
+# menú de freemem.space: <nav> flotante con <li> inline-block y <a> de bloque con padding 0 10px salía con cada <li>
+# del ancho de su texto, y el texto partido en varias líneas). Todas en una línea de 50 px.
+# expect-out: menu: 0,0 156x50 156,0 68x50 224,0 116x50 340,0 228x50 568,0 84x50 652,0 76x50
+# expect-out: nav 728x50
+# expect-out: con borde y margen: 140
+# memcheck
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+Main
+    css = "<style>body{margin:0;font-family:sans-serif} .main-navigation{float:left;margin-right:80px} .main-navigation > ul{margin:0;padding:0;list-style:none} .main-navigation > ul > li{position:relative;display:inline-block} .main-navigation a{display:block;font-size:14px;font-weight:700;line-height:50px;padding:0 10px;text-transform:uppercase;letter-spacing:0.2px}</style>"
+    html = "<!DOCTYPE html><html><head>" + css + "</head><body><nav class=main-navigation><ul><li><a href=#>Acerca de FreeMEM</a></li><li><a href=#>Inicio</a></li><li><a href=#>programación</a></li><li><a href=#>Administración de sistemas</a></li><li><a href=#>robótica</a></li><li><a href=#>Arduino</a></li></ul></nav></body></html>"
+    doc = dom_desde_html5(html)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    maquetar(doc, 1000)
+    s = "menu:"
+    for li in jsdom_selector(doc, "li", true)
+        s = s + " " + li.caja_x + "," + li.caja_y + " " + li.caja_w + "x" + li.caja_h
+    end
+    Print s
+    nav = jsdom_selector(doc, "nav", false)[0]
+    Print "nav " + nav.caja_w + "x" + nav.caja_h
+    # un div flotante con un hijo de bloque con borde de 5, margen de 7 y relleno de 8 a cada lado: 100 + 2 x (7 + 5 + 8)
+    d2 = dom_desde_html5("<!DOCTYPE html><html><body style='margin:0'><div style='float:left'><p style='margin:0 7px;border:5px solid;padding:0 8px'><span style='display:inline-block;width:100px;height:10px;background:red'></span></p></div></body></html>")
+    estilo_aplicar(d2, estilo_hojas(d2, "http://x/"))
+    maquetar(d2, 1000)
+    Print "con borde y margen: " + jsdom_selector(d2, "div", false)[0].caja_w
+end

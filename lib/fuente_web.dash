@@ -377,6 +377,22 @@ static void _fw_olvidar_todas(void) {
 #define _FW_HI 255
 #define _FW_N (_FW_HI - _FW_LO + 2)      /* y uno más: el que sale con los que no tiene */
 
+/* Si el píxel (x, y) del glifo en grises va con tinta en el plano de 1 bit: con gris de 112 o más, o si es el más
+   oscuro de una pareja (con el de al lado o el de arriba o abajo) que entre los dos pasa de 150 sin que ninguno llegue
+   a 112. Un trazo fino (Lato 300 a 15 px) que cae entre dos píxeles al 50 % se quedaba sin ninguno: "_os" por "Los" */
+static int _fw_tinta(const UBYTE *g, int w, int h, int x, int y) {
+    int v = g[y * w + x], l, r, u, d;
+    if (v >= 112) return 1;
+    if (v < 40) return 0;
+    l = x > 0 ? g[y * w + x - 1] : 0;
+    r = x < w - 1 ? g[y * w + x + 1] : 0;
+    u = y > 0 ? g[(y - 1) * w + x] : 0;
+    d = y < h - 1 ? g[(y + 1) * w + x] : 0;
+    /* en una pareja empatada se queda el de la izquierda (o el de arriba) */
+    return (r < 112 && v + r >= 150 && v >= r) || (l < 112 && v + l >= 150 && v > l) ||
+           (d < 112 && v + d >= 150 && v >= d) || (u < 112 && v + u >= 150 && v > u);
+}
+
 /* Un TextFont (y sus tablas y su plano, en un solo AllocVec) con los glifos de datos a tam px de em */
 static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam, LONG ancho) {
     stbtt_fontinfo fi;
@@ -433,7 +449,7 @@ static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam, LONG ancho
                     int fila = base + gy0 + yy;
                     if (fila < 0 || fila >= alto) continue;
                     for (xx = 0; xx < w; xx++)
-                        if (gris[yy * w + xx] >= 112) {
+                        if (_fw_tinta(gris, w, gh, xx, yy)) {
                             int bit = total + xx;
                             plano[fila * modulo + (bit >> 3)] |= 0x80 >> (bit & 7);
                         }

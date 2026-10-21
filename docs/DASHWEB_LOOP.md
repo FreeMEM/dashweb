@@ -3370,3 +3370,35 @@ Formato:
   tools/iconos_wb.py, 54x23 en 4 colores, píxel 1,35 veces más alto) lo saca `tools/logo_tachyon.py --icono`.
 - Comprobado en el emulador con MUI 3.8: "Acerca de Tachyon" con "Tachyon 0.3.0-dev".
 - Batería: 77/77 (1655 s; la primera, con la máquina cargada, dio 20 TIMEOUT en el grupo de red, que pasaron solos).
+
+### 2026-10-21 — Tarea 41a, cuarta parte (la nariz de Acid2: max-height)
+- max-height no se aplicaba a los bloques (solo a las imágenes): lib/maqueta.dash lo aplica tras height y
+  aspect-ratio y antes de min-height, que gana (CSS 2.1 10.7); en % aún no (sin alto fijo del padre no cuentan).
+- La nariz de Acid2 (float con height 60 %, min-height 80 % y max-height 3em; el padre sin alto) mide 168x48 como
+  en Chrome (antes 168x60). tests/test_acid2.dash: "nariz: 168x48".
+- Batería: 78/78 (1687 s, junto con las dos siguientes).
+
+### 2026-10-22 — Letras finas que perdían trazos (usuario, visto por la sesión dash en CoffinOS)
+- En freemem.space, con Lato 300 a 15-16 px, "Los" salía "_os" y faltaban palos en t, i, l: al pasar el glifo de
+  stb_truetype a 1 bit (gris >= 112), un palo fino que cae entre dos píxeles al 50 % se quedaba sin ninguno. No era
+  la FPU de Amiberry (lo sospeché primero: en FS-UAE, 68020 y 68040 con JIT, sale igual) ni el WOFF2 (comprobado en
+  el PC contra fontTools).
+- lib/fuente_web.dash `_fw_tinta`: además, el más oscuro de una pareja de vecinos (al lado, arriba o abajo) que
+  entre los dos pasan de 150 sin que ninguno llegue a 112. Lato Light queda entera; las demás, igual o un poco más
+  llenas.
+- test_fuente_web: Lato Light (tests/pages/LatoLight.woff2, el subconjunto latino de Google Fonts, OFL en
+  LatoLight.LICENSE) a 15 px, el palo de la L entero (con el umbral de antes da false).
+- Batería: 78/78. Visto por el usuario en CoffinOS: las letras finas salen enteras.
+
+### 2026-10-22 — El menú de freemem.space partido (usuario, visto por la sesión dash)
+- El menú (<nav> flotante, <li> inline-block, <a> de bloque con padding 0 10px) salía con cada <li> en una
+  columna estrecha y el texto partido ("INI / CIO"). Al medir el ancho de un flotante por lo dibujado solo
+  contaba el texto: el relleno del <a> quedaba fuera y cada <li> salía 20 px más estrecho que su texto (la palabra
+  se partía por el word-wrap: break-word de la página, que es correcto).
+- lib/maqueta.dash `_sangrias`: al medir (_ancho_flotante_medir y lo guardado de _medida_de), cada dibujo cuenta
+  con los márgenes, bordes y rellenos de sus cajas (las que no van en línea) hasta la caja medida;
+  _medida_poner deja su resumen colgado del padre del medido para que se sigan sumando las de fuera.
+- tests/test_maqueta_menu.dash: el menú en una línea de 50 px (728 de ancho) y un flotante con un <p> de margen 7,
+  borde 5 y relleno 8: 140.
+- Batería: 78/78. Visto por el usuario en CoffinOS: el menú casi en una línea (ARDUINO aún baja: sigue).
+
