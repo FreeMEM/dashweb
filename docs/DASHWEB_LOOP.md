@@ -3191,3 +3191,7 @@ Formato:
 - El `<noscript>` de Google Tag Manager salía como texto arriba de eldiario.es (su contenido es texto crudo con el
   JavaScript activo): en la hoja del navegador pasa a display: none, como pide el HTML con scripting. test_estilo.
 - Sin batería entera (hay otra sesión dashweb en la misma carpeta): test_url y test_estilo* pasan.
+
+### 2026-10-21 — "Acerca de..." con autor, licencia y web (usuario)
+- src/navegador.dashui: © 2026 Francisco Antonio Tapias Bravo, Licencia MIT, github.com/FreeMEM/dashweb (lo del
+  fichero LICENSE). Visto en el emulador con MUI 3.8 (el © sale bien). Copiado a Traspaso (14:03).
