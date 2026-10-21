@@ -413,7 +413,7 @@ tarea, con el estilo de Dash.
       con un aviso claro.
       (c) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
       un script que pase de N segundos y decirlo.
-      (d) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
+      [x] (d) (2026-10-21) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
       la pieza más alta + 2 px en _poner_linea).
       [x] (e) (2026-10-21, D68) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
       fichero).
@@ -3233,3 +3233,14 @@ Formato:
 - Con ello, en pre.opentimetrack.com el titular corta en 3 líneas como en Chrome (antes 2) y la línea de tiempo pone
   la fecha encima de la hora; la portada sigue más baja: line-height no se aplica (40d) y la tarjeta de la derecha
   no se parte igual. Batería: 73/73; freemem.space entera en 23.157 ms.
+
+### 2026-10-21 — Tarea 40d (line-height) y lo que falta para medir como Chrome
+- lib/estilo.dash `estilo_alto_linea(v, em)`: número o calc() sin unidad x font-size, longitud o % en px, -1 con
+  normal. lib/maqueta.dash: cada pieza de texto lleva su `lh` (calculado una vez por texto en `_palabras_texto`);
+  `_poner_linea` con algún lh hace la línea como CSS 2.1 10.8 (media diferencia arriba y abajo, bases alineadas) y
+  sin ninguno, como siempre (la pieza más alta y 1 px arriba y abajo). Test test_maqueta_alto_linea (40px, 2, calc
+  de Tailwind, 150 %, normal). El titular de pre.opentimetrack.com (line-height 0.9) sale ya apretado como en Chrome.
+- Encontrado al comparar: ESTILO_MEDIUM (font-size normal y 1rem) es 13 px desde la tarea 11 (que quepa en una
+  pantalla de Amiga); en Chrome 16. Todo lo de rem sale un 19 % más pequeño (la entradilla: 15 px contra 18,4). Es
+  decisión del usuario: preguntado.
+- Batería: 74/74; freemem.space entera en 23.787 ms y se ve bien (captura).

@@ -1,0 +1,42 @@
+# Test: line-height (tarea 40d). Dos palabras que no caben en una línea: la segunda baja lo que diga line-height
+# (40px; 2 con font-size 10px: 20; calc(1.25 / .625) con 16px, como el de Tailwind: 32; 150 % de 20px: 30). Con
+# normal, como siempre: el alto de la letra y 2 px. La línea de 40 px pone la letra en medio (la mitad de lo que
+# sobra arriba) y el bloque mide las dos líneas.
+# memcheck
+# expect-out: 40px: 40 | en medio true | bloque 80
+# expect-out: 2: 20
+# expect-out: calc: 32
+# expect-out: 150%: 30
+# expect-out: normal: true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+# Las y de los dos textos del párrafo con ese estilo (una palabra por línea)
+func ys(estilo: String) -> [Int]
+    doc = dom_desde_html("<body style='margin:0'><p style='margin:0;width:30px;" + estilo + "'>aaaa bbbb</p></body>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 300)
+    var r: [Int] = []
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and str_trim(d.texto) != ""
+            r.push(d.y)
+            r.push(d.alto)
+        end
+    end
+    r.push(dom_buscar(doc, "p").caja_h)
+    return r
+end
+
+Main
+    a = ys("line-height: 40px")
+    Print "40px: " + (a[2] - a[0]) + " | en medio " + (a[0] == (40 - a[1]) / 2) + " | bloque " + a[4]
+    b = ys("font-size: 10px; line-height: 2")
+    Print "2: " + (b[2] - b[0])
+    c = ys("font-size: 16px; line-height: calc(1.25 / .625)")
+    Print "calc: " + (c[2] - c[0])
+    d = ys("font-size: 20px; line-height: 150%")
+    Print "150%: " + (d[2] - d[0])
+    n = ys("")
+    Print "normal: " + (n[2] - n[0] == n[1] + 2)
+end

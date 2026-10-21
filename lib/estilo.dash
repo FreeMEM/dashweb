@@ -2375,6 +2375,24 @@ func _minuscula(c: Int) -> Int
     return c
 end
 
+# El alto de línea (line-height) en px con letra de em_px: un número o un calc() sin unidad multiplica el
+# font-size, una longitud o un % (del font-size) en px; -1 con normal o lo que no se entiende (tarea 40d)
+func estilo_alto_linea(v: String, em_px: Int) -> Int
+    t = str_trim(v)
+    if t == "" or t == "normal" or t == "inherit" or t == "initial" or t == "unset"
+        return -1
+    end
+    c = str_code(t, 0)
+    if not ((c >= 48 and c <= 57) or c == 46 or c == 99 or c == 109 or c == 67 or c == 77)
+        return -1
+    end
+    r = _calc_suma(Calc(t, 0, em_px, em_px))
+    if r.unidad
+        return r.v / 100
+    end
+    return r.v * em_px / 100
+end
+
 func estilo_px(v: String, em_px: Int, cien: Int) -> Int
     # sin crear textos (se llama decenas de miles de veces al maquetar): se mira el valor en su sitio
     n = v.length

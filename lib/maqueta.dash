@@ -126,6 +126,7 @@ struct Pieza
     icono: Bool = false      # un icono (texto: su código en hexadecimal)
     caja: Nodo = nil         # un inline-block maquetado como bloque en su sitio de la línea (ancho: con márgenes)
     video: Bool = false      # un <video> (texto: su dirección)
+    lh: Int = -1             # el line-height de su texto en px (-1: normal; tarea 40d)
 end
 
 # Los hijos de n con su ::before delante y su ::after detrás (lib/estilo.dash)
@@ -2908,6 +2909,7 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
     alto = font_height()
     base = font_baseline()
     espacio_ancho = font_text_width(" ")
+    lh = estilo_alto_linea(_val(e, "line-height", "normal"), tam)
     if e["white-space"] == "pre" or e["white-space"] == "pre-wrap"
         # cada línea tal cual; los saltos de línea cortan
         inicio = 0
@@ -2916,8 +2918,11 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
             linea = str_replace(texto[inicio:p], "\t", "        ")
             pz = Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false)
             pz.nodo = elemento
+            pz.lh = lh
             piezas.push(pz)
-            piezas.push(Pieza("", 0, alto, base, f, estilo, color, false, enlace, 0, true, false))
+            salto = Pieza("", 0, alto, base, f, estilo, color, false, enlace, 0, true, false)
+            salto.lh = lh
+            piezas.push(salto)
             inicio = p + 1
             p = str_find_from(texto, "\n", inicio)
         end
@@ -2925,6 +2930,7 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
         if linea != ""
             pz = Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false)
             pz.nodo = elemento
+            pz.lh = lh
             piezas.push(pz)
         end
         return
@@ -2999,12 +3005,13 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
             espacio = espacio_ancho
         end
         m.blanco = 0
-        if ls > 0 and espacio > 0
+        if ls != 0 and espacio > 0
             espacio = espacio + ls
         end
         pz = Pieza(palabras[k], anchos[k], alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
         pz.nodo = elemento
         pz.espaciado = ls
+        pz.lh = lh
         if not hubo_blanco and piezas.length > 0
             anterior = piezas[piezas.length - 1]
             pz.pegada = not anterior.salto and not anterior.imagen and not anterior.control and not str_ends(anterior.texto, " ")
@@ -3132,6 +3139,7 @@ func _palabras_partidas(piezas: [Pieza], ancho: Int) -> [Pieza]
             pz = Pieza(trozo, font_text_width(trozo) + p.espaciado * trozo.length, p.alto, p.base, p.fuente, p.estilo, p.color, p.tachado, p.enlace, 0, false, false)
             pz.nodo = p.nodo
             pz.espaciado = p.espaciado
+            pz.lh = p.lh
             if primero
                 pz.espacio = p.espacio
                 pz.pegada = p.pegada
@@ -3152,18 +3160,50 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     alto = 0
     base = 0
     total = 0
+    con_lh = false
     for p in linea
         if p.base > base
             base = p.base
         end
         total = total + p.espacio + p.ancho
-    end
-    for p in linea
-        if base - p.base + p.alto > alto
-            alto = base - p.base + p.alto
+        if p.lh >= 0
+            con_lh = true
         end
     end
-    alto = alto + 2
+    # uno: lo que baja el texto en la línea (sin line-height, la pieza más alta y 1 px arriba y abajo)
+    uno = 1
+    if con_lh
+        # con line-height (CSS 2.1 10.8): cada texto en una caja de su line-height con la mitad de lo que sobra (o
+        # falta) arriba y la otra mitad abajo; la línea, de lo más alto a lo más bajo con las bases alineadas
+        uno = 0
+        base = 0
+        abajo = 0
+        for p in linea
+            a = p.base
+            dd = p.alto - p.base
+            if p.lh >= 0
+                a = p.base + (p.lh - p.alto) / 2
+                dd = p.lh - a
+            end
+            if a > base
+                base = a
+            end
+            if dd > abajo
+                abajo = dd
+            end
+        end
+        alto = base + abajo
+        if alto < 1
+            alto = 1
+        end
+    else
+        for p in linea
+            if base - p.base + p.alto > alto
+                alto = base - p.base + p.alto
+            end
+        end
+        alto = alto + 2
+    end
     desplaza = 0
     alinea = e["text-align"]
     if alinea == "center"
@@ -3181,24 +3221,24 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     for p in linea
         cx = cx + p.espacio
         if p.caja != nil
-            _bloque_de(m, p.caja, cx, y + base - p.base + 1, p.ancho, ancho)
+            _bloque_de(m, p.caja, cx, y + base - p.base + uno, p.ancho, ancho)
             actual = nil
         elif p.control
-            ctl = _dibujo(D_CONTROL, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
+            ctl = _dibujo(D_CONTROL, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
             ctl.fuente = p.fuente
             ctl.nodo = p.nodo
             ctl.enlace = p.enlace
             m.pagina.dibujos.push(ctl)
             actual = nil
         elif p.video
-            vd = _dibujo(D_VIDEO, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
+            vd = _dibujo(D_VIDEO, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
             vd.texto = p.texto
             vd.enlace = p.enlace
             vd.nodo = p.nodo
             m.pagina.dibujos.push(vd)
             actual = nil
         elif p.icono
-            ic = _dibujo(D_ICONO, cx, y + base - p.base + 1, p.ancho, p.alto, p.color)
+            ic = _dibujo(D_ICONO, cx, y + base - p.base + uno, p.ancho, p.alto, p.color)
             ic.texto = p.texto
             ic.fuente = p.fuente
             ic.enlace = p.enlace
@@ -3206,7 +3246,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             m.pagina.dibujos.push(ic)
             actual = nil
         elif p.imagen
-            img = _dibujo(D_IMAGEN, cx, y + base - p.base + 1, p.ancho, p.alto, 0)
+            img = _dibujo(D_IMAGEN, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
             img.texto = p.texto
             img.enlace = p.enlace
             img.nodo = p.nodo
@@ -3226,7 +3266,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
                 sombra = _sombra_texto(p.nodo.estilo, p.color)
                 if sombra != nil
                     sombra.x = cx + sombra.x
-                    sombra.y = y + base - p.base + 1 + sombra.y
+                    sombra.y = y + base - p.base + uno + sombra.y
                     sombra.ancho = p.ancho
                     sombra.alto = p.alto
                     sombra.texto = p.texto
@@ -3237,7 +3277,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
                     m.pagina.dibujos.push(sombra)
                 end
             end
-            actual = _dibujo(D_TEXTO, cx, y + base - p.base + 1, p.ancho, p.alto, p.color)
+            actual = _dibujo(D_TEXTO, cx, y + base - p.base + uno, p.ancho, p.alto, p.color)
             actual.texto = p.texto
             actual.fuente = p.fuente
             actual.estilo = p.estilo
@@ -3247,7 +3287,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             m.pagina.dibujos.push(actual)
         end
         if p.tachado
-            m.pagina.dibujos.push(_dibujo(D_LINEA, cx, y + base - p.base + 1 + p.alto / 2, p.ancho, 1, p.color))
+            m.pagina.dibujos.push(_dibujo(D_LINEA, cx, y + base - p.base + uno + p.alto / 2, p.ancho, 1, p.color))
         end
         cx = cx + p.ancho
     end
