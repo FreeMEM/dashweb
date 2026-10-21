@@ -1823,10 +1823,15 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
     end
     n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "before"), "::before")
     n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "after"), "::after")
-    if estilo_apuntar
+    if estilo_apuntar or estilo_marcar
         pseudo = not _pseudo_iguales(antes_a, n.pseudo_antes) or not _pseudo_iguales(antes_d, n.pseudo_despues)
         if pseudo or not _estilo_iguales(viejo, e)
-            estilo_cambios.push(EstiloCambio(n, viejo, pseudo))
+            if estilo_apuntar
+                estilo_cambios.push(EstiloCambio(n, viejo, pseudo))
+            end
+            if estilo_marcar
+                dom_tocar(n)
+            end
         end
     end
 end
@@ -1840,6 +1845,9 @@ struct EstiloCambio
 end
 
 var estilo_apuntar: Bool = false
+# Con estilo_marcar, cada elemento cuyo estilo cambió se marca con dom_tocar (lo medido en la maqueta anterior ya no
+# vale para él ni para los de fuera; tarea 37e6)
+var estilo_marcar: Bool = false
 var estilo_cambios: [EstiloCambio] = nil
 
 func _pseudo_iguales(a: Nodo, b: Nodo) -> Bool

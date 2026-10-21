@@ -57,10 +57,14 @@ struct Nodo
     id_cache: String = nil         # se piden (dom_olvidar_atributos al cambiar un atributo)
     vars: {String: String} = nil   # las propiedades --x que le llegan a sus hijos (lib/estilo.dash)
     toques: [Toque] = nil          # en el documento: lo que ha cambiado el JavaScript (lib/jsdom.dash)
-    # lib/maqueta.dash: los anchos medidos en la maqueta af_pase (de tres en tres: ancho, alto definido, resultado)
+    # lib/maqueta.dash: los anchos medidos en la época af_pase con dom_reloj af_reloj (de tres en tres: ancho, alto
+    # definido, resultado); valen mientras no cambie nada dentro (sub_cambio, dom_tocar)
     af_pase: Int = 0
+    af_reloj: Int = 0
     af_lista: [Int] = nil
-    medidas: [Medida] = nil   # (de la maqueta med_pase)
+    medidas: [Medida] = nil   # (de la época med_pase con dom_reloj med_reloj)
+    med_reloj: Int = 0
+    sub_cambio: Int = 0       # el dom_reloj del último cambio en él o dentro (dom_tocar)
     raton: Bool = false       # el ratón está encima (él o uno de dentro): :hover (lib/documento.dash, tarea 37f3)
     orden: Int = 0            # lib/maqueta.dash: su orden en el árbol en la última maqueta (para pintar lo posicionado)
     cl: [Int] = nil           # márgenes, bordes y rellenos en px con el contenedor cl_cont en la maqueta cl_pase
@@ -116,6 +120,19 @@ struct Toque
     antes: String
     despues: String
     quitado: Nodo = nil      # TOQUE_SALE: el que salió (lib/documento.dash quita sus dibujos si no ocupaba sitio)
+end
+
+# lib/maqueta.dash guarda lo medido de una maqueta a la siguiente (tarea 37e6): dom_tocar(n) dice que n cambió (su
+# estilo, sus hijos, un atributo) y lo medido en él y en los de fuera ya no vale
+var dom_reloj: Int = 0
+
+func dom_tocar(n: Nodo)
+    dom_reloj = dom_reloj + 1
+    a = n
+    while a != nil
+        a.sub_cambio = dom_reloj
+        a = a.padre
+    end
 end
 
 # Apunta un cambio en el documento de n (si n está en uno)

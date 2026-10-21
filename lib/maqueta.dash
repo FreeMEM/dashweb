@@ -363,10 +363,20 @@ end
 var _fuentes_abiertas: {String: Int} = {}
 var _topaz: Int = 0
 
+# Lo medido (_bloque_de al medir, _ancho_flotante) vale para toda una época: cada maqueta empieza otra salvo con
+# maqueta_conservar, que pone lib/documento.dash cuando sabe todo lo que cambió (su estilo de lo cambiado, sus
+# toques: marcados con dom_tocar, que tira lo medido en ellos y en los de fuera; tarea 37e6)
+var _maqueta_epoca: Int = 0
+var maqueta_conservar: Bool = false
+
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
     estilo_vw = ancho              # (vw: el ancho de donde se ve la página)
     _alto_definido = -1
     _maqueta_pase = _maqueta_pase + 1
+    if not maqueta_conservar
+        _maqueta_epoca = _maqueta_epoca + 1
+    end
+    maqueta_conservar = false
     var dibujos: [Dibujo] = []
     p = Pagina(dibujos, ancho, 0, 16777215)
     if _topaz == 0
@@ -599,7 +609,7 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             fw = _forzado_w
             fh = _forzado_h
         end
-        if n.med_pase == _maqueta_pase
+        if n.med_pase == _maqueta_epoca and n.sub_cambio <= n.med_reloj and n.medidas.length < 24
             for md in n.medidas
                 if md.ancho == ancho and md.contenedor == contenedor and md.alto_def == _alto_definido and md.linea == m.ancho_linea and md.blanco0 == m.blanco and md.fz_w == fw and md.fz_h == fh
                     _medida_poner(m, md, x, y)
@@ -609,7 +619,8 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         else
             var nuevas: [Medida] = []
             n.medidas = nuevas
-            n.med_pase = _maqueta_pase
+            n.med_pase = _maqueta_epoca
+            n.med_reloj = dom_reloj
         end
         antes = m.pagina.dibujos.length
         md = Medida(ancho, contenedor, _alto_definido, m.ancho_linea, m.blanco, fw, fh, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -2167,7 +2178,7 @@ var _medido: Nodo = nil     # el que se está midiendo (sus cajas no cuentan par
 # con cajas anidadas el coste crecía exponencialmente (pre.opentimetrack.com: 5016 medidas, 7173 bloques). Se
 # recuerdan los tres últimos de cada nodo en esta maqueta (tarea 37a5).
 func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
-    if h.af_pase == _maqueta_pase
+    if h.af_pase == _maqueta_epoca and h.sub_cambio <= h.af_reloj and h.af_lista.length < 72
         l = h.af_lista
         i = 0
         while i < l.length
@@ -2179,7 +2190,8 @@ func _ancho_flotante(m: Maquetador, h: Nodo, ancho: Int) -> Int
     else
         var nueva: [Int] = []
         h.af_lista = nueva
-        h.af_pase = _maqueta_pase
+        h.af_pase = _maqueta_epoca
+        h.af_reloj = dom_reloj
     end
     alto = _alto_definido
     v = _ancho_flotante_medir(m, h, ancho)

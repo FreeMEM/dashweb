@@ -1,0 +1,52 @@
+# Test: lo medido para flex (anchos de lo de dentro) se guarda de una maqueta a otra y solo se tira lo tocado
+# (tarea 37e6). Tras cambios del JavaScript (un texto cambiado sin toque, como un reloj de React; una clase que
+# agranda la letra; un hijo que entra) la página sale igual que la del mismo HTML maquetada de nuevo, y una caja
+# que nadie tocó queda igual.
+# memcheck
+# expect-out: reloj: true true
+# expect-out: clase: true true
+# expect-out: entra: true true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+# La página de d igual que la de h maquetada de nuevo (los mismos dibujos en el mismo sitio)
+func igual_que(d: Documento, h: String) -> Bool
+    d2 = documento_html("http://x/", h)
+    documento_maquetar(d2, 300)
+    a = d.pagina.dibujos
+    b = d2.pagina.dibujos
+    r = a.length == b.length
+    i = 0
+    while r and i < a.length
+        r = a[i].x == b[i].x and a[i].y == b[i].y and a[i].ancho == b[i].ancho and a[i].alto == b[i].alto
+        i = i + 1
+    end
+    documento_liberar(d2)
+    return r
+end
+
+func pagina(reloj: String, clase: String, extra: String) -> String
+    return "<style>.g{font-size:30px}</style><body style='margin:0'><div style='display:flex'><div style='display:flex;flex-direction:column'><span id=t>" + reloj + "</span><span id=c class='" + clase + "'>abc</span></div><div style='display:flex'><b>quieto</b></div><div id=e style='display:flex'><i>x</i>" + extra + "</div></div><p id=o>otro</p></body>"
+end
+
+Main
+    js = "<script>var t = document.getElementById('t'); var c = document.getElementById('c'); var o = document.getElementById('o'); var e = document.getElementById('e');</script>"
+    d = documento_html("http://x/", pagina("9:59 AM", "", "") + js)
+    documento_maquetar(d, 300)
+    q = dom_buscar(d.doc, "b")
+    qw = q.caja_w
+    # (el primer cambio tras maquetar rehace el índice de las hojas: estilo entero)
+    js_evaluar(d.js, "o.style.color = 'red'", "t.js")
+    documento_al_dia(d)
+    js_evaluar(d.js, "t.firstChild.nodeValue = '11:45:16 AM'; o.style.color = 'blue'", "t.js")
+    documento_al_dia(d)
+    Print "reloj: " + igual_que(d, pagina("11:45:16 AM", "", "") + js) + " " + (q.caja_w == qw)
+    js_evaluar(d.js, "c.className = 'g'", "t.js")
+    documento_al_dia(d)
+    Print "clase: " + igual_que(d, pagina("11:45:16 AM", "g", "") + js) + " " + (q.caja_w == qw)
+    js_evaluar(d.js, "var n = document.createElement('i'); n.textContent = 'nuevo y largo'; e.appendChild(n)", "t.js")
+    documento_al_dia(d)
+    Print "entra: " + igual_que(d, pagina("11:45:16 AM", "g", "<i>nuevo y largo</i>") + js) + " " + (q.caja_w == qw)
+    documento_liberar(d)
+end

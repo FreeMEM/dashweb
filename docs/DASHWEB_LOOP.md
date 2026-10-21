@@ -3108,3 +3108,22 @@ Formato:
 - Las 10 imágenes (miniaturas y los fondos grandes del carrusel) a tamaño original son 30 MB en RGBA. Apuntado como
   40h. Sin batería: solo cambia el texto de la traza.
 
+
+### 2026-10-21 — Tarea 37e6, cuarta parte (lo medido se guarda de una maqueta a otra)
+- Perfil al bajar por pre.opentimetrack.com con D66: `_ancho_flotante_medir` (medir el ancho de flex, grid y
+  flotantes maquetando lo de dentro) es el 55 % del tiempo; lo medido solo se recordaba dentro de una maqueta.
+- Ahora vale para una época: lib/dom.dash `dom_tocar(n)` marca n y los de fuera (`sub_cambio` con `dom_reloj`), y lo
+  medido en un nodo (`medidas`, `af_lista`) vale si nada cambió dentro desde que se midió. Se marcan: los toques del
+  JavaScript, cada elemento cuyo estilo calculado cambia al rehacer el estilo de lo cambiado (`estilo_marcar`), un
+  texto cambiado por el JS (no deja toque: sin marcarlo, la hora del móvil de Ficha se partía en dos líneas con el
+  ancho del texto de antes) y los atributos que pone una imagen al llegar. Cada maqueta empieza época salvo
+  la de documento_al_dia con estilo de lo cambiado (`maqueta_conservar`); estilo entero, imágenes, fuentes y cambio
+  de ancho la empiezan.
+- Maquetas al bajar: 1281 2798 11882 7007 5749 1810 8857 10768 1696 1728 2701 1858 2798 2859 5360 2308 6137 1846
+  1698 ms (antes 6-12 s casi todas). Comprobado con captura tras 8 espacios con 20 s entre ellos: igual que sin el
+  cambio salvo la hora del reloj.
+- Pendiente visto: un texto cambiado por el JS sin otro toque no pasa por la ruta ligera ni por las partes (estilo
+  entero y maqueta entera, como antes).
+- tests/test_maqueta_epoca.dash: tras un texto cambiado sin toque, una clase que agranda la letra y un hijo que
+  entra, la página es la misma que la del mismo HTML maquetada de nuevo (sin marcar el texto, falla "reloj").
+  Batería: 71/71 + el nuevo; freemem.space entera en 22.688 ms.

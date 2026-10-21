@@ -567,7 +567,15 @@ func documento_al_dia(d: Documento) -> Bool
         estilo_cambios = cambios
         estilo_apuntar = true
     end
+    # lo medido en la maqueta anterior se guarda salvo en lo tocado (tarea 37e6)
+    if toques != nil
+        for t in toques
+            dom_tocar(t.nodo)
+        end
+    end
+    estilo_marcar = true
     parte = toques != nil and estilo_aplicar_partes(d.doc, d.hojas, toques)
+    estilo_marcar = false
     estilo_apuntar = false
     if not parte
         estilo_aplicar(d.doc, d.hojas)
@@ -585,6 +593,7 @@ func documento_al_dia(d: Documento) -> Bool
         traza("estilo en " + (t1 - t0) + " ms; buscar imágenes en " + (time_ms() - t1) + " ms")
     end
     if d.ancho > 0
+        maqueta_conservar = parte
         d.pagina = maquetar(d.doc, d.ancho)
         _documento_vistas(d)
     end

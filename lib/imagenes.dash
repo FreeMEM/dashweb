@@ -512,6 +512,7 @@ func _imagen_tamano(n: Nodo, img: Int) -> Bool
 end
 
 func _poner_atributo(n: Nodo, nombre: String, valor: String)
+    dom_tocar(n)       # (lo medido en la maqueta anterior ya no vale; tarea 37e6)
     for a in n.atributos
         if a.nombre == nombre
             a.valor = valor
