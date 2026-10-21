@@ -3127,3 +3127,22 @@ Formato:
 - tests/test_maqueta_epoca.dash: tras un texto cambiado sin toque, una clase que agranda la letra y un hijo que
   entra, la página es la misma que la del mismo HTML maquetada de nuevo (sin marcar el texto, falla "reloj").
   Batería: 71/71 + el nuevo; freemem.space entera en 22.688 ms.
+
+### 2026-10-21 — Tarea 37e6, quinta parte (sin estilo entero por cambios que no tocan la página)
+- Dos maquetas al bajar eran "0 cambios: estilo (entero)" (7 y 9 s): el JS cambiaba algo sin dejar toque. Un texto
+  cambiado por el JS (nodeValue/data, el reloj de React) apunta ahora TOQUE_CONTENIDO en su elemento (si no cambia
+  de forma, ni maqueta: _documento_texto_igual); y si no queda nada apuntado (atributo con el valor que ya tenía,
+  nodos fuera del documento) documento_al_dia no hace nada.
+- Otra era "estilo entero: :hover en html" (10,7 s): el :hover de <html> ya no rehace el estilo (nadie usa
+  html:hover; está bajo el ratón mientras el ratón esté en la ventana).
+- Al bajar: 1285 2807 11870 5668 1752 1664 1629 1675 2681 1792 2881 2745 5065 2281 6106 1865 1683 ms; ningún
+  estilo entero. Captura tras 8 espacios igual que sin 37e6 (4-5) salvo los segundos del reloj.
+- test_maqueta_epoca: un cambio sin efecto no rehace nada.
+- La batería se pasaba de tiempo: los tests con la misma configuración van en una sesión de emulador con 600 s y
+  test_maqueta_epoca (152 s: cuatro documentos con JS) dejaba a los 17 de detrás en TIMEOUT. El test compara ahora
+  con páginas sin JS (58 s) y tests/run.py da a cada sesión 600 s más 20 por test. Batería: 72/72.
+
+### 2026-10-21 — "Acerca de..." con la versión (usuario)
+- El usuario quería ver qué dashweb tiene en CoffinOS: la ventana "Acerca de..." (menú Proyecto, Amiga+?) dice
+  "dashweb 0.3.0-dev" (DASHWEB_VERSION en src/dashweb.dash) y la fecha y hora en que se compiló. Comprobado en el
+  emulador con MUI 3.8 (sys32rtg38) abriéndola desde el menú. Copiado a Traspaso (10:51).

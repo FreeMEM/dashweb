@@ -1504,6 +1504,11 @@ func _estilo_toque(t: Toque, hojas: Hojas) -> Bool
                 rasgos.push("#" + t.despues)
             end
         elif t.nombre == ":hover"
+            # (<html> está bajo el ratón mientras está en la ventana: un html:hover no lo usa nadie y rehacerlo es
+            # el estilo entero; tarea 37e6)
+            if n.nombre == "html"
+                return true
+            end
             rasgos.push(":hover")
         elif hojas.atributos_usados.has(t.nombre)
             rasgos.push("[" + t.nombre)

@@ -560,6 +560,11 @@ func documento_al_dia(d: Documento) -> Bool
     d.titulo = jsdom_titulo(d.doc)
     toques = d.doc.toques
     _documento_olvidar_tocados(d)
+    # cambios del JS sin nada apuntado: fuera del documento (lo que React monta antes de meterlo) o sin efecto (un
+    # atributo con el valor que ya tenía): ni estilo ni maqueta (tarea 37e6; antes, estilo entero y maqueta, 7 s)
+    if toques == nil or toques.length == 0
+        return false
+    end
     # lo que cambia en el estilo, por si no mueve nada (tarea 37d)
     ligero = _documento_puede_ligero(d, toques)
     if ligero

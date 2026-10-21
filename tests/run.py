@@ -113,6 +113,7 @@ def main():
     ap.add_argument("filter", nargs="?")
     ap.add_argument("--no-emu", action="store_true")
     ap.add_argument("--memcheck", action="store_true")
+    # (the tests with the same emulator config run in one session: it gets this plus 20 s per test)
     ap.add_argument("--timeout", type=float, default=600)
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -174,7 +175,7 @@ def main():
         if servers:
             time.sleep(1)       # let them listen
         try:
-            outs = run_programs([exe for _, exe, _ in group], timeout=args.timeout,
+            outs = run_programs([exe for _, exe, _ in group], timeout=args.timeout + 20 * len(group),
                                 kickstart=os.environ.get("DASH_KICKSTART"), extra_config=cfg, system=system or None)
         except RuntimeError as e:
             for src, _, _ in group:

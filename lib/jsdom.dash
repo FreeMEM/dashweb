@@ -72,8 +72,12 @@ end
 func jsdom_poner_texto(n: Nodo, t: String)
     if n.tipo == DOM_TEXTO or n.tipo == DOM_COMENTARIO
         n.texto = t
-        # (sin toque, pero lo medido en él y en los de fuera ya no vale: tarea 37e6)
+        # su elemento cambia de contenido (un reloj de React: sin estilo entero, y si no cambia de forma, sin maqueta;
+        # lo medido en él y en los de fuera ya no vale: tarea 37e6)
         dom_tocar(n)
+        if n.tipo == DOM_TEXTO and n.padre != nil and n.padre.tipo == DOM_ELEMENTO
+            dom_apuntar(n.padre, TOQUE_CONTENIDO, "", "", "")
+        end
         return
     end
     _jsdom_vaciar(n)
