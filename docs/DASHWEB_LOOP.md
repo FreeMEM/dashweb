@@ -3179,3 +3179,15 @@ Formato:
 - Las rutas de Dash pasan a ~/Projects/FreeMEMLang/.worktrees/dashweb (la sesión dash movió el worktree) y su rama
   dashweb está en origin/main (a756970: ./dash -q, cerrojo de build/, -Werror=implicit-function-declaration...).
 - Batería con Dash a756970: 72/72; freemem.space entera en 22.990 ms.
+
+### 2026-10-21 — "Inserte volumen data" y un <iframe> escrito en eldiario.es (usuario, CoffinOS)
+- eldiario.es tiene decenas de `<img src="data:image/svg+xml,...">` (huecos de las imágenes perezosas): `_imagen_traer`
+  pasaba lo que no es http por `url_fichero`, que lo dejaba igual, y "data:..." como ruta del Amiga es el volumen DATA:
+  AmigaOS pedía insertarlo. lib/url.dash `url_fichero`: data:, about:, javascript:, blob:, mailto:... (y http/https)
+  dan NIL: (se lee vacío). test_url lo mira. En el emulador, meneame.net no lo reproducía ni con ni sin el arreglo; la
+  captura del usuario ya tenía eldiario.es en la barra.
+- D68 encargada (dos_requesters para que ningún requester de DOS bloquee el navegador; base64_to_file para enseñar
+  las imágenes y fuentes data:...;base64,). Las data: siguen sin verse hasta usarla.
+- El `<noscript>` de Google Tag Manager salía como texto arriba de eldiario.es (su contenido es texto crudo con el
+  JavaScript activo): en la hoja del navegador pasa a display: none, como pide el HTML con scripting. test_estilo.
+- Sin batería entera (hay otra sesión dashweb en la misma carpeta): test_url y test_estilo* pasan.

@@ -142,8 +142,10 @@ end
 func _estilo_leer_navegador() -> HojaCSS
     c = "html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, li, dl, dt, dd, pre, blockquote, form, "
     c = c + "table, center, address, hr, header, footer, nav, section, article, aside, main, figure, "
-    c = c + "fieldset, legend, details, summary, menu, dir, noscript { display: block } "
-    c = c + "head, script, style, title, meta, link, base, template, [hidden] { display: none } "
+    c = c + "fieldset, legend, details, summary, menu, dir { display: block } "
+    # (noscript: dashweb ejecuta el JavaScript, y con él el HTML pide esconderlo; su contenido es texto crudo: el
+    # <iframe> de Google Tag Manager de eldiario.es salía escrito arriba)
+    c = c + "head, script, style, title, meta, link, base, template, noscript, [hidden] { display: none } "
     c = c + "li { display: list-item } table { display: table } tr { display: table-row } "
     c = c + "td, th { display: table-cell; padding: 1px; vertical-align: middle } thead, tbody, tfoot { display: table-row-group } "
     c = c + "table { border-spacing: 2px; border-collapse: separate } caption { text-align: center } "
