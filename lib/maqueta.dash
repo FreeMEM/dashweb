@@ -269,10 +269,10 @@ func _estilo_texto(e: {String: String}) -> Int
 end
 
 func _px(e: {String: String}, prop: String, cien: Int) -> Int
-    if not e.has(prop)
+    v = e.get(prop, "")
+    if v == ""
         return 0
     end
-    v = e[prop]
     # la letra solo hace falta con em, ch, ex o calc() (antes se medía en cada llamada: la mitad de las 884.000
     # llamadas a estilo_px de pre.opentimetrack.com; tarea 37a5)
     if _sin_letra(v)
@@ -3679,10 +3679,12 @@ end
 const FLEX_GRANDE = 4000
 
 func _val(e: {String: String}, p: String, defecto: String) -> String
-    if e.has(p) and e[p] != ""
-        return e[p]
+    # (dos búsquedas y sin guardar el valor en una variable, que lo copia: D65; se llama millones de veces al
+    # maquetar. Un valor "" cuenta como que no está)
+    if e.get(p, "") == ""
+        return defecto
     end
-    return defecto
+    return e.get(p, defecto)
 end
 
 # "1", "0.5", ".25" -> x 1000 (negativo o raro: 0)

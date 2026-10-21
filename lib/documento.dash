@@ -1073,10 +1073,10 @@ func _documento_mayusculas(n: Nodo, t: String) -> String
 end
 
 func _val_estilo(e: {String: String}, k: String, defecto: String) -> String
-    if e.has(k) and e[k] != ""
-        return e[k]
+    if e.get(k, "") == ""
+        return defecto
     end
-    return defecto
+    return e.get(k, defecto)
 end
 
 # Las cajas (para el JavaScript) de n y lo de dentro, movidas

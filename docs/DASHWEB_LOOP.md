@@ -185,7 +185,11 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
-- [ ] D65. **d.get(clave, defecto) en una búsqueda** (2026-10-21, tarea 37e6; encargada a la sesión "dash"). _val de
+- [ ] D66. **Menos copias de textos prestados** (2026-10-21, tarea 37e6; propuesta a la sesión "dash", que decide si
+      es viable). Una variable String que solo se lee y se toma de un diccionario se copia (_dash_str_set_copy) y
+      se libera; devolver un préstamo hace _dash_str_tmpcopy. _val y _px de lib/maqueta.dash: 3 millones de llamadas
+      al bajar por pre.opentimetrack.com.
+- [x] D65. **d.get(clave, defecto) en una búsqueda** (hecha por la sesión "dash", a19ece3; 2026-10-21, tarea 37e6). _val de
       lib/maqueta.dash (has + [] + []: tres búsquedas) se llama 2,4 millones de veces al bajar por
       pre.opentimetrack.com (9,5 % del perfil); estilo_px y _px igual.
 - [x] D64. **Más de 64 imágenes vivas** (hecha por la sesión "dash", 1204998; 2026-10-21, tarea 37h2). `_DASH_IMG_MAX 64`
@@ -3059,4 +3063,15 @@ Formato:
 - Lo que queda: _val (2,4 millones: las consultas de estilo de cada bloque maquetado) y las ~6 maquetas por elemento
   de las medidas flex. Las maquetas al bajar siguen en 6-12 s.
 - Batería 71/71 (1488 s); freemem.space 23,5 s. Encargada D65 (d.get(clave, defecto): _val en una búsqueda).
+
+### 2026-10-21 — Tarea 37e6, segunda parte (D65; D66 propuesta)
+- D65 hecha por la sesión dash (a19ece3, main bea3a16): d.get(clave, defecto) en una búsqueda.
+- lib/maqueta.dash `_val` y `_px`, lib/documento.dash `_val_estilo`: con get. Guardar el valor en una variable lo
+  copia (lo vi en build/dashweb.c: _dash_str_set_copy y _dash_str_free en cada llamada): _val sin variable (dos
+  búsquedas, ninguna copia de más). _val del 9,5 al 9 % del perfil bajando; las maquetas al bajar, igual (8-12 s).
+- Propuesta a la sesión dash la D66 (no copiar un préstamo en una variable que solo se lee; devolverlo sin
+  tmpcopy).
+- Lo que más pesa sigue siendo cuántas veces se maqueta cada elemento al medir las cajas flex y el estilo (_calcular,
+  _palabras) de lo que cambia.
+- Batería 71/71 (1492 s; con la D66 a medio hacer en el worktree de Dash durante parte de ella); freemem.space 23,4 s.
 
