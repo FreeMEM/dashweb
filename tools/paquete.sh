@@ -2,12 +2,12 @@
 # El paquete de dashweb para el Amiga: build/dashweb.lha con el navegador (MUI) y sus iconos, el visor, los
 # iconos de Workbench (tools/iconos_wb.py), el guion del Installer (paquete/Instalar),
 # paquete/LEEME y las licencias de dashweb y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py). Necesita el toolchain y Dash (DASH, por
-# defecto ~/Projects/FreeMEMLang-dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
+# defecto ~/Projects/FreeMEMLang/.worktrees/dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
 #
 #   tools/paquete.sh
 set -e
 R=$(cd "$(dirname "$0")/.." && pwd)
-DASH=${DASH:-$HOME/Projects/FreeMEMLang-dashweb}
+DASH=${DASH:-$HOME/Projects/FreeMEMLang/.worktrees/dashweb}
 B=$R/build/paquete
 rm -rf "$B"
 mkdir -p "$B/dashweb/Licencias"

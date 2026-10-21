@@ -85,7 +85,7 @@ HTTPS, AmiSSL 5.
 
 ## Probar
 
-Necesita el toolchain de Dash (`m68k-amigaos-gcc` en `/opt/amiga`) y Dash en `~/Projects/FreeMEMLang-dashweb`
+Necesita el toolchain de Dash (`m68k-amigaos-gcc` en `/opt/amiga`) y Dash en `~/Projects/FreeMEMLang/.worktrees/dashweb`
 (o la variable `DASH`). Las variables del emulador son las de Dash (`docs/INSTALACION.md` de Dash).
 
 ```bash

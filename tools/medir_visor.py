@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DASH = Path(os.environ.get("DASH", Path.home() / "Projects" / "FreeMEMLang-dashweb"))
+DASH = Path(os.environ.get("DASH", Path.home() / "Projects" / "FreeMEMLang" / ".worktrees" / "dashweb"))
 PORT = 40861
 MAQUINAS = {
     "a1200": "fpu = 68882\n",    # (dashweb va con --fpu, como en tools/paquete.sh y los tests)

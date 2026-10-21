@@ -8,10 +8,10 @@ publica el paquete para el Amiga.
 | Repositorio | Dónde | Rama | Qué |
 |---|---|---|---|
 | dashweb (`FreeMEM/dashweb`) | `~/Projects/dashweb` | `dev` para trabajar, `main` para publicar | El navegador |
-| Dash (`FreeMEM/dash`) | `~/Projects/FreeMEMLang-dashweb` (worktree) | `dashweb` (sale de `main`) | El compilador con lo que dashweb ha necesitado (tareas D) |
+| Dash (`FreeMEM/dash`) | `~/Projects/FreeMEMLang/.worktrees/dashweb` (worktree) | `dashweb` (sale de `main`) | El compilador con lo que dashweb ha necesitado (tareas D) |
 
 Las ramas se suben y se fusionan por PR cuando lo decide el responsable. La variable `DASH` apunta a la carpeta de Dash
-(por defecto `~/Projects/FreeMEMLang-dashweb`).
+(por defecto `~/Projects/FreeMEMLang/.worktrees/dashweb`).
 
 ## 2. Herramientas
 
@@ -45,7 +45,7 @@ Se preparan una vez, con los scripts de Dash y de dashweb:
 Variables de entorno:
 
 ```bash
-export DASH=~/Projects/FreeMEMLang-dashweb
+export DASH=~/Projects/FreeMEMLang/.worktrees/dashweb
 export DASH_KICKSTART="/ruta/kick31_a1200.rom"           # sin ella: AROS, y los resultados no valen
 export DASH_KICKSTART_32="/ruta/kick323_a1200.rom"       # máquina rtg
 export DASH_EMU_SYS=~/.cache/dash-emu/sys31

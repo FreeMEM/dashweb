@@ -37,7 +37,7 @@ Dos fases:
    encargo lleva el porqué, cómo reproducirlo, lo que se propone y que avise con el commit. Mientras, el loop
    sigue con otra subtarea que no dependa de eso. Al recibir el aviso, el loop compila dashweb con ese Dash y
    lo apunta en la bitácora.
-   - La sesión "dash" trabaja en el worktree `~/Projects/FreeMEMLang-dashweb` (sus ramas salen de `main` de
+   - La sesión "dash" trabaja en el worktree `~/Projects/FreeMEMLang/.worktrees/dashweb` (sus ramas salen de `main` de
      FreeMEM/dash). El loop **no toca ese worktree** (ni `~/Projects/FreeMEMLang`): solo lo usa para compilar
      (`DASH` por defecto). Para probar un cambio de Dash antes de que esté hecho, una copia en el scratchpad.
    - Emulador y puertos de pruebas: antes de una batería o una medida larga, avisa a "dash" para no pisaros.
