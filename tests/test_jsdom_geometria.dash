@@ -56,8 +56,8 @@ Main
     jsdom_intersecciones(js, true)
     Print js_evaluar(js, "'io3 ' + vistos.join(' ')", "t.js")
     js_liberar(js)
-    # (tarea 37h2) lo de un sticky, con lo que lo empuja el desplazamiento; lo fijo, sin desplazar
-    h2 = "<html><head><style>body { margin: 0 } #s { position: sticky; top: 10px; height: 30px } #f { position: fixed; top: 5px; height: 10px; background: red }</style></head>"
+    # (tarea 37h2) lo de un sticky, con lo que lo empuja el desplazamiento; lo fijo (sin nada que pintar), sin desplazar
+    h2 = "<html><head><style>body { margin: 0 } #s { position: sticky; top: 10px; height: 30px } #f { position: fixed; top: 5px; height: 10px }</style></head>"
     h2 = h2 + "<body><div style='height: 100px'></div><section style='height: 500px'><div id=s><p id=d>x</p></div></section><div style='height: 900px'></div><div id=f></div></body></html>"
     doc2 = dom_desde_html5(h2)
     estilo_aplicar(doc2, estilo_hojas(doc2, "prueba.html"))

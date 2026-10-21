@@ -185,6 +185,9 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [ ] D65. **d.get(clave, defecto) en una búsqueda** (2026-10-21, tarea 37e6; encargada a la sesión "dash"). _val de
+      lib/maqueta.dash (has + [] + []: tres búsquedas) se llama 2,4 millones de veces al bajar por
+      pre.opentimetrack.com (9,5 % del perfil); estilo_px y _px igual.
 - [x] D64. **Más de 64 imágenes vivas** (hecha por la sesión "dash", 1204998; 2026-10-21, tarea 37h2). `_DASH_IMG_MAX 64`
       en codegen.py: pre.opentimetrack.com tiene más de 100 iconos SVG (más las copias de image_scale); desde la
       65, image_from_rgb da 0 (ni iconos ni el esquema grande). Sin tope fijo (lista, o una marca en _DashImg para
@@ -3025,7 +3028,7 @@ Formato:
   getBoundingClientRect suma lo que lo empuja el desplazamiento.
 - pre.opentimetrack.com: la sección "Ficha desde donde..." en orden (título, texto, esquema, la tabla "Fichajes").
 - Visto de paso: un position: fixed sin dibujos (sin fondo ni contenido) da su caja en y 0 (CajaNodo se apunta antes
-  de bajarlo a su top). Sin arreglar.
+  de bajarlo a su top). Arreglado después (37e6): `_absoluto` baja también las cajas sin dibujo de referencia.
 - Test: test_jsdom_geometria (sticky y lo de dentro con la página desplazada; fixed). Batería 71/71 (1487 s);
   freemem.space 24,2 s.
 
@@ -3055,5 +3058,5 @@ Formato:
   cada tamaño (la página usa tamaños fluidos: muchos); sigue en un 2,6 %.
 - Lo que queda: _val (2,4 millones: las consultas de estilo de cada bloque maquetado) y las ~6 maquetas por elemento
   de las medidas flex. Las maquetas al bajar siguen en 6-12 s.
-- Batería 71/71 (1488 s).
+- Batería 71/71 (1488 s); freemem.space 23,5 s. Encargada D65 (d.get(clave, defecto): _val en una búsqueda).
 

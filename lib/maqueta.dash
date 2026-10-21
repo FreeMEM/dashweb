@@ -1871,6 +1871,10 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
     end
     # se maqueta arriba y luego se baja a su sitio (bottom necesita su alto)
     antes = m.pagina.dibujos.length
+    cajas_antes = 0
+    if m.cajas != nil
+        cajas_antes = m.cajas.length
+    end
     alto = _bloque_de(m, n, ax, cy, w, cw)
     if estirado
         e.remove("height")
@@ -1890,6 +1894,16 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
         while i < m.pagina.dibujos.length
             _mover(m.pagina.dibujos[i], 0, dy)
             i = i + 1
+        end
+        # (las cajas sin un dibujo que las lleve, como un fixed vacío, también bajan; las demás van con él)
+        if m.cajas != nil
+            i = cajas_antes
+            while i < m.cajas.length
+                if m.cajas[i].ref == nil
+                    m.cajas[i].y = m.cajas[i].y + dy
+                end
+                i = i + 1
+            end
         end
     end
 end
