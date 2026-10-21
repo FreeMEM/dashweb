@@ -33,6 +33,7 @@ cp "$R/third_party/hubbub/libparserutils/COPYING" "$B/dashweb/Licencias/LibParse
 cp "$R/third_party/libwebp/COPYING" "$B/dashweb/Licencias/libwebp"
 cp "$R/third_party/nanosvg/LICENSE.txt" "$B/dashweb/Licencias/nanosvg"
 cp "$R/third_party/mintvid/LICENSE" "$B/dashweb/Licencias/MintVID"
+cp "$R/third_party/brotli/LICENSE" "$B/dashweb/Licencias/Brotli"
 head -25 "$R/third_party/tjpgd/tjpgd.c" > "$B/dashweb/Licencias/TJpgDec"
 printf '%s\n' "stb_image y stb_truetype (https://github.com/nothings/stb), de Sean Barrett: dominio público" \
     "(o MIT, a elegir; ver la cabecera de third_party/stb/*.h en el código de dashweb)." > "$B/dashweb/Licencias/stb"

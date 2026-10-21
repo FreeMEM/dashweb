@@ -195,7 +195,7 @@
           },
           {
             "type": "text",
-            "text": "\u001bc\u00a9 2026 Francisco Antonio Tapias Bravo\n\u001bcLicencia MIT\n\u001bcgithub.com/FreeMEM/dashweb\n\n\u001bcun navegador para Amiga hecho en Dash\n\u001bcQuickJS, AmiSSL y MUI"
+            "text": "\u001bc\u00a9 2026 Francisco Antonio Tapias Bravo\n\u001bcLicencia MIT \u00b7 github.com/FreeMEM/dashweb\n\n\u001bcUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\u001bcLleva, adaptados para AmigaOS:\n\u001bcQuickJS (Fabrice Bellard y Charlie Gordon)\n\u001bcHubbub y LibParserUtils (NetSurf)\n\u001bcy tambi\u00e9n stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm y MintVID.\n\u001bcSus licencias, en el caj\u00f3n Licencias."
           },
           {
             "type": "button",

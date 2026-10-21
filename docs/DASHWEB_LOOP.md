@@ -3195,3 +3195,6 @@ Formato:
 ### 2026-10-21 — "Acerca de..." con autor, licencia y web (usuario)
 - src/navegador.dashui: © 2026 Francisco Antonio Tapias Bravo, Licencia MIT, github.com/FreeMEM/dashweb (lo del
   fichero LICENSE). Visto en el emulador con MUI 3.8 (el © sale bien). Copiado a Traspaso (14:03).
+- (usuario) Créditos en "Acerca de...": hecho en Dash con MUI y AmiSSL; adaptados para AmigaOS QuickJS (Bellard y
+  Gordon) y Hubbub con LibParserUtils (NetSurf); también stb, NanoSVG, Brotli, libwebp, TJpgDec, fdlibm y MintVID;
+  licencias en el cajón Licencias. tools/paquete.sh no copiaba la licencia de Brotli (llegó con la 37g): añadida.
