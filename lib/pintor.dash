@@ -20,15 +20,51 @@ func _lapiz(rgb: Int) -> Int
     return color_pen(rgb / 65536, (rgb / 256) % 256, rgb % 256)
 end
 
+# Con pintor_zona, solo lo de pintor_zx0..pintor_zx1, pintor_zy0..pintor_zy1 (coordenadas de la ventana, incluidos):
+# su fondo y lo que la toca, recortado a ella; lo que no se sabe recortar (texto, iconos) se pinta entero y lo
+# recorta la región de Dash (mui_canvas_update_area; tarea 37e7)
+var pintor_zona: Bool = false
+var pintor_zx0: Int = 0
+var pintor_zy0: Int = 0
+var pintor_zx1: Int = 0
+var pintor_zy1: Int = 0
+
+func _mayor(a: Int, b: Int) -> Int
+    if a > b
+        return a
+    end
+    return b
+end
+
+func _menor(a: Int, b: Int) -> Int
+    if a < b
+        return a
+    end
+    return b
+end
+
 func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, alto: Int)
     if ancho <= 0 or alto <= 0
         return
     end
-    gfx_mode(0)
-    gfx_pen(_lapiz(p.fondo))
-    gfx_rect(x0, y0, x0 + ancho - 1, y0 + alto - 1)
     derecha = x0 + ancho - 1
     abajo = y0 + alto - 1
+    zx0 = x0
+    zy0 = y0
+    zx1 = derecha
+    zy1 = abajo
+    if pintor_zona
+        zx0 = _mayor(zx0, pintor_zx0)
+        zy0 = _mayor(zy0, pintor_zy0)
+        zx1 = _menor(zx1, pintor_zx1)
+        zy1 = _menor(zy1, pintor_zy1)
+        if zx0 > zx1 or zy0 > zy1
+            return
+        end
+    end
+    gfx_mode(0)
+    gfx_pen(_lapiz(p.fondo))
+    gfx_rect(zx0, zy0, zx1, zy1)
     for d in p.dibujos
         # (lo fijo, position: fixed, va con la ventana: sin desplazar)
         dd = desde
@@ -65,8 +101,26 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                 continue
             end
         end
+        # (v: lo visible, para lo que solo se pinta entero; c: además dentro de la zona)
+        vx0 = cx0
+        vy0 = cy0
+        vx1 = cx1
+        vy1 = cy1
+        if pintor_zona
+            m = d.difuso
+            if x - m > zx1 or x + d.ancho + m <= zx0 or y - m > zy1 or y + d.alto + m <= zy0
+                continue
+            end
+            cx0 = _mayor(cx0, zx0)
+            cy0 = _mayor(cy0, zy0)
+            cx1 = _menor(cx1, zx1)
+            cy1 = _menor(cy1, zy1)
+            if cx0 > cx1 or cy0 > cy1
+                continue
+            end
+        end
         if d.tipo == D_TEXTO
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x <= cx1 and x + d.ancho > cx0
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x <= vx1 and x + d.ancho > vx0
                 font_use(d.fuente)
                 font_style(d.estilo)
                 gfx_pen(_lapiz(d.color))
@@ -93,13 +147,13 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         elif d.tipo == D_CONTROL
             _control_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_ICONO
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x >= vx0 and x + d.ancho - 1 <= vx1
                 _icono_pintar(d, x, y)
             end
         elif d.tipo == D_ELIPSE and d.espaciado > 0 and d.estilo == 0
             _elipse_mezcla(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_ELIPSE
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x >= vx0 and x + d.ancho - 1 <= vx1
                 _elipse_pintar(d, x, y)
             end
         elif d.tipo == D_VIDEO
@@ -107,7 +161,7 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         elif d.tipo == D_DEGRADADO
             _degradado_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_TRAZO
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x >= vx0 and x + d.ancho - 1 <= vx1
                 gfx_pen(_lapiz(d.color))
                 g = d.fuente
                 if g < 1

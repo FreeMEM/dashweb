@@ -42,6 +42,16 @@ struct Documento
     svgs: [SvgAnimado] = nil   # los <svg> con animaciones dentro (se rasterizan otra vez en cada fotograma; 37d4)
     raton: Nodo = nil          # el elemento bajo el ratón (documento_raton; tarea 37f3)
     raton_toques: Bool = false # el :hover cambió: documento_al_dia rehace el estilo aunque el JavaScript no tocara nada
+    # el último documento_al_dia que dio true solo cambió lo de zx0..zx1, zy0..zy1 (coordenadas de la vista con la
+    # página desplazada desde, sin incluir los dos últimos): basta repintar eso (tarea 37e7). false: toda la vista
+    desde: Int = 0             # lo pone quien llama a documento_al_dia: el desplazamiento de la vista y su alto
+    alto_vista: Int = 0        # (lo de fuera de la vista no entra en la zona)
+    zona: Bool = false
+    zona_entera: Bool = false
+    zx0: Int = 0
+    zy0: Int = 0
+    zx1: Int = 0
+    zy1: Int = 0
 end
 
 # Un <svg> de la página con animaciones de CSS en sus elementos (la curva de trainalong.fit: stroke-dashoffset)
@@ -382,6 +392,9 @@ func documento_animar(d: Documento) -> Bool
     if d.pagina == nil
         return false
     end
+    # (lo que cambia: los dibujos animados y los <svg> animados, antes y después; tarea 37e7)
+    _documento_zona_vacia(d)
+    _documento_zona_animada(d)
     viva = false
     if d.anims != nil and d.anims.length > 0
         viva = animar(d.pagina, d.anims, time_ms() - d.anim_t0)
@@ -389,7 +402,23 @@ func documento_animar(d: Documento) -> Bool
     if d.svgs != nil and d.svgs.length > 0 and _documento_animar_svgs(d)
         viva = true
     end
+    _documento_zona_animada(d)
+    d.zona = not d.zona_entera
     return viva
+end
+
+func _documento_zona_animada(d: Documento)
+    for dib in d.pagina.dibujos
+        if dib.anim != nil
+            _documento_zona(d, dib)
+        elif d.svgs != nil and dib.tipo == D_IMAGEN and dib.nodo != nil and dib.nodo.nombre == "svg"
+            for s in d.svgs
+                if s.svg == dib.nodo
+                    _documento_zona(d, dib)
+                end
+            end
+        end
+    end
 end
 
 # ¿Tiene animaciones de CSS?
@@ -560,6 +589,7 @@ func documento_al_dia(d: Documento) -> Bool
     d.titulo = jsdom_titulo(d.doc)
     toques = d.doc.toques
     _documento_olvidar_tocados(d)
+    d.zona = false
     # cambios del JS sin nada apuntado: fuera del documento (lo que React monta antes de meterlo) o sin efecto (un
     # atributo con el valor que ya tenía): ni estilo ni maqueta (tarea 37e6; antes, estilo entero y maqueta, 7 s)
     if toques == nil or toques.length == 0
@@ -585,8 +615,17 @@ func documento_al_dia(d: Documento) -> Bool
     if not parte
         estilo_aplicar(d.doc, d.hojas)
     end
-    _documento_svgs_tocados(d, toques)
+    svgs = _documento_svgs_tocados(d, toques)
+    _documento_zona_vacia(d)
     if ligero and parte and _documento_sin_maqueta(d, toques, estilo_cambios)
+        for dib in d.pagina.dibujos
+            for s in svgs
+                if dib.nodo == s
+                    _documento_zona(d, dib)
+                end
+            end
+        end
+        d.zona = not d.zona_entera
         if traza_activa
             traza("el JavaScript hizo " + toques.length + " cambios que no mueven nada (" + estilo_cambios.length + " estilos): aplicados sin maqueta en " + (time_ms() - t0) + " ms")
         end
@@ -644,11 +683,11 @@ func _documento_en_svg(n: Nodo) -> Bool
 end
 
 # Los <svg> con algo de dentro tocado: su imagen otra vez (un transform de un <g>, un fill...)
-func _documento_svgs_tocados(d: Documento, toques: [Toque])
-    if toques == nil
-        return
-    end
+func _documento_svgs_tocados(d: Documento, toques: [Toque]) -> [Nodo]
     var hechos: [Nodo] = []
+    if toques == nil
+        return hechos
+    end
     for t in toques
         p = t.nodo
         while p != nil and p.tipo == DOM_ELEMENTO and p.nombre != "svg"
@@ -666,6 +705,44 @@ func _documento_svgs_tocados(d: Documento, toques: [Toque])
                 imagenes_svg_rehacer(d.im, p)
             end
         end
+    end
+    return hechos
+end
+
+# La zona que cambia en la ruta ligera (tarea 37e7): la unión de los rectángulos de los dibujos tocados, antes y
+# después de tocarlos (con su sombra difuminada y 2 px de margen), donde se ven con la página desplazada d.desde
+# (lo fijo, en la ventana; lo de un sticky, más abajo lo que lo empuja).
+func _documento_zona_vacia(d: Documento)
+    d.zona_entera = false
+    d.zx0 = 1000000000
+    d.zy0 = 1000000000
+    d.zx1 = -1000000000
+    d.zy1 = -1000000000
+end
+
+func _documento_zona(d: Documento, dib: Dibujo)
+    dd = d.desde
+    if dib.fijo
+        dd = 0
+    elif dib.pega != nil
+        dd = d.desde - maqueta_pega_dy(dib.pega, d.desde)
+    end
+    m = 2 + dib.difuso
+    y = dib.y - dd
+    if y + dib.alto + m <= 0 or y - m >= d.alto_vista
+        return
+    end
+    if dib.x - m < d.zx0
+        d.zx0 = dib.x - m
+    end
+    if y - m < d.zy0
+        d.zy0 = y - m
+    end
+    if dib.x + dib.ancho + m > d.zx1
+        d.zx1 = dib.x + dib.ancho + m
+    end
+    if y + dib.alto + m > d.zy1
+        d.zy1 = y + dib.alto + m
     end
 end
 
@@ -783,7 +860,17 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
     # y aplicarlo
     for t in toques
         if t.tipo == TOQUE_CONTENIDO
+            for dib in d.pagina.dibujos
+                if dib.nodo == t.nodo
+                    _documento_zona(d, dib)
+                end
+            end
             _documento_texto_igual(d, t.nodo, true)
+            for dib in d.pagina.dibujos
+                if dib.nodo == t.nodo
+                    _documento_zona(d, dib)
+                end
+            end
         end
     end
     if fuera.length > 0
@@ -825,6 +912,9 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
             end
             p = p.padre
         end
+        if dx != 0 or dy != 0 or vis
+            _documento_zona(d, dib)
+        end
         if dx != 0 or dy != 0
             maqueta_mover(dib, dx, dy)
             if dib.base
@@ -837,6 +927,9 @@ func _documento_sin_maqueta(d: Documento, toques: [Toque], cambios: [EstiloCambi
         end
         if vis
             dib.velado = maqueta_escondido(dib.nodo)
+        end
+        if dx != 0 or dy != 0
+            _documento_zona(d, dib)
         end
     end
     return true
@@ -856,6 +949,7 @@ end
 
 # Quita de la página los dibujos de esos nodos y de lo de dentro
 func _documento_quitar_dibujos(d: Documento, nodos: [Nodo])
+    # (lo que sale deja su sitio por repintar)
     _lig_vuelta = _lig_vuelta + 1
     marca = _lig_vuelta
     for n in nodos
@@ -874,6 +968,8 @@ func _documento_quitar_dibujos(d: Documento, nodos: [Nodo])
         end
         if not sale
             quedan.push(dib)
+        else
+            _documento_zona(d, dib)
         end
     end
     d.pagina.dibujos = quedan

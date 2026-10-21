@@ -3163,3 +3163,19 @@ Formato:
 - Lo que daría más: repintar solo lo que cambia (la ruta ligera sabe qué dibujos movió) en vez de toda la vista
   en cada fotograma: apuntado como 37e7.
 - Batería: 72/72.
+
+### 2026-10-21 — Tarea 37e7 (repintar solo lo que cambia; D67)
+- D67 (sesión dash, 0afa10a): `mui_canvas_update_area(lienzo, x, y, w, h)` pinta en el búfer solo esa zona (región de
+  recorte) y copia ese rectángulo a la ventana.
+- lib/documento.dash: la ruta ligera y `documento_animar` (animaciones de CSS y <svg> animados) apuntan la zona que
+  cambian (`d.zona`, `zx0..zy1` en coordenadas de la vista): la unión de los dibujos tocados antes y después, con su
+  sombra difuminada y 2 px; lo fijo y lo de un sticky donde se ve (`d.desde`, `maqueta_pega_dy`); lo de fuera de la
+  vista no cuenta (`d.alto_vista`). src/dashweb.dash `repintar_cambiado`: si hay zona, `mui_canvas_update_area`;
+  `pinta_en` con `pintor_zona` pinta su fondo y lo que la toca, recortado (lib/pintor.dash: lo que solo se pinta
+  entero, como el texto, se mira contra lo visible y lo recorta la región).
+- Al bajar por pre.opentimetrack.com (270 s): antes 2284 pintadas enteras, 90,6 s; ahora 39 enteras (47 ms) y 2242
+  zonas (15 ms; casi todas 229x248 y 354x248, el punto que late y la ficha), 35,8 s. La mayoría eran fotogramas de
+  animaciones de CSS. Captura tras 8 espacios igual salvo el reloj.
+- Las rutas de Dash pasan a ~/Projects/FreeMEMLang/.worktrees/dashweb (la sesión dash movió el worktree) y su rama
+  dashweb está en origin/main (a756970: ./dash -q, cerrojo de build/, -Werror=implicit-function-declaration...).
+- Batería con Dash a756970: 72/72; freemem.space entera en 22.990 ms.

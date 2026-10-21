@@ -63,6 +63,7 @@ struct Ventana
     carga_dir: String = ""
     preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
     js_cuando: Int = -1      # time_ms del siguiente temporizador del JavaScript, -1 si no hay
+    zona: Bool = false       # el repintado pedido es solo de la zona que cambió el JavaScript (tarea 37e7)
     estado_video: Int = 0    # time_ms de la última vez que la barra de estado dijo cómo va el vídeo
     foco: Nodo = nil         # el campo de formulario donde se escribe
     con_historial: Bool = false   # la lista del historial desplegada (empieza oculta)
@@ -268,12 +269,26 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
     end
     pintor_foco = w.foco
     pintor_videos = w.actual.videos
+    t0 = time_ms()
+    if mui_canvas_updating() and w.zona
+        # solo lo que cambió el JavaScript (documento_al_dia: d.zona, en coordenadas de página)
+        w.zona = false
+        d = w.actual
+        pintor_zona = true
+        pintor_zx0 = x + d.zx0
+        pintor_zy0 = y + d.zy0
+        pintor_zx1 = x + d.zx1 - 1
+        pintor_zy1 = y + d.zy1 - 1
+        pintar(d.pagina, d.im, w.desde, x, y, ancho, alto)
+        pintor_zona = false
+        traza("pintada la zona " + d.zx0 + "," + d.zy0 + " " + (d.zx1 - d.zx0) + "x" + (d.zy1 - d.zy0) + " en " + (time_ms() - t0) + " ms")
+        return
+    end
     if mui_canvas_updating()
         # una imagen nueva de un vídeo (mui_canvas_update: MUI no borra el lienzo): solo los vídeos
         pintar_videos(w.actual.pagina, w.desde, x, y, ancho, alto)
         return
     end
-    t0 = time_ms()
     pintar(w.actual.pagina, w.actual.im, w.desde, x, y, ancho, alto)
     traza("pintada en " + (time_ms() - t0) + " ms")
 end
@@ -569,17 +584,35 @@ func programar()
     end
 end
 
+# Lo que acaba de cambiar el JavaScript: si documento_al_dia sabe la zona (la ruta ligera), solo esa; si no, todo
+# (tarea 37e7). Con la ventana a pantalla completa abierta, todo.
+func repintar_cambiado(w: Ventana)
+    d = w.actual
+    if d.zona and (dw_completa == nil or dw_completa_de != w)
+        if d.zx0 >= d.zx1 or d.zy0 >= d.zy1 or d.zy1 <= 0 or d.zy0 >= mui_height(w.v.pagina)
+            return
+        end
+        w.zona = true
+        mui_canvas_update_area(w.v.pagina, d.zx0, d.zy0, d.zx1 - d.zx0, d.zy1 - d.zy0)
+        w.zona = false
+        return
+    end
+    mui_canvas_redraw(w.v.pagina)
+end
+
 # Los setTimeout/setInterval que tocan en esa ventana
 func temporizadores(w: Ventana)
     if w.actual != nil and w.actual.js != 0 and w.carga == nil
         t0 = time_ms()
         espera = jsdom_temporizadores(w.actual.js)
+        w.actual.desde = w.desde
+        w.actual.alto_vista = mui_height(w.v.pagina)
         if traza_activa
             traza("temporizadores del JavaScript en " + (time_ms() - t0) + " ms; el siguiente en " + espera + " ms")
         end
         if documento_al_dia(w.actual)
             ajustar_barra(w)
-            mui_canvas_redraw(w.v.pagina)
+            repintar_cambiado(w)
         end
         w.js_cuando = -1
         if espera >= 0
@@ -605,8 +638,10 @@ func animar_ventana(w: Ventana)
         return
     end
     w.fotograma = time_ms()
+    w.actual.desde = w.desde
+    w.actual.alto_vista = mui_height(w.v.pagina)
     w.animando = documento_animar(w.actual)
-    mui_canvas_redraw(w.v.pagina)
+    repintar_cambiado(w)
 end
 
 # Si el JavaScript pidió desplazar la vista (scrollTo, scrollIntoView...), se desplaza
