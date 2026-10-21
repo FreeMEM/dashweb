@@ -417,9 +417,9 @@ tarea, con el estilo de Dash.
       la pieza más alta + 2 px en _poner_linea).
       [x] (e) (2026-10-21, D68) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
       fichero).
-      (f) Las animaciones de CSS no corren en dashweb: lib/animacion.dash tiene su test, pero nadie lo importa ni
+      [x] (f) (hecha en la 37d2: documento_animar) Las animaciones de CSS no corren en dashweb: lib/animacion.dash tiene su test, pero nadie lo importa ni
       llama a animar() (la 31q no está acabada aunque el README diga otra cosa).
-      (g) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
+      [x] (g) (2026-10-21) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
       cabeceras de maqueta.dash ("position, más adelante", tablas), video.dash y videos.dash ("sin sonido"), el
       README (el ahorro de reanudar TLS apenas se nota: D55, 9,0 -> 7,9 s; la tabla de medidas es del 2026-10-16).
       (h) (usuario, 2026-10-21: cuánto ocupa) La memoria de las imágenes: freemem.space gasta ~29-39 MB, casi todo
@@ -3264,3 +3264,12 @@ Formato:
 - tests/test_http_volcar.dash: a mitad de un goteo de 300 KB, lo volcado ya pasa de 64 KB y en la conexión quedan
   menos de 4 KB; el fichero sale entero; sin longitud, tras redirección y chunked, también.
 - Batería: 76/76; freemem.space entera en 23.509 ms.
+
+### 2026-10-21 — Tareas 40f y 40g (textos al día)
+- 40f ya estaba hecha (la 37d2 llama a animar() desde documento_animar): marcada.
+- 40g: docs/quickjs_amiga.md (el malloc con cabecera de 8 bytes), la cabecera de lib/maqueta.dash (line-height,
+  flex, grid, position, lo medido guardado), lib/video.dash y lib/videos.dash (ya con sonido) y el README (las
+  descargas al fichero, lo poco que ahorra reanudar TLS, line-height, WOFF2 y font-stretch, animaciones de CSS,
+  fetch y XMLHttpRequest, crypto, el tope de 30 s, D1-D68, memoria y tiempos de hoy). Solo comentarios y textos:
+  compilado dashweb para ver que nada se rompe.
+

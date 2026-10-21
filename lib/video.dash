@@ -1,6 +1,7 @@
 # Vídeo (tarea 30): el núcleo de MintVID (third_party/mintvid: H.264 con libavc, MPEG-1, MPEG-4, MJPEG,
 # Cinepak...; MP4/MOV, AVI, MKV, MPEG-TS) por la interfaz de third_party/mintvid/dashweb_video.c, en
-# build/video-lib/libvideo.a (tools/build_video.sh). Imagen a imagen, en RGB24; sin sonido todavía.
+# build/video-lib/libvideo.a (tools/build_video.sh). Imagen a imagen, en RGB24; el sonido por Paula
+# (video_con_sonido, video_reloj).
 #
 #   v = video_abrir("T:clip.mp4")         # 0 si no se puede
 #   while video_siguiente(v) == 1

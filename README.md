@@ -21,7 +21,8 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
 [docs/DASHWEB_LOOP.md](docs/DASHWEB_LOOP.md), módulos en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
 - Red: TCP (`bsdsocket.library`), HTTP/1.1 (longitud, `chunked`, redirecciones, conexiones que se reutilizan,
-  respuestas comprimidas con gzip) y HTTPS con AmiSSL 5, que reanuda la sesión TLS de cada servidor.
+  respuestas comprimidas con gzip) y HTTPS con AmiSSL 5, que reanuda la sesión TLS de cada servidor (ahorra
+  poco: 9,0 s a 7,9 s en freemem.space, D55). Las descargas se escriben al fichero según llegan.
 - Los scripts de rastreo y publicidad conocidos no se descargan (`URL_RASTREO_BLOQUEAR` en `lib/url.dash`):
   la página va más rápida.
 - HTML5 con el analizador de NetSurf (Hubbub, `lib/html5.dash`), árbol DOM, entidades, UTF-8 a Latin-1,
@@ -34,17 +35,18 @@ indicador de actividad; imágenes, hojas y scripts a la vez); enlaces, anclas, f
   `@layer`, `@media` y `@supports`; Selectors 4 (`:is`, `:where`, `:has`, `:not` con listas); Flexbox, Grid y
   tablas automáticas; `calc()`, `min()`, `max()`, `clamp()` y vw/vh/rem/ch; posicionado (relative, absolute,
   fixed), `z-index` y `overflow`; `border-radius`, `box-shadow`, `opacity`; Transforms; Color 4 y 5 (`oklch`,
-  `color-mix`...); Text 3 (`nowrap`, puntos suspensivos, `text-shadow`, `text-indent`); `@font-face` (TTF, OTF y
-  WOFF hechas fuentes del Amiga con stb_truetype; Google Fonts las da en TTF); animaciones (de momento, su estado
-  final).
+  `color-mix`...); Text 3 (`nowrap`, puntos suspensivos, `text-shadow`, `text-indent`, `line-height`); `@font-face`
+  (TTF, OTF, WOFF y WOFF2 hechas fuentes del Amiga con stb_truetype, con `font-stretch`); animaciones de CSS
+  (`@keyframes` de transform, opacity y color) y `:hover`. Solo se repinta lo que cambia.
 - Imágenes: JPEG, PNG, GIF, BMP, WebP y SVG con decodificadores propios en otro proceso (la ventana no se para),
   con transparencia; ILBM y lo demás por datatypes. SVG dentro de la página (iconos y sprites con `<use>`).
 - Vídeo: `<video>` y los vídeos de YouTube (MintVID), que empiezan a verse mientras bajan, a pantalla completa.
 - JavaScript con QuickJS (ES2023+, con FPU) y `Math.*` de fdlibm: DOM (`getElementById`, `querySelector(All)`,
-  `innerHTML`, crear y mover nodos...), eventos, `setTimeout`/`setInterval`, `TextEncoder`/`TextDecoder`. Faltan
-  muchas APIs del navegador (`fetch`, `XMLHttpRequest`...). `document.cookie` funciona.
+  `innerHTML`, crear y mover nodos, scripts que se añaden...), eventos (también del ratón), `setTimeout`/
+  `setInterval`, `fetch` y `XMLHttpRequest`, `TextEncoder`/`TextDecoder`, `crypto` (SHA-256, `randomUUID`),
+  geometría (`getBoundingClientRect`, SVG). `document.cookie` funciona. Un script que pasa de 30 s se corta.
 
-Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D59): textos
+Lo que dashweb ha necesitado y no tenía Dash se ha añadido a Dash (rama `dashweb`, tareas D1-D68): textos
 rápidos, listas y diccionarios con tipo, red, TLS, fuentes, imágenes, C de fuera (`@link`, `@c`), etc.
 
 ### Medidas (FS-UAE, 2026-10-16)
@@ -61,10 +63,10 @@ con las fuentes del Workbench (helvetica, times, courier).
 | js.html | objetivo | 2 | 2 | 28 | 15 | 1 | 156 | 16 |
 | js.html | A1200 | 57 | 97 | 1635 | 1108 | 6 | 681 | 51 |
 
-Memoria: 350 KB para prueba.html (con el motor JS, 330 KB para una página pequeña). El visor ocupa 1 MB y el
-navegador MUI 1,1 MB (casi todo QuickJS). En la configuración objetivo una página va en menos de medio segundo.
-Una web real como freemem.space tarda unos 21 s entera (con sus imágenes y fuentes) en la configuración
-objetivo, en la red del emulador. En un A1200 el estilo y la maqueta son lo lento: `./dash --profile` (Dash D23) señala la cascada (`_estilo_nodo`,
+Memoria: 350 KB para prueba.html (con el motor JS, 330 KB para una página pequeña). En la configuración objetivo
+una página va en menos de medio segundo. Hoy (2026-10-21) el navegador ocupa 3,4 MB al cargarse, y una web real
+como freemem.space tarda unos 23 s entera (con sus imágenes y fuentes) en la configuración objetivo, en la red del
+emulador, y gasta 29-39 MB, casi todo en sus imágenes (tarea 40h). En un A1200 el estilo y la maqueta son lo lento: `./dash --profile` (Dash D23) señala la cascada (`_estilo_nodo`,
 `_cumple_desde`: cada elemento prueba todos los selectores) y el corte en palabras (`_palabras`).
 
 Las primeras medidas del A1200 (tarea 17) eran el triple de lentas: el modo de pruebas de Dash (`--autoclose`)

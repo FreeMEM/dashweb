@@ -9,9 +9,9 @@
 # Mide el texto con las fuentes del Amiga (font_ de Dash), así que necesita un RastPort
 # (una ventana abierta, o la zona de dibujo de MUI). Flujo normal: cajas de bloque (márgenes
 # que se funden entre hermanos, bordes, relleno, width/height, fondos) y líneas de texto
-# (cortes, espacios colapsados o pre, text-align); listas con su marca; tablas sencillas
-# (celdas del mismo ancho); imágenes como un hueco de su tamaño; float en filas (el texto aún no los
-# rodea). position, más adelante.
+# (cortes, espacios colapsados o pre, text-align, line-height); listas con su marca; tablas con anchos
+# automáticos; flex y grid; imágenes, vídeos y SVG; float; position (relative, absolute, fixed, sticky),
+# z-index y overflow; transform. Lo medido se guarda de una maqueta a otra salvo lo que cambia (dom_tocar).
 
 import "estilo.dash"
 import "colores.dash"

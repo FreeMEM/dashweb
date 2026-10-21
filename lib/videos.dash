@@ -1,7 +1,7 @@
 # Los vídeos de una página (tarea 30): cada <video> tiene un reproductor. Un clic lo trae (por HTTP/HTTPS, a
 # un fichero de T:) y lo reproduce; otro lo para. Cada vuelta del bucle, videos_avanzar decodifica hasta la
 # imagen que toca según el reloj (si va con retraso, salta imágenes) y dice si hay que repintar; el pintor
-# llama a videos_pintar con el recuadro del vídeo. Sin sonido todavía.
+# llama a videos_pintar con el recuadro del vídeo. Con sonido, su reloj manda (la imagen se ajusta a él).
 #
 #   vs = videos_nuevos()
 #   videos_alternar(vs, nodo_video, "https://ejemplo.org/")   # al hacer clic
