@@ -416,6 +416,12 @@ tarea, con el estilo de Dash.
       (g) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
       cabeceras de maqueta.dash ("position, más adelante", tablas), video.dash y videos.dash ("sin sonido"), el
       README (el ahorro de reanudar TLS apenas se nota: D55, 9,0 -> 7,9 s; la tabla de medidas es del 2026-10-16).
+      (h) (usuario, 2026-10-21: cuánto ocupa) La memoria de las imágenes: freemem.space gasta ~29-39 MB, casi todo
+      imágenes en RGBA de 32 bits (sus 10 imágenes a tamaño original son 30 MB; se decodifican hasta 1280x1024 y
+      además se guarda la copia escalada; los fondos del carrusel, que no se ven a la vez, enteros) y el pico al
+      decodificar llega a ~64 MB. En un A1200 con 8 MB no cabe. Ideas: decodificar fondos e imágenes sin medidas al
+      tamaño al que se ven y soltar el original; guardar en el formato de la pantalla (16 u 8 bits); no decodificar
+      lo que no se ve (diapositivas ocultas).
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
 
@@ -3092,3 +3098,13 @@ Formato:
   fuentes?): en un A1200 con 8 MB de Fast no cabe.
 - Con D66 (802471e) las maquetas al bajar por pre.opentimetrack.com: 1516 3018 12126 5175 6987 9683 6238 10969
   6122 8199 9110 10348 6670 9328 7449 ms; sin cambio claro frente a la medida anterior.
+
+### 2026-10-21 — En qué se va la memoria (pregunta del usuario)
+- lib/traza.dash: cada línea de la traza lleva la memoria libre ("[1234 98000K] ...").
+- freemem.space en la máquina rtg: al empezar 134.346 KB libres; abrir MUI, la red y AmiSSL ~5,7 MB; los scripts
+  1,8 MB; el estilo 8,4 MB (bloques pequeños de Dash, que se reciclan pero no vuelven al sistema); las fuentes web
+  ~80 KB cada una (medido aparte con un test suelto, no guardado); las imágenes el resto: el pico al decodificarlas
+  deja 70.674 KB libres (~64 MB gastados) y al final 95.716 KB (~38,6 MB gastados).
+- Las 10 imágenes (miniaturas y los fondos grandes del carrusel) a tamaño original son 30 MB en RGBA. Apuntado como
+  40h. Sin batería: solo cambia el texto de la traza.
+
