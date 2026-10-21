@@ -3,7 +3,7 @@
 Arranque (desde cualquier directorio):
 
 ```
-/loop Sigue las instrucciones de ~/Projects/dashweb/docs/DASHWEB_LOOP.md: haz UNA tarea y actualiza la bitácora. No hagas pausas entre vuelta y vuelta
+/loop Sigue las instrucciones de ~/Projects/tachyon/docs/DASHWEB_LOOP.md: haz UNA tarea y actualiza la bitácora. No hagas pausas entre vuelta y vuelta
 ```
 
 **Encargo actual (usuario, 2026-10-20): la tarea 37, https://pre.opentimetrack.com, pasa delante de todo.**
@@ -31,7 +31,7 @@ Dos fases:
 
 1. **Encargo y uso.** Coge la subtarea de la 37 que toque (regla 5) mientras la 37 no esté `[x]`. Si el uso semanal
    pasa del 90 %, apúntalo en la bitácora, para el loop y avisa con PushNotification (lo pidió el usuario).
-2. **Rama.** Trabaja en `~/Projects/dashweb`, rama `dev` (sale de `main`). Sin push ni PR: eso lo pide el usuario.
+2. **Rama.** Trabaja en `~/Projects/tachyon`, rama `dev` (sale de `main`). Sin push ni PR: eso lo pide el usuario.
 3. **Dash.** Lo que le falte a Dash se añade a Dash, como tarea `D<n>` de la lista (sección "Dash"), pero **no lo
    hace el loop: se lo encarga a la sesión "dash"** (SendMessage a `dash`; `ListAgents` si no responde). El
    encargo lleva el porqué, cómo reproducirlo, lo que se propone y que avise con el commit. Mientras, el loop
@@ -3360,8 +3360,9 @@ Formato:
   nuevos), lo que escribe por la salida ("Tachyon: ... entera en"), el paquete (build/tachyon.lha con el cajón y el
   programa Tachyon, iconos Tachyon.info, LEEME e Instalar), el README y CLAUDE.md. Por dentro sigue dashweb (la
   carpeta, src/dashweb.dash, funciones y ganchos __dashweb_ del JavaScript, la rama dashweb de Dash).
-- Sin tocar, pendiente del usuario: el repositorio de GitHub (FreeMEM/dashweb, que "Acerca de" enlaza) y el nombre en
-  Traspaso.
+- Con permiso del usuario: el repositorio de GitHub pasa a FreeMEM/tachyon (GitHub redirige el nombre viejo; origin,
+  "Acerca de", el visor, el README y los documentos al día) y la carpeta a ~/Projects/tachyon (con un enlace
+  ~/Projects/dashweb a ella para lo que aún la nombre). En Traspaso: el cajón Tachyon (con el paquete).
 - Logo (elegido por el usuario tras muchas vueltas): una esfera azul con un anillo plano en perspectiva y dos cortes
   gruesos que siguen sus paralelos (la esfera queda incompleta y el ojo la completa; nada de líneas finas, para que
   aguante en iconos pequeños); letras Audiowide. `tools/logo_tachyon.py docs/logo` saca docs/logo/tachyon(_oscuro)
