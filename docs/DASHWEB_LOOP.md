@@ -422,7 +422,7 @@ tarea, con el estilo de Dash.
       [x] (g) (2026-10-21) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
       cabeceras de maqueta.dash ("position, más adelante", tablas), video.dash y videos.dash ("sin sonido"), el
       README (el ahorro de reanudar TLS apenas se nota: D55, 9,0 -> 7,9 s; la tabla de medidas es del 2026-10-16).
-      (h) (usuario, 2026-10-21: cuánto ocupa) La memoria de las imágenes: freemem.space gasta ~29-39 MB, casi todo
+      [x] (h) (usuario, 2026-10-21: cuánto ocupa) La memoria de las imágenes: freemem.space gasta ~29-39 MB, casi todo
       imágenes en RGBA de 32 bits (sus 10 imágenes a tamaño original son 30 MB; se decodifican hasta 1280x1024 y
       además se guarda la copia escalada; los fondos del carrusel, que no se ven a la vez, enteros) y el pico al
       decodificar llega a ~64 MB. En un A1200 con 8 MB no cabe. Ideas: decodificar fondos e imágenes sin medidas al
@@ -3273,3 +3273,15 @@ Formato:
   fetch y XMLHttpRequest, crypto, el tope de 30 s, D1-D68, memoria y tiempos de hoy). Solo comentarios y textos:
   compilado dashweb para ver que nada se rompe.
 
+
+### 2026-10-21 — Tarea 40h (la memoria de las imágenes)
+- La traza dice al final cuánto ocupan las imágenes (`imagenes_kb`): en freemem.space 12.917 KB las cargadas y
+  2.300 KB las copias escaladas que pide el pintor. Las de 820x480 se ven a 412x241 y la de 1376x768 a 453x442: el
+  decodificador solo reduce por mitades sin bajar del tamaño pedido y luego se guardaba además la copia.
+- lib/imagenes.dash `_imagen_a_su_vista`: al llegar, si se sabe dónde se ve (imagenes_vista de la última maqueta) y
+  es mayor, se reduce a lo justo para cubrirlo con su proporción y se suelta la grande. freemem.space: imágenes
+  4.251 KB y copias 0; la página gasta ~23 MB en vez de ~29. La captura, igual. El pico mientras se decodifican
+  (~62 MB) no cambia: es de los decodificadores.
+- Límite: si después se ve más grande (otra maqueta más ancha), se escala desde la reducida (más borrosa); el
+  fichero sigue en T: por si hace falta decodificarla otra vez.
+- Batería: 76/76.

@@ -731,7 +731,7 @@ func tic(w: Ventana)
         if w.actual.js != 0
             kb_js = js_memoria(w.actual.js) / 1024
         end
-        Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB)"
+        Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB, " + imagenes_kb(w.actual.im) + ")"
     end
     if w.aviso_scroll
         avisar_desplazamiento(w)

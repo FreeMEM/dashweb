@@ -328,8 +328,42 @@ func _imagen_tamano_final(im: Imagenes, p: Pedida)
     end
 end
 
+# Una imagen mayor que donde se ve (imagenes_vista de la última maqueta) se reduce a lo justo para cubrirlo con su
+# proporción y se suelta la grande: el pintor ya pintaba una copia a ese tamaño y guardaba las dos (freemem.space:
+# cinco de 820x480 que se ven a 412x241, una de 1376x768 a 453x442; tarea 40h). Sin vista sabida, tal cual.
+func _imagen_a_su_vista(im: Imagenes, src: String, img: Int) -> Int
+    if img == 0 or im.vistas == nil or not im.vistas.has(src)
+        return img
+    end
+    v = im.vistas[src]
+    vw = v / 65536
+    vh = v % 65536
+    iw = image_width(img)
+    ih = image_height(img)
+    if vw < 8 or vh < 8 or iw <= vw or ih <= vh
+        return img
+    end
+    # (el factor que cubre los dos lados, en milésimas)
+    f = vw * 1000 / iw
+    if vh * 1000 / ih > f
+        f = vh * 1000 / ih
+    end
+    nw = (iw * f + 999) / 1000
+    nh = (ih * f + 999) / 1000
+    if nw >= iw or nh >= ih
+        return img
+    end
+    nueva = image_scale(img, nw, nh)
+    if nueva == 0
+        return img
+    end
+    image_free(img)
+    return nueva
+end
+
 # La imagen ya decodificada, a su sitio; true si hay imagen (hay que volver a pintar: también un fondo)
 func _imagen_llegada(im: Imagenes, doc: Nodo, p: Pedida, img: Int) -> Bool
+    img = _imagen_a_su_vista(im, p.src, img)
     im.por_src[p.src] = img
     if img == 0
         return false
@@ -579,6 +613,25 @@ func _poner_atributo(n: Nodo, nombre: String, valor: String)
         end
     end
     n.atributos.push(Atributo(nombre, valor))
+end
+
+# KB que ocupan las imágenes decodificadas (a 4 bytes por punto): las cargadas y las copias escaladas (traza)
+func imagenes_kb(im: Imagenes) -> String
+    a = 0
+    for k in im.por_src.keys()
+        i = im.por_src[k]
+        if i != 0
+            a = a + image_width(i) * image_height(i) * 4 / 1024
+        end
+    end
+    b = 0
+    for k in im.escaladas.keys()
+        i = im.escaladas[k]
+        if i != 0
+            b = b + image_width(i) * image_height(i) * 4 / 1024
+        end
+    end
+    return "imágenes " + a + " KB y copias " + b + " KB"
 end
 
 # La imagen de src a ancho x alto (la cargada o una copia escalada, que se guarda); 0 si no hay
