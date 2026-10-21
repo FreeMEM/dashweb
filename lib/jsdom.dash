@@ -512,6 +512,13 @@ func jsdom_pedir(js: Int, id: Int, metodo: String, url: String, cabeceras: Strin
     if tipo == "" and cuerpo != "" and metodo != "GET"
         tipo = "text/plain;charset=UTF-8"
     end
+    if URL_RASTREO_BLOQUEAR and url_rastreador(url)
+        # (un rastreador: no se pide; en el siguiente avance, un error de red; también los <script> que mete el
+        # JavaScript, que van por aquí)
+        var sin: Carga = nil
+        jsdom_peticiones.push(PeticionJS(js, id, sin))
+        return
+    end
     jsdom_peticiones.push(PeticionJS(js, id, http_empezar_metodo(url, metodo, cuerpo, tipo, extra, 20000)))
 end
 
@@ -521,6 +528,12 @@ func jsdom_peticiones_avanzar(js: Int) -> Int
     i = 0
     while i < jsdom_peticiones.length
         p = jsdom_peticiones[i]
+        if p.js == js and p.carga == nil
+            jsdom_peticiones.remove(i)
+            _jsdom_responder(js, p.id, 0, "", "", "", "", "bloqueado (rastreo)")
+            hechas = hechas + 1
+            continue
+        end
         if p.js == js and http_avanzar(p.carga)
             r = p.carga.respuesta
             cab = ""
@@ -552,7 +565,9 @@ func jsdom_peticiones_cancelar(js: Int)
     i = 0
     while i < jsdom_peticiones.length
         if jsdom_peticiones[i].js == js
-            http_cancelar(jsdom_peticiones[i].carga)
+            if jsdom_peticiones[i].carga != nil
+                http_cancelar(jsdom_peticiones[i].carga)
+            end
             jsdom_peticiones.remove(i)
             continue
         end

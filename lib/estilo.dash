@@ -2053,6 +2053,14 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
 end
 
 # var(--nombre, respaldo): el valor de la propiedad personalizada, o el respaldo (también anidado)
+# Los var(--x) de v con las variables que le llegan a n (un atributo de SVG: fill="var(--color-lima)")
+func estilo_resolver_var(v: String, n: Nodo) -> String
+    if n.vars == nil or str_find(v, "var(") < 0
+        return v
+    end
+    return _resolver_var(v, n.vars, 0)
+end
+
 func _resolver_var(v: String, e: {String: String}, nivel: Int) -> String
     p = str_find(v, "var(")
     if p < 0 or nivel > 8

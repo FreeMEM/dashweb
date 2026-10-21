@@ -337,7 +337,22 @@ func documento_maquetar(d: Documento, ancho: Int)
 end
 
 # A qué tamaño se ve cada imagen (las que aún no han llegado se decodificarán a ese tamaño)
+# Los <svg> de la página que se ven a otro tamaño que su imagen: rasterizados otra vez a ese
+func _documento_svg_tamanos(d: Documento, n: Nodo)
+    if n.tipo != DOM_ELEMENTO and n.tipo != DOM_DOCUMENTO
+        return
+    end
+    if n.tipo == DOM_ELEMENTO and n.nombre == "svg"
+        imagenes_svg_a_tamano(d.im, n)
+        return
+    end
+    for h in n.hijos
+        _documento_svg_tamanos(d, h)
+    end
+end
+
 func _documento_vistas(d: Documento)
+    _documento_svg_tamanos(d, d.doc)
     # las animaciones de CSS de esta maqueta (sus dibujos son otros: se recogen otra vez; el reloj sigue)
     if d.anim_t0 == 0
         d.anim_t0 = time_ms()

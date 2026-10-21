@@ -1,0 +1,36 @@
+# Test: los <script> que mete el JavaScript después de cargar (tarea 37h: Next.js y Turbopack cargan así los trozos de
+# los componentes). En línea, se ejecuta al entrar; con src, se baja, se ejecuta con document.currentScript = él y
+# lanza load; moverlo no lo ejecuta otra vez; uno con src que no existe lanza error; uno de type="application/json",
+# nada. document.title y los defaultValue/defaultChecked de un <input> se pueden poner (React los pone al montar).
+# emu-server: http.py 40863
+# memcheck
+# expect-out: en línea: 5
+# expect-out: con src: veces 1 actual yo onload 1 | movido: veces 1
+# expect-out: no existe: error | json: nada
+# expect-out: escribibles: Nuevo título | 08:03 08:03 true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+Main
+    h = "<html><head></head><body><div id=c></div><script>"
+    h = h + "var t = document.createElement('script'); t.textContent = 'window.inl = 5'; document.body.appendChild(t);"
+    h = h + "var s = document.createElement('script'); s.src = '/pages/dinamico.js'; s.setAttribute('data-x', 'yo'); s.onload = function () { window.onl = 1 }; document.head.appendChild(s);"
+    h = h + "var m = document.createElement('script'); m.src = '/pages/no-existe.js'; m.onerror = function () { window.mal = 'error' }; document.head.appendChild(m);"
+    h = h + "var j = document.createElement('script'); j.type = 'application/json'; j.textContent = 'window.json = 1'; document.body.appendChild(j);"
+    h = h + "</script></body></html>"
+    d = documento_html("http://127.0.0.1:40863/pages/x.html", h)
+    Print "en línea: " + js_evaluar(d.js, "String(window.inl)", "t.js")
+    vueltas = 0
+    while jsdom_peticiones_pendientes(d.js) > 0 and vueltas < 500
+        jsdom_peticiones_avanzar(d.js)
+        time_delay(1)
+        vueltas = vueltas + 1
+    end
+    r = js_evaluar(d.js, "'veces ' + window.veces + ' actual ' + window.actual + ' onload ' + window.onl", "t.js")
+    js_evaluar(d.js, "document.getElementById('c').appendChild(s)", "t.js")
+    Print "con src: " + r + " | movido: " + js_evaluar(d.js, "'veces ' + window.veces", "t.js")
+    Print "no existe: " + js_evaluar(d.js, "String(window.mal)", "t.js") + " | json: " + js_evaluar(d.js, "window.json ? 'ejecutado' : 'nada'", "t.js")
+    Print "escribibles: " + js_evaluar(d.js, "'use strict'; document.title = 'Nuevo título'; var i = document.createElement('input'); i.defaultValue = '08:03'; i.defaultChecked = true; document.title + ' | ' + i.defaultValue + ' ' + i.getAttribute('value') + ' ' + i.hasAttribute('checked')", "t.js")
+    documento_liberar(d)
+end

@@ -618,7 +618,14 @@ func imagenes_svg_rehacer(im: Imagenes, n: Nodo) -> Bool
     if n.estilo.has("color") and css_color(n.estilo["color"]) >= 0
         color = _hex6(css_color(n.estilo["color"]))
     end
-    texto = _svg_elemento(n, raiz, true, svg_ancho(n), svg_alto(n))
+    # (al tamaño al que se ve en la última maqueta, si lo hay: un width en % no se sabe hasta maquetar)
+    w = svg_ancho(n)
+    h = svg_alto(n)
+    if n.caja_pase == raiz.caja_pase and n.caja_w > 0 and n.caja_h > 0
+        w = n.caja_w
+        h = n.caja_h
+    end
+    texto = _svg_elemento(n, raiz, true, w, h)
     texto = str_replace(str_replace(str_replace(texto, "currentColor", color), "currentcolor", color), "CurrentColor", color)
     temporal = fichero + ".f"
     if not file_write_text(temporal, texto)
@@ -643,6 +650,58 @@ func imagenes_svg_rehacer(im: Imagenes, n: Nodo) -> Bool
     image_free(im.por_src[fichero])
     im.por_src[fichero] = nueva
     return true
+end
+
+# Un <svg> rasterizado a otro tamaño que el que tiene en la página (width en %): otra vez, a ese (tarea 37h)
+func imagenes_svg_a_tamano(im: Imagenes, n: Nodo) -> Bool
+    fichero = dom_atributo(n, "data-dashweb-svg")
+    if fichero == "" or not im.por_src.has(fichero) or im.por_src[fichero] == 0
+        return false
+    end
+    raiz = n
+    while raiz.padre != nil
+        raiz = raiz.padre
+    end
+    if n.caja_pase != raiz.caja_pase or n.caja_w <= 0
+        return false
+    end
+    dif = image_width(im.por_src[fichero]) - n.caja_w
+    if dif > 4 or dif < -4
+        return imagenes_svg_rehacer(im, n)
+    end
+    return false
+end
+
+# Un color de fill o stroke como lo lee nanosvg (#rrggbb); none, url(...) y lo que no sea un color, tal cual
+func _svg_color(v: String) -> String
+    t = str_lower(str_trim(v))
+    # (lo que nanosvg ya lee, tal cual: #rgb, #rrggbb, rgb() y los nombres)
+    if not (str_starts(t, "rgba(") or str_starts(t, "hsl") or (str_starts(t, "#") and (t.length == 5 or t.length == 9)))
+        return v
+    end
+    c = css_color_opaco(v)
+    if c < 0
+        return v
+    end
+    return _hex6(c)
+end
+
+# La opacidad de un color con alfa (rgba, hsla, #rrggbbaa) como "0.35"; "" si es opaco o no es un color
+func _svg_opacidad(v: String) -> String
+    t = str_lower(str_trim(v))
+    if t == "none" or t == "" or str_starts(t, "url(") or t == "currentcolor" or css_color_opaco(v) < 0
+        return ""
+    end
+    a = css_alfa(v)
+    if a >= 255
+        return ""
+    end
+    mil = a * 1000 / 255
+    r = "" + mil
+    while r.length < 3
+        r = "0" + r
+    end
+    return "0." + r
 end
 
 func _oculto_svg(n: Nodo) -> Bool
@@ -733,6 +792,7 @@ func _svg_elemento(n: Nodo, raiz: Nodo, es_raiz: Bool, w: Int, h: Int) -> String
         end
     end
     estilo = ""
+    opacidad_attr = ""
     for a in n.atributos
         if es_raiz and (a.nombre == "width" or a.nombre == "height" or a.nombre == "data-dashweb-svg")
             continue
@@ -748,12 +808,32 @@ func _svg_elemento(n: Nodo, raiz: Nodo, es_raiz: Bool, w: Int, h: Int) -> String
         if n.svg_sobre != nil and n.svg_sobre.has("@" + a.nombre)
             v = n.svg_sobre["@" + a.nombre]
         end
+        v = estilo_resolver_var(v, n)
+        if a.nombre == "fill" or a.nombre == "stroke"
+            # (nanosvg no sabe rgba() ni hsl(): el color en #rrggbb y su opacidad aparte)
+            opacidad = _svg_opacidad(v)
+            if opacidad != ""
+                opacidad_attr = opacidad_attr + ";" + a.nombre + "-opacity:" + opacidad
+            end
+            v = _svg_color(v)
+        end
         r = r + " " + _svg_nombre(a.nombre) + "=\"" + _svg_escapar(v) + "\""
+    end
+    if opacidad_attr != ""
+        estilo = opacidad_attr + ";" + estilo
     end
     # lo que le da el CSS de la página (con los guiones: la curva de trainalong.fit se dibuja con ellos)
     for p in ["fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "opacity", "fill-rule", "stroke-linecap", "stroke-linejoin", "stroke-dasharray", "stroke-dashoffset"]
         if n.estilo.has(p)
-            estilo = estilo + ";" + p + ":" + n.estilo[p]
+            v = n.estilo[p]
+            if p == "fill" or p == "stroke"
+                opacidad = _svg_opacidad(v)
+                if opacidad != ""
+                    estilo = estilo + ";" + p + "-opacity:" + opacidad
+                end
+                v = _svg_color(v)
+            end
+            estilo = estilo + ";" + p + ":" + v
         end
     end
     # y lo de este fotograma de su animación (tarea 37d4)

@@ -330,6 +330,11 @@ tarea, con el estilo de Dash.
            3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje.
       [x] 37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez).
       [x] 37e5. Los toques SALE (un nodo que sale) y un absoluto o fijo que pasa a display: none, sin maqueta.
+      37h2. Lo que queda bajando por pre.opentimetrack.com (2026-10-21): crypto (getRandomValues, randomUUID,
+           subtle.digest SHA-256) para la huella del informe; un "TypeError: not a function" en un trozo cargado al
+           vuelo (init de una librería); el dibujo del esquema de "Ficha desde donde ya trabaja tu gente" no sale (sus
+           rótulos sí) cuando lo monta el JavaScript; el móvil de la historia asoma sobre la sección siguiente (el fin
+           de su sticky); cada cambio del JavaScript al bajar rehace la maqueta en 6-10 s.
       37e6. (Después de la 37h: tras el montaje la página ya no está ocupada, 37e3.) La maqueta del montaje de pre.opentimetrack.com sigue en ~8,5 s (más 1,7 de estilo) por elementos visibles
            que entran (React monta secciones): cada elemento se maqueta ~6 veces por las medidas de las cajas flex y
            cada bloque cuesta ~0,7 ms. Idea: rehacer solo la parte que cambió cuando la caja de su contenedor no cambia
@@ -2965,4 +2970,28 @@ Formato:
   "Mi jornada", "Por decidir"), como en Chrome.
 - Test: test_maqueta_inset (nuevo: inset, absoluto en un flex-1, aspect-ratio con border-box y height: 100%,
   place-items: center, overflow que no ensancha). Batería 68/68 (1268 s); freemem.space 22,9 s.
+
+### 2026-10-21 — Tarea 37h, tercera parte (scripts que mete el JavaScript; SVG con width en %, sus <text>, rgba)
+- Más abajo en pre.opentimetrack.com, las zonas del esquema de "Ficha desde donde ya trabaja tu gente" y de la tabla
+  de "Listo para la Inspección" salían vacías: en el HTML solo hay un hueco (min-height: 52rem); Next.js monta el
+  componente al llegar, bajando trozos de JavaScript con <script src> que mete en <head>. dashweb no ejecutaba
+  ningún <script> metido después de cargar.
+- Preludio: appendChild, insertBefore y replaceChild (y lo que va por ellos: append, before...) miran los <script>
+  que entran: en línea se ejecutan al momento; con src se bajan con XMLHttpRequest (la cola de 37e2), se ejecutan
+  con document.currentScript = él y lanzan load o error. Solo JavaScript (type vacío o text/javascript; JSON,
+  módulos y lo demás no). Los de la página, marcados al acabar de cargar (moverlos no los repite).
+  lib/jsdom.dash `jsdom_pedir`: los rastreadores (url_rastreador) no se piden (error de red), como los <script> de
+  la carga.
+- Con los trozos, React se caía ("This page couldn't load"): asignaba defaultValue y defaultChecked de un <input>
+  (solo tenían getter: en modo estricto, error). Con setter, y document.title también (Next.js lo pone al navegar).
+- SVG: un <svg> con width en % (w-full) se maquetaba a 300 px: ahora el % del ancho de la línea y el alto por la
+  proporción, y tras la maqueta se rasteriza otra vez a ese tamaño (`imagenes_svg_a_tamano`). Sus <text> (nanosvg
+  no los pinta) salen como textos de la página encima, a la escala del viewBox (`_svg_textos`). Al escribir el SVG
+  para nanosvg: los var() de los atributos se resuelven (`estilo_resolver_var`) y un fill/stroke con rgba(), hsl()
+  o #rrggbbaa va en #rrggbb con su fill-/stroke-opacity.
+- pre.opentimetrack.com: los componentes de abajo se montan (el esquema con sus rótulos, la tabla con sus campos de
+  hora). Lo que falta, apuntado como 37h2.
+- Tests: test_jsdom_scripts (nuevo: en línea, con src, currentScript, load, error, moverlo, JSON; document.title y
+  defaultValue/defaultChecked), test_svg_texto (nuevo: width en %, <text>, rgba y var() en el SVG escrito).
+  Batería 70/70 (1345 s); freemem.space 22,5 s.
 

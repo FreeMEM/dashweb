@@ -1953,6 +1953,13 @@ func _absoluto_imagen(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int
         d.capa = Int(e["z-index"])
     end
     m.pagina.dibujos.push(d)
+    antes_textos = m.pagina.dibujos.length
+    _svg_textos(m, d)
+    k = antes_textos
+    while k < m.pagina.dibujos.length
+        m.pagina.dibujos[k].capa = d.capa
+        k = k + 1
+    end
 end
 
 func _imagen_en_bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
@@ -1976,6 +1983,127 @@ func _imagen_en_bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> In
     alto = _lineas(m, piezas, x, y, ancho, n.estilo)
     m.ancho_linea = previo
     return alto
+end
+
+# Los <text> de un <svg> (nanosvg no los pinta): textos de la página encima de su imagen, con su x, y, text-anchor,
+# font-size y fill, a la escala del viewBox y con los translate() de sus <g> (los rótulos del esquema de "Ficha desde
+# donde ya trabaja tu gente" en pre.opentimetrack.com; tarea 37h)
+func _svg_textos(m: Maquetador, d: Dibujo)
+    n = d.nodo
+    if n == nil or n.nombre != "svg" or d.ancho <= 0 or d.alto <= 0
+        return
+    end
+    vx = 0
+    vy = 0
+    vw = d.ancho
+    vh = d.alto
+    vb = css_partir(str_trim(str_replace(svg_viewbox(n), ",", " ")), 32)
+    if vb.length == 4 and estilo_px(vb[2], 0, 0) > 0 and estilo_px(vb[3], 0, 0) > 0
+        vx = estilo_px(vb[0], 0, 0)
+        vy = estilo_px(vb[1], 0, 0)
+        vw = estilo_px(vb[2], 0, 0)
+        vh = estilo_px(vb[3], 0, 0)
+    end
+    # (preserveAspectRatio por defecto: la escala menor, centrado)
+    esc = d.ancho * 1000 / vw
+    if d.alto * 1000 / vh < esc
+        esc = d.alto * 1000 / vh
+    end
+    ox = d.x + (d.ancho - vw * esc / 1000) / 2
+    oy = d.y + (d.alto - vh * esc / 1000) / 2
+    _svg_textos_de(m, d, n, ox - vx * esc / 1000, oy - vy * esc / 1000, esc)
+end
+
+func _svg_textos_de(m: Maquetador, d: Dibujo, n: Nodo, ox: Int, oy: Int, esc: Int)
+    for h in n.hijos
+        if h.tipo != DOM_ELEMENTO or (h.estilo != nil and h.estilo.has("display") and h.estilo["display"] == "none")
+            continue
+        end
+        if h.nombre == "defs" or h.nombre == "clippath" or h.nombre == "mask" or h.nombre == "symbol" or h.nombre == "style"
+            continue
+        end
+        # un translate(x[, y]) en su transform
+        hx = ox
+        hy = oy
+        tr = dom_atributo(h, "transform")
+        p = str_find(tr, "translate(")
+        if p >= 0
+            q = str_find(tr[p:], ")")
+            if q > 0
+                args = css_partir(str_trim(str_replace(tr[p + 10:p + q], ",", " ")), 32)
+                if args.length > 0
+                    hx = hx + estilo_px(args[0], 0, 0) * esc / 1000
+                end
+                if args.length > 1
+                    hy = hy + estilo_px(args[1], 0, 0) * esc / 1000
+                end
+            end
+        end
+        if h.nombre == "text"
+            t = str_trim(str_replace(dom_texto(h), "\n", " "))
+            if t != ""
+                e = h.estilo
+                fs = 16
+                if dom_atributo(h, "font-size") != ""
+                    fs = estilo_px(dom_atributo(h, "font-size"), 16, 0)
+                elif e != nil and e.has("font-size")
+                    fs = estilo_px(e["font-size"], 0, 0)
+                end
+                tam = fs * esc / 1000
+                if tam < 6
+                    tam = 6
+                end
+                familia = "sans-serif"
+                if e != nil and e.has("font-family")
+                    familia = e["font-family"]
+                end
+                f = _fuente(m, familia, tam)
+                font_use(f)
+                estilo = 0
+                peso = dom_atributo(h, "font-weight")
+                if peso == "" and e != nil and e.has("font-weight")
+                    peso = e["font-weight"]
+                end
+                if peso == "bold" or peso == "600" or peso == "700" or peso == "800" or peso == "900"
+                    estilo = EST_NEGRITA
+                end
+                font_style(estilo)
+                w = font_text_width(t)
+                x = hx + estilo_px(dom_atributo(h, "x"), 0, 0) * esc / 1000
+                y = hy + estilo_px(dom_atributo(h, "y"), 0, 0) * esc / 1000 - font_baseline()
+                ancla = dom_atributo(h, "text-anchor")
+                if ancla == "" and e != nil and e.has("text-anchor")
+                    ancla = e["text-anchor"]
+                end
+                if ancla == "middle"
+                    x = x - w / 2
+                elif ancla == "end"
+                    x = x - w
+                end
+                color = -1
+                relleno = estilo_resolver_var(dom_atributo(h, "fill"), h)
+                if relleno != "" and relleno != "none"
+                    color = css_color_opaco(relleno)
+                end
+                if color < 0 and e != nil and e.has("fill") and e["fill"] != "none"
+                    color = css_color_opaco(e["fill"])
+                end
+                if color < 0
+                    color = 0
+                end
+                td = _dibujo(D_TEXTO, x, y, w, font_height(), color)
+                td.texto = t
+                td.fuente = f
+                td.estilo = estilo
+                td.nodo = h
+                td.enlace = d.enlace
+                m.pagina.dibujos.push(td)
+                font_style(0)
+            end
+        elif h.nombre == "g" or h.nombre == "a" or h.nombre == "switch"
+            _svg_textos_de(m, d, h, hx, hy, esc)
+        end
+    end
 end
 
 # Lo mismo para quien anima la página (lib/animacion.dash)
@@ -2367,7 +2495,20 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
     end
     if n.nombre == "svg"
         # SVG dentro de la página: una imagen (lib/imagenes.dash lo escribe en un fichero), a su tamaño
-        img = Pieza(dom_atributo(n, "data-dashweb-svg"), svg_ancho(n), svg_alto(n), svg_alto(n), 0, 0, 0, false, enlace, m.blanco, false, true)
+        sw = svg_ancho(n)
+        sh = svg_alto(n)
+        # (width en %: del ancho de la línea, y el alto con la proporción del viewBox; el esquema de "Ficha desde
+        # donde ya trabaja tu gente" en pre.opentimetrack.com es w-full; tarea 37h)
+        if e.has("width") and str_ends(e["width"], "%") and m.ancho_linea > 0
+            pw = _px(e, "width", m.ancho_linea)
+            if pw > 0
+                if _val(e, "height", "auto") == "auto" and dom_atributo(n, "height") == "" and sw > 0
+                    sh = sh * pw / sw
+                end
+                sw = pw
+            end
+        end
+        img = Pieza(dom_atributo(n, "data-dashweb-svg"), sw, sh, sh, 0, 0, 0, false, enlace, m.blanco, false, true)
         img.nodo = n
         piezas.push(img)
         m.blanco = 0
@@ -2947,6 +3088,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             img.enlace = p.enlace
             img.nodo = p.nodo
             m.pagina.dibujos.push(img)
+            _svg_textos(m, img)
             actual = nil
         elif actual != nil and actual.fuente == p.fuente and actual.estilo == p.estilo and actual.color == p.color and actual.enlace == p.enlace and actual.nodo == p.nodo and actual.espaciado == p.espaciado
             actual.texto = actual.texto + _espacios(p.espacio, actual) + p.texto
