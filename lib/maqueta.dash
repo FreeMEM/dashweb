@@ -2724,6 +2724,8 @@ end
 # Un inline-block en la línea (una pieza que no se corta): mide su ancho y su alto maquetándolo aparte;
 # _poner_linea lo maqueta en su sitio. Su línea base, la de su último texto (sin texto, abajo).
 func _pieza_caja(m: Maquetador, n: Nodo, piezas: [Pieza], enlace: String)
+    # (el blanco de antes, antes de maquetarla aparte, que lo pone a 0)
+    blanco = m.blanco
     w = _ancho_flotante(m, n, m.ancho_linea)
     if w > m.ancho_linea
         w = m.ancho_linea
@@ -2744,7 +2746,7 @@ func _pieza_caja(m: Maquetador, n: Nodo, piezas: [Pieza], enlace: String)
     while m.pagina.dibujos.length > antes
         m.pagina.dibujos.pop()
     end
-    pz = Pieza("", w, h, base, 0, 0, 0, false, enlace, m.blanco, false, false)
+    pz = Pieza("", w, h, base, 0, 0, 0, false, enlace, blanco, false, false)
     pz.caja = n
     pz.nodo = n
     piezas.push(pz)
@@ -3080,7 +3082,9 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
     if hubo_blanco and piezas.length > 0
         # el blanco final se nota en la siguiente palabra (de otro elemento)
         ultima = piezas[piezas.length - 1]
-        if ultima.imagen or ultima.control
+        if ultima.imagen or ultima.control or ultima.caja != nil
+            # (tras una imagen, un control o un inline-block, el blanco va delante de lo siguiente: pegado a la caja
+            # la ensanchaba y, al final de la línea, la última del menú de freemem.space bajaba a otra)
             m.blanco = espacio_ancho
         elif not ultima.salto
             ultima.texto = ultima.texto + " "

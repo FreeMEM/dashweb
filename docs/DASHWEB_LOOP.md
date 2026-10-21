@@ -3402,3 +3402,16 @@ Formato:
   borde 5 y relleno 8: 140.
 - Batería: 78/78. Visto por el usuario en CoffinOS: el menú casi en una línea (ARDUINO aún baja: sigue).
 
+
+### 2026-10-22 — El menú de freemem.space, segunda parte (ARDUINO bajaba a otra línea)
+- Con text-align: center (el del menú), un <li> inline-block va en la línea como una pieza; el salto de línea del
+  HTML que le sigue se pegaba a esa pieza (texto " " y 8 px más). Al medir el <nav> salía bien (el espacio entre
+  los <li> cuenta), pero al repartir la línea el último <li> llevaba su espacio pegado, no cabía y bajaba; la fila,
+  centrada, empezaba en x 135. Copia local de freemem.space a 1390 px: ahora una línea desde el borde del <nav>.
+- lib/maqueta.dash: tras un inline-block (como tras una imagen o un control) el blanco va delante de lo siguiente
+  (m.blanco), y `_pieza_caja` toma el blanco de antes de maquetar la caja aparte (que lo ponía a 0).
+- test_maqueta_menu: centrado y con saltos de línea entre los <li>: una línea, con 8 px entre cada dos.
+- Queda: un espacio al final de una palabra cuenta al ver si cabe la última de la línea (en los navegadores
+  cuelga); la línea con inline-blocks sale 2 px más alta que en Chrome.
+- Batería: 66/78 con 12 TIMEOUT en cascada en el grupo de red (compilaba a la vez); repetidas por grupos, todas
+  pasan (http_volcar, imagen 4/4, jquery, js_fetch, jsdom 6/6, recursos, red, video_cartel, youtube).
