@@ -2491,7 +2491,7 @@ end
 # Las piezas en línea de un nodo (texto, elementos en línea, br, img)
 func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza], enlace: String)
     if n.tipo == DOM_TEXTO
-        _palabras(m, n.texto, e_padre, piezas, enlace, n.padre)
+        _palabras_texto(m, n.texto, e_padre, piezas, enlace, n.padre, n)
         return
     end
     if n.tipo != DOM_ELEMENTO or _oculto(n)
@@ -2808,7 +2808,7 @@ func _img_medida(m: Maquetador, e: {String: String}, w0: Int, h0: Int) -> [Int]
 end
 
 # Palabras de un texto con el estilo de su elemento
-func _palabras(m: Maquetador, texto_dom: String, e: {String: String}, piezas: [Pieza], enlace: String, elemento: Nodo)
+func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piezas: [Pieza], enlace: String, elemento: Nodo, nodo_texto: Nodo)
     tam = estilo_px(e["font-size"], 0, 0)
     texto = texto_dom
     transformar = ""
@@ -2876,51 +2876,94 @@ func _palabras(m: Maquetador, texto_dom: String, e: {String: String}, piezas: [P
         end
         return
     end
-    n = texto.length
-    i = 0
-    hubo_blanco = false
+    # las palabras (cortadas por los blancos, con si había blanco delante) y sus anchos, guardados en el nodo de texto
+    # con su letra: cada elemento se maqueta varias veces al medir las cajas flex, y recorrer el texto y medir cada
+    # palabra con la fuente era casi el 10 % del tiempo al bajar por pre.opentimetrack.com (tarea 37e6)
+    clave = "" + f + "|" + estilo + "|" + transformar + "|" + ls
+    var palabras: [String] = nil
+    var blancos: [Int] = nil
+    var anchos: [Int] = nil
+    blanco_final = false
+    if nodo_texto != nil and nodo_texto.pal_clave == clave and nodo_texto.pal_texto == texto_dom and nodo_texto.pal_anchos != nil
+        palabras = nodo_texto.pal_palabras
+        blancos = nodo_texto.pal_blancos
+        anchos = nodo_texto.pal_anchos
+        blanco_final = nodo_texto.pal_final
+    else
+        var lp: [String] = []
+        var lb: [Int] = []
+        var la: [Int] = []
+        palabras = lp
+        blancos = lb
+        anchos = la
+        n = texto.length
+        i = 0
+        hubo = false
+        while i < n
+            c = str_code(texto, i)
+            if c == 32 or c == 9 or c == 10 or c == 13 or c == 12
+                hubo = true
+                i = i + 1
+            else
+                j = i
+                while j < n and str_code(texto, j) != 32 and str_code(texto, j) != 9 and str_code(texto, j) != 10 and str_code(texto, j) != 13 and str_code(texto, j) != 12
+                    j = j + 1
+                end
+                palabra = texto[i:j]
+                if transformar == "capitalize"
+                    palabra = str_upper(palabra[:1]) + palabra[1:]
+                end
+                palabras.push(palabra)
+                if hubo
+                    blancos.push(1)
+                else
+                    blancos.push(0)
+                end
+                anchos.push(font_text_width(palabra) + ls * palabra.length)
+                hubo = false
+                i = j
+            end
+        end
+        blanco_final = hubo
+        if nodo_texto != nil
+            nodo_texto.pal_clave = clave
+            nodo_texto.pal_texto = texto_dom
+            nodo_texto.pal_palabras = palabras
+            nodo_texto.pal_blancos = blancos
+            nodo_texto.pal_anchos = anchos
+            nodo_texto.pal_final = blanco_final
+        end
+    end
     # white-space: nowrap: no se corta la línea entre sus palabras (van pegadas)
     sin_cortes = e["white-space"] == "nowrap"
     primera = true
-    while i < n
-        c = str_code(texto, i)
-        if c == 32 or c == 9 or c == 10 or c == 13 or c == 12
-            hubo_blanco = true
-            i = i + 1
-        else
-            j = i
-            while j < n and str_code(texto, j) != 32 and str_code(texto, j) != 9 and str_code(texto, j) != 10 and str_code(texto, j) != 13 and str_code(texto, j) != 12
-                j = j + 1
-            end
-            palabra = texto[i:j]
-            if transformar == "capitalize"
-                palabra = str_upper(palabra[:1]) + palabra[1:]
-            end
-            # un blanco antes cuenta una vez: si la pieza anterior ya acaba en espacio, no otro
-            espacio = 0
-            if (hubo_blanco or m.blanco > 0) and not (piezas.length > 0 and _termina_en_blanco(piezas))
-                espacio = espacio_ancho
-            end
-            m.blanco = 0
-            if ls > 0 and espacio > 0
-                espacio = espacio + ls
-            end
-            pz = Pieza(palabra, font_text_width(palabra) + ls * palabra.length, alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
-            pz.nodo = elemento
-            pz.espaciado = ls
-            if not hubo_blanco and piezas.length > 0
-                anterior = piezas[piezas.length - 1]
-                pz.pegada = not anterior.salto and not anterior.imagen and not anterior.control and not str_ends(anterior.texto, " ")
-            end
-            if sin_cortes and piezas.length > 0 and (not primera or hubo_blanco)
-                pz.pegada = true
-            end
-            primera = false
-            piezas.push(pz)
-            hubo_blanco = false
-            i = j
+    k = 0
+    while k < palabras.length
+        hubo_blanco = blancos[k] == 1
+        # un blanco antes cuenta una vez: si la pieza anterior ya acaba en espacio, no otro
+        espacio = 0
+        if (hubo_blanco or m.blanco > 0) and not (piezas.length > 0 and _termina_en_blanco(piezas))
+            espacio = espacio_ancho
         end
+        m.blanco = 0
+        if ls > 0 and espacio > 0
+            espacio = espacio + ls
+        end
+        pz = Pieza(palabras[k], anchos[k], alto, base, f, estilo, color, tachado, enlace, espacio, false, false)
+        pz.nodo = elemento
+        pz.espaciado = ls
+        if not hubo_blanco and piezas.length > 0
+            anterior = piezas[piezas.length - 1]
+            pz.pegada = not anterior.salto and not anterior.imagen and not anterior.control and not str_ends(anterior.texto, " ")
+        end
+        if sin_cortes and piezas.length > 0 and (not primera or hubo_blanco)
+            pz.pegada = true
+        end
+        primera = false
+        piezas.push(pz)
+        k = k + 1
     end
+    hubo_blanco = blanco_final or (palabras.length == 0 and texto.length > 0)
     if hubo_blanco and piezas.length > 0
         # el blanco final se nota en la siguiente palabra (de otro elemento)
         ultima = piezas[piezas.length - 1]

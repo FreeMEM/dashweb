@@ -3075,3 +3075,11 @@ Formato:
   _palabras) de lo que cambia.
 - Batería 71/71 (1492 s; con la D66 a medio hacer en el worktree de Dash durante parte de ella); freemem.space 23,4 s.
 
+### 2026-10-21 — Tarea 37e6, tercera parte (las palabras de cada texto, guardadas)
+- El `_palabras` del perfil era el de lib/maqueta.dash (cortar el texto en palabras y medirlas), que se llama igual
+  que el de lib/estilo.dash: renombrado `_palabras_texto` para verlo aparte (9,1 % al bajar por
+  pre.opentimetrack.com).
+- Cada nodo de texto guarda sus palabras, si había blanco delante de cada una y sus anchos, con la clave de su letra
+  (fuente, estilo, text-transform, letter-spacing): al maquetarlo otra vez (las medidas flex lo hacen ~6 veces) no
+  se recorre el texto ni se mide con la fuente. Del 9,1 al 7,8 %; las maquetas al bajar siguen en 6-13 s.
+- Batería: 71/71; freemem.space entera en 22.989 ms.

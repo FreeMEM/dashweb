@@ -67,6 +67,12 @@ struct Nodo
     cl_pase: Int = 0
     cl_cont: Int = 0
     cl_pct: Bool = false      # (alguno va en %: depende del contenedor)
+    pal_clave: String = nil   # un texto: los anchos de sus palabras con esa letra (lib/maqueta.dash _palabras_texto: con sus palabras)
+    pal_texto: String = nil
+    pal_anchos: [Int] = nil
+    pal_palabras: [String] = nil
+    pal_blancos: [Int] = nil  # (1: había blanco delante de esa palabra)
+    pal_final: Bool = false   # (acaba en blanco)
     med_pase: Int = 0
     # la caja (borde incluido) en la última maqueta del documento, en coordenadas de la página (lib/maqueta.dash;
     # la leen getBoundingClientRect y offset* del JavaScript): vale si caja_pase es el caja_pase del documento
