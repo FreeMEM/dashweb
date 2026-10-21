@@ -108,7 +108,10 @@ func imagenes_fondo(n: Nodo, base: Url) -> String
     if u == ""
         return ""
     end
-    completa = url_text(url_resolve(base, u))
+    completa = u
+    if not url_es_data(u)
+        completa = url_text(url_resolve(base, u))
+    end
     # la maqueta y el pintor no saben la dirección de la página: el estilo se queda con la completa
     n.estilo["background-image"] = "url(" + completa + ")"
     return completa
@@ -120,13 +123,16 @@ func _imagenes_pedir_fondo(im: Imagenes, n: Nodo, base: Url)
         return
     end
     u = url_parse(src)
-    if u.esquema == "http" or u.esquema == "https"
+    if u.esquema == "http" or u.esquema == "https" or url_es_data(src)
         im.por_src[src] = 0
         fichero = "T:dashweb_img" + im.ficheros.length
         im.ficheros.push(fichero)
         var sin: Carga = nil
         pedida = Pedida(src, src, fichero, sin)
         pedida.de_fondo = true
+        if url_es_data(src) and not _imagenes_data(im, pedida)
+            return
+        end
         # con cover o contain el tamaño de la imagen solo cuenta por su proporción: se puede reducir
         if n.tipo == DOM_ELEMENTO and n.estilo != nil and n.estilo.has("background-size")
             bs = n.estilo["background-size"]
@@ -148,7 +154,10 @@ func imagenes_cartel(n: Nodo, base: Url) -> String
     if p == ""
         return ""
     end
-    completa = url_text(url_resolve(base, p))
+    completa = p
+    if not url_es_data(p)
+        completa = url_text(url_resolve(base, p))
+    end
     _poner_atributo(n, "poster", completa)
     return completa
 end
@@ -159,12 +168,16 @@ func _imagenes_pedir_cartel(im: Imagenes, n: Nodo, base: Url)
         return
     end
     u = url_parse(src)
-    if u.esquema == "http" or u.esquema == "https"
+    if u.esquema == "http" or u.esquema == "https" or url_es_data(src)
         im.por_src[src] = 0
         fichero = "T:dashweb_img" + im.ficheros.length
         im.ficheros.push(fichero)
         var sin: Carga = nil
-        im.cola.push(Pedida(src, src, fichero, sin))
+        pedida = Pedida(src, src, fichero, sin)
+        if url_es_data(src) and not _imagenes_data(im, pedida)
+            return
+        end
+        im.cola.push(pedida)
     else
         im.por_src[src] = _imagen_traer(im, base, src)
     end
@@ -185,12 +198,20 @@ func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
             end
         elif src != ""
             u = url_resolve(base, src)
-            if u.esquema == "http" or u.esquema == "https"
+            data = url_es_data(src)
+            if u.esquema == "http" or u.esquema == "https" or data
                 im.por_src[src] = 0
                 fichero = "T:dashweb_img" + im.ficheros.length
                 im.ficheros.push(fichero)
                 var sin: Carga = nil
-                pedida = Pedida(src, url_text(u), fichero, sin)
+                direccion = src
+                if not data
+                    direccion = url_text(u)
+                end
+                pedida = Pedida(src, direccion, fichero, sin)
+                if data and not _imagenes_data(im, pedida)
+                    return
+                end
                 pedida.perezosa = str_lower(dom_atributo(n, "loading")) == "lazy"
                 w = Int(dom_atributo(n, "width"))
                 h = Int(dom_atributo(n, "height"))
@@ -353,7 +374,7 @@ func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
             continue
         end
         u = url_parse(src)
-        if u.esquema != "http" and u.esquema != "https"
+        if u.esquema != "http" and u.esquema != "https" and not url_es_data(src)
             continue
         end
         im.por_src[src] = 0
@@ -362,6 +383,9 @@ func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
         var sin: Carga = nil
         pedida = Pedida(src, src, fichero, sin)
         pedida.fuente = c.familia + "|" + c.peso + "|" + c.estilo
+        if url_es_data(src) and not _imagenes_data(im, pedida)
+            continue
+        end
         im.cola.push(pedida)
         n = n + 1
     end
@@ -482,8 +506,43 @@ func _imagen_traer(im: Imagenes, base: Url, src: String) -> Int
         end
         return imagen_cargar(fichero)
     end
+    if url_es_data(src)
+        fichero = "T:dashweb_img" + im.ficheros.length
+        im.ficheros.push(fichero)
+        if not imagen_data_a_fichero(src, fichero)
+            return 0
+        end
+        return imagen_cargar(fichero)
+    end
     ruta = url_fichero(direccion)
     return imagen_cargar(ruta)
+end
+
+# Lo que lleva una dirección data: (imágenes y fuentes dentro de la página o del CSS: data:image/png;base64,... o
+# data:image/svg+xml,%3Csvg...) escrito en fichero; false si no se puede (D68: base64_to_file)
+func imagen_data_a_fichero(direccion: String, fichero: String) -> Bool
+    if not url_es_data(direccion)
+        return false
+    end
+    coma = str_find(direccion, ",")
+    if coma < 0
+        return false
+    end
+    cabecera = str_lower(direccion[5:coma])
+    datos = url_deshacer(direccion[coma + 1:])
+    if str_ends(cabecera, ";base64")
+        return base64_to_file(datos, fichero) >= 0
+    end
+    return file_write_text(fichero, datos)
+end
+
+# Una pedida de una dirección data: ya está en su fichero (solo le falta decodificarse); false si no se pudo
+func _imagenes_data(im: Imagenes, p: Pedida) -> Bool
+    p.llegada = imagen_data_a_fichero(p.direccion, p.fichero)
+    if not p.llegada
+        im.por_src[p.src] = 0
+    end
+    return p.llegada
 end
 
 # width/height que faltan, con el tamaño real de la imagen; true si les faltaba

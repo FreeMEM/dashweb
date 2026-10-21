@@ -1041,6 +1041,8 @@ Main
     # las conexiones siguen abiertas para los recursos del mismo servidor (sin volver a negociar TLS)
     http_seguir = true
     cookies_cargar(FICHERO_COOKIES)
+    # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)
+    dos_requesters(false)
     if mui_app_begin("dashweb", "DASHWEB") == 0
         Print "dashweb necesita MUI (3.8 o 5) y un 68020"
     else

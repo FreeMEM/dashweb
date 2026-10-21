@@ -368,6 +368,10 @@ var _topaz: Int = 0
 # toques: marcados con dom_tocar, que tira lo medido en ellos y en los de fuera; tarea 37e6)
 var _maqueta_epoca: Int = 0
 var maqueta_conservar: Bool = false
+# (para la traza: bloques maquetados, medidas hechas y las que se sacaron de lo guardado, en la última maqueta)
+var maqueta_bloques: Int = 0
+var maqueta_medidas: Int = 0
+var maqueta_guardadas: Int = 0
 
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
     estilo_vw = ancho              # (vw: el ancho de donde se ve la página)
@@ -377,6 +381,9 @@ func maquetar(doc: Nodo, ancho: Int) -> Pagina
         _maqueta_epoca = _maqueta_epoca + 1
     end
     maqueta_conservar = false
+    maqueta_bloques = 0
+    maqueta_medidas = 0
+    maqueta_guardadas = 0
     var dibujos: [Dibujo] = []
     p = Pagina(dibujos, ancho, 0, 16777215)
     if _topaz == 0
@@ -612,6 +619,7 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         if n.med_pase == _maqueta_epoca and n.sub_cambio <= n.med_reloj and n.medidas.length < 24
             for md in n.medidas
                 if md.ancho == ancho and md.contenedor == contenedor and md.alto_def == _alto_definido and md.linea == m.ancho_linea and md.blanco0 == m.blanco and md.fz_w == fw and md.fz_h == fh
+                    maqueta_guardadas = maqueta_guardadas + 1
                     _medida_poner(m, md, x, y)
                     return md.alto
                 end
@@ -623,6 +631,7 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             n.med_reloj = dom_reloj
         end
         antes = m.pagina.dibujos.length
+        maqueta_medidas = maqueta_medidas + 1
         md = Medida(ancho, contenedor, _alto_definido, m.ancho_linea, m.blanco, fw, fh, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         r = _bloque_de_ya(m, n, x, y, ancho, contenedor)
         _medida_de(m, md, r, antes, x, y)
@@ -633,6 +642,7 @@ func _bloque_de(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
 end
 
 func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
+    maqueta_bloques = maqueta_bloques + 1
     _maqueta_nivel = _maqueta_nivel + 1
     antes = m.pagina.dibujos.length
     r = _bloque_en(m, n, x, y, ancho, contenedor)

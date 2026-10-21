@@ -415,7 +415,7 @@ tarea, con el estilo de Dash.
       un script que pase de N segundos y decirlo.
       (d) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
       la pieza más alta + 2 px en _poner_linea).
-      (e) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
+      [x] (e) (2026-10-21, D68) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
       fichero).
       (f) Las animaciones de CSS no corren en dashweb: lib/animacion.dash tiene su test, pero nadie lo importa ni
       llama a animar() (la 31q no está acabada aunque el README diga otra cosa).
@@ -3205,3 +3205,16 @@ Formato:
   en el paquete) con solo test_url y test_estilo*. Batería entera con todo ello: 72/72.
 - D68 (dos_requesters, base64_to_file) la lleva ahora este loop: cuando esté en main, dos_requesters(false) al
   arrancar y las data: (base64 a T: con base64_to_file; las de %XX con file_write_text) para imágenes y fuentes.
+
+### 2026-10-21 — Tarea 40e con D68 (direcciones data: en imágenes y fuentes)
+- src/dashweb.dash: `dos_requesters(false)` al arrancar (una ruta que no existe, como "data:...", falla sin el
+  requester "Inserte el volumen DATA").
+- lib/imagenes.dash `imagen_data_a_fichero`: data:...;base64, con `base64_to_file` y data:..., con %XX deshechos y
+  `file_write_text`; las <img>, fondos, carteles y @font-face con data: se escriben en su fichero de T: y entran en
+  la cola ya llegados (solo les falta decodificarse). lib/url.dash: `url_es_data` y `url_deshacer` (públicas).
+- tests/test_imagenes_data.dash. eldiario.es en la RTG: 4 imágenes data: (SVG vacíos de hueco) decodificadas.
+- Fallo de Dash encontrado: base64_to_file con textos en variables los deja escapados (--memcheck: 2 strings por
+  llamada; con literales, 0): arreglado por la sesión dash (D68b, d39d8d9).
+- La traza de cada maqueta del JS cuenta bloques, medidas hechas y guardadas: un cambio pequeño maqueta la página
+  entera (~2600 bloques, 1,4-1,7 s en pre.opentimetrack.com); el montaje de 12 s, 10.058 bloques y 4344 medidas.
+- Batería con Dash d39d8d9: 73/73; freemem.space entera en 22.361 ms.

@@ -650,7 +650,7 @@ func documento_al_dia(d: Documento) -> Bool
         if parte
             de = "de lo cambiado"
         end
-        traza("el JavaScript hizo " + cuantos + " cambios: estilo (" + de + ") y maqueta otra vez en " + (time_ms() - t0) + " ms")
+        traza("el JavaScript hizo " + cuantos + " cambios: estilo (" + de + ") y maqueta otra vez en " + (time_ms() - t0) + " ms (" + maqueta_bloques + " bloques, " + maqueta_medidas + " medidas y " + maqueta_guardadas + " guardadas)")
     end
     return true
 end
