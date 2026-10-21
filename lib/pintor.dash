@@ -892,30 +892,42 @@ func _redondo_pintar(d: Dibujo, x: Int, y: Int, cx0: Int, cy0: Int, cx1: Int, cy
         abajo_r = br
     end
     g = d.estilo
-    f = -1
-    while f < h - 1
+    # (solo las filas que se ven)
+    f = cy0 - y - 1
+    if f < -1
+        f = -1
+    end
+    ultima = h - 1
+    if cy1 - y < ultima
+        ultima = cy1 - y
+    end
+    while f < ultima
         f = f + 1
         yy = y + f
-        if yy < cy0 or yy > cy1
-            continue
-        end
         if f >= arriba and f < h - abajo_r and (g == 0 or (f >= g and f < h - g))
-            # el medio: de una vez
+            # el medio: de una vez (con borde, sus dos lados; antes fila a fila, un 9 % del tiempo al bajar por
+            # pre.opentimetrack.com; tarea 37e6)
+            hasta = h - abajo_r - 1
+            if g > 0 and h - g - 1 < hasta
+                hasta = h - g - 1
+            end
+            if hasta > ultima
+                hasta = ultima
+            end
             if g == 0
-                hasta = h - abajo_r - 1
-                if y + hasta > cy1
-                    hasta = cy1 - y
-                end
                 if alfa > 0
                     _mezcla_recortada(x, yy, w, hasta - f + 1, cx0, cy0, cx1, cy1, d.color, alfa)
                 else
                     _rect_recortado(x, yy, w, hasta - f + 1, cx0, cy0, cx1, cy1, lapiz)
                 end
-                f = hasta
-                continue
+            elif alfa > 0
+                _mezcla_recortada(x, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, d.color, alfa)
+                _mezcla_recortada(x + w - g, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, d.color, alfa)
+            else
+                _rect_recortado(x, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, lapiz)
+                _rect_recortado(x + w - g, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, lapiz)
             end
-            _tramo(x, x + g - 1, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
-            _tramo(x + w - g, x + w - 1, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
+            f = hasta
             continue
         end
         izq = _entra_izq(tl, bl, h, f)

@@ -2,7 +2,7 @@
 # en el orden -1, 1, 2 (la de -1, debajo del fondo del contenedor, que no está posicionado). overflow:hidden:
 # una caja de 50 px dentro de otra de 20 px de alto no se ve más abajo de los 20 px (se pinta en una ventana y se
 # leen los lápices: rojo dentro, el fondo debajo). border-radius (tarea 31f): una caja roja de 60x40 con radio
-# 20: la esquina de arriba a la izquierda es del fondo, el medio rojo; con borde de 4 px, el centro sin rellenar.
+# 20: la esquina de arriba a la izquierda es del fondo, el medio rojo; con borde de 4 px, el centro sin rellenar y los dos lados rojos.
 # Sin z-index, lo posicionado se pinta después de lo que no lo está y en el orden del árbol (una absoluta antes que
 # la relativa que va detrás; la estática, antes que las dos), CSS 2.1 apéndice E (tarea 37f2).
 # memcheck
@@ -11,7 +11,7 @@
 # expect-out: dentro rojo: true
 # expect-out: debajo rojo: false
 # expect-out: esquina rojo: false (medio true)
-# expect-out: borde: true true false
+# expect-out: borde: true true false true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/pintor.dash"
@@ -65,6 +65,6 @@ Main
     # la caja redondeada: y de 60 a 99 (40 + 20 de las de antes), x de 150 a 209
     Print "esquina rojo: " + (gfx_pixel_read(x0 + 151, y0 + 61) == rojo) + " (medio " + (gfx_pixel_read(x0 + 180, y0 + 80) == rojo) + ")"
     # la del borde: y de 100 a 139
-    Print "borde: " + (gfx_pixel_read(x0 + 152, y0 + 120) == rojo) + " " + (gfx_pixel_read(x0 + 180, y0 + 101) == rojo) + " " + (gfx_pixel_read(x0 + 180, y0 + 120) == rojo)
+    Print "borde: " + (gfx_pixel_read(x0 + 152, y0 + 120) == rojo) + " " + (gfx_pixel_read(x0 + 180, y0 + 101) == rojo) + " " + (gfx_pixel_read(x0 + 180, y0 + 120) == rojo) + " " + (gfx_pixel_read(x0 + 207, y0 + 120) == rojo)
     W.close
 end

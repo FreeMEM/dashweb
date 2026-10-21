@@ -350,6 +350,12 @@ tarea, con el estilo de Dash.
            que entran (React monta secciones): cada elemento se maqueta ~6 veces por las medidas de las cajas flex y
            cada bloque cuesta ~0,7 ms. Idea: rehacer solo la parte que cambió cuando la caja de su contenedor no cambia
            de tamaño (maqueta por trozos), o medir min/max-content sin maquetar.
+           (2026-10-21: lo medido se guarda de una maqueta a otra, 37e6 (4-5): al bajar casi todas en 1,6-3 s; quedan
+           los montajes grandes, 5-12 s.)
+      [ ] 37e7. Repintar solo lo que cambia: cada fotograma de una animación del JS pinta toda la vista (~40 ms en el
+           emulador, 2300 pintadas al bajar; pintar es ya el 29,5 % y la maqueta el 18 %). La ruta ligera sabe qué
+           dibujos movió: pintar solo la unión de sus rectángulos de antes y de después (puede necesitar en Dash
+           repintar una parte del lienzo de MUI: tarea D si falta).
       [x] 37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
       [x] 37f2. Lo que queda al comparar la portada de pre.opentimetrack.com con Chrome: la tarjeta girada (rotate: -1.2deg
@@ -3146,3 +3152,14 @@ Formato:
 - El usuario quería ver qué dashweb tiene en CoffinOS: la ventana "Acerca de..." (menú Proyecto, Amiga+?) dice
   "dashweb 0.3.0-dev" (DASHWEB_VERSION en src/dashweb.dash) y la fecha y hora en que se compiló. Comprobado en el
   emulador con MUI 3.8 (sys32rtg38) abriéndola desde el menú. Copiado a Traspaso (10:51).
+
+### 2026-10-21 — Tarea 37e6, sexta parte (pintar: lo que pesa ahora)
+- Perfil al bajar con 37e6 (4-5): la maqueta ya es el 18 %; pintar el 29,5 % (2293 pintadas de toda la vista, la
+  mayoría fotogramas de las animaciones del JS): `_mezcla_recortada` (fondos semitransparentes) 12 %, `_tramo`
+  (cajas redondeadas fila a fila, 945.660 llamadas) 9 %, `maqueta_pega_dy` 1,6 %.
+- lib/pintor.dash `_redondo_pintar`: solo recorre las filas que se ven y pinta los dos lados del borde del medio de
+  una vez. Poco: de 40,2 a 39,4 ms por pintada; las filas de las esquinas (píldoras rounded-full: todo esquina)
+  siguen una a una. Captura igual salvo el reloj; test_maqueta_capas mira también el lado derecho del borde.
+- Lo que daría más: repintar solo lo que cambia (la ruta ligera sabe qué dibujos movió) en vez de toda la vista
+  en cada fotograma: apuntado como 37e7.
+- Batería: 72/72.
