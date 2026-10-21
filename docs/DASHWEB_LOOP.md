@@ -3083,3 +3083,12 @@ Formato:
   (fuente, estilo, text-transform, letter-spacing): al maquetarlo otra vez (las medidas flex lo hacen ~6 veces) no
   se recorre el texto ni se mide con la fuente. Del 9,1 al 7,8 %; las maquetas al bajar siguen en 6-13 s.
 - Batería: 71/71; freemem.space entera en 22.989 ms.
+
+### 2026-10-21 — Memoria de dashweb (pregunta del usuario) y D66
+- El ejecutable: 3.104.676 de código, 235.984 de datos y 232.880 de bss (3,4 MB al cargarse).
+- dashweb escribe con TRAZA la memoria libre al empezar, y en la línea "entera en" la libre al final y la del
+  JavaScript. Máquina rtg (3.2, 128 MB): freemem.space gasta entre 28 y 36 MB según la vuelta, de ellos solo 1,6 MB
+  el JavaScript. Falta saber en qué se van los otros ~27 MB (¿imágenes descodificadas, bitmaps de la ventana,
+  fuentes?): en un A1200 con 8 MB de Fast no cabe.
+- Con D66 (802471e) las maquetas al bajar por pre.opentimetrack.com: 1516 3018 12126 5175 6987 9683 6238 10969
+  6122 8199 9110 10348 6670 9328 7449 ms; sin cambio claro frente a la medida anterior.

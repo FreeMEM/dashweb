@@ -686,7 +686,11 @@ func tic(w: Ventana)
     elif w.actual != nil and w.carga == nil and str_starts(mui_get_text(w.v.estado), "Imágenes")
         dw_estado(w, "Listo")
         # (en la salida: para medir la página entera, con sus imágenes)
-        Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms"
+        kb_js = 0
+        if w.actual.js != 0
+            kb_js = js_memoria(w.actual.js) / 1024
+        end
+        Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB)"
     end
     if w.aviso_scroll
         avisar_desplazamiento(w)
@@ -1002,6 +1006,7 @@ Main
             if arg(i) == "TRAZA"
                 traza_activa = true
                 traza_t0 = time_ms()
+                traza("memoria libre al empezar " + mem_total() / 1024 + " KB")
             elif arg(i) == "GCSIEMPRE"
                 js_gc_siempre(true)
             else
