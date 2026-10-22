@@ -447,6 +447,10 @@ func _css_sel_atributo(t: String) -> SelAtributo
     if valor.length >= 2 and (str_starts(valor, "\"") or str_starts(valor, "'"))
         valor = valor[1:valor.length - 1]
     end
+    # con escapes, lo que dicen: [class=second\ two] es "second two" (Acid2)
+    if str_find(valor, "\\") >= 0
+        valor = css_desescapar(valor)
+    end
     return SelAtributo(nombre, op, valor)
 end
 

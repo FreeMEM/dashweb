@@ -14,6 +14,7 @@
 # expect-out: parser: 2em 1em | quirks: 200
 # expect-out: nariz: 168x48
 # expect-out: barbilla: 12
+# expect-out: cuarta: 48x12 | 96x12
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -77,4 +78,11 @@ Main
     estilo_aplicar(e4, estilo_hojas(e4, "http://x/"))
     maquetar(e4, 400)
     Print "barbilla: " + jsdom_selector(e4, ".chin", false)[0].caja_h
+    cuarta = "<style>body { margin: 0; font: 12px sans-serif } [class~=one].first.one { position: absolute; top: 0; margin: 36px 0 0 60px; padding: 0; border: black 2em; border-style: none solid } [class~=one][class~=first] [class=second\\ two][class=\"second two\"] { float: right; width: 48px; height: 12px; background: yellow; margin: 0; padding: 0 }</style>"
+    e5 = dom_desde_html5("<!DOCTYPE html><html><head>" + cuarta + "</head><body><div style='position:relative'><blockquote class=\"first one\"><address class=\"second two\"></address></blockquote></div></body></html>")
+    estilo_aplicar(e5, estilo_hojas(e5, "http://x/"))
+    maquetar(e5, 400)
+    ad = jsdom_selector(e5, "address", false)[0]
+    bq = jsdom_selector(e5, "blockquote", false)[0]
+    Print "cuarta: " + ad.caja_w + "x" + ad.caja_h + " | " + bq.caja_w + "x" + bq.caja_h
 end

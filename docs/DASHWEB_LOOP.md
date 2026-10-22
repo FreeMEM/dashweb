@@ -3432,3 +3432,10 @@ Formato:
 - La barbilla de Acid2 (texto de 2px/4px en un bloque con line-height 1em de 12 px) mide 12 como en Chrome (antes
   4). test_acid2: "barbilla: 12". Las 16 de maqueta pasan igual.
 - Batería: 79/79 (1689 s).
+
+### 2026-10-22 — Tarea 41a, sexta parte (la cuarta línea de Acid2: [class=second\ two])
+- lib/css.dash `_css_sel_atributo`: el valor de un selector de atributo con escapes se desescapa (sin comillas,
+  "second\ two" es "second two"); antes se comparaba con la barra y no casaba nada.
+- Con eso la cuarta línea de la cara sale como en Chrome: el <address> flotante de 48x12 y el <blockquote> absoluto
+  sin ancho encoge a él con sus bordes de 2em: 96x12 (el encogido ya iba). test_acid2: "cuarta: 48x12 | 96x12".
+- Batería: 79/79 (1690 s).

@@ -5,7 +5,7 @@
  {"pieza": "Parser de CSS (.parser)", "estado": "hecha", "nota": "41a (3): sin unidad, ';' suelto"},
  {"pieza": "Nariz: max-height", "estado": "hecha", "nota": "41a (4): 168x48 como Chrome"},
  {"pieza": "Barbilla: alto de línea del bloque", "estado": "hecha", "nota": "41a (5): el strut, 12 como Chrome"},
- {"pieza": "Segunda línea: selector con espacio escapado", "estado": "pendiente", "nota": "[class=second\\ two]"},
+ {"pieza": "Segunda línea: selector con espacio escapado", "estado": "hecha", "nota": "41a (6): el valor se desescapa"},
  {"pieza": "Frente: hijo más ancho que el padre", "estado": "pendiente", "nota": "se recorta a 8em"},
  {"pieza": "Ojos: floats detrás de bloques", "estado": "pendiente", "nota": "#eyes-c baja bajo el float"},
  {"pieza": "Sonrisa: floats anidados", "estado": "pendiente", "nota": "el ancho no sube"},
