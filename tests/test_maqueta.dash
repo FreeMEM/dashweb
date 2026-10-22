@@ -30,7 +30,7 @@
 # expect-out: T 4,251 [aaaa bbbb cccc ] c=0 e=0
 # expect-out: T 4,261 [dddd] c=ee e=1 ->y.html
 # expect-out: T 36,261 [.] c=0 e=0
-# expect-out: alto 280 fondo ffffff
+# expect-out: alto 276 fondo ffffff
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"

@@ -801,7 +801,10 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if _margen_absorbido(n)
         mt = 0
     elif _colapsa_arriba(n)
-        mt = _margen_colapsado(n, contenedor)
+        mt = _margen_arriba(n, contenedor)
+    end
+    if _colapsa_abajo(n)
+        mb = _margen_abajo(n, contenedor)
     end
     interior = ancho - ml - mr - bl - br - pl - pr
     if e.has("width") and e["width"] != "auto"
@@ -2505,7 +2508,10 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     cy = y
     var piezas: [Pieza] = []
     m.blanco = 0
+    # el margen que queda abajo de lo último (margen_previo: lo que suma; pend_*: los juntos, para juntar más)
     margen_previo = 0
+    pend_pos = 0
+    pend_neg = 0
     en_fila = false
     fila_y = 0
     fondo = 0
@@ -2523,8 +2529,14 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         lado = _flota(h)
         if lado != ""
             if piezas.length > 0
-                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+                dy = _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+                cy = cy + dy
                 piezas.clear()
+                if dy > 0
+                    margen_previo = 0
+                    pend_pos = 0
+                    pend_neg = 0
+                end
                 if en_fila and cy > fila_y
                     fila_y = cy
                 end
@@ -2583,7 +2595,6 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             if fy + alto > fondo
                 fondo = fy + alto
             end
-            margen_previo = 0
             continue
         end
         # un vídeo (<video>, el <iframe> de YouTube) va como una pieza aunque su CSS diga display: block
@@ -2593,51 +2604,103 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         # (overflow, flex, grid, tabla, una imagen...), o tras un inline-block que va como flotante, va debajo
         if bloque
             if piezas.length > 0
-                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+                dy = _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+                cy = cy + dy
                 piezas.clear()
-                margen_previo = 0
-            end
-            por_debajo = _pasa_por_debajo(h) and _todos_reales(flotantes)
-            if en_fila and not por_debajo
-                en_fila = false
-                if fondo > cy
-                    cy = fondo
+                if dy > 0
+                    margen_previo = 0
+                    pend_pos = 0
+                    pend_neg = 0
                 end
             end
-            if heredados != nil and _val(h.estilo, "clear", "none") != "none"
+            por_debajo = _pasa_por_debajo(h) and _todos_reales(flotantes)
+            # con clear, su borde de arriba no queda más arriba que el fondo de los flotantes (el margen no se
+            # suma a eso: es la holgura de 9.5.2); lo que es un contexto aparte va debajo, con su margen
+            limpia = _val(h.estilo, "clear", "none") != "none"
+            tope = -1
+            if en_fila and not por_debajo
+                en_fila = false
+                if limpia
+                    tope = fondo
+                elif fondo > cy
+                    cy = fondo
+                    margen_previo = 0
+                    pend_pos = 0
+                    pend_neg = 0
+                end
+            end
+            if heredados != nil and limpia
                 for f in heredados
-                    if f.y + f.alto > cy
-                        cy = f.y + f.alto
+                    if f.y + f.alto > tope
+                        tope = f.y + f.alto
                     end
                 end
             end
-            # márgenes de hermanos seguidos: cuenta el mayor, no la suma
-            mt = _margen_arriba(h, ancho)
-            solape = margen_previo
-            if mt < solape
-                solape = mt
+            # márgenes que se juntan (8.3.1): el de arriba con lo que queda abajo del anterior; el bloque va donde
+            # acaba el anterior (base) más lo juntado. Si su padre ya lleva su margen, ninguno
+            base = cy - margen_previo
+            absorbido = _margen_absorbido(h)
+            mt = 0
+            _acum_pos = pend_pos
+            _acum_neg = pend_neg
+            if not absorbido
+                mt = _margen_arriba(h, ancho)
+                _juntar_arriba(h, ancho)
             end
-            if solape < 0
-                solape = 0
+            yb = base + _acum_pos + _acum_neg - mt
+            holgura = false
+            if tope >= 0 and yb + mt < tope
+                yb = tope - mt
+                holgura = true
             end
             rodea = _flotantes_juntos(en_fila, flotantes, heredados)
             if rodea != nil and _pasa_por_debajo(h)
                 _flot_fuera = rodea
             end
             b0 = m.pagina.dibujos.length
-            cy = cy - solape + _bloque(m, h, x, cy - solape, ancho)
+            ocupa = _bloque(m, h, x, yb, ancho)
             _flot_fuera = nil
             if en_fila
                 # los flotantes se pintan encima del fondo del bloque que les pasa por debajo (CSS 2.1, apéndice E)
                 _flotantes_encima(m, flotantes, b0)
             end
-            margen_previo = _px(h.estilo, "margin-bottom", ancho)
+            # (vacío solo si de verdad no ocupa: su caja, sin márgenes, de alto 0)
+            # (uno que baja por clear tampoco: el clearfix tras unos flotantes los abarca)
+            if not holgura and ocupa - mt - _margen_abajo(h, ancho) == 0 and _vacio(h)
+                # vacío: sus dos márgenes se juntan con lo de antes y lo de después (o van en el del padre)
+                if not absorbido
+                    _acum_pos = pend_pos
+                    _acum_neg = pend_neg
+                    _juntar_arriba(h, ancho)
+                    _juntar_abajo(h, ancho)
+                    pend_pos = _acum_pos
+                    pend_neg = _acum_neg
+                end
+            else
+                cy = yb + ocupa
+                _acum_pos = 0
+                _acum_neg = 0
+                _juntar_abajo(h, ancho)
+                pend_pos = _acum_pos
+                pend_neg = _acum_neg
+                base = cy - pend_pos - pend_neg
+            end
+            margen_previo = pend_pos + pend_neg
+            cy = base + margen_previo
         else
             _piezas(m, h, n.estilo, piezas, "")
         end
     end
     if piezas.length > 0
-        cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+        dy = _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+        cy = cy + dy
+        if dy > 0
+            margen_previo = 0
+        end
+    end
+    # el margen que queda abajo se junta con el de n (8.3.1) y va fuera de él
+    if margen_previo != 0 and _colapsa_abajo(n)
+        cy = cy - margen_previo
     end
     if en_fila and fondo > cy
         cy = fondo
@@ -2706,88 +2769,238 @@ func _pasa_por_debajo(h: Nodo) -> Bool
     return true
 end
 
-# El margen de arriba de n se junta con el de su primer hijo de bloque (CSS 2.1 8.3.1): n es un bloque normal (no
-# flota, no va fuera del flujo, overflow visible, no es la raíz ni una caja de flex o grid) sin borde ni relleno
-# arriba, y antes del hijo no hay texto ni nada en línea. El margen que queda va fuera de n (tarea 41a2)
-func _colapsa_arriba(n: Nodo) -> Bool
-    return _primer_hijo_colapsa(n) != nil
+# Márgenes que se juntan (CSS 2.1 8.3.1, tarea 41a2): el de arriba de un bloque con el de su primer hijo de bloque, el
+# de abajo con el de su último hijo (si no tiene alto fijo) y los dos de un bloque vacío entre sí y con los de al
+# lado. De los juntos queda el mayor de los positivos más el menor de los negativos (_acum_pos, _acum_neg al juntar).
+var _acum_pos: Int = 0
+var _acum_neg: Int = 0
+
+func _acumular(v: Int)
+    if v > _acum_pos
+        _acum_pos = v
+    end
+    if v < _acum_neg
+        _acum_neg = v
+    end
 end
 
-func _primer_hijo_colapsa(n: Nodo) -> Nodo
-    var nada: Nodo = nil
+# n es un bloque normal cuyos márgenes pueden juntarse con los de sus hijos: no flota, no va fuera del flujo, overflow
+# visible, no es la raíz ni una caja de flex o grid (los que hacen un contexto aparte no juntan los suyos con los de
+# dentro)
+func _junta_hijos(n: Nodo) -> Bool
     if n.tipo != DOM_ELEMENTO or n.padre == nil or n.nombre == "html" or n.padre.tipo != DOM_ELEMENTO
-        return nada
+        return false
     end
     e = n.estilo
     d = _val(e, "display", "block")
     if (d != "block" and d != "list-item") or _flota(n) != "" or _fuera_del_flujo(n) or _reemplazado(n) or dom_es_video(n)
-        return nada
+        return false
+    end
+    if n.nombre == "button" or n.nombre == "fieldset"
+        return false
     end
     dp = _val(n.padre.estilo, "display", "block")
     if dp == "flex" or dp == "inline-flex" or dp == "grid" or dp == "inline-grid"
-        return nada
-    end
-    if _borde(e, "top") != 0 or _px(e, "padding-top", 0) != 0
-        return nada
+        return false
     end
     for k in ["overflow", "overflow-x", "overflow-y"]
         o = _val(e, k, "visible")
         if o != "visible" and o != ""
-            return nada
+            return false
         end
     end
-    if _val(e, "display", "") == "flow-root" or n.nombre == "button" or n.nombre == "fieldset"
-        return nada
+    return true
+end
+
+# Un hijo que no cuenta para juntar márgenes (comentario, oculto, fuera del flujo, blancos); 1 si es un bloque, 2 si
+# es otra cosa (texto, algo en línea, un flotante) que los separa
+func _hijo_margen(n: Nodo, h: Nodo) -> Int
+    if h.tipo == DOM_COMENTARIO or _oculto(h) or _fuera_del_flujo(h)
+        return 0
+    end
+    if h.tipo == DOM_TEXTO
+        ws = _val(n.estilo, "white-space", "normal")
+        if str_trim(h.texto) == "" and ws != "pre" and ws != "pre-wrap"
+            return 0
+        end
+        return 2
+    end
+    if _flota(h) != "" or not _es_bloque(h) or dom_es_video(h)
+        return 2
+    end
+    return 1
+end
+
+# Un bloque vacío: sin borde ni relleno arriba o abajo, sin alto, y dentro solo bloques vacíos; sus márgenes se tocan
+func _vacio(n: Nodo) -> Bool
+    if not _junta_hijos(n)
+        return false
+    end
+    e = n.estilo
+    if _borde(e, "top") != 0 or _borde(e, "bottom") != 0 or _px(e, "padding-top", 10000) != 0 or _px(e, "padding-bottom", 10000) != 0
+        return false
+    end
+    # (un % se mira contra 10000: aquí no se sabe el contenedor y solo importa si es 0)
+    hh = _val(e, "height", "auto")
+    if hh != "auto" and not str_ends(hh, "%") and _px(e, "height", 10000) != 0
+        return false
+    end
+    mh = _val(e, "min-height", "0")
+    if mh != "auto" and _px(e, "min-height", 10000) != 0
+        return false
+    end
+    if _val(e, "aspect-ratio", "auto") != "auto"
+        return false
     end
     for h in _hijos(n)
-        if h.tipo == DOM_COMENTARIO or _oculto(h) or _fuera_del_flujo(h)
-            continue
+        t = _hijo_margen(n, h)
+        if t == 2 or (t == 1 and not _vacio(h))
+            return false
         end
-        if h.tipo == DOM_TEXTO
-            if str_trim(h.texto) == "" and _val(e, "white-space", "normal") != "pre" and _val(e, "white-space", "normal") != "pre-wrap"
-                continue
+    end
+    return true
+end
+
+# El margen de arriba de n se junta con los de sus primeros hijos: sin borde ni relleno arriba y el primero que
+# cuenta es un bloque
+func _colapsa_arriba(n: Nodo) -> Bool
+    if not _junta_hijos(n)
+        return false
+    end
+    if _borde(n.estilo, "top") != 0 or _px(n.estilo, "padding-top", 10000) != 0
+        return false
+    end
+    for h in _hijos(n)
+        t = _hijo_margen(n, h)
+        if t == 1 and _val(h.estilo, "clear", "none") == "none"
+            return true
+        end
+        if t != 0
+            return false
+        end
+    end
+    return false
+end
+
+# El de abajo, con los de sus últimos hijos: sin borde ni relleno abajo, alto auto y el último que cuenta, un bloque
+func _colapsa_abajo(n: Nodo) -> Bool
+    if not _junta_hijos(n)
+        return false
+    end
+    e = n.estilo
+    if _borde(e, "bottom") != 0 or _px(e, "padding-bottom", 10000) != 0
+        return false
+    end
+    hh = _val(e, "height", "auto")
+    if hh != "auto" and not str_ends(hh, "%")
+        return false
+    end
+    mh = _val(e, "min-height", "0")
+    if mh != "auto" and _px(e, "min-height", 10000) != 0
+        return false
+    end
+    if _val(e, "aspect-ratio", "auto") != "auto"
+        return false
+    end
+    hs = _hijos(n)
+    i = hs.length - 1
+    while i >= 0
+        t = _hijo_margen(n, hs[i])
+        if t == 1
+            return true
+        end
+        if t != 0
+            return false
+        end
+        i = i - 1
+    end
+    return false
+end
+
+# Junta en _acum_pos/_acum_neg el margen de arriba de n y los que se le juntan
+func _juntar_arriba(n: Nodo, contenedor: Int)
+    _acumular(_px(n.estilo, "margin-top", contenedor))
+    if not _colapsa_arriba(n)
+        return
+    end
+    for h in _hijos(n)
+        t = _hijo_margen(n, h)
+        if t == 2
+            return
+        end
+        if t == 1
+            _juntar_arriba(h, contenedor)
+            if not _vacio(h)
+                return
             end
-            return nada
+            _juntar_abajo(h, contenedor)
         end
-        if _flota(h) != "" or not _es_bloque(h) or dom_es_video(h) or _val(h.estilo, "clear", "none") != "none"
-            return nada
-        end
-        return h
     end
-    return nada
 end
 
-# El margen de arriba de n junto con los que se le juntan (el mayor de los positivos más el menor de los negativos)
-func _margen_colapsado(n: Nodo, contenedor: Int) -> Int
-    pos = 0
-    neg = 0
-    k = n
-    vueltas = 0
-    while k != nil and vueltas < 50
-        v = _px(k.estilo, "margin-top", contenedor)
-        if v > pos
-            pos = v
-        end
-        if v < neg
-            neg = v
-        end
-        k = _primer_hijo_colapsa(k)
-        vueltas = vueltas + 1
+# Lo mismo con el de abajo
+func _juntar_abajo(n: Nodo, contenedor: Int)
+    _acumular(_px(n.estilo, "margin-bottom", contenedor))
+    if not _colapsa_abajo(n)
+        return
     end
-    return pos + neg
+    hs = _hijos(n)
+    i = hs.length - 1
+    while i >= 0
+        h = hs[i]
+        t = _hijo_margen(n, h)
+        if t == 2
+            return
+        end
+        if t == 1
+            _juntar_abajo(h, contenedor)
+            if not _vacio(h)
+                return
+            end
+            _juntar_arriba(h, contenedor)
+        end
+        i = i - 1
+    end
 end
 
-# El margen de arriba de n ya lo pone su padre (se ha juntado con el suyo)
-func _margen_absorbido(n: Nodo) -> Bool
-    return n.padre != nil and _primer_hijo_colapsa(n.padre) == n
-end
-
-# El margen de arriba de n tal como cuenta frente a su hermano de antes
+# El margen de arriba de n con los que se le juntan
 func _margen_arriba(n: Nodo, contenedor: Int) -> Int
-    if _colapsa_arriba(n)
-        return _margen_colapsado(n, contenedor)
+    if not _colapsa_arriba(n)
+        return _px(n.estilo, "margin-top", contenedor)
     end
-    return _px(n.estilo, "margin-top", contenedor)
+    _acum_pos = 0
+    _acum_neg = 0
+    _juntar_arriba(n, contenedor)
+    return _acum_pos + _acum_neg
+end
+
+# El de abajo
+func _margen_abajo(n: Nodo, contenedor: Int) -> Int
+    if not _colapsa_abajo(n)
+        return _px(n.estilo, "margin-bottom", contenedor)
+    end
+    _acum_pos = 0
+    _acum_neg = 0
+    _juntar_abajo(n, contenedor)
+    return _acum_pos + _acum_neg
+end
+
+# El margen de arriba de n ya lo pone su padre: n es su primer bloque (o va tras otros vacíos) y se juntan
+func _margen_absorbido(n: Nodo) -> Bool
+    p = n.padre
+    if p == nil or not _colapsa_arriba(p)
+        return false
+    end
+    for h in _hijos(p)
+        if h == n
+            return true
+        end
+        t = _hijo_margen(p, h)
+        if t == 2 or (t == 1 and not _vacio(h))
+            return false
+        end
+    end
+    return false
 end
 
 # Los dibujos de los flotantes, detrás de lo dibujado desde b0 (el bloque que les ha pasado por debajo): así se
@@ -3614,6 +3827,12 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     end
     desplaza = 0
     alinea = e["text-align"]
+    # al medir un ancho (lo que ocupa de izquierda a derecha), una línea alineada a la derecha va a la izquierda: con
+    # otra a la izquierda en otro hijo mediría el ancho entero (los ojos de Acid2). Las centradas, no (con ellas, la
+    # ficha de Wikipedia, una tabla flotante, salía del ancho entero)
+    if _midiendo > 0 and alinea == "right"
+        alinea = "left"
+    end
     if alinea == "center"
         desplaza = (ancho - total) / 2
     elif alinea == "right"

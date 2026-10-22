@@ -1,0 +1,57 @@
+# Test: Acid2 entera (tests/pages/acid2.html, de acid2.acidtests.org) maquetada a 944 px: las cajas de la cara (x, y
+# desde #top, ancho y alto) como en Chrome 944x630 (getBoundingClientRect, 2026-10-22). Márgenes que se juntan entre
+# padre e hijos y a través de .empty (8.3.1), la holgura de la sonrisa con clear (9.5.2) y el ancho que encoge de .eyes
+# (absoluto: sus líneas alineadas a la derecha no lo ensanchan). Falta: ul (Chrome 48 de ancho).
+# emu-server: http.py 40853
+# memcheck
+# expect-out: #top 72,0 800x72
+# expect-out: .picture 36,72 908x226
+# expect-out: .forehead 96,132 120x12
+# expect-out: .eyes 84,144 144x24
+# expect-out: .nose 72,168 168x48
+# expect-out: .empty 123,147 734x0
+# expect-out: .smile 84,204 812x24
+# expect-out: .smile div 84,216 144x24
+# expect-out: .chin 96,240 120x12
+# expect-out: .parser-container 48,252 884x12
+# expect-out: .image-height-test 48,276 884x10
+# expect-out: blockquote 108,120 96x12
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/http.dash"
+import "../lib/documento.dash"
+
+func busca(n: Nodo, sel: String) -> Nodo
+    var nada: Nodo = nil
+    if n.tipo == DOM_ELEMENTO
+        if sel == "#" + dom_atributo(n, "id") or sel == "." + dom_atributo(n, "class") or sel == n.nombre
+            return n
+        end
+    end
+    for h in n.hijos
+        r = busca(h, sel)
+        if r != nil
+            return r
+        end
+    end
+    return nada
+end
+
+Main
+    r = http_get("http://127.0.0.1:40853/pages/acid2.html", 10000)
+    doc = dom_desde_html5(http_texto(r))
+    estilo_aplicar(doc, estilo_hojas(doc, "http://127.0.0.1:40853/pages/acid2.html"))
+    p = maquetar(doc, 944)
+    top = busca(doc, "#top")
+    y0 = top.caja_y
+    for s in ["#top", ".picture", ".forehead", ".eyes", ".nose", ".empty", ".smile", ".smile div", ".chin", ".parser-container", ".image-height-test", "blockquote"]
+        n = busca(doc, s)
+        if s == ".smile div"
+            n = busca(doc, ".smile").hijos[0]
+        end
+        if n == nil
+            Print s + " ?"
+        else
+            Print s + " " + n.caja_x + "," + (n.caja_y - y0) + " " + n.caja_w + "x" + n.caja_h
+        end
+    end
+end

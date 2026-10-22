@@ -388,6 +388,21 @@ tarea, con el estilo de Dash.
       después en Amiberry (en FS-UAE no se puede). docs/ARQUITECTURA.md lo rehace la sesión dashweb-f7: no tocarlo,
       apuntar el cambio en la bitácora. Va delante de la 38 salvo que el usuario diga otra cosa: es
       pequeña y acelera todas las cargas.
+- [ ] 42. **Lo que el usuario vio en CoffinOS (2026-10-22, pantalla de unos 1650 px, con la compilación de las 00:50:
+      sin la 41a3).** Va antes que lo que queda de la 41. Probar con una pantalla igual de ancha (modo de uaegfx mayor
+      en una copia de sys32rtg38) y comparar con Chrome:
+      a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
+         Leer/Discusión/Editar pisadas. Mirar si con la v0.3.0-alfa (ya con la 41a3) sigue.
+      b. google.com: el icono de las aplicaciones (nueve puntos) sale como nueve círculos enormes.
+      c. Resultados de Google: el logo se parte ("Googl" y la "e" debajo); el título y la dirección de cada resultado
+         van en la misma línea (la dirección debe ir aparte).
+      d. meneame.net: la columna de las noticias sale vacía (solo la barra de la derecha).
+      e. xataka.com: "Aceptar y Cerrar" del aviso de cookies no hace nada; las imágenes de la portada no salen (cajas
+         vacías).
+      f. amigaworld.net (comparada con Chrome): letra más grande, enlaces subrayados, temas centrados. Causa probable: su
+         hoja va en `<style><!-- @import url(.../style.css); --></style>` y dashweb no salta `<!--`/`-->` (CDO/CDC de
+         CSS 2.1 4.1.1) y pierde el @import (body 12px, a sin subrayado). Ojo también con "color;#000000; font-size:
+         12px;" en esa hoja: una declaración rota no debe llevarse la siguiente.
 - [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
       de HTML, CSS y JavaScript, y añadirlo. Por orden:
       41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
@@ -3553,3 +3568,26 @@ Formato:
 - Batería: 82/83 (1775 s): test_jsdom_geometria esperaba el sticky con su <p> 16 px más abajo (sticky 10 26); su
   margen ahora va fuera del sticky y Chrome da "sticky 10 10" (comprobado): expectativa corregida, pasa.
 - es.wikipedia.org/wiki/Amiga_1200 y freemem.space en el emulador (RTG, MUI 3.8): iguales que antes.
+
+### 2026-10-22 — Tarea 41a2, cuarta parte (Acid2 entera: márgenes vacíos, clear y el ancho de .eyes)
+- Medida Acid2 entera (tests/pages/acid2.html) contra Chrome a 944 px: lo que separaba la frente de la sonrisa eran
+  márgenes que se juntan y dashweb sumaba.
+- lib/maqueta.dash, márgenes (8.3.1) como conjuntos (`_acum_pos`/`_acum_neg`: el mayor positivo más el menor
+  negativo): el de abajo del último hijo se junta con el de su padre (`_colapsa_abajo`, alto auto) y va fuera de él;
+  un bloque vacío (`_vacio`: sin borde, relleno ni alto, solo vacíos dentro) junta sus dos márgenes con los de al lado
+  (.empty de Acid2: 48, 75, 75 y -72 dan 3); un flotante en medio ya no corta la unión. `_contenido` lleva el borde
+  de abajo del anterior (base) y lo que queda por juntar (pend_pos/pend_neg).
+- clear: el borde de arriba no queda por encima del fondo de los flotantes, sin sumarle el margen (la holgura de
+  9.5.2; la sonrisa en 204 como en Chrome, no en 264). Lo que no es clear y es un contexto aparte, como antes.
+- Al medir un ancho, una línea alineada a la derecha va a la izquierda: #eyes-a (text-align: right) ensanchaba .eyes
+  a 884 (Chrome 144). Con las centradas también, la ficha de Wikipedia (tabla flotante) salía del ancho entero: solo
+  las de la derecha.
+- Comprobado en páginas: freemem.space se quedaba en 253 px de alto. Su columna son dos flotantes y un clearfix
+  (::after vacío con clear): lo tomaba por vacío y no bajaba, y el padre no abarcaba los flotantes. Uno que baja por
+  clear ya no es vacío; y en `_vacio` los % (relleno, alto) se miran contra 10000, no contra 0 (un padding-bottom en
+  % no es vacío). Caso nuevo en test_maqueta_margenes. Wikipedia y freemem.space, como antes.
+- Batería: 84/84 (1860 s).
+- tests/test_acid2_pagina.dash: doce cajas de la cara iguales que en Chrome. Falta ul (276 de ancho, Chrome 48: la
+  celda anónima de .second-part sale de 240). test_maqueta: alto 276 (el margen de abajo del último p con el de body).
+- Usuario: capturas de CoffinOS (Wikipedia, Google, Menéame, Xataka) con la compilación de las 00:50; puesta en
+  Traspaso la v0.3.0-alfa publicada. Lo visto, a la tarea nueva 42.
