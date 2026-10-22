@@ -3415,3 +3415,12 @@ Formato:
   cuelga); la línea con inline-blocks sale 2 px más alta que en Chrome.
 - Batería: 66/78 con 12 TIMEOUT en cascada en el grupo de red (compilaba a la vez); repetidas por grupos, todas
   pasan (http_volcar, imagen 4/4, jquery, js_fetch, jsdom 6/6, recursos, red, video_cartel, youtube).
+
+### 2026-10-22 — El blanco del final de una palabra cuelga (CSS Text 3, 4.1.3)
+- Una palabra al final de un texto lleva su blanco pegado ("bbb "); al ver si cabía en la línea contaba también ese
+  espacio y la palabra bajaba a la siguiente aunque sin él cupiera justa. En los navegadores ese blanco cuelga.
+- lib/maqueta.dash `_cuelga`: en `_lineas`, una pieza de texto que acaba en blanco cabe si sin él cabe.
+- tests/test_maqueta_cuelga.dash: en 56 px "aaa bbb" seguido de " <b>c</b>": "bbb" en la primera línea (antes,
+  en la segunda).
+- Batería: 79/79 (1688 s).
+

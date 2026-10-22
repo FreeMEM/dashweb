@@ -3125,7 +3125,8 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
         if linea.length == 0
             hueco = 0
         end
-        if linea.length > 0 and ocupado + hueco + p.ancho > ancho - sangria
+        if linea.length > 0 and ocupado + hueco + p.ancho > ancho - sangria and ocupado + hueco + p.ancho - _cuelga(p) > ancho - sangria
+            # (el blanco del final de una palabra cuelga fuera de la línea: no cuenta para ver si cabe)
             # se corta antes de la última pieza no pegada: las pegadas pasan juntas a la siguiente
             k = linea.length
             if p.pegada
@@ -3164,6 +3165,17 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
         cy = cy + _poner_linea(m, linea, x + sangria, cy, ancho - sangria, e, 0)
     end
     return cy - y
+end
+
+# Lo que ocupa el blanco del final de una pieza de texto ("palabra "), que al final de la línea no cuenta (CSS Text 3,
+# 4.1.3: los espacios del final cuelgan); 0 si no acaba en blanco
+func _cuelga(p: Pieza) -> Int
+    if p.fuente == 0 or p.caja != nil or not str_ends(p.texto, " ")
+        return 0
+    end
+    font_use(p.fuente)
+    font_style(p.estilo)
+    return font_text_width(" ") + p.espaciado
 end
 
 # overflow-wrap (o word-wrap): break-word o anywhere, o word-break: break-all o break-word: una palabra más
