@@ -2076,7 +2076,12 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
         end
     end
     for p in con_var
-        r = _resolver_var(vars[p], vars, 0)
+        # (una --x que se nombra a sí misma, directamente o por otras, es un ciclo: inválida, como si no estuviera;
+        # Wikipedia pone --font-size-medium: var(--font-size-medium, 1rem) y su texto salía de 0 px)
+        r = VAR_INVALIDA
+        if not _var_cicla(p, vars[p], vars, 0)
+            r = _resolver_var(vars[p], vars, 0)
+        end
         if r != vars[p]
             if not propias
                 var copia2: {String: String} = {}
@@ -2119,12 +2124,19 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
         elif p != "font-size"
             if str_find(v, "var(") >= 0
                 v = _resolver_var(v, vars, 0)
+                if str_trim(v) == ""
+                    # un var() sin valor ni respaldo: inválido al calcular, como si no estuviera (lo heredado se queda)
+                    continue
+                end
             end
             e[p] = v
         end
     end
     if ganadoras.has("font-size")
-        e["font-size"] = "" + estilo_tamano(_resolver_var(ganadoras["font-size"].valor, vars, 0), estilo_px(padre["font-size"], 0, 0)) + "px"
+        tam = _resolver_var(ganadoras["font-size"].valor, vars, 0)
+        if str_trim(tam) != ""
+            e["font-size"] = "" + estilo_tamano(tam, estilo_px(padre["font-size"], 0, 0)) + "px"
+        end
     end
     _calc_vars = vars
     return e
@@ -2176,10 +2188,36 @@ func _resolver_var(v: String, e: {String: String}, nivel: Int) -> String
         nombre = str_trim(v[p + 4:fin])
     end
     valor = respaldo
-    if e.has(nombre)
+    if e.has(nombre) and e[nombre] != VAR_INVALIDA
         valor = e[nombre]
     end
     return _resolver_var(v[:p] + valor + v[fin + 1:], e, nivel + 1)
+end
+
+# El valor de una --x en un ciclo (CSS Variables 1, 2.3): no vale, y quien la usa toma su respaldo
+const VAR_INVALIDA = "<var-invalida>"
+
+# ¿El valor v de la --x nombre la nombra a ella, directamente o por las --x que usa?
+func _var_cicla(nombre: String, v: String, vars: {String: String}, nivel: Int) -> Bool
+    if nivel > 8
+        return false
+    end
+    i = str_find(v, "var(")
+    while i >= 0
+        j = i + 4
+        while j < v.length and str_code(v, j) != 44 and str_code(v, j) != 41
+            j = j + 1
+        end
+        otra = str_trim(v[i + 4:j])
+        if otra == nombre
+            return true
+        end
+        if vars.has(otra) and str_find(vars[otra], "var(") >= 0 and _var_cicla(nombre, vars[otra], vars, nivel + 1)
+            return true
+        end
+        i = str_find_from(v, "var(", i + 4)
+    end
+    return false
 end
 
 # El estilo de n::before o n::after si alguna regla le da un content que se pinta; nil si no

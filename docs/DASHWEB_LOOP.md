@@ -397,7 +397,7 @@ tarea, con el estilo de Dash.
            acortan para dejarle sitio (el texto rodea la imagen flotante; hoy todo lo que no flota va debajo). Con
            eso los ojos de Acid2 (#eyes-c sobre #eyes-b). Y el colapso del margen de arriba de un hijo con el de su
            padre (8.3.1; la sonrisa de Acid2 queda 3 px baja). Comprobar con páginas de verdad antes y después.
-      41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
+      [x] 41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
            unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
            Wikipedia lo da (font-size con clamp/var/calc, line-height...).
       41b. Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
@@ -3499,3 +3499,15 @@ Formato:
   debajo, a todo el ancho), a la derecha (acaban antes de x 100) y una palabra que no cabe al lado (baja).
 - Batería: 81/81 (1728 s). es.wikipedia.org/wiki/Amiga_1200 sale igual antes y después de este cambio (el texto
   aplastado ya pasaba antes: tarea nueva 41a3); con las tablas de CSS (41a, octava parte) ya sale la ficha con la foto.
+
+### 2026-10-22 — Tarea 41a3 (Wikipedia: el texto salía de 0 px)
+- Vector 2022 pone en <html> --font-size-medium: var(--font-size-medium, 1rem) y .vector-body { font-size:
+  var(--font-size-medium) }. Una --x que se nombra a sí misma es un ciclo (CSS Variables 1, 2.3): inválida. dashweb
+  daba vueltas hasta el tope y dejaba el var() sin resolver: font-size 0 px y el artículo entero aplastado.
+- lib/estilo.dash: `_var_cicla` (directo o por otras --x): la --x queda VAR_INVALIDA y quien la usa toma su respaldo;
+  un var() que se queda sin valor ni respaldo no se aplica (font-size y lo heredado se quedan como el padre).
+- lib/maqueta.dash `_con_mascara`: una caja con mask-image (url) no pinta su fondo (los iconos de Wikipedia son un
+  fondo del color del texto recortado por un SVG; sin máscaras salían cuadrados negros al dejar de medir 0).
+- es.wikipedia.org/wiki/Amiga_1200 en el emulador (RTG, MUI 3.8): el artículo se lee, con la ficha y su foto.
+- test_estilo_vars: "ciclo: 20px 3px"; tests/test_maqueta_mascara.dash.
+- Batería: 82/82 (1743 s).

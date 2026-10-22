@@ -5,7 +5,9 @@
 # sustituirla (también en el atributo style); un ::before solo si su
 # regla con content se cumple; estilo_px con unidades en mayúsculas y blancos. Un atajo con var() compite en la
 # cascada con lo suelto: el padding: 0 de * no le gana al de una clase; dentro de la regla, lo de después gana (37f).
-# Una --x con var() de otra del mismo elemento, en cualquier orden (37g).
+# Una --x con var() de otra del mismo elemento, en cualquier orden (37g). Una --x que se nombra a sí misma (Wikipedia:
+# --font-size-medium: var(--font-size-medium, 1rem)) es un ciclo: no vale, font-size: var(--x) se queda en el heredado
+# y un var(--x, 3px) toma el respaldo (41a3).
 # memcheck
 # expect-out: a: rgb(1,2,3) 4px
 # expect-out: b: red 4px
@@ -16,6 +18,7 @@
 # expect-out: cascada: 4px | 1px 4px
 # expect-out: en orden: ana, serif
 # expect-out: px: 32 12 0 5
+# expect-out: ciclo: 20px 3px
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/estilo.dash"
@@ -72,4 +75,9 @@ Main
     Print "cascada: " + dom_por_id(doc, "f").estilo["padding-left"] + " | " + g.estilo["padding-left"] + " " + g.estilo["padding-right"]
     Print orden
     Print "px: " + estilo_px(" 2EM ", 16, 0) + " " + estilo_px("12PX", 0, 0) + " " + estilo_px("3zz", 0, 0) + " " + estilo_px("50%", 0, 10)
+    h = "<style>html { --c: var(--c, 1rem); --d: var(--e); --e: var(--d, 2px) } body { font-size: 20px } p { font-size: var(--c); padding-left: var(--d, 3px) }</style><p id=p>x</p>"
+    doc4 = dom_desde_html(h)
+    estilo_aplicar(doc4, estilo_hojas(doc4, "http://x/"))
+    p4 = dom_por_id(doc4, "p")
+    Print "ciclo: " + p4.estilo["font-size"] + " " + p4.estilo["padding-left"]
 end

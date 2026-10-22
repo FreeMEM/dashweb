@@ -861,6 +861,11 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             alfa_fondo = alfa_fondo * mil / 1000
         end
     end
+    # con mask-image (un icono hecho de un fondo del color del texto recortado por un SVG: los de Wikipedia) el fondo
+    # no se pinta: sin máscaras saldría un cuadrado lleno
+    if _con_mascara(e)
+        fondo = -1
+    end
     # background-clip: text: el fondo solo se ve dentro de las letras (las pinta _palabras con su color)
     recorta_texto = _clip_texto(e)
     if recorta_texto
@@ -2793,6 +2798,15 @@ end
 
 # Un <button> con elementos dentro o sin texto: lo dibuja su CSS (un icono, unas barras...), no es
 # el botón de siempre
+func _con_mascara(e: {String: String}) -> Bool
+    for k in ["mask-image", "-webkit-mask-image", "mask", "-webkit-mask"]
+        if e.has(k) and str_find(e[k], "url(") >= 0
+            return true
+        end
+    end
+    return false
+end
+
 func _boton_propio(n: Nodo) -> Bool
     if n.nombre != "button"
         return false
