@@ -1,0 +1,56 @@
+# Test: un elemento en línea con bloques dentro se parte alrededor de ellos (CSS 2.1 9.2.1.1, tarea 42c): en
+# <a>x<div>y</div>z</a> van tres líneas; los resultados de Google (<a><div relative><div padding-top:28px>título
+# </div><div absolute top:0>dirección</div></div></a>) dejan la dirección arriba y el título debajo, los dos con el
+# enlace del <a>. Y el logo de esa página (seis inline-block en una caja absoluta que encoge, la última letra con
+# position: relative; left: -1px) en una línea: al medir el ancho, lo movido por relative o transform no cuenta.
+# memcheck
+# expect-out: tres: x 0 | y 1 | z 2
+# expect-out: google: título 29 u | dirección 1 u
+# expect-out: logo: 1 línea
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func pagina(cuerpo: String) -> Pagina
+    doc = dom_desde_html5("<!DOCTYPE html><html><body style='margin:0;font-family:sans-serif;font-size:14px'>" + cuerpo + "</body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    return maquetar(doc, 300)
+end
+
+Main
+    p = pagina("<a href='u'>x<div>y</div>z</a>")
+    var ys: [Int] = []
+    s = ""
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and str_trim(d.texto) != ""
+            if ys.length == 0 or ys[ys.length - 1] != d.y
+                ys.push(d.y)
+            end
+            if s != ""
+                s = s + " | "
+            end
+            s = s + str_trim(d.texto) + " " + (ys.length - 1)
+        end
+    end
+    Print "tres: " + s
+    p2 = pagina("<a href='u'><div style='position:relative'><div style='padding-top:28px'>título</div><div style='position:absolute;top:0;left:0;width:100%'>dirección</div></div></a>")
+    s = ""
+    for d in p2.dibujos
+        if d.tipo == D_TEXTO and str_trim(d.texto) != ""
+            if s != ""
+                s = s + " | "
+            end
+            s = s + str_trim(d.texto) + " " + d.y + " " + d.enlace
+        end
+    end
+    Print "google: " + s
+    p3 = pagina("<div style='position:relative;width:600px;height:200px'><div style='letter-spacing:-1px;font:22pt sans-serif;padding:32px 28px 0 24px;position:absolute;left:0;top:0'><a href='/'><span style='display:inline-block'>G</span><span style='display:inline-block'>o</span><span style='display:inline-block'>o</span><span style='display:inline-block'>g</span><span style='display:inline-block'>l</span><span style='display:inline-block;position:relative;left:-1px'>e</span></a></div></div>")
+    lineas = 0
+    y_ant = -1
+    for d in p3.dibujos
+        if d.tipo == D_TEXTO and d.y != y_ant
+            lineas = lineas + 1
+            y_ant = d.y
+        end
+    end
+    Print "logo: " + lineas + " línea"
+end

@@ -674,7 +674,12 @@ func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedo
     _maqueta_nivel = _maqueta_nivel + 1
     antes = m.pagina.dibujos.length
     r = _bloque_en(m, n, x, y, ancho, contenedor)
-    t = _transformacion(n.estilo)
+    # (al medir un ancho, ni transform ni position: relative: no mueven a los demás, y con lo movido la caja que
+    # encoge salía 1 px corta y la "e" del logo de Google, con left: -1px, bajaba de línea)
+    t = ""
+    if _midiendo == 0
+        t = _transformacion(n.estilo)
+    end
     if t != ""
         _transformar(m, n, t, antes)
     end
@@ -689,7 +694,7 @@ func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedo
         end
     end
     # position: relative: se desplaza lo dibujado (left o right, top o bottom) sin mover a los demás (CSS 2.1, 9.4.3)
-    if _val(n.estilo, "position", "static") == "relative"
+    if _midiendo == 0 and _val(n.estilo, "position", "static") == "relative"
         _relativo(m, n, antes, contenedor)
     end
     # sticky con top: lo suyo se mueve con el desplazamiento (_cajas_finales pone dónde está y hasta dónde llega)
@@ -2522,10 +2527,37 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     # los de fuera, si este bloque les pasa por debajo
     heredados = _flot_fuera
     _flot_fuera = nil
-    for h in _hijos(n)
+    # un elemento en línea con bloques dentro (<a><div>...</div></a>) se parte alrededor de ellos (CSS 2.1 9.2.1.1):
+    # sus hijos van aquí como si fueran de n, con el enlace del <a> y su estilo para el texto suelto
+    enlace_base = _enlace_bloque
+    lista = _hijos(n)
+    var enlaces: [String] = nil
+    var padres: [{String: String}] = nil
+    for h in lista
+        if _en_linea_con_bloques(h)
+            var l2: [Nodo] = []
+            var e2: [String] = []
+            var p2: [{String: String}] = []
+            _aplanar(n, n.estilo, enlace_base, l2, e2, p2)
+            lista = l2
+            enlaces = e2
+            padres = p2
+            break
+        end
+    end
+    ih = -1
+    for h in lista
+        ih = ih + 1
+        enl = enlace_base
+        ep = n.estilo
+        if enlaces != nil
+            enl = enlaces[ih]
+            ep = padres[ih]
+        end
         if _oculto(h) or _fuera_del_flujo(h)
             continue
         end
+        _enlace_bloque = enl
         lado = _flota(h)
         if lado != ""
             if piezas.length > 0
@@ -2688,7 +2720,7 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             margen_previo = pend_pos + pend_neg
             cy = base + margen_previo
         else
-            _piezas(m, h, n.estilo, piezas, "")
+            _piezas(m, h, ep, piezas, enl)
         end
     end
     if piezas.length > 0
@@ -2706,8 +2738,50 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         cy = fondo
     end
     _flot_linea = flot_antes
+    _enlace_bloque = enlace_base
     m.ancho_linea = ancho_previo
     return cy - y
+end
+
+# El enlace en que va lo que se maqueta como bloque dentro de un <a> partido (_contenido)
+var _enlace_bloque: String = ""
+
+# h es un elemento en línea (no inline-block, ni una imagen o un control) con algún bloque de hijo
+func _en_linea_con_bloques(h: Nodo) -> Bool
+    if h.tipo != DOM_ELEMENTO or _val(h.estilo, "display", "inline") != "inline" or _reemplazado(h) or h.nombre == "br"
+        return false
+    end
+    # (un flotante o un absoluto es un bloque aunque diga inline: no se parte)
+    if _flota(h) != "" or _fuera_del_flujo(h)
+        return false
+    end
+    for k in _hijos(h)
+        if k.tipo == DOM_ELEMENTO and _es_bloque(k) and not _oculto(k) and not _fuera_del_flujo(k) and _flota(k) == ""
+            return true
+        end
+        if _en_linea_con_bloques(k)
+            return true
+        end
+    end
+    return false
+end
+
+# Los hijos de p, con los de los elementos en línea que tienen bloques dentro en su lugar (y su enlace y el estilo
+# de su padre para el texto)
+func _aplanar(p: Nodo, e: {String: String}, enlace: String, lista: [Nodo], enlaces: [String], padres: [{String: String}])
+    for h in _hijos(p)
+        if _en_linea_con_bloques(h)
+            enl = enlace
+            if h.nombre == "a" and dom_tiene_atributo(h, "href")
+                enl = dom_atributo(h, "href")
+            end
+            _aplanar(h, h.estilo, enl, lista, enlaces, padres)
+        else
+            lista.push(h)
+            enlaces.push(enlace)
+            padres.push(e)
+        end
+    end
 end
 
 # _lineas rodeando los flotantes de la fila y los de fuera, si hay

@@ -394,7 +394,7 @@ tarea, con el estilo de Dash.
       a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
          Leer/Discusión/Editar pisadas. Mirar si con la v0.3.0-alfa (ya con la 41a3) sigue.
       [x] b. google.com: el icono de las aplicaciones (nueve puntos) sale como nueve círculos enormes.
-      c. Resultados de Google: el logo se parte ("Googl" y la "e" debajo); el título y la dirección de cada resultado
+      [x] c. Resultados de Google: el logo se parte ("Googl" y la "e" debajo); el título y la dirección de cada resultado
          van en la misma línea (la dirección debe ir aparte).
       d. meneame.net: la columna de las noticias sale vacía (solo la barra de la derecha).
       e. xataka.com: "Aceptar y Cerrar" del aviso de cookies no hace nada; las imágenes de la portada no salen (cajas
@@ -3615,3 +3615,19 @@ Formato:
 - tests/test_maqueta_svg_tam.dash (cinco casos). google.com en el emulador: los nueve puntos, pequeños. Queda: la
   barra de arriba (Gmail, Imágenes, el icono) no va a la derecha junto a "Iniciar sesión" como en Chrome.
 - Batería: 87/87 (1886 s). freemem.space y Wikipedia en el emulador, como antes.
+
+### 2026-10-22 — Tarea 42c (resultados de Google: el título y la dirección en una línea; el logo partido)
+- Cada resultado es `<a><div relative><div padding-top:28px><h3>título</h3></div><div absolute top:0>dirección</div>
+  </div></a>`: bloques dentro de un elemento en línea. dashweb los aplanaba en piezas de la línea (sin saltos ni
+  absoluto): la dirección iba pegada tras el título. lib/maqueta.dash `_contenido`: un elemento en línea con bloques
+  dentro se parte alrededor de ellos (CSS 2.1 9.2.1.1; `_en_linea_con_bloques`, `_aplanar`): sus hijos van como si
+  fueran del bloque, con el enlace del <a> (`_enlace_bloque`, que pasa a los bloques de dentro) y su estilo para el
+  texto suelto.
+- El logo (seis inline-block en una caja absoluta que encoge) bajaba la "e": lleva position: relative; left: -1px y
+  al medir el ancho contaba lo movido (1 px menos). Al medir (`_midiendo`), ni relative ni transform (no mueven a
+  los demás).
+- tests/test_maqueta_partido.dash: tres líneas en <a>x<div>y</div>z</a>, dirección arriba y título debajo con su
+  enlace, el logo en una línea. Queda: "›" (U+203A) sale como "'" en las direcciones.
+- Un flotante o un absoluto con display: inline no se parte (es un bloque): la sonrisa de Acid2 (span flotante con
+  un strong de bloque dentro) se quedaba en 0x0.
+- Batería: 88/88 (1901 s). freemem.space y Wikipedia en el emulador, como antes.
