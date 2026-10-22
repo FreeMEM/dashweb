@@ -187,6 +187,31 @@ func estilo_hojas_con(doc: Nodo, base: String, traidas: {String: String}) -> Hoj
     return h
 end
 
+# Lo que dice qué hojas tiene la página, para saber sin leerlas si el JavaScript las cambió: de cada <style> lo que
+# mide su texto y de cada <link> de hoja su dirección
+func estilo_firma(doc: Nodo) -> String
+    return _estilo_firma(doc, "")
+end
+
+func _estilo_firma(n: Nodo, r: String) -> String
+    if n.tipo == DOM_ELEMENTO and n.nombre == "style"
+        largo = 0
+        for t in n.hijos
+            if t.tipo == DOM_TEXTO
+                largo = largo + t.texto.length
+            end
+        end
+        return r + "s" + largo + ";"
+    end
+    if n.tipo == DOM_ELEMENTO and n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0
+        r = r + "l" + dom_atributo(n, "href") + ";"
+    end
+    for hijo in n.hijos
+        r = _estilo_firma(hijo, r)
+    end
+    return r
+end
+
 func _estilo_recoger(h: Hojas, n: Nodo, base: Url)
     if n.tipo == DOM_ELEMENTO and n.nombre == "style"
         _estilo_agregar(h, css_leer(dom_texto(n), h.lista.length * ESTILO_ORDEN_HOJA), base, 0)

@@ -1,0 +1,30 @@
+# Test: una hoja que mete el JavaScript después de la carga se aplica (tarea 42e: el CSS de Didomi en xataka.com, un
+# <style id=didomi-css> en el body, no se aplicaba y su aviso de cookies salía sin estilo, con sus botones ocultos a la
+# vista). Un <style> que entra, uno al que le cambian el texto y uno que sale; un cambio que no toca hojas no las rehace.
+# memcheck
+# expect-out: antes: block | entra: none | cambia: block 30px | sale: block false | sin hojas: igual true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+Main
+    h = "<body style='margin:0'><div id=a class='didomi-buttons'>x</div><div id=b>y</div><script>var b = document.getElementById('b');</script></body>"
+    d = documento_html("http://x/", h)
+    documento_maquetar(d, 300)
+    a = dom_por_id(d.doc, "a")
+    s = "antes: " + a.estilo["display"]
+    js_evaluar(d.js, "var st = document.createElement('style'); st.id = 'didomi-css'; st.textContent = '.didomi-buttons { display: none !important }'; document.body.appendChild(st);", "t.js")
+    documento_al_dia(d)
+    s = s + " | entra: " + a.estilo["display"]
+    js_evaluar(d.js, "st.textContent = '.didomi-buttons { display: block; margin-top: 30px }';", "t.js")
+    documento_al_dia(d)
+    s = s + " | cambia: " + a.estilo["display"] + " " + a.estilo["margin-top"]
+    js_evaluar(d.js, "st.parentNode.removeChild(st);", "t.js")
+    documento_al_dia(d)
+    s = s + " | sale: " + a.estilo["display"] + " " + a.estilo.has("margin-top")
+    hojas = d.hojas
+    js_evaluar(d.js, "b.textContent = 'zz';", "t.js")
+    documento_al_dia(d)
+    Print s + " | sin hojas: igual " + (d.hojas == hojas)
+    documento_liberar(d)
+end

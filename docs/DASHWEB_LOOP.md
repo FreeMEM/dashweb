@@ -3641,3 +3641,18 @@ Formato:
   la página, arriba, y no por encima como en Chrome. Las imágenes son <img> JPEG normales (i.blogs.es) y
   <picture> con <source media>; a los 150 s faltaban 52. Pendiente: por qué no cierra "Aceptar y Cerrar" (clic con
   --acciones tras la carga) y si las imágenes llegan.
+
+### 2026-10-22 — Tarea 42e (xataka.com: las hojas que mete el JavaScript)
+- En Chrome el aviso es de Didomi: `<style id=didomi-css>` de 91 KB que su JavaScript mete en el body tras la carga;
+  con él, #didomi-popup es fijo por encima de todo y `.didomi-buttons { display: none !important }` esconde su
+  "Aceptar y Cerrar" (se ven los botones del muro de Webedia). dashweb hacía las hojas una vez, tras los primeros
+  scripts: un <style> que llegaba después no se aplicaba nunca (el aviso salía sin estilo, dentro de la página).
+- lib/documento.dash `documento_al_dia`: si algún cambio toca un <style> o <link> (`_documento_toques_hojas`: entra,
+  sale, cambia su texto, o TOQUE_TODO), mira `estilo_firma` (lib/estilo.dash: el largo del texto de cada <style> y la
+  dirección de cada <link> de hoja); si cambió, las hojas otra vez (las de fuera ya traídas no se piden: `traidas`) y
+  el estilo entero. tests/test_documento_hojas_js.dash (entra, cambia, sale; un cambio que no toca hojas no las rehace).
+- xataka.com en el emulador (RTG): el aviso ya sale encima, con su fondo, dos columnas y los botones del muro (sus
+  letreros, diminutos: pendiente). El clic en el botón verde llega a Didomi (setUserAgreeToAll) pero da "Error: Cycle
+  detected" (Preact signals): probablemente porque antes un script suyo pasó de 30 s y se cortó (40c), y el corte de
+  QuickJS no ejecuta los finally y deja una señal a medias. Pendiente: el corte sin estado roto, o más plazo.
+- Batería: 89/89 (1984 s). Wikipedia rehace las hojas 5 veces (los estilos de MediaWiki que llegan por JavaScript; "18 idiomas" ya lleva su flecha), entera en 60 s como antes; freemem.space ninguna, 28,6 s.
