@@ -3447,3 +3447,14 @@ Formato:
 - La frente de Acid2 (padre de 8em, hijo de 12em) sale como en Chrome: 96 y 144. test_acid2: "frente: 96 144 |
   ventana: 300" (un hijo de 600 px en una ventana de 400 sigue en 300).
 - Batería: 79/79 (1691 s).
+
+### 2026-10-22 — Tarea 41a, octava parte (tablas de CSS: la última línea de Acid2)
+- Un elemento con display: table cuyos hijos no eran <tr>/<td> no maquetaba nada de dentro (Acid2: el <ul> con
+  <li> de display table-cell, table y list-item; y cualquier página que haga tablas con <div>).
+- lib/maqueta.dash `_filas` y `_celdas_de` (CSS 2.1 17.2.1): filas y celdas también por display (table-row,
+  table-*-group, table-cell); lo que no es fila va a una fila anónima, y lo que no es celda a una celda anónima, una
+  por tramo seguido (`_tramo_anonimo`: la caja de bloque de `_anonima`, sin cambiar el padre de lo de dentro).
+- Una tabla de CSS (no <table>) sin width encoge a su contenido (`_bloque_de_ya`), como en Chrome.
+- tests/test_maqueta_tabla_css.dash: la línea de Acid2 (ul 48x12, cuatro de 12x12), dos celdas de <div> en fila y
+  dos <p> sueltos en la misma celda anónima, uno bajo el otro. test_maqueta_tabla igual.
+- Batería: 80/80 (1707 s).

@@ -9,5 +9,5 @@
  {"pieza": "Frente: hijo más ancho que el padre", "estado": "hecha", "nota": "41a (7): desborda si cabe en la ventana"},
  {"pieza": "Ojos: floats detrás de bloques", "estado": "pendiente", "nota": "#eyes-c baja bajo el float"},
  {"pieza": "Sonrisa: floats anidados", "estado": "pendiente", "nota": "el ancho no sube"},
- {"pieza": "Última línea: display: table en ul/li", "estado": "pendiente", "nota": "tabla anónima"}
+ {"pieza": "Última línea: display: table en ul/li", "estado": "hecha", "nota": "41a (8): filas y celdas anónimas"}
 ]

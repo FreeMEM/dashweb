@@ -815,6 +815,14 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             interior = w
         end
     end
+    # una tabla de CSS (display: table en otro elemento que <table>) sin width encoge a su contenido (CSS 2.1 17.5.2;
+    # el <ul> de Acid2 dejaba ver su fondo rojo a lo ancho)
+    if e["display"] == "table" and n.nombre != "table" and _val(e, "width", "auto") == "auto" and n != _medido
+        wt = _ancho_flotante(m, n, ancho) - ml - mr - bl - br - pl - pr
+        if wt > 0 and wt < interior
+            interior = wt
+        end
+    end
     if e.has("max-width") and e["max-width"] != "none"
         mx = _px(e, "max-width", contenedor)
         if e.has("box-sizing") and e["box-sizing"] == "border-box"
@@ -3571,10 +3579,9 @@ func _tabla(m: Maquetador, t: Nodo, x: Int, y: Int, ancho: Int) -> Int
     ncols = 0
     for r in (0..filas.length - 1)
         c = 0
-        for h in filas[r].hijos
-            if h.tipo != DOM_ELEMENTO or (h.nombre != "td" and h.nombre != "th") or _oculto(h)
-                continue
-            end
+        var de_fila: [Nodo] = []
+        _celdas_de(filas[r], de_fila)
+        for h in de_fila
             while ocupado.has("" + r + "," + c)
                 c = c + 1
             end
@@ -3834,14 +3841,69 @@ func _tabla(m: Maquetador, t: Nodo, x: Int, y: Int, ancho: Int) -> Int
     return py - y
 end
 
+# Las filas de una tabla: los <tr> (o display: table-row), también dentro de <thead>, <tbody>, <tfoot> (o
+# table-*-group). Lo que no es una fila (un <li> dentro de un <ul> con display: table) va en una fila anónima, una
+# por cada tramo seguido (CSS 2.1, 17.2.1); sin esto no se maquetaba nada de dentro
 func _filas(n: Nodo, filas: [Nodo])
+    var suelta: [Nodo] = []
     for h in n.hijos
-        if h.tipo == DOM_ELEMENTO and h.nombre == "tr"
+        d = ""
+        if h.tipo == DOM_ELEMENTO
+            d = _val(h.estilo, "display", "")
+        end
+        if h.tipo == DOM_ELEMENTO and (h.nombre == "tr" or d == "table-row")
+            _tramo_anonimo(n, suelta, filas)
             filas.push(h)
-        elif h.tipo == DOM_ELEMENTO and (h.nombre == "thead" or h.nombre == "tbody" or h.nombre == "tfoot")
+        elif h.tipo == DOM_ELEMENTO and (h.nombre == "thead" or h.nombre == "tbody" or h.nombre == "tfoot" or d == "table-row-group" or d == "table-header-group" or d == "table-footer-group")
+            _tramo_anonimo(n, suelta, filas)
             _filas(h, filas)
+        elif h.tipo == DOM_ELEMENTO
+            if h.nombre != "caption" and d != "table-caption" and d != "none" and not _oculto(h) and not _fuera_del_flujo(h)
+                suelta.push(h)
+            end
+        elif h.tipo == DOM_TEXTO and str_trim(h.texto) != ""
+            suelta.push(h)
         end
     end
+    _tramo_anonimo(n, suelta, filas)
+end
+
+# Las celdas de una fila: los <td> y <th> (o display: table-cell); lo demás, en celdas anónimas, una por cada tramo
+# seguido (el <li> con display: table entre dos celdas de Acid2)
+func _celdas_de(fila: Nodo, celdas: [Nodo])
+    var suelta: [Nodo] = []
+    for h in fila.hijos
+        if h.tipo == DOM_ELEMENTO
+            d = _val(h.estilo, "display", "")
+            if d == "none" or _oculto(h) or _fuera_del_flujo(h)
+                continue
+            end
+            if h.nombre == "td" or h.nombre == "th" or d == "table-cell"
+                _tramo_anonimo(fila, suelta, celdas)
+                celdas.push(h)
+            else
+                suelta.push(h)
+            end
+        elif h.tipo == DOM_TEXTO and str_trim(h.texto) != ""
+            suelta.push(h)
+        end
+    end
+    _tramo_anonimo(fila, suelta, celdas)
+end
+
+# Si hay algo en suelta, una caja anónima de bloque (_anonima) con ello dentro (sin cambiar su padre: sigue siendo el
+# de verdad); suelta se vacía
+func _tramo_anonimo(padre: Nodo, suelta: [Nodo], lista: [Nodo])
+    if suelta.length == 0
+        return
+    end
+    a = _anonima(padre)
+    for h in suelta
+        a.hijos.push(h)
+    end
+    a.padre = padre
+    lista.push(a)
+    suelta.clear()
 end
 
 # El elemento que hay en el punto x, y de la página (lo último que se pintó allí: un texto, una
