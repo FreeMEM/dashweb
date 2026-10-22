@@ -1143,7 +1143,7 @@ func _es_atajo(p: String) -> Bool
     if (str_ends(p, "-inline") or str_ends(p, "-block") or str_ends(p, "-start") or str_ends(p, "-end")) and _logica_lados(p) != nil
         return true
     end
-    return p == "margin" or p == "padding" or p == "inset" or p == "place-items" or p == "place-content" or p == "place-self" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap"
+    return p == "margin" or p == "padding" or p == "inset" or p == "place-items" or p == "place-content" or p == "place-self" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap" or p == "grid-template" or p == "grid"
 end
 
 # Las declaraciones de una regla con los atajos partidos (margin en margin-top..., border, background,
@@ -1298,6 +1298,8 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
                 _proponer(ganadoras, "flex-wrap", Candidata(t, d.importante, autor, esp, orden))
             end
         end
+    elif p == "grid-template" or p == "grid"
+        _grid_atajo(ganadoras, v, d.importante, autor, esp, orden)
     elif p == "gap" or p == "grid-gap"
         t = _palabras(v)
         if t.length > 0
@@ -1311,6 +1313,61 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
     else
         _proponer(ganadoras, p, Candidata(v, d.importante, autor, esp, orden))
     end
+end
+
+# grid-template: none | <filas> / <columnas> | [ <nombres>? "áreas" <alto>? <nombres>? ]+ [ / <columnas> ]?
+# (CSS Grid 1, 7.4; Wikipedia en ancho: "siteNotice siteNotice" min-content "columnStart pageContent" 1fr / 12.25rem
+# minmax(0, 1fr)). grid es lo mismo, o con auto-flow a un lado: [auto-flow dense?] / <columnas> o <filas> / [...]
+func _grid_atajo(g: {String: Candidata}, v: String, imp: Bool, autor: Bool, esp: Int, orden: Int)
+    filas = "none"
+    columnas = "none"
+    areas = "none"
+    if str_lower(str_trim(v)) != "none"
+        trozos = css_partir(v, 47)
+        antes = str_trim(trozos[0])
+        if trozos.length > 1
+            columnas = str_trim(trozos[1])
+        end
+        if str_find(antes, "auto-flow") >= 0 or str_find(columnas, "auto-flow") >= 0
+            flujo = "row"
+            if str_find(columnas, "auto-flow") >= 0
+                flujo = "column"
+                columnas = "none"
+                filas = antes
+            end
+            if str_find(v, "dense") >= 0
+                flujo = flujo + " dense"
+            end
+            _proponer(g, "grid-auto-flow", Candidata(flujo, imp, autor, esp, orden))
+        elif str_find(antes, "\"") >= 0 or str_find(antes, "'") >= 0
+            nombres = ""
+            altos = ""
+            sin_alto = false
+            for t in _palabras(antes)
+                c = str_code(t, 0)
+                if c == 34 or c == 39
+                    if sin_alto
+                        altos = altos + " auto"
+                    end
+                    nombres = nombres + " " + t
+                    sin_alto = true
+                elif c != 91
+                    altos = altos + " " + t
+                    sin_alto = false
+                end
+            end
+            if sin_alto
+                altos = altos + " auto"
+            end
+            areas = str_trim(nombres)
+            filas = str_trim(altos)
+        else
+            filas = antes
+        end
+    end
+    _proponer(g, "grid-template-rows", Candidata(filas, imp, autor, esp, orden))
+    _proponer(g, "grid-template-columns", Candidata(columnas, imp, autor, esp, orden))
+    _proponer(g, "grid-template-areas", Candidata(areas, imp, autor, esp, orden))
 end
 
 # flex: none | auto | initial | <grow> [<shrink>] [<basis>] | <basis> (CSS Flexbox 1, 7.2)

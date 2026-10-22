@@ -403,6 +403,12 @@ tarea, con el estilo de Dash.
          hoja va en `<style><!-- @import url(.../style.css); --></style>` y dashweb no salta `<!--`/`-->` (CDO/CDC de
          CSS 2.1 4.1.1) y pierde el @import (body 12px, a sin subrayado). Ojo también con "color;#000000; font-size:
          12px;" en esa hoja: una declaración rota no debe llevarse la siguiente.
+      g. (usuario, 2026-10-22, al comparar con Amelinium) Los iconos que salen como cuadrados vacíos: en Wikipedia
+         el ☰ del menú y el ⋮ de las herramientas (mask-image con SVG), en Xataka los del menú, el buscador, las redes
+         y la fila de webs del grupo. Amelinium los pinta. Mirar con qué los hace cada página (mask-image, fuente de
+         iconos, SVG en línea o en <use>) y pintarlos.
+      h. (de la misma comparación) Wikipedia: el buscador sin su texto ("Buscar en Wikipedia") ni el botón "Buscar".
+         amigaworld.net: las » del menú de la izquierda salen como "?".
 - [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
       de HTML, CSS y JavaScript, y añadirlo. Por orden:
       41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
@@ -3762,3 +3768,19 @@ Formato:
 - test_maqueta y test_maqueta_css: lo que va tras una línea solo con imagen, 2 px más abajo (lo que baja la topaz);
   comprobado que solo cambian esos números.
 - Batería: 94/94 (2030 s). Acid2: ya sin la raya roja. freemem.space: las tarjetas 5 px más abajo (el hueco bajo una línea con solo una imagen, como en los navegadores); Wikipedia y amigaworld.net, como antes.
+
+### 2026-10-22 — Tarea 42a (Wikipedia a 1650 px) y el límite de los scripts
+- Con pantalla ancha (máquina nueva `rtgancha` de tools/medir_visor.py: uaegfx a 1680x1050, modo 0x50971100, que FS-UAE
+  ofrece con fullscreen_width/height; sistema ~/.cache/dash-emu/sys32rtg38ancha) Wikipedia salía sin artículo: el índice
+  a la derecha y la apariencia abajo. Dos causas: el atajo grid-template ("áreas" altos / columnas) no se partía
+  (lib/estilo.dash `_grid_atajo`, también grid sin auto-flow) y los nombres de área se buscaban en minúsculas
+  (columnStart, pageContent; lib/maqueta.dash `_grid_linea`). Ya en tres columnas como en Chrome.
+- La barra de pestañas: una franja gris era la sombra "0 1px" de .vector-page-toolbar-container pintada debajo de su
+  fondo transparente: lib/pintor.dash pinta las sombras de fuera solo alrededor de la caja (`_sombra_trozo`).
+  "Leer" sobre "Discusión": al medir el botón ⋮, su menú absoluto con right: 0 llegaba al borde y la caja medía 697 en vez
+  de 32: lib/maqueta.dash `_ancho_flotante_medir` no cuenta lo que va en un absoluto de dentro (`_bajo_absoluto`).
+- test_maqueta_grid: el atajo con un área con mayúsculas.
+- lib/js.dash: JS_SEGUNDOS de 30 a 120 (el usuario, para el aviso de cookies de Xataka).
+- Comparado con Amelinium 1.4.0 (Aminet, 040_JS) en la misma máquina: tareas 42g y 42h nuevas (iconos como cuadrados,
+  buscador de Wikipedia, » de amigaworld).
+- Batería: 94/94 (2054 s); la anterior falló 51 por TIMEOUT con la máquina cargada (test_hola solo: 3 s, bien).

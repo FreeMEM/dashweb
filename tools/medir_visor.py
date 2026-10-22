@@ -29,6 +29,12 @@ MAQUINAS = {
     # ($DASH_KICKSTART_32; sistema ~/.cache/dash-emu/sys32rtg, ver tools/emu_sys_rtg.sh)
     "rtg": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n"
            "graphics_card = uaegfx\n",
+    # la misma con la pantalla ancha de 1680x1050 (FS-UAE añade a uaegfx la resolución de pantalla completa);
+    # sistema: una copia de sys32rtg38 con el modo 0x50971100 (1680x1050 de 16 bits) en
+    # Prefs/Env-Archive/Sys/ScreenMode.prefs, como hace tools/emu_sys_rtg.sh con el de 1024x768
+    "rtgancha": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n"
+                "graphics_card = uaegfx\ngraphics_card_memory = 16384\n"
+                "fullscreen_width = 1680\nfullscreen_height = 1050\n",
 }
 
 
@@ -119,7 +125,7 @@ def main():
                 prog_args = ["DH0:p1", ""]
                 red = ""
             out = run_programs(programs, timeout=args.segundos + 60,
-                               kickstart=os.environ.get("DASH_KICKSTART_32" if args.maquina == "rtg" else "DASH_KICKSTART"),
+                               kickstart=os.environ.get("DASH_KICKSTART_32" if args.maquina.startswith("rtg") else "DASH_KICKSTART"),
                                extra_config=red + MAQUINAS[args.maquina],
                                screenshot=shot, system=args.sistema, keep=args.guardar,
                                background=[(str(ROOT / "tools" / "amiga" / "clicar.dash"), args.acciones)]

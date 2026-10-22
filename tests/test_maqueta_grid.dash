@@ -25,6 +25,9 @@
 # expect-out: v 0,0 300x30
 # expect-out: w 300,0 300x30
 # expect-out: x 50,0 100x10
+# expect-out: y1 0,0 600x20
+# expect-out: y2 0,20 100x30
+# expect-out: y3 100,20 500x30
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -55,6 +58,8 @@ Main
     h = h + rejilla("grid-template-columns:1fr 1fr", caja("v", "red", "height:30px") + caja("w", "blue", ""))
     # justify-self center
     h = h + rejilla("grid-template-columns:200px", caja("x", "red", "width:100px;height:10px;justify-self:center"))
+    # el atajo grid-template con áreas, altos de fila y columnas (Wikipedia en ancho; tarea 42a)
+    h = h + rejilla("grid-template:\"cabEza cabEza\" 20px \"lado cuerpo\" min-content / 100px minmax(0px, 1fr)", caja("y1", "red", "grid-area:cabEza") + caja("y2", "blue", "grid-area:lado;height:30px") + caja("y3", "green", "grid-area:cuerpo"))
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))

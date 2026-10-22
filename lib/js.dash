@@ -49,8 +49,9 @@ static int _js_gc_siempre = 0;
 /* A script, call or job that runs longer than this is cut (a loop without end in a page left the whole browser
    hanging; tarea 40c): QuickJS asks _js_interrumpir every few thousand operations and, past the limit, the script
    gets "interrupted". Wall clock from DateStamp (in 1/50 s): a real A1200 runs the JavaScript ~50 times slower
-   than the emulated RTG machine, so the limit is generous. */
-#define JS_SEGUNDOS 30
+   than the emulated RTG machine, so the limit is generous: 120 s (it was 30 and the cookie notice of xataka.com, whose
+   button runs a slow reduce, was cut before closing; the user asked for more on 2026-10-22). */
+#define JS_SEGUNDOS 120
 static LONG _js_tope = JS_SEGUNDOS;
 static ULONG _js_desde = 0;
 static int _js_cortado = 0;

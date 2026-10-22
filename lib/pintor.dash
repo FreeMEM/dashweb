@@ -142,6 +142,34 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                     gfx_text_at(x, y + font_baseline(), d.texto)
                 end
             end
+        elif d.sombra and (d.tipo == D_RECT or d.tipo == D_REDONDO)
+            # una sombra de fuera (box-shadow sin inset) solo se ve fuera de la caja, no debajo de su fondo
+            # transparente (CSS Backgrounds 3, 7.1.1; la barra de pestañas de Wikipedia, "0 1px" gris, salía como una
+            # franja): se pinta en las cuatro bandas de alrededor
+            bx = x + d.cx - d.x
+            by = y + d.cy - d.y
+            for k in (0..3)
+                a0 = cx0
+                b0 = cy0
+                a1 = cx1
+                b1 = cy1
+                if k == 0
+                    b1 = _menor(cy1, by - 1)
+                elif k == 1
+                    b0 = _mayor(cy0, by + d.ch)
+                else
+                    b0 = _mayor(cy0, by)
+                    b1 = _menor(cy1, by + d.ch - 1)
+                    if k == 2
+                        a1 = _menor(cx1, bx - 1)
+                    else
+                        a0 = _mayor(cx0, bx + d.cw)
+                    end
+                end
+                if a0 <= a1 and b0 <= b1
+                    _sombra_trozo(d, x, y, a0, b0, a1, b1)
+                end
+            end
         elif d.tipo == D_REDONDO
             _redondo_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_RECT and d.difuso > 0
@@ -204,6 +232,19 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         end
     end
     font_style(0)
+end
+
+# Lo que cae de una sombra en x0..x1, y0..y1
+func _sombra_trozo(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    if d.tipo == D_REDONDO
+        _redondo_pintar(d, x, y, x0, y0, x1, y1)
+    elif d.difuso > 0
+        _sombra_difusa(d, x, y, x0, y0, x1, y1)
+    elif d.espaciado > 0
+        _mezcla_recortada(x, y, d.ancho, d.alto, x0, y0, x1, y1, d.color, d.espaciado)
+    else
+        _rect_recortado(x, y, d.ancho, d.alto, x0, y0, x1, y1, _lapiz(d.color))
+    end
 end
 
 # Una sombra difuminada: capas translúcidas de la caja ampliada a la reducida en medio difuminado (el borde sale en

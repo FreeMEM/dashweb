@@ -2483,6 +2483,21 @@ func _es_hijo(p: Nodo, h: Nodo) -> Bool
     return false
 end
 
+# n está en un absoluto (o fixed) que va dentro de h (h no cuenta)
+func _bajo_absoluto(n: Nodo, h: Nodo) -> Bool
+    c = n
+    while c != nil and c != h
+        if c.tipo == DOM_ELEMENTO
+            pos = _val(c.estilo, "position", "static")
+            if pos == "absolute" or pos == "fixed"
+                return true
+            end
+        end
+        c = c.padre
+    end
+    return false
+end
+
 func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     e = h.estilo
     extra = _px(e, "margin-left", ancho) + _px(e, "margin-right", ancho)
@@ -2516,6 +2531,8 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     end
     derecha = 0
     izquierda = ancho
+    var ultimo_nodo: Nodo = nil
+    ultimo_fuera = false
     i = antes
     while i < m.pagina.dibujos.length
         d = m.pagina.dibujos[i]
@@ -2526,6 +2543,15 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
         if decoracion and d.nodo != nil and d.nodo != h
             w = _val(d.nodo.estilo, "width", "auto")
             cuenta = w != "auto" and not str_ends(w, "%")
+        end
+        if cuenta and d.nodo != nil and d.nodo != h
+            # lo de un absoluto de dentro no cuenta (CSS 2.1 10.3.7: está fuera del flujo); con right: 0 llegaba al
+            # borde y la caja medía todo el sitio (el menú de herramientas de Wikipedia, 697 en vez de 32; tarea 42a)
+            if d.nodo != ultimo_nodo
+                ultimo_nodo = d.nodo
+                ultimo_fuera = _bajo_absoluto(d.nodo, h)
+            end
+            cuenta = not ultimo_fuera
         end
         if cuenta
             # (lo recortado por un overflow, solo hasta su recorte: lo que desborda no ensancha)
@@ -5636,7 +5662,8 @@ end
 
 # Una línea de grid-column/row-start/end: [línea (0..), span] ; línea -1: auto
 func _grid_linea(v: String, lineas: Int, areas: {String: [Int]}, fin: Bool, fila: Bool) -> [Int]
-    x = str_lower(str_trim(v))
+    nombre = str_trim(v)
+    x = str_lower(nombre)
     if x == "" or x == "auto"
         return [-1, 1]
     end
@@ -5647,8 +5674,9 @@ func _grid_linea(v: String, lineas: Int, areas: {String: [Int]}, fin: Bool, fila
         end
         return [-1, n]
     end
-    if areas.has(x)
-        a = areas[x]
+    # los nombres de las áreas distinguen mayúsculas (Wikipedia: columnStart, pageContent; tarea 42a)
+    if areas.has(nombre)
+        a = areas[nombre]
         k = 0
         if fila
             k = 0
@@ -5683,7 +5711,7 @@ func _grid_sitio(e: {String: String}, eje: String, lineas: Int, areas: {String: 
         fin = "auto"
         if partes.length > 1
             fin = str_trim(partes[1])
-        elif areas.has(str_lower(ini))
+        elif areas.has(ini)
             fin = ini
         end
     end
