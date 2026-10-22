@@ -3276,6 +3276,12 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         medida = _img_medida(m, e, w, h)
         w = medida[0]
         h = medida[1]
+        # (con relleno o borde, la pieza los lleva alrededor de la imagen: _img_marco)
+        mc = _img_marco(e, m.ancho_linea)
+        if mc != nil
+            w = w + mc[1] + mc[3] + mc[5] + mc[7]
+            h = h + mc[0] + mc[2] + mc[4] + mc[6]
+        end
         img = Pieza(dom_img_src(n), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true)
         img.nodo = n
         piezas.push(img)
@@ -3549,6 +3555,28 @@ end
 # El tamaño de una <img> en la línea: el suyo (w x h: sus atributos, o lo que mide la imagen ya cargada) con el
 # width y el height del CSS (en px, o width en % de la línea); el que sea auto sale de la proporción. Luego
 # max-width y max-height, también con la proporción
+# Los bordes y rellenos de una imagen en la línea (arriba, derecha, abajo, izquierda de cada uno), o nil si no tiene
+# ninguno ni fondo (lo normal: la pieza es la imagen tal cual). Acid2: el tercer <object> de los ojos lleva relleno,
+# borde derecho y un fondo fixed que casa con el de #eyes-b
+func _img_marco(e: {String: String}, contenedor: Int) -> [Int]
+    var nada: [Int] = nil
+    if not (e.has("padding-top") or e.has("padding-right") or e.has("padding-bottom") or e.has("padding-left") or e.has("border-top-style") or e.has("border-right-style") or e.has("border-bottom-style") or e.has("border-left-style") or e.has("background-color") or e.has("background-image"))
+        return nada
+    end
+    var r: [Int] = [_borde(e, "top"), _borde(e, "right"), _borde(e, "bottom"), _borde(e, "left"), _px(e, "padding-top", contenedor), _px(e, "padding-right", contenedor), _px(e, "padding-bottom", contenedor), _px(e, "padding-left", contenedor)]
+    hay = false
+    for v in r
+        if v != 0
+            hay = true
+        end
+    end
+    fondo = (e.has("background-color") and css_alfa(e["background-color"]) > 0) or (e.has("background-image") and str_starts(str_trim(e["background-image"]), "url("))
+    if not hay and not fondo
+        return nada
+    end
+    return r
+end
+
 func _img_medida(m: Maquetador, e: {String: String}, w0: Int, h0: Int) -> [Int]
     w = w0
     h = h0
@@ -4079,7 +4107,35 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             m.pagina.dibujos.push(ic)
             actual = nil
         elif p.imagen
-            img = _dibujo(D_IMAGEN, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
+            iy = y + base - p.base + uno
+            ix = cx
+            iw = p.ancho
+            ih = p.alto
+            var mc: [Int] = nil
+            if p.nodo != nil and p.nodo.tipo == DOM_ELEMENTO and dom_es_imagen(p.nodo)
+                mc = _img_marco(p.nodo.estilo, ancho)
+            end
+            if mc != nil
+                # su fondo, su imagen de fondo (en el relleno) y sus bordes; la imagen, dentro
+                ne = p.nodo.estilo
+                if ne.has("background-color") and css_alfa(ne["background-color"]) > 0
+                    fd = _dibujo(D_RECT, cx, iy, p.ancho, p.alto, css_color_opaco(ne["background-color"]))
+                    fd.nodo = p.nodo
+                    m.pagina.dibujos.push(fd)
+                end
+                if ne.has("background-image") and str_starts(str_trim(ne["background-image"]), "url(")
+                    ff = _dibujo(D_FONDO, cx + mc[3], iy + mc[0], p.ancho - mc[1] - mc[3], p.alto - mc[0] - mc[2], 0)
+                    ff.texto = css_url(ne["background-image"])
+                    ff.nodo = p.nodo
+                    m.pagina.dibujos.push(ff)
+                end
+                _bordes(m, ne, cx, iy, p.ancho, p.alto, mc[0], mc[1], mc[2], mc[3])
+                ix = cx + mc[3] + mc[7]
+                iy = iy + mc[0] + mc[4]
+                iw = p.ancho - mc[1] - mc[3] - mc[5] - mc[7]
+                ih = p.alto - mc[0] - mc[2] - mc[4] - mc[6]
+            end
+            img = _dibujo(D_IMAGEN, ix, iy, iw, ih, 0)
             img.texto = p.texto
             img.enlace = p.enlace
             img.nodo = p.nodo

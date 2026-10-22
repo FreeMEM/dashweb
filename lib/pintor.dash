@@ -43,10 +43,16 @@ func _menor(a: Int, b: Int) -> Int
     return b
 end
 
+# La esquina de la vista en la pantalla (los fondos fixed se ponen respecto a ella)
+var _pintor_vx: Int = 0
+var _pintor_vy: Int = 0
+
 func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, alto: Int)
     if ancho <= 0 or alto <= 0
         return
     end
+    _pintor_vx = x0
+    _pintor_vy = y0
     derecha = x0 + ancho - 1
     abajo = y0 + alto - 1
     zx0 = x0
@@ -506,17 +512,29 @@ func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1
     if e.has("background-repeat")
         rep = str_lower(str_trim(e["background-repeat"]))
     end
-    # los mosaicos: desde el sitio hacia atrás y hacia delante (como mucho 4000)
+    # los mosaicos: desde el sitio hacia atrás y hacia delante (como mucho 4000); con background-attachment: fixed, el
+    # sitio es respecto a la vista, no a la caja (los dos fondos de los ojos de Acid2, desplazados 1 px, solo casan así)
     ax = x + px
     ay = y + py
+    if e.has("background-attachment") and e["background-attachment"] == "fixed"
+        ax = _pintor_vx + px
+        ay = _pintor_vy + py
+    end
     if rep == "repeat" or rep == "repeat-x"
         while ax > cx0
             ax = ax - sw
+        end
+        # (y hacia delante, hasta justo antes de lo visible: un fondo fixed empieza en la esquina de la vista, lejos)
+        if ax + sw <= cx0
+            ax = ax + (cx0 - ax) / sw * sw
         end
     end
     if rep == "repeat" or rep == "repeat-y"
         while ay > cy0
             ay = ay - sh
+        end
+        if ay + sh <= cy0
+            ay = ay + (cy0 - ay) / sh * sh
         end
     end
     cuantos = 0

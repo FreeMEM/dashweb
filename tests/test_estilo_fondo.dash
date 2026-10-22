@@ -1,0 +1,28 @@
+# Test: el atajo background con fixed y un sitio en px (Acid2: "background: url(...) fixed 1px 0" en los ojos y
+# "yellow url(...) no-repeat fixed" en la barbilla; tarea 41a2): background-attachment y background-position.
+# memcheck
+# expect-out: ojos: fixed 1px 0 repeat
+# expect-out: barbilla: fixed 0% 0% no-repeat yellow
+# expect-out: normal: scroll center
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func fondo(estilo: String, campos: [String]) -> String
+    doc = dom_desde_html5("<!DOCTYPE html><html><body><div id=a style='" + estilo + "'>x</div></body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    e = dom_por_id(doc, "a").estilo
+    r = ""
+    for c in campos
+        if r != ""
+            r = r + " "
+        end
+        r = r + e[c]
+    end
+    return r
+end
+
+Main
+    Print "ojos: " + fondo("background: url(o.png) fixed 1px 0", ["background-attachment", "background-position", "background-repeat"])
+    Print "barbilla: " + fondo("background: yellow url(r.png) no-repeat fixed", ["background-attachment", "background-position", "background-repeat", "background-color"])
+    Print "normal: " + fondo("background: url(n.png) center", ["background-attachment", "background-position"])
+end

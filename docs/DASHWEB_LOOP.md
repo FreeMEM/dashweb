@@ -3738,3 +3738,16 @@ Formato:
 - Acid2 en el navegador: ya con los ojos (los círculos de la imagen) y la sonrisa curva. Queda: la trama del fondo de
   los ojos (dos fondos fixed desplazados 1 px que juntos dan amarillo) y algo de rojo.
 - Batería: 93/93 (2009 s). freemem.space, Wikipedia, Xataka (ya "2EUR") y amigaworld.net (con sus iconos) en el emulador, bien.
+
+### 2026-10-22 — Tarea 41a2, séptima parte (fondos fixed y el marco de las imágenes en la línea)
+- El atajo background perdía "fixed" y los sitios en px ("fixed 1px 0" de los ojos de Acid2): lib/estilo.dash pone
+  background-attachment y una longitud cuenta como sitio. tests/test_estilo_fondo.dash.
+- lib/pintor.dash `_fondo_pintar`: con background-attachment: fixed los mosaicos van respecto a la esquina de la vista
+  (`_pintor_vx/_vy`), y el primero se adelanta hasta justo antes de lo visible (desde la esquina, con mosaicos de 2x2,
+  se llegaba al tope de 4000 antes de la caja). El cuadrado rojo fixed de la barbilla de Acid2 ya no se ve.
+- Una imagen en la línea (<img> u <object> de imagen) con relleno, borde o fondo (`_img_marco`): la pieza los lleva
+  alrededor; se pintan su fondo, su imagen de fondo (en el relleno) y sus bordes, y la imagen dentro. Sin nada de eso,
+  como antes.
+- Acid2 en el navegador: la fila de los ojos casi amarilla, con los ojos. Queda: un trozo con trama a la izquierda,
+  algo de rojo a la derecha de los ojos y una raya roja abajo a la izquierda.
+- Batería: 94/94 (2026 s). freemem.space y amigaworld.net, como antes; Wikipedia: la foto de la ficha ya con su borde gris de 1 px y fondo blanco (Chrome también: .mw-file-element).
