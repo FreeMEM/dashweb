@@ -797,6 +797,12 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     pb = c[9]
     pl = c[10]
     pr = c[11]
+    # márgenes de arriba de padre e hijo juntos (8.3.1): el del primer hijo ya lo pone su padre
+    if _margen_absorbido(n)
+        mt = 0
+    elif _colapsa_arriba(n)
+        mt = _margen_colapsado(n, contenedor)
+    end
     interior = ancho - ml - mr - bl - br - pl - pr
     if e.has("width") and e["width"] != "auto"
         w = _px(e, "width", contenedor)
@@ -2606,7 +2612,7 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
                 end
             end
             # márgenes de hermanos seguidos: cuenta el mayor, no la suma
-            mt = _px(h.estilo, "margin-top", ancho)
+            mt = _margen_arriba(h, ancho)
             solape = margen_previo
             if mt < solape
                 solape = mt
@@ -2698,6 +2704,90 @@ func _pasa_por_debajo(h: Nodo) -> Bool
         end
     end
     return true
+end
+
+# El margen de arriba de n se junta con el de su primer hijo de bloque (CSS 2.1 8.3.1): n es un bloque normal (no
+# flota, no va fuera del flujo, overflow visible, no es la raíz ni una caja de flex o grid) sin borde ni relleno
+# arriba, y antes del hijo no hay texto ni nada en línea. El margen que queda va fuera de n (tarea 41a2)
+func _colapsa_arriba(n: Nodo) -> Bool
+    return _primer_hijo_colapsa(n) != nil
+end
+
+func _primer_hijo_colapsa(n: Nodo) -> Nodo
+    var nada: Nodo = nil
+    if n.tipo != DOM_ELEMENTO or n.padre == nil or n.nombre == "html" or n.padre.tipo != DOM_ELEMENTO
+        return nada
+    end
+    e = n.estilo
+    d = _val(e, "display", "block")
+    if (d != "block" and d != "list-item") or _flota(n) != "" or _fuera_del_flujo(n) or _reemplazado(n) or dom_es_video(n)
+        return nada
+    end
+    dp = _val(n.padre.estilo, "display", "block")
+    if dp == "flex" or dp == "inline-flex" or dp == "grid" or dp == "inline-grid"
+        return nada
+    end
+    if _borde(e, "top") != 0 or _px(e, "padding-top", 0) != 0
+        return nada
+    end
+    for k in ["overflow", "overflow-x", "overflow-y"]
+        o = _val(e, k, "visible")
+        if o != "visible" and o != ""
+            return nada
+        end
+    end
+    if _val(e, "display", "") == "flow-root" or n.nombre == "button" or n.nombre == "fieldset"
+        return nada
+    end
+    for h in _hijos(n)
+        if h.tipo == DOM_COMENTARIO or _oculto(h) or _fuera_del_flujo(h)
+            continue
+        end
+        if h.tipo == DOM_TEXTO
+            if str_trim(h.texto) == "" and _val(e, "white-space", "normal") != "pre" and _val(e, "white-space", "normal") != "pre-wrap"
+                continue
+            end
+            return nada
+        end
+        if _flota(h) != "" or not _es_bloque(h) or dom_es_video(h) or _val(h.estilo, "clear", "none") != "none"
+            return nada
+        end
+        return h
+    end
+    return nada
+end
+
+# El margen de arriba de n junto con los que se le juntan (el mayor de los positivos más el menor de los negativos)
+func _margen_colapsado(n: Nodo, contenedor: Int) -> Int
+    pos = 0
+    neg = 0
+    k = n
+    vueltas = 0
+    while k != nil and vueltas < 50
+        v = _px(k.estilo, "margin-top", contenedor)
+        if v > pos
+            pos = v
+        end
+        if v < neg
+            neg = v
+        end
+        k = _primer_hijo_colapsa(k)
+        vueltas = vueltas + 1
+    end
+    return pos + neg
+end
+
+# El margen de arriba de n ya lo pone su padre (se ha juntado con el suyo)
+func _margen_absorbido(n: Nodo) -> Bool
+    return n.padre != nil and _primer_hijo_colapsa(n.padre) == n
+end
+
+# El margen de arriba de n tal como cuenta frente a su hermano de antes
+func _margen_arriba(n: Nodo, contenedor: Int) -> Int
+    if _colapsa_arriba(n)
+        return _margen_colapsado(n, contenedor)
+    end
+    return _px(n.estilo, "margin-top", contenedor)
 end
 
 # Los dibujos de los flotantes, detrás de lo dibujado desde b0 (el bloque que les ha pasado por debajo): así se

@@ -1,0 +1,37 @@
+# Test: el margen de arriba de un bloque se junta con el de su primer hijo (CSS 2.1 8.3.1, tarea 41a2): queda el mayor,
+# fuera del padre (su fondo empieza ahí). No se juntan con relleno o borde arriba en el padre, con overflow: hidden
+# o con texto delante del hijo. Uno negativo resta. El de body (8 px) se junta con el de su hijo. Frente al hermano
+# de antes cuenta el margen ya juntado. Se mira la y del fondo rojo (el padre) y del azul (el hijo).
+# memcheck
+# expect-out: a: 20 20 | b: 10 31 | c: 6 6 | d: 30 | e: 10 30 | f: 10 | g: 17 17
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func ys(cuerpo: String, estilo_body: String) -> String
+    doc = dom_desde_html5("<!DOCTYPE html><html><body style='" + estilo_body + "'>" + cuerpo + "</body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 300)
+    rojo = ""
+    azul = ""
+    for d in p.dibujos
+        if d.tipo == D_RECT and d.color == 16711680 and rojo == ""
+            rojo = "" + d.y
+        end
+        if d.tipo == D_RECT and d.color == 255 and azul == ""
+            azul = " " + d.y
+        end
+    end
+    return rojo + azul
+end
+
+Main
+    hijo = "<p style='margin:20px 0 0;height:5px;background:#00f'></p>"
+    s = "a: " + ys("<div style='margin-top:10px;background:#f00'>" + hijo + "</div>", "margin:0")
+    s = s + " | b: " + ys("<div style='margin-top:10px;padding-top:1px;background:#f00'>" + hijo + "</div>", "margin:0")
+    s = s + " | c: " + ys("<div style='margin-top:10px;background:#f00'><p style='margin:-4px 0 0;height:5px;background:#00f'></p></div>", "margin:0")
+    s = s + " | d: " + ys("<div style='margin-top:30px;height:4px;background:#f00'></div>", "")
+    s = s + " | e: " + ys("<div style='margin-top:10px;overflow:hidden;background:#f00'>" + hijo + "</div>", "margin:0")
+    s = s + " | f: " + ys("<div style='margin-top:10px;background:#f00'>t<div><p style='margin-top:20px;height:5px'></p></div></div>", "margin:0")
+    s = s + " | g: " + ys("<div style='margin-bottom:5px;height:2px'></div><div style='background:#f00'><p style='margin-top:15px;height:5px;background:#00f'></p></div>", "margin:0")
+    Print s
+end

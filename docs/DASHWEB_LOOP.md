@@ -397,6 +397,9 @@ tarea, con el estilo de Dash.
            acortan para dejarle sitio (el texto rodea la imagen flotante; hoy todo lo que no flota va debajo). Con
            eso los ojos de Acid2 (#eyes-c sobre #eyes-b). Y el colapso del margen de arriba de un hijo con el de su
            padre (8.3.1; la sonrisa de Acid2 queda 3 px baja). Comprobar con páginas de verdad antes y después.
+           Hechos: el texto rodea (1), el bloque pasa por debajo (2), el margen de arriba (3). Falta: el de abajo;
+           y Acid2 en el navegador, que sale peor que en las piezas de test_acid2 (#top deja ver "Hello World!",
+           hueco entre la frente y la sonrisa, barra roja a lo ancho; captura del 2026-10-22).
       [x] 41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
            unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
            Wikipedia lo da (font-size con clamp/var/calc, line-height...).
@@ -3534,3 +3537,19 @@ Formato:
   tools/paquete.sh en un worktree limpio de a0298f3 (sin la segunda parte de 41a2, aún sin guardar) y Dash d39d8d9.
 - Base: 82/82 (df361b3). Probado en la máquina rtg con MUI 3.8: freemem.space entera en 23,9 s, bien.
 - Avisada la sesión dash (iba a crear ella la release): ya está hecha.
+
+### 2026-10-22 — Tarea 41a2, tercera parte (márgenes de padre e hijo juntos)
+- El margen de arriba de un bloque se junta con el de su primer hijo de bloque (CSS 2.1 8.3.1): queda el mayor de los
+  positivos más el menor de los negativos, fuera del padre (su fondo empieza ahí), y el hijo ya no pone el suyo.
+  lib/maqueta.dash: `_primer_hijo_colapsa` (el padre es un bloque normal sin borde ni relleno arriba, overflow
+  visible, no flota, ni va fuera del flujo, ni es la raíz o una caja de flex o grid; delante del hijo solo blancos),
+  `_margen_colapsado`, `_margen_absorbido` (en `_bloque_en`) y `_margen_arriba` (frente al hermano de antes cuenta el
+  margen ya juntado). El de body se junta con el de su primer hijo, como en Chrome (body 8 + h1 21 daba 29; ahora 21).
+- Pendiente: el de abajo (el último hijo con su padre sin alto) y los bloques vacíos que se atraviesan.
+- tests/test_maqueta_margenes.dash (siete casos); test_maqueta: todo 4 px más arriba (body 4 con p 6 da 6).
+- Acid2 en el navegador (RTG): la sonrisa sube los 3 px. Ojo: en el navegador de verdad Acid2 sale bastante peor que en
+  las piezas de test_acid2 (con el código guardado, igual): "Hello World!" a la vista al ir a #top, un hueco grande
+  entre la frente y la sonrisa y una barra roja a lo ancho. Apuntado en la 41a2.
+- Batería: 82/83 (1775 s): test_jsdom_geometria esperaba el sticky con su <p> 16 px más abajo (sticky 10 26); su
+  margen ahora va fuera del sticky y Chrome da "sticky 10 10" (comprobado): expectativa corregida, pasa.
+- es.wikipedia.org/wiki/Amiga_1200 y freemem.space en el emulador (RTG, MUI 3.8): iguales que antes.
