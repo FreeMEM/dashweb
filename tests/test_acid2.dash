@@ -3,7 +3,8 @@
 # con el color del texto), uno semitransparente se mezcla y uno con un color que no se entiende va con el del texto.
 # Ir a #top lleva al borde de arriba de su caja, con su relleno (no a su texto). En modo estándar "width: 200" no
 # vale (en quirks, sí: 200px) y un ";" suelto tras una regla deja fuera la siguiente. La nariz: max-height 3em
-# corta el alto del contenido (los % de height y min-height, con el padre sin alto, no cuentan).
+# corta el alto del contenido (los % de height y min-height, con el padre sin alto, no cuentan). La barbilla: una
+# línea con texto de 2px/4px en un bloque con line-height 1em (12 px) mide 12 (el strut del bloque).
 # memcheck
 # expect-out: hoja data: none
 # expect-out: borde transparente: 0 dibujos
@@ -12,6 +13,7 @@
 # expect-out: ancla: 100 true
 # expect-out: parser: 2em 1em | quirks: 200
 # expect-out: nariz: 168x48
+# expect-out: barbilla: 12
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -70,4 +72,9 @@ Main
     maquetar(e3, 400)
     n3 = jsdom_selector(e3, ".nose", false)[0]
     Print "nariz: " + n3.caja_w + "x" + n3.caja_h
+    barbilla = "<style>body { margin: 0; font: 12px sans-serif } .chin { width: 8em; line-height: 1em } .chin div { display: inline; font: 2px/4px serif }</style>"
+    e4 = dom_desde_html5("<!DOCTYPE html><html><head>" + barbilla + "</head><body><div class=chin> <div> &nbsp; </div> </div></body></html>")
+    estilo_aplicar(e4, estilo_hojas(e4, "http://x/"))
+    maquetar(e4, 400)
+    Print "barbilla: " + jsdom_selector(e4, ".chin", false)[0].caja_h
 end

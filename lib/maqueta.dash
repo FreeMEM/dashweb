@@ -3261,6 +3261,21 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
                 abajo = dd
             end
         end
+        # el "strut" (10.8.1): la línea empieza con una caja vacía de la letra y el line-height del bloque, así que
+        # nunca es más baja que él aunque lo de dentro sea más pequeño (la barbilla de Acid2: texto de 2px/4px en
+        # un bloque con line-height 1em)
+        tam_b = estilo_px(_val(e, "font-size", "16px"), 0, 0)
+        lh_b = estilo_alto_linea(_val(e, "line-height", "normal"), tam_b)
+        if lh_b >= 0 and tam_b > 0
+            font_use(_fuente_ancha(m, _val(e, "font-family", ""), tam_b, _estiramiento(e)))
+            a = font_baseline() + (lh_b - font_height()) / 2
+            if a > base
+                base = a
+            end
+            if lh_b - a > abajo
+                abajo = lh_b - a
+            end
+        end
         alto = base + abajo
         if alto < 1
             alto = 1

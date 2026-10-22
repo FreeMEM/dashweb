@@ -3424,3 +3424,11 @@ Formato:
   en la segunda).
 - Batería: 79/79 (1688 s).
 
+
+### 2026-10-22 — Tarea 41a, quinta parte (la barbilla de Acid2: el strut)
+- CSS 2.1 10.8.1: cada línea empieza con una caja vacía de la letra y el line-height de su bloque, así que no es
+  más baja que él. lib/maqueta.dash `_poner_linea` (la rama con line-height): si el bloque tiene line-height, su
+  strut cuenta para la base y lo de abajo de la línea.
+- La barbilla de Acid2 (texto de 2px/4px en un bloque con line-height 1em de 12 px) mide 12 como en Chrome (antes
+  4). test_acid2: "barbilla: 12". Las 16 de maqueta pasan igual.
+- Batería: 79/79 (1689 s).
