@@ -16,6 +16,7 @@
 # expect-out: barbilla: 12
 # expect-out: cuarta: 48x12 | 96x12
 # expect-out: frente: 96 144 | ventana: 300
+# expect-out: sonrisa: 48 120 | 60 96 | 72 72
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/documento.dash"
@@ -92,4 +93,17 @@ Main
     maquetar(e6, 400)
     fh = jsdom_selector(e6, ".forehead", false)[0]
     Print "frente: " + (fh.caja_w - 24) + " " + jsdom_selector(e6, ".forehead div", false)[0].caja_w + " | ventana: " + jsdom_selector(e6, ".ancha", false)[0].caja_w
+    sonrisa = "<style>body { margin: 0; font: 12px sans-serif } .smile { margin: 5em 3em; clear: both } .smile div { margin-top: 0.25em; background: black; width: 12em; height: 2em; position: relative; bottom: -1em } .smile div div { position: absolute; top: 0; right: 1em; width: auto; height: 0; margin: 0; border: yellow solid 1em } .smile div div span { display: inline; margin: -1em 0 0 0; border: solid 1em transparent; border-style: none solid; float: right; background: black; height: 1em } .smile div div span em { float: inherit; border-top: solid yellow 1em; border-bottom: solid black 1em } .smile div div span em strong { width: 6em; display: block; margin-bottom: -1em }</style>"
+    e7 = dom_desde_html5("<!DOCTYPE html><html><head>" + sonrisa + "</head><body><div class=smile><div><div><span><em><strong></strong></em></span></div></div></div></body></html>")
+    estilo_aplicar(e7, estilo_hojas(e7, "http://x/"))
+    maquetar(e7, 400)
+    ts = "sonrisa:"
+    for sel in [".smile div div", "span", "em"]
+        k = jsdom_selector(e7, sel, false)[0]
+        if ts != "sonrisa:"
+            ts = ts + " |"
+        end
+        ts = ts + " " + k.caja_x + " " + k.caja_w
+    end
+    Print ts
 end

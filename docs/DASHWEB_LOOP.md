@@ -3458,3 +3458,15 @@ Formato:
 - tests/test_maqueta_tabla_css.dash: la línea de Acid2 (ul 48x12, cuatro de 12x12), dos celdas de <div> en fila y
   dos <p> sueltos en la misma celda anónima, uno bajo el otro. test_maqueta_tabla igual.
 - Batería: 80/80 (1707 s).
+
+### 2026-10-22 — Tarea 41a, novena parte (la sonrisa de Acid2: anchos de flotantes anidados)
+- La sonrisa: un absoluto sin ancho con un <span> flotante (display: inline, bordes de 1em a los lados) con un <em>
+  flotante con un <strong> de width 6em que no pinta nada. Chrome: 120, 96 y 72; dashweb daba 25, 25 y 1.
+- lib/maqueta.dash: al medir, un bloque con width (no %) deja un rectángulo vacío de su caja (cuenta como las cajas
+  con width: su ancho llega aunque no pinte nada); `_sangrias` cuenta como bloque un flotante o un absoluto aunque
+  diga display: inline (los bordes del <span> se perdían). Con eso x y anchos como en Chrome.
+- Queda: en Chrome el margin-top del hijo se junta con el del padre (.smile, 5em, y su <div>, 0.25em: el colapso de
+  márgenes entre padre e hijo, CSS 2.1 8.3.1); en dashweb no, y la sonrisa queda 3 px más abajo. Es general: va
+  aparte.
+- test_acid2: "sonrisa: 48 120 | 60 96 | 72 72". Las 17 de maqueta pasan igual.
+- Batería: 80/80 (1711 s).

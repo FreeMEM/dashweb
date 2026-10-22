@@ -1032,6 +1032,13 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         end
     end
     alto_caja = bt + pt + alto + pb + bb
+    if _midiendo > 0 and n != _medido and e.has("width") and e["width"] != "auto" and not str_ends(e["width"], "%")
+        # al medir: una caja con width que no pinta nada (alto 0, sin fondo) también ocupa ese ancho; un rectángulo
+        # vacío de su caja lo cuenta (la sonrisa de Acid2: un <strong> de 6em dentro de flotantes)
+        marca = _dibujo(D_RECT, x + ml, y + mt, interior + bl + br + pl + pr, 0, 0)
+        marca.nodo = n
+        m.pagina.dibujos.push(marca)
+    end
     redonda = _redonda(e, interior + bl + br + pl + pr, alto_caja)
     radios = 0
     if not redonda
@@ -2374,7 +2381,8 @@ func _sangrias(n: Nodo, tope: Nodo)
     _sangria_der = 0
     p = n
     while p != nil and p != tope
-        if p.tipo == DOM_ELEMENTO and _val(p.estilo, "display", "inline") != "inline"
+        # (un flotante o un absoluto es un bloque aunque diga display: inline: el <span> flotante de Acid2)
+        if p.tipo == DOM_ELEMENTO and (_val(p.estilo, "display", "inline") != "inline" or _val(p.estilo, "float", "none") != "none" or _fuera_del_flujo(p))
             e = p.estilo
             _sangria_izq = _sangria_izq + _px(e, "margin-left", 0) + _borde(e, "left") + _px(e, "padding-left", 0)
             _sangria_der = _sangria_der + _px(e, "margin-right", 0) + _borde(e, "right") + _px(e, "padding-right", 0)

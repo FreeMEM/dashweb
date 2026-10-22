@@ -8,6 +8,6 @@
  {"pieza": "Segunda línea: selector con espacio escapado", "estado": "hecha", "nota": "41a (6): el valor se desescapa"},
  {"pieza": "Frente: hijo más ancho que el padre", "estado": "hecha", "nota": "41a (7): desborda si cabe en la ventana"},
  {"pieza": "Ojos: floats detrás de bloques", "estado": "pendiente", "nota": "#eyes-c baja bajo el float"},
- {"pieza": "Sonrisa: floats anidados", "estado": "pendiente", "nota": "el ancho no sube"},
+ {"pieza": "Sonrisa: floats anidados", "estado": "hecha", "nota": "41a (9): anchos como Chrome (3 px de colapso de márgenes aparte)"},
  {"pieza": "Última línea: display: table en ul/li", "estado": "hecha", "nota": "41a (8): filas y celdas anónimas"}
 ]
