@@ -3695,3 +3695,16 @@ Formato:
   height ni atributo, con top y bottom, lo de en medio. object-fit: cover ya lo hacía el pintor.
 - tests/test_maqueta_absoluto_img.dash (la tarjeta: 0,0 344x258 como en Chrome; un absoluto dentro de un span).
 - Batería: 91/91 (1983 s). xataka.com en el emulador: el aviso se lee entero (títulos, "Aceptar y leer GRATIS") y detrás asoman las fotos de las tarjetas; el euro sale "?" (Latin-1). freemem.space y Wikipedia, como antes.
+
+### 2026-10-22 — Tarea 42, los caracteres (el euro de Xataka, la "›" de Google) y la 42a
+- Lo que vuelve del JavaScript (lib/js.dash `_js_latin1`) cambiaba por "?" todo lo que no cabe en Latin-1, sin los
+  sustitutos de lib/texto.dash: el precio del aviso de xataka.com salía "2?". `_js_parecido`: los mismos que
+  `latin1_de` (euro "EUR", comillas rectas, "-", "...", "TM"...), nunca más largos que su UTF-8 (se escribe en el
+  sitio). test_js_utf8: "vuelta".
+- U+203A y U+2039 (› ‹, los separadores de las direcciones de los resultados de Google) pasan a » y « (antes "'"),
+  en las dos tablas. test_texto.
+- 42a (Wikipedia a 1650 px en CoffinOS, aplastada): era la compilación de las 00:50, sin la 41a3; a 1024 se ve bien
+  desde la v0.3.0-alfa. A 1620 px sin comprobar: tools/traza.py no acaba en 10 minutos con el JavaScript de
+  Wikipedia. Pendiente de que el usuario la mire en CoffinOS.
+- Pendiente de decisión del usuario: el tope de los 30 s (con él, el botón del aviso de Xataka no lo cierra).
+- Batería: 91/91 (1980 s).

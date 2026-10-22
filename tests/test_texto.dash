@@ -10,6 +10,7 @@
 # expect-out: a & b <c> éÉ éé EUR &copy &nope; ? & ©
 # expect-out: 198 8204 -1 38
 # expect-out: sin cambios
+# expect-out: es.wikipedia.org » wiki « x
 
 import "../lib/texto.dash"
 
@@ -32,4 +33,6 @@ Main
     Print html_entidades("a &amp; b &lt;c&gt; &eacute;&Eacute; &#233;&#xE9; &#8364; &copy &nope; &#x263A; &amp &copy;")
     Print "" + entidad_codigo("AElig") + " " + entidad_codigo("zwnj") + " " + entidad_codigo("zzz") + " " + entidad_codigo("amp")
     Print html_entidades(texto_decodificar("sin cambios", "utf-8"))
+    # (› y ‹, como en las direcciones de los resultados de Google: » y «; tarea 42c)
+    Print html_entidades("es.wikipedia.org &rsaquo; wiki &lsaquo; x")
 end

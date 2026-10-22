@@ -1,11 +1,13 @@
 # Test: el JavaScript con sus caracteres (tarea 37a4). Los scripts pasan por utf8_a_js (lo que no cabe en Latin-1,
 # como \uXXXX) y no por utf8_a_latin1, que daba "????" y cambiaba las comillas tipográficas por " (rompía la
 # cadena). Una página en UTF-8 va a Hubbub tal cual (dom_desde_html5_utf8): el texto del DOM sigue en Latin-1 y el
-# de los <script> conserva sus caracteres. URL.host con punycode ("тест" -> "xn--e1aybc").
+# de los <script> conserva sus caracteres. URL.host con punycode ("тест" -> "xn--e1aybc"). Lo que vuelve del
+# JavaScript sin sitio en Latin-1, como latin1_de: el euro "EUR", comillas rectas, "..." (tarea 42e: "2?" en xataka.com).
 # memcheck
 # expect-out: js 10 1090 8220 120 8221 55357 56832 | xn--e1aybc
 # expect-out: dom 233 63
 # expect-out: suelto 4 1090 1077
+# expect-out: vuelta: 2EUR 'a' "b" c... d-e ?
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/jsdom.dash"
@@ -34,5 +36,6 @@ Main
     t = dom_texto(dom_por_id(doc, "p"))
     Print "dom " + str_code(t, 3) + " " + str_code(t, 5)
     Print js_evaluar(js, utf8_a_js("var v = '" + test + "'; 'suelto ' + v.length + ' ' + v.charCodeAt(0) + ' ' + v.charCodeAt(1)"), "t.js")
+    Print "vuelta: " + js_evaluar(js, "'2\\u20ac \\u2018a\\u2019 \\u201cb\\u201d c\\u2026 d\\u2013e \\u263a'", "t.js")
     js_liberar(js)
 end
