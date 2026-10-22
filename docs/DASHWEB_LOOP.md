@@ -3708,3 +3708,13 @@ Formato:
   Wikipedia. Pendiente de que el usuario la mire en CoffinOS.
 - Pendiente de decisión del usuario: el tope de los 30 s (con él, el botón del aviso de Xataka no lo cierra).
 - Batería: 91/91 (1980 s).
+
+### 2026-10-22 — Tarea 41a2, quinta parte (el ul de Acid2: celdas anónimas que contaban los márgenes del ul)
+- El ul de Acid2 (display: table, margin 0 7em) medía 216 de ancho (Chrome 48): sus <li> que no son celdas van en una
+  fila anónima y en celdas anónimas (17.2.1), pero su padre sigue siendo el ul; al medir una celda anónima,
+  `_sangrias` subía desde el <li> buscando la celda (que no es su antepasado) y sumaba los márgenes del ul (84 + 84):
+  la columna medía 180 y lo sobrante se repartía.
+- lib/maqueta.dash `_ancho_flotante_medir`: si lo medido es una caja anónima (`_es_hijo`: no está entre los hijos de
+  su padre), `_sangria_corte` es el primero de arriba que está de verdad en el árbol y `_sangrias` para ahí.
+- test_acid2_pagina: ul 132,264 48x12, como Chrome; ya son trece cajas de la cara iguales.
+- Batería: 91/91 (1977 s). Acid2 en el navegador (RTG): ya es la cara entera, solo con rojo junto a los ojos (el <object> con la imagen) y una raya roja bajo la barbilla. freemem.space y Wikipedia, como antes (una carga de Wikipedia salió sin su JavaScript, 19 s y 2 MB: fallo de red; repetida, 56 s y bien).

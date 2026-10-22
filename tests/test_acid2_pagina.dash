@@ -1,7 +1,8 @@
 # Test: Acid2 entera (tests/pages/acid2.html, de acid2.acidtests.org) maquetada a 944 px: las cajas de la cara (x, y
 # desde #top, ancho y alto) como en Chrome 944x630 (getBoundingClientRect, 2026-10-22). Márgenes que se juntan entre
 # padre e hijos y a través de .empty (8.3.1), la holgura de la sonrisa con clear (9.5.2) y el ancho que encoge de .eyes
-# (absoluto: sus líneas alineadas a la derecha no lo ensanchan). Falta: ul (Chrome 48 de ancho).
+# (absoluto: sus líneas alineadas a la derecha no lo ensanchan) y el ul, tabla de CSS con celdas anónimas que encoge a
+# 48 (al medirlas no cuentan los márgenes del ul).
 # emu-server: http.py 40853
 # memcheck
 # expect-out: #top 72,0 800x72
@@ -14,6 +15,7 @@
 # expect-out: .smile div 84,216 144x24
 # expect-out: .chin 96,240 120x12
 # expect-out: .parser-container 48,252 884x12
+# expect-out: ul 132,264 48x12
 # expect-out: .image-height-test 48,276 884x10
 # expect-out: blockquote 108,120 96x12
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
@@ -43,7 +45,7 @@ Main
     p = maquetar(doc, 944)
     top = busca(doc, "#top")
     y0 = top.caja_y
-    for s in ["#top", ".picture", ".forehead", ".eyes", ".nose", ".empty", ".smile", ".smile div", ".chin", ".parser-container", ".image-height-test", "blockquote"]
+    for s in ["#top", ".picture", ".forehead", ".eyes", ".nose", ".empty", ".smile", ".smile div", ".chin", ".parser-container", "ul", ".image-height-test", "blockquote"]
         n = busca(doc, s)
         if s == ".smile div"
             n = busca(doc, ".smile").hijos[0]

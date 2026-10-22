@@ -2402,11 +2402,14 @@ end
 # su texto sin el relleno del enlace)
 var _sangria_izq: Int = 0
 var _sangria_der: Int = 0
+# (si lo medido es una caja anónima, sus hijos tienen de padre el de ella: se para ahí; la celda anónima del <ul> de
+# Acid2 contaba los márgenes del <ul>, 168 px)
+var _sangria_corte: Nodo = nil
 func _sangrias(n: Nodo, tope: Nodo)
     _sangria_izq = 0
     _sangria_der = 0
     p = n
-    while p != nil and p != tope
+    while p != nil and p != tope and (_sangria_corte == nil or p != _sangria_corte)
         # (un flotante o un absoluto es un bloque aunque diga display: inline: el <span> flotante de Acid2)
         if p.tipo == DOM_ELEMENTO and (_val(p.estilo, "display", "inline") != "inline" or _val(p.estilo, "float", "none") != "none" or _fuera_del_flujo(p))
             e = p.estilo
@@ -2415,6 +2418,16 @@ func _sangrias(n: Nodo, tope: Nodo)
         end
         p = p.padre
     end
+end
+
+# h está entre los hijos de p (no es una caja anónima de la maqueta, que tiene padre pero no está en sus hijos)
+func _es_hijo(p: Nodo, h: Nodo) -> Bool
+    for k in p.hijos
+        if k == h
+            return true
+        end
+    end
+    return false
 end
 
 func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
@@ -2438,6 +2451,16 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     _bloque_de(m, h, 0, 0, ancho, ancho)
     _medido = medido
     _midiendo = _midiendo - 1
+    corte_antes = _sangria_corte
+    _sangria_corte = nil
+    if h.padre != nil and not _es_hijo(h.padre, h)
+        # (el primero de arriba que está de verdad en el árbol: una celda anónima va en una fila anónima)
+        c = h.padre
+        while c.padre != nil and not _es_hijo(c.padre, c)
+            c = c.padre
+        end
+        _sangria_corte = c
+    end
     derecha = 0
     izquierda = ancho
     i = antes
@@ -2484,6 +2507,7 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
         end
         i = i + 1
     end
+    _sangria_corte = corte_antes
     while m.pagina.dibujos.length > antes
         m.pagina.dibujos.pop()
     end
