@@ -131,6 +131,22 @@ struct Pieza
     lh: Int = -1             # el line-height de su texto en px (-1: normal; tarea 40d)
 end
 
+# Un número en hexadecimal ("e60a"); 0 si no lo es
+func _hex_entero(t: String) -> Int
+    r = 0
+    for i in (0..t.length - 1)
+        c = str_code(str_lower(t), i)
+        if c >= 48 and c <= 57
+            r = r * 16 + c - 48
+        elif c >= 97 and c <= 102
+            r = r * 16 + c - 87
+        else
+            return 0
+        end
+    end
+    return r
+end
+
 # Los hijos de n con su ::before delante y su ::after detrás (lib/estilo.dash)
 func _hijos(n: Nodo) -> [Nodo]
     if n.pseudo_antes == nil and n.pseudo_despues == nil
@@ -3413,6 +3429,24 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
     end
     if n.nombre == "::icono"
         tam = estilo_px(e["font-size"], 0, 0)
+        # con la fuente de iconos de la página ya llegada, su dibujo de verdad (la "A" de una fuente hecha con ese
+        # carácter: fuente_web_icono); si no, el pintor dibuja los de Font Awesome que conoce o un cuadradito
+        fi = 0
+        if e.has("font-family")
+            fi = fuente_web_icono(e["font-family"], tam, _hex_entero(dom_atributo(n, "codigo")))
+        end
+        if fi != 0
+            font_use(fi)
+            color = css_color(e["color"])
+            if color < 0
+                color = 0
+            end
+            pz = Pieza("A", font_text_width("A"), font_height(), font_baseline(), fi, 0, color, false, enlace, m.blanco, false, false)
+            pz.nodo = n.padre
+            piezas.push(pz)
+            m.blanco = 0
+            return
+        end
         font_use(_fuente(m, "sans-serif", tam))
         color = css_color(e["color"])
         if color < 0

@@ -407,6 +407,10 @@ tarea, con el estilo de Dash.
          el ☰ del menú y el ⋮ de las herramientas (mask-image con SVG), en Xataka los del menú, el buscador, las redes
          y la fila de webs del grupo. Amelinium los pinta. Mirar con qué los hace cada página (mask-image, fuente de
          iconos, SVG en línea o en <use>) y pintarlos.
+         Hechos (2026-10-23): los de máscara (Wikipedia) y los de fuentes de iconos que no son Font Awesome (Xataka).
+         Queda en Xataka: la fila de los favicons sale sobre la barra de patrocinadores (en Chrome va arriba del todo,
+         y=0), la fila de redes sociales y las secciones (Análisis, Ciencia...) no salen, y en "NUEVO" se pinta un
+         icono encima de la U.
       h. (de la misma comparación) Wikipedia: el buscador sin su texto ("Buscar en Wikipedia") ni el botón "Buscar".
          amigaworld.net: las » del menú de la izquierda salen como "?".
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
@@ -3809,3 +3813,15 @@ Formato:
   conoce (segunda parte).
 - tests: test_maqueta_mascara (la máscara teñida y el borde redondo transparente), test_fuente_web (el EOT).
 - Batería: 94/94 (2036 s); test_fuente_web y test_css otra vez después (el cambio de css.dash entró a mitad).
+
+### 2026-10-23 — Tarea 42g, segunda parte (los iconos de las fuentes de iconos)
+- Las fuentes de iconos no se bajaban y el pintor solo dibuja a mano unos iconos de Font Awesome (el resto, un
+  cuadradito). Ahora se bajan todas menos Font Awesome (700 KB; sigue a mano), hasta 4 aparte de las 8 de letras
+  (lib/imagenes.dash `imagenes_pedir_fuentes`), y un icono de una de ellas se pinta con su dibujo: una fuente de Amiga
+  con solo la "A", que lleva ese carácter (lib/fuente_web.dash `fuente_web_icono`, `_fw_icono`; las demás letras
+  vacías, sin rasterizar), y en la línea va como texto "A" con ella (lib/maqueta.dash, "::icono"). La búsqueda del
+  fichero por familia, aparte (`_fuente_web_fichero`).
+- Xataka: el menú, la lupa y la fila de webs del grupo con sus iconos. Queda: esa fila sale sobre la barra de
+  patrocinadores, faltan las redes y las secciones, y un icono sobre la U de "NUEVO" (en 42g).
+- test_fuente_web: el icono (la W de Vera Mono como "A"; la "B" vacía).
+- Batería: 94/94 (2038 s). freemem.space (Font Awesome, a mano) y amigaworld.net, como antes.

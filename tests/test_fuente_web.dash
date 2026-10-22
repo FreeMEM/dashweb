@@ -15,6 +15,7 @@
 # expect-out: woff2 como ttf true
 # expect-out: palo de la L entero: true
 # expect-out: caras 3: mi fuente 700 italic http://ejemplo.com/f/mi.woff2 | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2 | icons-min 400 normal http://ejemplo.com/i/icons.ttf?x
+# expect-out: icono true true 0
 # expect-out: maqueta 36 sin 0
 # expect-out: estirada 54 | apretada 30
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
@@ -133,6 +134,10 @@ Main
     Print r
     # una fuente de la página registrada (como al llegar): la maqueta la usa si el font-family la nombra
     fuente_web_registrar("vera mono|400|normal", "T:VeraMono.ttf")
+    # un icono (aquí la W) como la "A" de una fuente con solo ese carácter (los iconos de Xataka; tarea 42g)
+    fi = fuente_web_icono("'Vera Mono', sans-serif", 20, 87)
+    font_use(fi)
+    Print "icono " + (fi != 0) + " " + (font_text_width("A") > 0) + " " + font_text_width("B")
     doc2 = dom_desde_html("<html><body style='margin:0'><p style=\"font-family: 'Vera Mono', sans-serif; font-size: 20px\">WWW</p></body></html>")
     estilo_aplicar(doc2, estilo_hojas(doc2, "prueba.html"))
     p = maquetar(doc2, 280)
