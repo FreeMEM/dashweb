@@ -1,6 +1,7 @@
 #!/bin/sh
 # Los decodificadores de imágenes de dashweb (third_party/tjpgd, third_party/stb, el decodificador de
-# third_party/libwebp y third_party/nanosvg), stb_truetype (fuentes de @font-face) y Hubbub (HTML5) en
+# third_party/libwebp y third_party/nanosvg), stb_truetype y el descompresor Brotli (fuentes de @font-face, WOFF2) y
+# Hubbub (HTML5) en
 # build/img-lib/libimg.a, con sus cabeceras, para el "@link" de lib/imagen_dec.dash.
 #
 #   tools/build_img.sh
@@ -27,6 +28,12 @@ for f in "$W"/src/dec/*.c "$W"/src/dsp/*.c "$W"/src/utils/*.c; do
 done
 $GCC $CF -I"$R/third_party/nanosvg" -c "$R/third_party/nanosvg/nanosvg_impl.c" -o "$B/nanosvg.o"
 $GCC $CF -I"$R/third_party/stb" -c "$R/third_party/stb/stb_truetype_impl.c" -o "$B/stb_truetype.o"
+# Brotli (google/brotli 1.1.0, MIT): solo el descompresor, para las fuentes WOFF2 (lib/fuente_web.dash)
+BR=$R/third_party/brotli
+mkdir -p "$B/brotli_o"
+for f in "$BR"/common/*.c "$BR"/dec/*.c; do
+    $GCC $CF -I"$BR/include" -c "$f" -o "$B/brotli_o/$(basename "$(dirname "$f")")_$(basename "$f" .c).o"
+done
 # Hubbub (el analizador de HTML5 de NetSurf) y libparserutils: lib/html5.dash
 H=$R/third_party/hubbub
 mkdir -p "$B/hubbub_o"
@@ -35,10 +42,13 @@ for f in $(find "$H/libparserutils/src" "$H/libhubbub/src" -name "*.c" ! -name "
     $GCC $CF -fbbb=- -DNDEBUG -DWITHOUT_ICONV_FILTER -I"$H/libparserutils/include" -I"$H/libparserutils/src" -I"$H/libhubbub/include" -I"$H/libhubbub/src" -c "$f" -o "$B/hubbub_o/${o%.c}.o"
 done
 rm -f "$B/libimg.a"
-${AR:-/opt/amiga/bin/m68k-amigaos-ar} rcs "$B/libimg.a" "$B/tjpgd.o" "$B/stb_image.o" "$B/nanosvg.o" "$B/stb_truetype.o" "$B"/webp/*.o "$B"/hubbub_o/*.o
+${AR:-/opt/amiga/bin/m68k-amigaos-ar} rcs "$B/libimg.a" "$B/tjpgd.o" "$B/stb_image.o" "$B/nanosvg.o" "$B/stb_truetype.o" "$B"/webp/*.o "$B"/hubbub_o/*.o "$B"/brotli_o/*.o
 # (las cabeceras, en build/img-lib/hubbub: se incluyen como <hubbub/hubbub.h>)
 rm -rf "$B/hubbub" "$B/hubbub_inc"
 cp -r "$H/libhubbub/include/hubbub" "$B/"
+rm -rf "$B/brotli"
+mkdir -p "$B/brotli"
+cp "$BR"/include/brotli/decode.h "$BR"/include/brotli/port.h "$BR"/include/brotli/types.h "$BR"/include/brotli/shared_dictionary.h "$B/brotli/"
 mkdir -p "$B/webp_inc/webp"
 cp "$W"/src/webp/decode.h "$W"/src/webp/types.h "$B/webp_inc/webp/"
 cp "$R/third_party/nanosvg/nanosvg.h" "$R/third_party/nanosvg/nanosvgrast.h" "$B/"

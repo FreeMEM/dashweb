@@ -62,8 +62,8 @@ apartado 2). Las órdenes se lanzan desde la carpeta de Dash:
 ```bash
 export DASH_KICKSTART="/ruta/a/kick31_a1200.rom"
 export DASH_EMU_SYS=~/.cache/dash-emu/sys31mui        # Workbench 3.1 con MUI
-cd ~/Projects/FreeMEMLang-dashweb                      # la carpeta de Dash
-TUT=~/Projects/dashweb/docs/tutorial
+cd ~/Projects/FreeMEMLang/.worktrees/dashweb                      # la carpeta de Dash
+TUT=~/Projects/tachyon/docs/tutorial
 ```
 
 Para los pasos con red, un servidor en el PC que sirve `docs/tutorial/web/`:

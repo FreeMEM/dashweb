@@ -1,0 +1,26 @@
+# Test: el blanco del final de una palabra cuelga fuera de la línea (CSS Text 3, 4.1.3): en 56 px (7 letras de 8),
+# "aaa bbb" cabe aunque tras "bbb" venga un espacio antes de la <b> siguiente; solo "c" baja a otra línea
+# memcheck
+# expect-out: aaa 0 | bbb 0 | c 1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+Main
+    doc = dom_desde_html5("<!DOCTYPE html><html><body style='margin:0;font-family:sans-serif;font-size:14px'><div style='width:56px'><b>aaa</b> bbb <b>c</b></div></body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 300)
+    var ys: [Int] = []
+    s = ""
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and str_trim(d.texto) != ""
+            if ys.length == 0 or ys[ys.length - 1] != d.y
+                ys.push(d.y)
+            end
+            if s != ""
+                s = s + " | "
+            end
+            s = s + str_trim(d.texto) + " " + (ys.length - 1)
+        end
+    end
+    Print s
+end

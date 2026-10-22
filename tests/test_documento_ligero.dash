@@ -1,0 +1,115 @@
+# Test: cambios del JavaScript que no mueven nada se aplican sin rehacer la maqueta (tarea 37d). Un translateY en
+# el atributo style mueve los dibujos del elemento y de lo de dentro (y su caja para el JavaScript); opacity: 0 los
+# vela y opacity: 1 los enseña; un rotate en una caja con texto (no se pinta girada), sin maqueta; algo que sí
+# mueve (width), con maqueta. Un elemento con opacity: 0 desde el
+# principio tiene sus dibujos (velados) y su caja. Un texto que cambia sin cambiar de forma (un reloj) se cambia
+# en sus dibujos; si cambia de largo, maqueta otra vez. Una escala casi 1 (GSAP) cuenta como 1. view-transition-name
+# (las transiciones de React) no mueve nada; un <script> que entra tampoco, un <div> sí (tarea 37e3). Un elemento
+# absoluto que sale, o uno fijo que pasa a display: none, se quita de los dibujos sin maqueta; uno normal que sale,
+# con maqueta (tarea 37e5). Un atributo que no mueve nada (name), algo de dentro de un <svg> (su imagen se hace
+# otra vez; en 3.1 sin RTG no hay imagen que mirar) y un rotate en una caja con hijos (no se pinta girada), sin maqueta (37h2).
+# memcheck
+# expect-out: misma página: true | y +40: true | caja +40: true
+# expect-out: velado: true true | enseñado: false
+# expect-out: rotate: true | width: false
+# expect-out: oculto desde el principio: true 50
+# expect-out: reloj: true 34 | más largo: false | escala 0.98: true
+# expect-out: view-transition-name: true | script: true | div: false
+# expect-out: sale absoluto: true false | fijo a none: true false | sale normal: false
+# expect-out: name: true | svg: true | rotate: true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+func dibujo_de(p: Pagina, n: Nodo) -> Dibujo
+    var nada: Dibujo = nil
+    for d in p.dibujos
+        if d.nodo == n
+            return d
+        end
+    end
+    return nada
+end
+
+Main
+    h = "<body style='margin:0'><div id=a style='background:red;height:30px'><span id=s>hola</span></div><div id=o style='opacity:0;height:50px;background:blue'>x</div><p><span id=r>12</span> horas</p><div id=abs style='position:absolute;top:0;left:200px;background:green;width:20px;height:20px'></div><div id=fij style='position:fixed;top:0;left:250px;background:green;width:20px;height:20px'></div><div id=nor style='height:10px;background:gray'></div><input id=in name=uno><svg id=sv width=20 height=20><rect id=re width=20 height=20 fill=red /></svg><div id=gi><p>x</p></div><script>var a = document.getElementById('a');</script></body>"
+    d = documento_html("http://x/", h)
+    documento_maquetar(d, 300)
+    # (el primer cambio tras maquetar a otro ancho rehace el índice de las hojas: estilo entero)
+    js_evaluar(d.js, "a.style.transform = 'translateY(0px)'", "t.js")
+    documento_al_dia(d)
+    a = dom_por_id(d.doc, "a")
+    p = d.pagina
+    y0 = dibujo_de(p, a).y
+    cy0 = a.caja_y
+    js_evaluar(d.js, "a.style.transform = 'translateY(40px)'", "t.js")
+    documento_al_dia(d)
+    Print "misma página: " + (d.pagina == p) + " | y +40: " + (dibujo_de(d.pagina, a).y == y0 + 40) + " | caja +40: " + (a.caja_y == cy0 + 40)
+    js_evaluar(d.js, "a.style.opacity = '0'", "t.js")
+    documento_al_dia(d)
+    s = dom_por_id(d.doc, "s")
+    velado = "velado: " + dibujo_de(d.pagina, a).velado + " " + dibujo_de(d.pagina, s).velado
+    js_evaluar(d.js, "a.style.opacity = '1'", "t.js")
+    documento_al_dia(d)
+    Print velado + " | enseñado: " + dibujo_de(d.pagina, a).velado
+    p2 = d.pagina
+    js_evaluar(d.js, "a.style.transform = 'rotate(10deg)'", "t.js")
+    documento_al_dia(d)
+    r1 = d.pagina == p2
+    p3 = d.pagina
+    js_evaluar(d.js, "a.style.width = '100px'", "t.js")
+    documento_al_dia(d)
+    Print "rotate: " + r1 + " | width: " + (d.pagina == p3)
+    o = dom_por_id(d.doc, "o")
+    Print "oculto desde el principio: " + dibujo_de(d.pagina, o).velado + " " + o.caja_h
+    js_evaluar(d.js, "var r = document.getElementById('r'); r.textContent = '00'", "t.js")
+    documento_al_dia(d)
+    r = dom_por_id(d.doc, "r")
+    p4 = d.pagina
+    js_evaluar(d.js, "r.textContent = '34'", "t.js")
+    documento_al_dia(d)
+    reloj = "reloj: " + (d.pagina == p4) + " " + str_trim(dibujo_de(d.pagina, r).texto)
+    js_evaluar(d.js, "r.textContent = '1234'", "t.js")
+    documento_al_dia(d)
+    reloj = reloj + " | más largo: " + (d.pagina == p4)
+    js_evaluar(d.js, "a.style.transform = 'translateY(0px)'", "t.js")
+    documento_al_dia(d)
+    p5 = d.pagina
+    js_evaluar(d.js, "a.style.transform = 'translateY(5px) scale(0.98)'", "t.js")
+    documento_al_dia(d)
+    Print reloj + " | escala 0.98: " + (d.pagina == p5)
+    p6 = d.pagina
+    js_evaluar(d.js, "a.style.viewTransitionName = '_t_0_'; a.style.setProperty('view-transition-name', '_t_0_')", "t.js")
+    documento_al_dia(d)
+    vt = "view-transition-name: " + (d.pagina == p6)
+    js_evaluar(d.js, "var sc = document.createElement('script'); sc.textContent = '1'; document.body.appendChild(sc)", "t.js")
+    documento_al_dia(d)
+    vt = vt + " | script: " + (d.pagina == p6)
+    js_evaluar(d.js, "var dv = document.createElement('div'); dv.textContent = 'nuevo'; document.body.appendChild(dv)", "t.js")
+    documento_al_dia(d)
+    Print vt + " | div: " + (d.pagina == p6)
+    p7 = d.pagina
+    ab = dom_por_id(d.doc, "abs")
+    fi = dom_por_id(d.doc, "fij")
+    habia = dibujo_de(d.pagina, ab) != nil and dibujo_de(d.pagina, fi) != nil
+    js_evaluar(d.js, "document.body.removeChild(document.getElementById('abs'))", "t.js")
+    documento_al_dia(d)
+    sa = "sale absoluto: " + (habia and d.pagina == p7) + " " + (dibujo_de(d.pagina, ab) != nil)
+    js_evaluar(d.js, "document.getElementById('fij').style.display = 'none'", "t.js")
+    documento_al_dia(d)
+    sa = sa + " | fijo a none: " + (d.pagina == p7) + " " + (dibujo_de(d.pagina, fi) != nil)
+    js_evaluar(d.js, "document.body.removeChild(document.getElementById('nor'))", "t.js")
+    documento_al_dia(d)
+    Print sa + " | sale normal: " + (d.pagina == p7)
+    p8 = d.pagina
+    js_evaluar(d.js, "document.getElementById('in').setAttribute('name', 'dos')", "t.js")
+    documento_al_dia(d)
+    r8 = "name: " + (d.pagina == p8)
+    js_evaluar(d.js, "document.getElementById('re').setAttribute('fill', 'blue')", "t.js")
+    documento_al_dia(d)
+    r8 = r8 + " | svg: " + (d.pagina == p8)
+    js_evaluar(d.js, "document.getElementById('gi').style.transform = 'rotate(5deg)'", "t.js")
+    documento_al_dia(d)
+    Print r8 + " | rotate: " + (d.pagina == p8)
+    documento_liberar(d)
+end

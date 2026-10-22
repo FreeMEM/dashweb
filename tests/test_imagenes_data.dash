@@ -1,0 +1,37 @@
+# Test: direcciones data: en imágenes (D68, tarea 40e). Un <img> con un PNG de 3x2 en base64 y un fondo con un SVG
+# de 10x6 escrito con %XX van a su fichero de T: ya llegados (solo les falta decodificarse, como a las bajadas; en
+# 3.1 sin RTG no hay imagen que mirar); imagen_data_a_fichero con base64 y con texto, y false con lo que no es
+# base64 o no es data:. Con dos_requesters(false), abrir "data:..." como fichero no pide el volumen DATA.
+# memcheck
+# expect-out: cola 2: true PNG 75 | true <svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><rect width='10' height='6' fill='red'/></svg>
+# expect-out: base64: true Hola | texto: true a b | mal: false | http: false
+# expect-out: fichero data: -1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/imagenes.dash"
+
+Main
+    dos_requesters(false)
+    png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAEklEQVR4nGP4z8AAQVDqPwMDAEHSBfsl0XwmAAAAAElFTkSuQmCC"
+    svg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Crect width='10' height='6' fill='red'/%3E%3C/svg%3E"
+    h = "<body><img src=\"" + png + "\"><div style=\"width:20px;height:20px;background-image:url(&quot;" + svg + "&quot;)\"></div></body>"
+    doc = dom_desde_html(h)
+    base = "http://x/a.html"
+    estilo_aplicar(doc, estilo_hojas(doc, base))
+    im = imagenes_nuevas()
+    imagenes_pedir(im, doc, base)
+    a = im.cola[0]
+    b = im.cola[1]
+    ta = file_read_text(a.fichero)
+    tb = file_read_text(b.fichero)
+    Print "cola " + im.cola.length + ": " + a.llegada + " " + ta[1:4] + " " + file_size(a.fichero) + " | " + b.llegada + " " + tb
+    x = imagen_data_a_fichero("data:text/plain;base64,SG9sYQ==", "T:dw_data1")
+    y = imagen_data_a_fichero("data:text/plain,a%20b", "T:dw_data2")
+    t1 = file_read_text("T:dw_data1")
+    t2 = file_read_text("T:dw_data2")
+    Print "base64: " + x + " " + t1 + " | texto: " + y + " " + t2 + " | mal: " + imagen_data_a_fichero("data:;base64,@@@", "T:dw_data3") + " | http: " + imagen_data_a_fichero("http://x/a.png", "T:dw_data3")
+    Print "fichero data: " + file_size("data:image/png;base64,AAAA")
+    file_delete("T:dw_data1")
+    file_delete("T:dw_data2")
+    imagenes_liberar(im)
+end

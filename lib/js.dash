@@ -46,6 +46,29 @@ typedef struct _JsMotorS {
 /* js_gc_siempre: the cycle collector after every script, call and job (to find reference-count bugs) */
 static int _js_gc_siempre = 0;
 
+/* A script, call or job that runs longer than this is cut (a loop without end in a page left the whole browser
+   hanging; tarea 40c): QuickJS asks _js_interrumpir every few thousand operations and, past the limit, the script
+   gets "interrupted". Wall clock from DateStamp (in 1/50 s): a real A1200 runs the JavaScript ~50 times slower
+   than the emulated RTG machine, so the limit is generous. */
+#define JS_SEGUNDOS 30
+static LONG _js_tope = JS_SEGUNDOS;
+static ULONG _js_desde = 0;
+static int _js_cortado = 0;
+static ULONG _js_ms(void) {
+    struct DateStamp ds;
+    DateStamp(&ds);
+    return ((ULONG)ds.ds_Days * 1440UL * 60UL + (ULONG)ds.ds_Minute * 60UL) * 1000UL + (ULONG)ds.ds_Tick * 20UL;
+}
+/* (each way into the JavaScript calls it: from then on the limit counts) */
+static void _js_empieza(void) { _js_desde = _js_ms(); }
+static int _js_interrumpir(JSRuntime *rt, void *o) {
+    if (_js_tope > 0 && _js_ms() - _js_desde > (ULONG)_js_tope * 1000UL) {
+        _js_cortado = 1;
+        return 1;
+    }
+    return 0;
+}
+
 #ifdef _JS_GUARDAS
 /* To find who writes over QuickJS's memory (DASH_CFLAGS=-D_JS_GUARDAS): every block it asks for has 16 bytes in
    front (size, list, magic) and 16 of 0x5A behind; all of them are checked after every script, call and job, and
@@ -159,11 +182,14 @@ static size_t _jg_tamano(const void *p) { return p ? ((const _JgCab *)p - 1)->n 
 static const JSMallocFunctions _jg_funciones = { _jg_malloc, _jg_free, _jg_realloc, _jg_tamano };
 #endif
 
+static void _js_rechazos_decir(void);
 /* The jobs waiting (Promise.then, async functions): run them all, up to a limit */
 static void _js_trabajos(JSRuntime *rt) {
     JSContext *c;
     int i;
+    _js_empieza();
     for (i = 0; i < 10000 && JS_ExecutePendingJob(rt, &c) > 0; i++) ;
+    _js_rechazos_decir();
 #ifdef _JS_GUARDAS
     _jg_todo();
 #endif
@@ -256,11 +282,38 @@ end
 @c
 """
 /* A promise rejected with nobody to catch it (as browsers do, to the output): without this the errors of
-   async code (React, Turbopack's chunk loading) were lost */
+   async code (React, Turbopack's chunk loading) were lost. Like browsers, it is said after the jobs (a promise
+   rejected and caught right away, fetch(...).catch(...), is not a rejection without a catch): _js_rechazos_decir */
+#define _JS_RECHAZOS 16
+static void *_js_rech_p[_JS_RECHAZOS];
+static char *_js_rech_t[_JS_RECHAZOS];
+static int _js_rech_n = 0;
+static void _js_rechazos_decir(void) {
+    int i;
+    for (i = 0; i < _js_rech_n; i++) {
+        PutStr((CONST_STRPTR)"JS (promesa sin capturar): ");
+        PutStr((CONST_STRPTR)_js_rech_t[i]);
+        PutStr((CONST_STRPTR)"\n");
+        free(_js_rech_t[i]);
+    }
+    _js_rech_n = 0;
+}
 static void _js_rechazo(JSContext *ctx, JSValueConst promesa, JSValueConst motivo, JS_BOOL atendida, void *op) {
-    char *t, *lugar = NULL, *p;
+    char *t, *lugar = NULL, *p, *r;
     JSValue pila;
-    if (atendida) return;
+    void *clave = JS_VALUE_GET_PTR(promesa);
+    int i;
+    if (atendida) {
+        for (i = 0; i < _js_rech_n; i++)
+            if (_js_rech_p[i] == clave) {
+                free(_js_rech_t[i]);
+                _js_rech_n--;
+                _js_rech_p[i] = _js_rech_p[_js_rech_n];
+                _js_rech_t[i] = _js_rech_t[_js_rech_n];
+                break;
+            }
+        return;
+    }
     t = _js_texto(ctx, motivo);
     if (JS_IsError(ctx, motivo)) {
         pila = JS_GetPropertyStr(ctx, motivo, "stack");
@@ -268,12 +321,15 @@ static void _js_rechazo(JSContext *ctx, JSValueConst promesa, JSValueConst motiv
         JS_FreeValue(ctx, pila);
     }
     for (p = lugar; p && *p; p++) if (*p == '\n') *p = ' ';
-    PutStr((CONST_STRPTR)"JS (promesa sin capturar): ");
-    PutStr((CONST_STRPTR)(t ? t : "?"));
-    if (lugar && *lugar) { PutStr((CONST_STRPTR)" | "); PutStr((CONST_STRPTR)lugar); }
-    PutStr((CONST_STRPTR)"\n");
+    r = (char *)malloc((t ? strlen(t) : 1) + (lugar ? strlen(lugar) : 0) + 4);
+    if (r) sprintf(r, "%s%s%s", t ? t : "?", lugar && *lugar ? " | " : "", lugar && *lugar ? lugar : "");
     free(t);
     free(lugar);
+    if (!r) return;
+    if (_js_rech_n == _JS_RECHAZOS) _js_rechazos_decir();
+    _js_rech_p[_js_rech_n] = clave;
+    _js_rech_t[_js_rech_n] = r;
+    _js_rech_n++;
 }
 """
 end
@@ -336,6 +392,7 @@ end
            Amiga without memory (Next.js on commodoremalacca.club took the 128 MB of the RTG machine) */
         JS_SetMemoryLimit(m->rt, JS_MEMORIA);
         JS_SetHostPromiseRejectionTracker(m->rt, _js_rechazo, NULL);
+        JS_SetInterruptHandler(m->rt, _js_interrumpir, NULL);
 #ifdef JS_PERFIL
         _jp_empezar(m->rt);
 #endif
@@ -371,6 +428,7 @@ end
     m->error = NULL;
     fuente = _js_utf8(codigo ? (const char *)codigo : "");
     if (!fuente) { m->error = strdup("sin memoria"); return (STRPTR)""; }
+    _js_empieza();
     v = JS_Eval(m->ctx, fuente, strlen(fuente), nombre ? (const char *)nombre : "<js>", JS_EVAL_TYPE_GLOBAL);
     free(fuente);
     _js_trabajos(m->rt);
@@ -391,6 +449,22 @@ end
 @native func js_gc_siempre(si: Bool)
 """
     _js_gc_siempre = si ? 1 : 0;
+"""
+end
+
+# ¿Se cortó algún script por pasar de js_tope segundos desde la última vez que se preguntó? (tarea 40c)
+@native func js_cortado() -> Bool
+"""
+    int r = _js_cortado;
+    _js_cortado = 0;
+    return r;
+"""
+end
+
+# Los segundos que puede durar un script, una llamada o un trabajo antes de cortarlo (0: sin tope; por omisión 30)
+@native func js_tope(segundos: Int)
+"""
+    _js_tope = segundos;
 """
 end
 

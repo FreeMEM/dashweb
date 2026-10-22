@@ -20,21 +20,64 @@ func _lapiz(rgb: Int) -> Int
     return color_pen(rgb / 65536, (rgb / 256) % 256, rgb % 256)
 end
 
+# Con pintor_zona, solo lo de pintor_zx0..pintor_zx1, pintor_zy0..pintor_zy1 (coordenadas de la ventana, incluidos):
+# su fondo y lo que la toca, recortado a ella; lo que no se sabe recortar (texto, iconos) se pinta entero y lo
+# recorta la región de Dash (mui_canvas_update_area; tarea 37e7)
+var pintor_zona: Bool = false
+var pintor_zx0: Int = 0
+var pintor_zy0: Int = 0
+var pintor_zx1: Int = 0
+var pintor_zy1: Int = 0
+
+func _mayor(a: Int, b: Int) -> Int
+    if a > b
+        return a
+    end
+    return b
+end
+
+func _menor(a: Int, b: Int) -> Int
+    if a < b
+        return a
+    end
+    return b
+end
+
 func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, alto: Int)
     if ancho <= 0 or alto <= 0
         return
     end
-    gfx_mode(0)
-    gfx_pen(_lapiz(p.fondo))
-    gfx_rect(x0, y0, x0 + ancho - 1, y0 + alto - 1)
-    hasta = desde + alto
     derecha = x0 + ancho - 1
     abajo = y0 + alto - 1
+    zx0 = x0
+    zy0 = y0
+    zx1 = derecha
+    zy1 = abajo
+    if pintor_zona
+        zx0 = _mayor(zx0, pintor_zx0)
+        zy0 = _mayor(zy0, pintor_zy0)
+        zx1 = _menor(zx1, pintor_zx1)
+        zy1 = _menor(zy1, pintor_zy1)
+        if zx0 > zx1 or zy0 > zy1
+            return
+        end
+    end
+    gfx_mode(0)
+    gfx_pen(_lapiz(p.fondo))
+    gfx_rect(zx0, zy0, zx1, zy1)
     for d in p.dibujos
-        if d.y + d.alto <= desde or d.y >= hasta or d.velado
+        # (lo fijo, position: fixed, va con la ventana: sin desplazar)
+        dd = desde
+        if d.fijo
+            dd = 0
+        elif d.pega != nil
+            # (lo de un sticky: más abajo, lo que lo empuja el desplazamiento)
+            dd = desde - maqueta_pega_dy(d.pega, desde)
+        end
+        if d.y + d.alto <= dd or d.y >= dd + alto or d.velado
             continue
         end
-        y = y0 + d.y - desde
+        y = y0 + d.y - dd
         x = x0 + d.x
         # lo visible: la zona, o su recorte (overflow) dentro de ella
         cx0 = x0
@@ -45,25 +88,43 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             if x0 + d.rx0 > cx0
                 cx0 = x0 + d.rx0
             end
-            if y0 + d.ry0 - desde > cy0
-                cy0 = y0 + d.ry0 - desde
+            if y0 + d.ry0 - dd > cy0
+                cy0 = y0 + d.ry0 - dd
             end
             if x0 + d.rx1 < cx1
                 cx1 = x0 + d.rx1
             end
-            if y0 + d.ry1 - desde < cy1
-                cy1 = y0 + d.ry1 - desde
+            if y0 + d.ry1 - dd < cy1
+                cy1 = y0 + d.ry1 - dd
             end
             if cx0 > cx1 or cy0 > cy1
                 continue
             end
         end
+        # (v: lo visible, para lo que solo se pinta entero; c: además dentro de la zona)
+        vx0 = cx0
+        vy0 = cy0
+        vx1 = cx1
+        vy1 = cy1
+        if pintor_zona
+            m = d.difuso
+            if x - m > zx1 or x + d.ancho + m <= zx0 or y - m > zy1 or y + d.alto + m <= zy0
+                continue
+            end
+            cx0 = _mayor(cx0, zx0)
+            cy0 = _mayor(cy0, zy0)
+            cx1 = _menor(cx1, zx1)
+            cy1 = _menor(cy1, zy1)
+            if cx0 > cx1 or cy0 > cy1
+                continue
+            end
+        end
         if d.tipo == D_TEXTO
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x <= cx1 and x + d.ancho > cx0
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x <= vx1 and x + d.ancho > vx0
                 font_use(d.fuente)
                 font_style(d.estilo)
                 gfx_pen(_lapiz(d.color))
-                if d.espaciado > 0 and d.texto.length > 0
+                if d.espaciado != 0 and d.texto.length > 0
                     # letter-spacing: letra a letra
                     lx = x
                     for i in (0..d.texto.length - 1)
@@ -77,6 +138,8 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             end
         elif d.tipo == D_REDONDO
             _redondo_pintar(d, x, y, cx0, cy0, cx1, cy1)
+        elif d.tipo == D_RECT and d.difuso > 0
+            _sombra_difusa(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_RECT and d.espaciado > 0
             _mezcla_recortada(x, y, d.ancho, d.alto, cx0, cy0, cx1, cy1, d.color, d.espaciado)
         elif d.tipo == D_RECT or d.tipo == D_LINEA
@@ -84,11 +147,13 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         elif d.tipo == D_CONTROL
             _control_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_ICONO
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x >= vx0 and x + d.ancho - 1 <= vx1
                 _icono_pintar(d, x, y)
             end
+        elif d.tipo == D_ELIPSE and d.espaciado > 0 and d.estilo == 0
+            _elipse_mezcla(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_ELIPSE
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x >= vx0 and x + d.ancho - 1 <= vx1
                 _elipse_pintar(d, x, y)
             end
         elif d.tipo == D_VIDEO
@@ -96,7 +161,7 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         elif d.tipo == D_DEGRADADO
             _degradado_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_TRAZO
-            if y >= cy0 and y + d.alto - 1 <= cy1 and x >= cx0 and x + d.ancho - 1 <= cx1
+            if y >= vy0 and y + d.alto - 1 <= vy1 and x >= vx0 and x + d.ancho - 1 <= vx1
                 gfx_pen(_lapiz(d.color))
                 g = d.fuente
                 if g < 1
@@ -133,6 +198,33 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         end
     end
     font_style(0)
+end
+
+# Una sombra difuminada: capas translúcidas de la caja ampliada a la reducida en medio difuminado (el borde sale en
+# degradado y el centro con su opacidad), como una aproximación del desenfoque de box-shadow
+func _sombra_difusa(d: Dibujo, x: Int, y: Int, cx0: Int, cy0: Int, cx1: Int, cy1: Int)
+    alfa = d.espaciado
+    if alfa <= 0
+        alfa = 255
+    end
+    capas = d.difuso / 6
+    if capas < 2
+        capas = 2
+    elif capas > 6
+        capas = 6
+    end
+    medio = d.difuso / 2
+    una = alfa / capas + 1
+    i = 0
+    while i < capas
+        e = medio - d.difuso * i / (capas - 1)
+        w = d.ancho + 2 * e
+        h = d.alto + 2 * e
+        if w > 0 and h > 0
+            _mezcla_recortada(x - e, y - e, w, h, cx0, cy0, cx1, cy1, d.color, una)
+        end
+        i = i + 1
+    end
 end
 
 func _rect_recortado(x: Int, y: Int, ancho: Int, alto: Int, x0: Int, y0: Int, x1: Int, y1: Int, lapiz: Int)
@@ -616,6 +708,24 @@ end
 
 # Un color semitransparente mezclado con lo que hay debajo (gfx_blend_rect: en RTG de verdad, en pantallas de
 # paleta un tramado)
+# Una elipse rellena y semitransparente (la sombra de una caja redonda: el pulso de "late" en trainalong.fit; tarea
+# 37d3): fila a fila, cada tramo mezclado como un rectángulo
+func _elipse_mezcla(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    if d.ancho <= 0 or d.alto <= 0
+        return
+    end
+    rx = d.ancho / 2
+    cx = x + rx
+    for f in (0..d.alto - 1)
+        # la fila en medios píxeles desde el centro: de -alto a alto
+        dy = f * 2 + 1 - d.alto
+        mitad = _raiz(rx * rx * (d.alto * d.alto - dy * dy)) / d.alto
+        if mitad > 0
+            _mezcla_recortada(cx - mitad, y + f, mitad * 2, 1, x0, y0, x1, y1, d.color, d.espaciado)
+        end
+    end
+end
+
 func _mezcla_recortada(x: Int, y: Int, ancho: Int, alto: Int, x0: Int, y0: Int, x1: Int, y1: Int, rgb: Int, alfa: Int)
     a = x
     b = y
@@ -836,30 +946,42 @@ func _redondo_pintar(d: Dibujo, x: Int, y: Int, cx0: Int, cy0: Int, cx1: Int, cy
         abajo_r = br
     end
     g = d.estilo
-    f = -1
-    while f < h - 1
+    # (solo las filas que se ven)
+    f = cy0 - y - 1
+    if f < -1
+        f = -1
+    end
+    ultima = h - 1
+    if cy1 - y < ultima
+        ultima = cy1 - y
+    end
+    while f < ultima
         f = f + 1
         yy = y + f
-        if yy < cy0 or yy > cy1
-            continue
-        end
         if f >= arriba and f < h - abajo_r and (g == 0 or (f >= g and f < h - g))
-            # el medio: de una vez
+            # el medio: de una vez (con borde, sus dos lados; antes fila a fila, un 9 % del tiempo al bajar por
+            # pre.opentimetrack.com; tarea 37e6)
+            hasta = h - abajo_r - 1
+            if g > 0 and h - g - 1 < hasta
+                hasta = h - g - 1
+            end
+            if hasta > ultima
+                hasta = ultima
+            end
             if g == 0
-                hasta = h - abajo_r - 1
-                if y + hasta > cy1
-                    hasta = cy1 - y
-                end
                 if alfa > 0
                     _mezcla_recortada(x, yy, w, hasta - f + 1, cx0, cy0, cx1, cy1, d.color, alfa)
                 else
                     _rect_recortado(x, yy, w, hasta - f + 1, cx0, cy0, cx1, cy1, lapiz)
                 end
-                f = hasta
-                continue
+            elif alfa > 0
+                _mezcla_recortada(x, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, d.color, alfa)
+                _mezcla_recortada(x + w - g, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, d.color, alfa)
+            else
+                _rect_recortado(x, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, lapiz)
+                _rect_recortado(x + w - g, yy, g, hasta - f + 1, cx0, cy0, cx1, cy1, lapiz)
             end
-            _tramo(x, x + g - 1, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
-            _tramo(x + w - g, x + w - 1, yy, cx0, cy0, cx1, cy1, lapiz, d.color, alfa)
+            f = hasta
             continue
         end
         izq = _entra_izq(tl, bl, h, f)

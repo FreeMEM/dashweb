@@ -1,0 +1,10 @@
+[
+ {"area": "Red: HTTP, HTTPS, cookies, descargas", "peso": 10, "avance": 0.85, "falta": "Cargas despertadas por la red (39), HTTP/2 no"},
+ {"area": "HTML y DOM", "peso": 10, "avance": 0.75, "falta": "Lo que digan WPT html/ y dom/"},
+ {"area": "CSS: maqueta y dibujo", "peso": 20, "avance": 0.55, "falta": "Acid2 entera, floats como CSS 2.1, tablas anónimas, WPT css/"},
+ {"area": "JavaScript y APIs web", "peso": 15, "avance": 0.5, "falta": "Muchas APIs (Canvas, Workers, WebSocket...), WPT, YouTube (38)"},
+ {"area": "Imágenes, vídeo y fuentes", "peso": 10, "avance": 0.7, "falta": "Fuentes variables, menos memoria al decodificar"},
+ {"area": "Interfaz: ventanas, marcadores, preferencias", "peso": 10, "avance": 0.55, "falta": "Preferencias, pestañas, descargas con lista"},
+ {"area": "Rendimiento en un Amiga real", "peso": 15, "avance": 0.3, "falta": "Medir y acelerar en 030/040; hoy se mide en la RTG emulada"},
+ {"area": "Memoria: caber en un Amiga normal", "peso": 10, "avance": 0.3, "falta": "Webs modernas en 16-32 MB; pico al decodificar imágenes"}
+]

@@ -1,41 +1,44 @@
 #!/bin/sh
-# El paquete de dashweb para el Amiga: build/dashweb.lha con el navegador (MUI) y sus iconos, el visor, los
+# El paquete de Tachyon (antes dashweb) para el Amiga: build/tachyon.lha con el navegador (MUI) y sus iconos, el visor, los
 # iconos de Workbench (tools/iconos_wb.py), el guion del Installer (paquete/Instalar),
-# paquete/LEEME y las licencias de dashweb y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py). Necesita el toolchain y Dash (DASH, por
-# defecto ~/Projects/FreeMEMLang-dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
+# paquete/LEEME y las licencias de Tachyon y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py). Necesita el toolchain y Dash (DASH, por
+# defecto ~/Projects/FreeMEMLang/.worktrees/dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
 #
 #   tools/paquete.sh
 set -e
 R=$(cd "$(dirname "$0")/.." && pwd)
-DASH=${DASH:-$HOME/Projects/FreeMEMLang-dashweb}
+DASH=${DASH:-$HOME/Projects/FreeMEMLang/.worktrees/dashweb}
 B=$R/build/paquete
 rm -rf "$B"
-mkdir -p "$B/dashweb/Licencias"
+mkdir -p "$B/Tachyon/Licencias"
 [ -f "$R/build/qjs-lib/libqjs.a" ] || DASH=$DASH "$R/tools/build_qjs.sh" lib
 [ -f "$R/build/img-lib/libimg.a" ] || "$R/tools/build_img.sh"
 cd "$DASH"
-PYTHONPATH=$DASH ./dash "$R/src/dashweb.dash" -o "$B/dashweb/dashweb"
-PYTHONPATH=$DASH ./dash "$R/src/visor.dash" -o "$B/dashweb/visor"
+# con --fpu, como libqjs, libimg y libvideo (-m68881): mezclar las dos formas rompe los números con decimales que
+# cruzan entre ellas (sin él, las fuentes web no salían: la escala de stb_truetype llegaba en fp0; tarea 40a)
+PYTHONPATH=$DASH ./dash --fpu "$R/src/dashweb.dash" -o "$B/Tachyon/Tachyon"
+PYTHONPATH=$DASH ./dash --fpu "$R/src/visor.dash" -o "$B/Tachyon/visor"
 python3 "$R/tools/iconos.py" >/dev/null
-cp -r "$R/iconos" "$B/dashweb/iconos"   # la barra de herramientas (PROGDIR:iconos/)
+cp -r "$R/iconos" "$B/Tachyon/iconos"   # la barra de herramientas (PROGDIR:iconos/)
 # el LEEME y el guion del Installer en Latin-1 (MultiView y el Installer no leen UTF-8)
-iconv -f UTF-8 -t LATIN1 "$R/paquete/LEEME" > "$B/dashweb/LEEME"
-iconv -f UTF-8 -t LATIN1 "$R/paquete/Instalar" > "$B/dashweb/Instalar"
+iconv -f UTF-8 -t LATIN1 "$R/paquete/LEEME" > "$B/Tachyon/LEEME"
+iconv -f UTF-8 -t LATIN1 "$R/paquete/Instalar" > "$B/Tachyon/Instalar"
 # los iconos de Workbench: el del cajón (junto a él) y los de dentro
 python3 "$R/tools/iconos_wb.py" "$B"
-cp "$R/LICENSE" "$B/dashweb/Licencias/dashweb"
-cp "$R/third_party/quickjs/LICENSE" "$B/dashweb/Licencias/QuickJS"
-cp "$R/third_party/fdlibm/README.md" "$B/dashweb/Licencias/fdlibm"
-cp "$R/third_party/hubbub/libhubbub/COPYING" "$B/dashweb/Licencias/Hubbub"
-cp "$R/third_party/hubbub/libparserutils/COPYING" "$B/dashweb/Licencias/LibParserUtils"
-cp "$R/third_party/libwebp/COPYING" "$B/dashweb/Licencias/libwebp"
-cp "$R/third_party/nanosvg/LICENSE.txt" "$B/dashweb/Licencias/nanosvg"
-cp "$R/third_party/mintvid/LICENSE" "$B/dashweb/Licencias/MintVID"
-head -25 "$R/third_party/tjpgd/tjpgd.c" > "$B/dashweb/Licencias/TJpgDec"
+cp "$R/LICENSE" "$B/Tachyon/Licencias/Tachyon"
+cp "$R/third_party/quickjs/LICENSE" "$B/Tachyon/Licencias/QuickJS"
+cp "$R/third_party/fdlibm/README.md" "$B/Tachyon/Licencias/fdlibm"
+cp "$R/third_party/hubbub/libhubbub/COPYING" "$B/Tachyon/Licencias/Hubbub"
+cp "$R/third_party/hubbub/libparserutils/COPYING" "$B/Tachyon/Licencias/LibParserUtils"
+cp "$R/third_party/libwebp/COPYING" "$B/Tachyon/Licencias/libwebp"
+cp "$R/third_party/nanosvg/LICENSE.txt" "$B/Tachyon/Licencias/nanosvg"
+cp "$R/third_party/mintvid/LICENSE" "$B/Tachyon/Licencias/MintVID"
+cp "$R/third_party/brotli/LICENSE" "$B/Tachyon/Licencias/Brotli"
+head -25 "$R/third_party/tjpgd/tjpgd.c" > "$B/Tachyon/Licencias/TJpgDec"
 printf '%s\n' "stb_image y stb_truetype (https://github.com/nothings/stb), de Sean Barrett: dominio público" \
-    "(o MIT, a elegir; ver la cabecera de third_party/stb/*.h en el código de dashweb)." > "$B/dashweb/Licencias/stb"
+    "(o MIT, a elegir; ver la cabecera de third_party/stb/*.h en el código de Tachyon)." > "$B/Tachyon/Licencias/stb"
 cd "$B"
-rm -f "$R/build/dashweb.lha"
-python3 "$R/tools/lha_lh0.py" "$R/build/dashweb.lha" dashweb dashweb.info   # Lhasa only extracts
-ls -l "$R/build/dashweb.lha"
-lha -l "$R/build/dashweb.lha" | tail -12
+rm -f "$R/build/tachyon.lha"
+python3 "$R/tools/lha_lh0.py" "$R/build/tachyon.lha" Tachyon Tachyon.info   # Lhasa only extracts
+ls -l "$R/build/tachyon.lha"
+lha -l "$R/build/tachyon.lha" | tail -12

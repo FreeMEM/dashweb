@@ -10,18 +10,18 @@
 # expect-out: g trazo
 # expect-out: h -15 132 40 10
 # expect-out: i 0 142 40 10
-# expect-out: capa 0 157 280 30
 # expect-out: img 50 50
 # expect-out: img 140 70
 # expect-out: img 280 140
 # expect-out: pct W 160 84
 # expect-out: pct2 W 280 10
-# expect-out: rel 10
 # expect-out: clip true
-# expect-out: capa2 W 280 60 alfa 198
-# expect-out: abs 255 X 20 10
 # expect-out: fija 3 4 10 10
 # expect-out: bloque 50 20
+# expect-out: capa 0 157 280 30
+# expect-out: rel 10
+# expect-out: capa2 W 280 60 alfa 198
+# expect-out: abs 255 X 20 10
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"

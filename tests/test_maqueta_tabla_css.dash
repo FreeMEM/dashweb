@@ -1,0 +1,38 @@
+# Test: tablas de CSS (display: table en otros elementos, CSS 2.1 17.2.1): lo que no es fila va en una fila anónima
+# y lo que no es celda en una celda anónima, una por tramo seguido; sin width, la tabla encoge a su contenido. La
+# última línea de Acid2 (un <ul> con <li> de varios display) sale como en Chrome: 48x12 con cuatro de 12x12. Antes no
+# se maquetaba nada de dentro de una tabla así.
+# memcheck
+# expect-out: acid2: ul 48x12 | 0,0 12x12 12,0 12x12 24,0 12x12 36,0 12x12
+# expect-out: celdas: true true
+# expect-out: un tramo: true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func doc(cuerpo: String, css: String) -> Nodo
+    d = dom_desde_html5("<!DOCTYPE html><html><head><style>body { margin: 0; font: 12px sans-serif } " + css + "</style></head><body>" + cuerpo + "</body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    maquetar(d, 400)
+    return d
+end
+
+Main
+    css = "ul { display: table; padding: 0; margin: 0; background: red } ul li { padding: 0; margin: 0 } ul li.first-part { display: table-cell; height: 1em; width: 1em; background: black } ul li.second-part { display: table; height: 1em; width: 1em; background: black } ul li.third-part { display: table-cell; height: 0.5em; width: 1em; background: black } ul li.fourth-part { list-style: none; height: 1em; width: 1em; background: black }"
+    d = doc("<ul><li class=first-part></li><li class=second-part></li><li class=third-part></li><li class=fourth-part></li></ul>", css)
+    ul = jsdom_selector(d, "ul", false)[0]
+    t = "acid2: ul " + ul.caja_w + "x" + ul.caja_h + " |"
+    for n in jsdom_selector(d, "li", true)
+        t = t + " " + n.caja_x + "," + n.caja_y + " " + n.caja_w + "x" + n.caja_h
+    end
+    Print t
+    # dos celdas de div: una al lado de la otra, en la misma línea
+    d2 = doc("<div class=t><div class=c id=a>uno</div><div class=c id=b>dos</div></div>", ".t { display: table } .c { display: table-cell }")
+    a = jsdom_selector(d2, "#a", false)[0]
+    b = jsdom_selector(d2, "#b", false)[0]
+    Print "celdas: " + (a.caja_w > 0 and b.caja_x >= a.caja_x + a.caja_w) + " " + (a.caja_y == b.caja_y)
+    # dos párrafos sin celda: en la misma celda anónima, uno debajo del otro
+    d3 = doc("<div style='display: table'><p id=p1>x</p><p id=p2>y</p></div>", "p { margin: 0 }")
+    p1 = jsdom_selector(d3, "#p1", false)[0]
+    p2 = jsdom_selector(d3, "#p2", false)[0]
+    Print "un tramo: " + (p1.caja_h > 0 and p2.caja_y >= p1.caja_y + p1.caja_h and p1.caja_x == p2.caja_x)
+end

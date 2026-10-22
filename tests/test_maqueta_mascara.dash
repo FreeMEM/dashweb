@@ -1,0 +1,23 @@
+# Test: una caja con mask-image (url) no pinta su fondo (sin máscaras sería un cuadrado lleno: los iconos de
+# Wikipedia, un fondo del color del texto recortado por un SVG); sin mask-image, sí (41a3)
+# memcheck
+# expect-out: con mascara: 0 | sin: 1
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func rects(css: String) -> Int
+    d = dom_desde_html5("<!DOCTYPE html><html><head><style>body { margin: 0 } .i { width: 20px; height: 20px; background-color: black; " + css + " }</style></head><body><div class=i></div></body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    p = maquetar(d, 300)
+    k = 0
+    for x in p.dibujos
+        if x.tipo == D_RECT and x.ancho == 20
+            k = k + 1
+        end
+    end
+    return k
+end
+
+Main
+    Print "con mascara: " + rects("-webkit-mask-image: url(data:image/svg+xml,x); mask-image: url(data:image/svg+xml,x)") + " | sin: " + rects("")
+end

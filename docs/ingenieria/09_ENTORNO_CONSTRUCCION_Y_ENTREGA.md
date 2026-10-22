@@ -7,11 +7,11 @@ publica el paquete para el Amiga.
 
 | Repositorio | Dónde | Rama | Qué |
 |---|---|---|---|
-| dashweb (`FreeMEM/dashweb`) | `~/Projects/dashweb` | `dev` para trabajar, `main` para publicar | El navegador |
-| Dash (`FreeMEM/dash`) | `~/Projects/FreeMEMLang-dashweb` (worktree) | `dashweb` (sale de `main`) | El compilador con lo que dashweb ha necesitado (tareas D) |
+| Tachyon (`FreeMEM/tachyon`, antes dashweb) | `~/Projects/tachyon` | `dev` para trabajar, `main` para publicar | El navegador |
+| Dash (`FreeMEM/dash`) | `~/Projects/FreeMEMLang/.worktrees/dashweb` (worktree) | `dashweb` (sale de `main`) | El compilador con lo que dashweb ha necesitado (tareas D) |
 
 Las ramas se suben y se fusionan por PR cuando lo decide el responsable. La variable `DASH` apunta a la carpeta de Dash
-(por defecto `~/Projects/FreeMEMLang-dashweb`).
+(por defecto `~/Projects/FreeMEMLang/.worktrees/dashweb`).
 
 ## 2. Herramientas
 
@@ -45,7 +45,7 @@ Se preparan una vez, con los scripts de Dash y de dashweb:
 Variables de entorno:
 
 ```bash
-export DASH=~/Projects/FreeMEMLang-dashweb
+export DASH=~/Projects/FreeMEMLang/.worktrees/dashweb
 export DASH_KICKSTART="/ruta/kick31_a1200.rom"           # sin ella: AROS, y los resultados no valen
 export DASH_KICKSTART_32="/ruta/kick323_a1200.rom"       # máquina rtg
 export DASH_EMU_SYS=~/.cache/dash-emu/sys31
@@ -96,8 +96,8 @@ Otros binarios de QuickJS para probarlo suelto: `tools/build_qjs.sh 000` (68000,
 
 ```bash
 cd $DASH
-PYTHONPATH=$DASH ./dash ~/Projects/dashweb/src/dashweb.dash -o dashweb        # el navegador
-PYTHONPATH=$DASH ./dash ~/Projects/dashweb/src/visor.dash -o visor            # el visor sin MUI
+PYTHONPATH=$DASH ./dash ~/Projects/tachyon/src/dashweb.dash -o dashweb        # el navegador
+PYTHONPATH=$DASH ./dash ~/Projects/tachyon/src/visor.dash -o visor            # el visor sin MUI
 ```
 
 - `./dash` traduce a C, añade el runtime (con MUI si se usa `mui_*`, con AmiSSL si se usa `tls_*`), las cabeceras de los
@@ -162,7 +162,7 @@ En el Amiga: doble clic en "Instalar" (usa el Installer del sistema).
 3. Etiqueta `vX.Y.Z[-alfa]` y una *release* de GitHub con `dashweb.lha` adjunto.
 4. Actualizar el enlace de descarga del README.
 
-Última publicada: [v0.2.0-alfa](https://github.com/FreeMEM/dashweb/releases/tag/v0.2.0-alfa) (2026-10-20).
+Última publicada: [v0.2.0-alfa](https://github.com/FreeMEM/tachyon/releases/tag/v0.2.0-alfa) (2026-10-20).
 
 ## 8. Requisitos del Amiga que recibe el paquete
 

@@ -1,0 +1,44 @@
+# Test (tarea 37h, el móvil de pre.opentimetrack.com): inset reparte top, right, bottom y left (uno a cuatro
+# valores); un absoluto con inset: 0 en un elemento flex-1 de una columna llena su hueco; aspect-ratio con
+# box-sizing: border-box es de la caja con relleno (280 de ancho y 9/19: 591 de alto) y su alto vale para un
+# height: 100% de dentro. place-items: center en un grid: el hijo, a su ancho y en medio (como el móvil). Lo que
+# desborda un overflow: hidden no ensancha al medir (una caja de 100 con algo de 500 dentro mide 100).
+# memcheck
+# expect-out: inset: 0 0 0 0 | 1px 2px 1px 2px
+# expect-out: uno 0,30 200x270 | abs 0,30 200x270
+# expect-out: movil 280x591 | dentro 262x573
+# expect-out: recortado 100
+# expect-out: centrado 150 100 | align-items center justify-items center
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+func caja(doc: Nodo, id: String) -> String
+    n = dom_por_id(doc, id)
+    return id + " " + n.caja_x + "," + n.caja_y + " " + n.caja_w + "x" + n.caja_h
+end
+
+func lados(n: Nodo) -> String
+    return n.estilo["top"] + " " + n.estilo["right"] + " " + n.estilo["bottom"] + " " + n.estilo["left"]
+end
+
+Main
+    h = "<html><body style='margin:0'><div id=col style='display:flex;flex-direction:column;height:300px;width:200px'><div style='height:30px'>c</div>"
+    h = h + "<div id=uno style='position:relative;flex:1 1 0%'><div id=abs style='position:absolute;inset:0;background:red'>x</div></div></div>"
+    h = h + "<div id=dos style='position:absolute;inset:1px 2px'></div>"
+    h = h + "<div style='width:280px'><div id=movil style='box-sizing:border-box;padding:9px;aspect-ratio:9/19;background:#000'><div id=dentro style='height:100%;background:#fff'></div></div></div>"
+    h = h + "<div id=g style='display:grid;place-items:center;width:400px'><div id=hijo><div style='width:100px;height:20px;background:blue'></div></div></div>"
+    h = h + "<div style='display:grid;place-items:center;width:400px'><div id=rec><div style='width:100px;overflow:hidden'><div style='width:500px;height:10px;background:red'>x</div></div></div></div></body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 400)
+    Print "inset: " + lados(dom_por_id(doc, "abs")) + " | " + lados(dom_por_id(doc, "dos"))
+    Print caja(doc, "uno") + " | " + caja(doc, "abs")
+    m = dom_por_id(doc, "movil")
+    d = dom_por_id(doc, "dentro")
+    Print "movil " + m.caja_w + "x" + m.caja_h + " | dentro " + d.caja_w + "x" + d.caja_h
+    hijo = dom_por_id(doc, "hijo")
+    g = dom_por_id(doc, "g")
+    Print "recortado " + dom_por_id(doc, "rec").caja_w
+    Print "centrado " + (hijo.caja_x - g.caja_x) + " " + hijo.caja_w + " | align-items " + g.estilo["align-items"] + " justify-items " + g.estilo["justify-items"]
+end

@@ -5,13 +5,14 @@
 #   estilo_aplicar(doc, hojas)                          # cada elemento: nodo.estilo["color"]...
 #
 # Los valores quedan como texto, salvo font-size, que se guarda en píxeles ("16px"). El tamaño
-# normal (medium) es 13 píxeles: lo que cabe bien en una pantalla de Amiga con sus fuentes.
+# normal (medium) es 16 píxeles, como en los navegadores (usuario, 2026-10-21: antes 13 para las pantallas de
+# Amiga; las webs de hoy miden con rem y se ven como en Chrome; las que fijan px no cambian).
 
 import "dom.dash"
 import "css.dash"
 import "http.dash"
 
-const ESTILO_MEDIUM = 13
+const ESTILO_MEDIUM = 16
 const ESTILO_ORDEN_HOJA = 100000     # orden de la primera regla de cada hoja (una hoja puede tener miles)
 
 # Un selector de una regla, en el índice de las hojas
@@ -125,6 +126,7 @@ struct Hojas
     # de esa última parte: si cambia en un elemento, solo pueden cambiar los de debajo que tengan una de ellas
     invalida: {String: {String: Int}} = nil
     invalida_hermanos: {String: Int} = nil     # los que salen en un selector con + o ~
+    con_hover: Bool = false                     # algún selector nombra :hover (lib/documento.dash lo mira)
 end
 
 # La hoja del navegador se lee una vez por programa (en un A1200 leerla son segundos)
@@ -141,8 +143,10 @@ end
 func _estilo_leer_navegador() -> HojaCSS
     c = "html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, li, dl, dt, dd, pre, blockquote, form, "
     c = c + "table, center, address, hr, header, footer, nav, section, article, aside, main, figure, "
-    c = c + "fieldset, legend, details, summary, menu, dir, noscript { display: block } "
-    c = c + "head, script, style, title, meta, link, base, template, [hidden] { display: none } "
+    c = c + "fieldset, legend, details, summary, menu, dir { display: block } "
+    # (noscript: dashweb ejecuta el JavaScript, y con él el HTML pide esconderlo; su contenido es texto crudo: el
+    # <iframe> de Google Tag Manager de eldiario.es salía escrito arriba)
+    c = c + "head, script, style, title, meta, link, base, template, noscript, [hidden] { display: none } "
     c = c + "li { display: list-item } table { display: table } tr { display: table-row } "
     c = c + "td, th { display: table-cell; padding: 1px; vertical-align: middle } thead, tbody, tfoot { display: table-row-group } "
     c = c + "table { border-spacing: 2px; border-collapse: separate } caption { text-align: center } "
@@ -187,7 +191,12 @@ func _estilo_recoger(h: Hojas, n: Nodo, base: Url)
     if n.tipo == DOM_ELEMENTO and n.nombre == "style"
         _estilo_agregar(h, css_leer(dom_texto(n), h.lista.length * ESTILO_ORDEN_HOJA), base, 0)
     elif n.tipo == DOM_ELEMENTO and n.nombre == "link" and str_find(str_lower(dom_atributo(n, "rel")), "stylesheet") >= 0
-        _estilo_cargar(h, url_text(url_resolve(base, dom_atributo(n, "href"))), 0)
+        href = dom_atributo(n, "href")
+        if url_es_data(href)
+            _estilo_cargar(h, href, 0)
+        else
+            _estilo_cargar(h, url_text(url_resolve(base, href)), 0)
+        end
     end
     for hijo in n.hijos
         _estilo_recoger(h, hijo, base)
@@ -255,6 +264,25 @@ end
 
 # Una hoja por URL: http(s), o un fichero (file: o una ruta del Amiga)
 func _estilo_cargar(h: Hojas, direccion: String, nivel: Int)
+    # una hoja dentro de la dirección (data:text/css,...: Acid2; tarea 41a)
+    if url_es_data(direccion)
+        coma = str_find(direccion, ",")
+        if coma > 0
+            datos = url_deshacer(direccion[coma + 1:])
+            if str_ends(str_lower(direccion[:coma]), ";base64")
+                if base64_to_file(datos, "T:dashweb_hoja") < 0
+                    return
+                end
+                datos = file_read_text("T:dashweb_hoja")
+                file_delete("T:dashweb_hoja")
+                if datos == nil
+                    return
+                end
+            end
+            _estilo_agregar(h, css_leer(datos, h.lista.length * ESTILO_ORDEN_HOJA), url_parse("about:blank"), nivel)
+        end
+        return
+    end
     u = url_parse(direccion)
     texto = ""
     if h.traidas != nil and h.traidas.has(direccion)
@@ -352,7 +380,7 @@ func _cumple_atributo(n: Nodo, a: SelAtributo) -> Bool
     return false
 end
 
-# Pseudo-clases que se saben sin interacción; las demás (hover, focus...) no se cumplen
+# Pseudo-clases que se saben sin interacción, y :hover (con el ratón); las demás (focus...) no se cumplen
 # Los selectores de una lista (la de :not(), :is(), :has()...) ya leídos: se leen una vez por texto (antes se
 # leían cada vez que se miraba un elemento: 118.000 veces en freemem.space)
 var _selectores_leidos: {String: [Selector]} = nil
@@ -377,7 +405,9 @@ func _selectores_de(lista: String) -> [Selector]
 end
 
 func _cumple_pseudo(n: Nodo, p: String) -> Bool
-    if p == "first-child"
+    if p == "hover"
+        return n.raton
+    elif p == "first-child"
         return _es_primero(n)
     elif p == "last-child"
         return _es_ultimo(n)
@@ -491,9 +521,13 @@ func _tiene_debajo(n: Nodo, sel: Selector) -> Bool
     return false
 end
 
-# Las pseudo-clases que se saben sin interacción (las demás, :hover, :focus..., nunca se cumplen;
+# Las pseudo-clases que se saben sin interacción y :hover (las demás, :focus..., nunca se cumplen;
 # querySelector da un error con ellas, como los navegadores con las que no conocen)
 func css_pseudo_conocida(p: String) -> Bool
+    if p == "hover"
+        # (con el ratón encima: Nodo.raton, que pone lib/documento.dash)
+        return true
+    end
     if p == "first-child" or p == "last-child" or p == "only-child" or p == "link" or p == "any-link" or p == "root" or p == "empty"
         return true
     end
@@ -754,6 +788,9 @@ func _estilo_usos(h: Hojas, sel: Selector)
             h.hermanos = 2
         end
         for ps in si.pseudo
+            if ps == "hover"
+                h.con_hover = true
+            end
             if ps == "first-child" or ps == "last-child"
                 if h.hermanos < 1
                     h.hermanos = 1
@@ -819,6 +856,9 @@ func _estilo_rasgos(si: SelSimple) -> [String]
         r.push("[" + a.nombre)
     end
     for ps in si.pseudo
+        if ps == "hover"
+            r.push(":hover")
+        end
         if str_find(ps, "(") >= 0
             n = ps.length
             i = 0
@@ -1041,8 +1081,44 @@ func _gana_con(importante: Bool, autor: Bool, especificidad: Int, orden: Int, vi
     return orden >= vieja.orden
 end
 
+# margin-inline, padding-block, inset-inline-start...: las propiedades físicas a las que van (con -inline y -block, la
+# del primer valor y la del segundo); nil si no es una de ellas
+func _logica_lados(p: String) -> [String]
+    var nada: [String] = nil
+    base = ""
+    resto = ""
+    if str_starts(p, "margin-")
+        base = "margin-"
+        resto = p[7:]
+    elif str_starts(p, "padding-")
+        base = "padding-"
+        resto = p[8:]
+    elif str_starts(p, "inset-")
+        resto = p[6:]
+    else
+        return nada
+    end
+    if resto == "inline"
+        return [base + "left", base + "right"]
+    elif resto == "block"
+        return [base + "top", base + "bottom"]
+    elif resto == "inline-start"
+        return [base + "left"]
+    elif resto == "inline-end"
+        return [base + "right"]
+    elif resto == "block-start"
+        return [base + "top"]
+    elif resto == "block-end"
+        return [base + "bottom"]
+    end
+    return nada
+end
+
 func _es_atajo(p: String) -> Bool
-    return p == "margin" or p == "padding" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap"
+    if (str_ends(p, "-inline") or str_ends(p, "-block") or str_ends(p, "-start") or str_ends(p, "-end")) and _logica_lados(p) != nil
+        return true
+    end
+    return p == "margin" or p == "padding" or p == "inset" or p == "place-items" or p == "place-content" or p == "place-self" or p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left" or p == "border-width" or p == "border-style" or p == "border-color" or p == "background" or p == "list-style" or p == "font" or p == "flex" or p == "flex-flow" or p == "gap" or p == "grid-gap"
 end
 
 # Las declaraciones de una regla con los atajos partidos (margin en margin-top..., border, background,
@@ -1066,16 +1142,53 @@ func _proponer(ganadoras: {String: Candidata}, propiedad: String, c: Candidata)
 end
 
 # Una declaración, con los atajos ya repartidos en sus propiedades
+# La página está en modo quirks (sin doctype o uno viejo): ahí width: 200 vale 200px, como en los navegadores
+var estilo_raro: Bool = false
+
 func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp: Int, orden: Int)
     p = d.propiedad
     v = d.valor
+    # una longitud sin unidad (que no sea 0) no vale en modo estándar: la declaración no cuenta (Acid2: .parser {
+    # width: 200 }; tarea 41a)
+    if not estilo_raro and v.length > 0 and str_code(v, v.length - 1) >= 48 and str_code(v, v.length - 1) <= 57 and _de_longitud(p) and _sin_unidad(v)
+        return
+    end
     if str_find(v, "var(") >= 0 and _es_atajo(p)
         # con var() se parte en _calcular, cuando ya se sabe el valor
         _proponer(ganadoras, p, Candidata(v, d.importante, autor, esp, orden))
         return
     end
-    if p == "margin" or p == "padding"
+    lados = _logica_lados(p)
+    if lados != nil
+        # propiedades lógicas (Tailwind 4: px-4 es padding-inline): en horizontal y de izquierda a derecha
+        partes = _palabras(v)
+        if partes.length > 0
+            _proponer(ganadoras, lados[0], Candidata(partes[0], d.importante, autor, esp, orden))
+            if lados.length > 1
+                segundo = partes[0]
+                if partes.length > 1
+                    segundo = partes[1]
+                end
+                _proponer(ganadoras, lados[1], Candidata(segundo, d.importante, autor, esp, orden))
+            end
+        end
+    elif p == "margin" or p == "padding"
         _cuatro(ganadoras, p + "-", "", v, d.importante, autor, esp, orden)
+    elif p == "inset"
+        # top, right, bottom y left de una vez (Tailwind: inset-0; tarea 37h)
+        _cuatro(ganadoras, "", "", v, d.importante, autor, esp, orden)
+    elif p == "place-items" or p == "place-content" or p == "place-self"
+        # align-* y justify-* (el segundo valor, o el mismo): "place-items: center" centra en la celda de un grid
+        partes = _palabras(v)
+        if partes.length > 0
+            resto = p[6:]
+            _proponer(ganadoras, "align-" + resto, Candidata(partes[0], d.importante, autor, esp, orden))
+            segundo = partes[0]
+            if partes.length > 1
+                segundo = partes[1]
+            end
+            _proponer(ganadoras, "justify-" + resto, Candidata(segundo, d.importante, autor, esp, orden))
+        end
     elif p == "border-width" or p == "border-style" or p == "border-color"
         _cuatro(ganadoras, "border-", p[6:], v, d.importante, autor, esp, orden)
     elif p == "border" or p == "border-top" or p == "border-right" or p == "border-bottom" or p == "border-left"
@@ -1305,6 +1418,34 @@ func _es_color(t: String) -> Bool
     return str_starts(t, "#") or str_starts(t, "rgb") or str_starts(t, "hsl") or (not _es_longitud(t) and not str_starts(t, "url(") and t != "none" and t != "no-repeat" and t != "repeat" and t != "repeat-x" and t != "repeat-y" and t != "center" and t != "top" and t != "left" and t != "right" and t != "bottom" and t != "fixed" and t != "scroll")
 end
 
+# Propiedades que solo admiten longitudes (un número suelto, que no sea 0, no vale en ellas)
+func _de_longitud(p: String) -> Bool
+    return p == "width" or p == "height" or p == "min-width" or p == "min-height" or p == "max-width" or p == "max-height" or p == "top" or p == "left" or p == "right" or p == "bottom" or p == "font-size" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or str_starts(p, "margin") or str_starts(p, "padding") or (str_starts(p, "border") and str_ends(p, "width"))
+end
+
+# ¿Algún número sin unidad distinto de 0 entre sus palabras? ("200", "10 5px")
+func _sin_unidad(v: String) -> Bool
+    for t in _palabras(v)
+        sin = t.length > 0
+        cero = true
+        i = 0
+        while i < t.length
+            c = str_code(t, i)
+            if not ((c >= 48 and c <= 57) or c == 46 or c == 45 or c == 43)
+                sin = false
+            end
+            if c >= 49 and c <= 57
+                cero = false
+            end
+            i = i + 1
+        end
+        if sin and not cero
+            return true
+        end
+    end
+    return false
+end
+
 # (para la maqueta: el estilo de una caja anónima, lo que hereda de su padre)
 func estilo_se_hereda(p: String) -> Bool
     return _se_hereda(p)
@@ -1312,7 +1453,7 @@ end
 
 # Propiedades que se heredan si el elemento no dice nada
 func _se_hereda(p: String) -> Bool
-    return p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform" or p == "text-shadow" or p == "overflow-wrap" or p == "word-wrap" or p == "word-break" or p == "-webkit-text-fill-color"
+    return p == "color" or p == "font-family" or p == "font-size" or p == "font-weight" or p == "font-stretch" or p == "font-style" or p == "line-height" or p == "text-align" or p == "white-space" or p == "list-style-type" or p == "visibility" or p == "text-indent" or p == "letter-spacing" or p == "word-spacing" or p == "text-transform" or p == "text-shadow" or p == "overflow-wrap" or p == "word-wrap" or p == "word-break" or p == "-webkit-text-fill-color"
 end
 
 # Apunta en usadas los nombres de los var(--x) de un valor
@@ -1336,6 +1477,7 @@ end
 
 # Calcula el estilo de todo el árbol
 func estilo_aplicar(doc: Nodo, hojas: Hojas)
+    estilo_raro = dom_atributo(doc, "modo") == "quirks"
     if hojas.indice == nil or hojas.indice_ancho != css_vista_ancho()
         _estilo_indexar(hojas)
     end
@@ -1362,6 +1504,7 @@ end
 #   con ~ o :nth-child, todo el padre.
 # false si no se puede (:has() en las hojas, demasiados cambios, o hay que rehacer <html> entero): estilo_aplicar.
 func estilo_aplicar_partes(doc: Nodo, hojas: Hojas, toques: [Toque]) -> Bool
+    estilo_raro = dom_atributo(doc, "modo") == "quirks"
     if hojas.con_has or hojas.indice == nil or hojas.indice_ancho != css_vista_ancho() or hojas.invalida == nil
         if traza_activa
             traza("estilo entero: :has() " + hojas.con_has)
@@ -1425,6 +1568,13 @@ func _estilo_toque(t: Toque, hojas: Hojas) -> Bool
             if t.despues != "" and hojas.ids_usados.has(t.despues)
                 rasgos.push("#" + t.despues)
             end
+        elif t.nombre == ":hover"
+            # (<html> está bajo el ratón mientras está en la ventana: un html:hover no lo usa nadie y rehacerlo es
+            # el estilo entero; tarea 37e6)
+            if n.nombre == "html"
+                return true
+            end
+            rasgos.push(":hover")
         elif hojas.atributos_usados.has(t.nombre)
             rasgos.push("[" + t.nombre)
         end
@@ -1538,7 +1688,37 @@ func _estilo_solo(n: Nodo, hojas: Hojas) -> Bool
     _estilo_cadena(n.padre, 1)
     _estilo_propio(n, hojas, n.padre.estilo, _estilo_vars_de(n.padre))
     _estilo_cadena(n.padre, -1)
-    return not (_estilo_iguales(viejo, n.estilo) and _estilo_iguales(viejas, n.vars))
+    if not _estilo_iguales(viejas, n.vars)
+        return true
+    end
+    # lo que cambia y no llega a los de dentro (view-transition-name de React, transform y opacity de GSAP): solo él
+    # (tarea 37e3; _estilo_propio ya lo apuntó en estilo_cambios)
+    if _estilo_solo_suyo(viejo, n.estilo)
+        return false
+    end
+    return not _estilo_iguales(viejo, n.estilo)
+end
+
+func _estilo_solo_suyo(a: {String: String}, b: {String: String}) -> Bool
+    if a == nil or b == nil
+        return false
+    end
+    for k in a.keys()
+        if (not b.has(k) or b[k] != a[k]) and not _estilo_no_baja(k)
+            return false
+        end
+    end
+    for k in b.keys()
+        if not a.has(k) and not _estilo_no_baja(k)
+            return false
+        end
+    end
+    return true
+end
+
+# Propiedades que no se heredan ni las mira nadie de dentro (salvo un "inherit" explícito, que no se usa con ellas)
+func _estilo_no_baja(k: String) -> Bool
+    return k == "view-transition-name" or k == "view-transition-class" or k == "transform" or k == "translate" or k == "scale" or k == "rotate" or k == "opacity" or k == "will-change" or str_starts(k, "transition") or k == "cursor" or k == "z-index"
 end
 
 func _estilo_iguales(a: {String: String}, b: {String: String}) -> Bool
@@ -1672,6 +1852,7 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
             end
         end
     end
+    var debajo: [Declaracion] = nil
     if ganadoras.has("animation") or ganadoras.has("animation-name") or ganadoras.has("-webkit-animation")
         final = _animacion_final(ganadoras, hojas)
         if final.length > 0
@@ -1680,17 +1861,31 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
             for k in ganadoras.keys()
                 con[k] = ganadoras[k]
             end
+            # (lo que había debajo del estado final: el origen de una animación sin fotograma 0 %, tarea 37d4)
+            var bajo: [Declaracion] = []
             for d in final
+                if ganadoras.has(d.propiedad)
+                    bajo.push(Declaracion(d.propiedad, ganadoras[d.propiedad].valor, false))
+                end
                 _declarar(con, Declaracion(d.propiedad, d.valor, false), true, 2000000000, 2000000)
             end
+            debajo = bajo
             ganadoras = con
         end
     end
     e = _calcular(ganadoras, padre, padre_vars, "inline")
+    if debajo != nil
+        for d in debajo
+            e["~" + d.propiedad] = d.valor
+        end
+    end
     vars = _calc_vars
     if _oculto_a_la_vista(e)
         e["display"] = "none"
     end
+    viejo = n.estilo
+    antes_a = n.pseudo_antes
+    antes_d = n.pseudo_despues
     n.estilo = e
     n.vars = vars
     if n.nombre == "html" and e.has("font-size")
@@ -1698,6 +1893,38 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
     end
     n.pseudo_antes = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "before"), "::before")
     n.pseudo_despues = _pseudo_nodo(n, _estilo_pseudo(n, hojas, e, vars, "after"), "::after")
+    if estilo_apuntar or estilo_marcar
+        pseudo = not _pseudo_iguales(antes_a, n.pseudo_antes) or not _pseudo_iguales(antes_d, n.pseudo_despues)
+        if pseudo or not _estilo_iguales(viejo, e)
+            if estilo_apuntar
+                estilo_cambios.push(EstiloCambio(n, viejo, pseudo))
+            end
+            if estilo_marcar
+                dom_tocar(n)
+            end
+        end
+    end
+end
+
+# Con estilo_apuntar (lib/documento.dash, tarea 37d), cada elemento cuyo estilo calculado cambió al rehacerlo,
+# con el de antes (pseudo: cambió su ::before o ::after)
+struct EstiloCambio
+    nodo: Nodo
+    viejo: {String: String}
+    pseudo: Bool
+end
+
+var estilo_apuntar: Bool = false
+# Con estilo_marcar, cada elemento cuyo estilo cambió se marca con dom_tocar (lo medido en la maqueta anterior ya no
+# vale para él ni para los de fuera; tarea 37e6)
+var estilo_marcar: Bool = false
+var estilo_cambios: [EstiloCambio] = nil
+
+func _pseudo_iguales(a: Nodo, b: Nodo) -> Bool
+    if a == nil or b == nil
+        return a == nil and b == nil
+    end
+    return a.texto == b.texto and _estilo_iguales(a.estilo, b.estilo)
 end
 
 # CSS Animations sin animar: lo que deja puesto la animación al acabar. Solo con animation-fill-mode forwards o
@@ -1826,12 +2053,14 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
     e["display"] = display
     vars = padre_vars
     propias = false
-    # primero las --x (las demás pueden usarlas)
+    # primero las --x (las demás pueden usarlas): todas tal cual y luego sus var(), que pueden nombrar otra del mismo
+    # elemento en cualquier orden (--font-reloj: var(--font-doto) con las dos en <html>, tarea 37g)
+    var con_var: [String] = []
     for p in ganadoras.keys()
         if str_starts(p, "--")
             v = ganadoras[p].valor
             if str_find(v, "var(") >= 0
-                v = _resolver_var(v, vars, 0)
+                con_var.push(p)
             end
             if not vars.has(p) or vars[p] != v
                 if not propias
@@ -1846,14 +2075,37 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
             end
         end
     end
-    # los atajos con var(): se sustituye y se parte (antes que lo demás: lo suelto gana)
+    for p in con_var
+        # (una --x que se nombra a sí misma, directamente o por otras, es un ciclo: inválida, como si no estuviera;
+        # Wikipedia pone --font-size-medium: var(--font-size-medium, 1rem) y su texto salía de 0 px)
+        r = VAR_INVALIDA
+        if not _var_cicla(p, vars[p], vars, 0)
+            r = _resolver_var(vars[p], vars, 0)
+        end
+        if r != vars[p]
+            if not propias
+                var copia2: {String: String} = {}
+                for k in vars.keys()
+                    copia2[k] = vars[k]
+                end
+                vars = copia2
+                propias = true
+            end
+            vars[p] = r
+        end
+    end
+    # los atajos con var(): se sustituye y se parte; cada parte compite en la cascada con la propiedad suelta (el
+    # padding: 0 de un * no le gana al padding-inline: var(...) de una clase)
+    var de_atajo: {String: Candidata} = {}
     for p in ganadoras.keys()
         if _es_atajo(p)
+            ca = ganadoras[p]
             var partes: {String: Candidata} = {}
-            _declarar(partes, Declaracion(p, _resolver_var(ganadoras[p].valor, vars, 0), false), true, 0, 0)
+            _declarar(partes, Declaracion(p, _resolver_var(ca.valor, vars, 0), false), true, 0, 0)
             for k in partes.keys()
-                if k != "font-size"
+                if k != "font-size" and (not de_atajo.has(k) or _gana(ca, de_atajo[k]))
                     e[k] = partes[k].valor
+                    de_atajo[k] = ca
                 end
             end
         end
@@ -1862,6 +2114,9 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
         v = ganadoras[p].valor
         if str_starts(p, "--") or _es_atajo(p)
             continue
+        elif de_atajo.has(p) and not _gana(ganadoras[p], de_atajo[p])
+            # (en la misma regla tienen el mismo orden: entonces gana la suelta, que suele ir detrás)
+            continue
         elif str_lower(v) == "inherit"
             if padre.has(p)
                 e[p] = padre[p]
@@ -1869,18 +2124,33 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
         elif p != "font-size"
             if str_find(v, "var(") >= 0
                 v = _resolver_var(v, vars, 0)
+                if str_trim(v) == ""
+                    # un var() sin valor ni respaldo: inválido al calcular, como si no estuviera (lo heredado se queda)
+                    continue
+                end
             end
             e[p] = v
         end
     end
     if ganadoras.has("font-size")
-        e["font-size"] = "" + estilo_tamano(_resolver_var(ganadoras["font-size"].valor, vars, 0), estilo_px(padre["font-size"], 0, 0)) + "px"
+        tam = _resolver_var(ganadoras["font-size"].valor, vars, 0)
+        if str_trim(tam) != ""
+            e["font-size"] = "" + estilo_tamano(tam, estilo_px(padre["font-size"], 0, 0)) + "px"
+        end
     end
     _calc_vars = vars
     return e
 end
 
 # var(--nombre, respaldo): el valor de la propiedad personalizada, o el respaldo (también anidado)
+# Los var(--x) de v con las variables que le llegan a n (un atributo de SVG: fill="var(--color-lima)")
+func estilo_resolver_var(v: String, n: Nodo) -> String
+    if n.vars == nil or str_find(v, "var(") < 0
+        return v
+    end
+    return _resolver_var(v, n.vars, 0)
+end
+
 func _resolver_var(v: String, e: {String: String}, nivel: Int) -> String
     p = str_find(v, "var(")
     if p < 0 or nivel > 8
@@ -1918,10 +2188,36 @@ func _resolver_var(v: String, e: {String: String}, nivel: Int) -> String
         nombre = str_trim(v[p + 4:fin])
     end
     valor = respaldo
-    if e.has(nombre)
+    if e.has(nombre) and e[nombre] != VAR_INVALIDA
         valor = e[nombre]
     end
     return _resolver_var(v[:p] + valor + v[fin + 1:], e, nivel + 1)
+end
+
+# El valor de una --x en un ciclo (CSS Variables 1, 2.3): no vale, y quien la usa toma su respaldo
+const VAR_INVALIDA = "<var-invalida>"
+
+# ¿El valor v de la --x nombre la nombra a ella, directamente o por las --x que usa?
+func _var_cicla(nombre: String, v: String, vars: {String: String}, nivel: Int) -> Bool
+    if nivel > 8
+        return false
+    end
+    i = str_find(v, "var(")
+    while i >= 0
+        j = i + 4
+        while j < v.length and str_code(v, j) != 44 and str_code(v, j) != 41
+            j = j + 1
+        end
+        otra = str_trim(v[i + 4:j])
+        if otra == nombre
+            return true
+        end
+        if vars.has(otra) and str_find(vars[otra], "var(") >= 0 and _var_cicla(nombre, vars[otra], vars, nivel + 1)
+            return true
+        end
+        i = str_find_from(v, "var(", i + 4)
+    end
+    return false
 end
 
 # El estilo de n::before o n::after si alguna regla le da un content que se pinta; nil si no
@@ -2180,6 +2476,24 @@ func _minuscula(c: Int) -> Int
     return c
 end
 
+# El alto de línea (line-height) en px con letra de em_px: un número o un calc() sin unidad multiplica el
+# font-size, una longitud o un % (del font-size) en px; -1 con normal o lo que no se entiende (tarea 40d)
+func estilo_alto_linea(v: String, em_px: Int) -> Int
+    t = str_trim(v)
+    if t == "" or t == "normal" or t == "inherit" or t == "initial" or t == "unset"
+        return -1
+    end
+    c = str_code(t, 0)
+    if not ((c >= 48 and c <= 57) or c == 46 or c == 99 or c == 109 or c == 67 or c == 77)
+        return -1
+    end
+    r = _calc_suma(Calc(t, 0, em_px, em_px))
+    if r.unidad
+        return r.v / 100
+    end
+    return r.v * em_px / 100
+end
+
 func estilo_px(v: String, em_px: Int, cien: Int) -> Int
     # sin crear textos (se llama decenas de miles de veces al maquetar): se mira el valor en su sitio
     n = v.length
@@ -2240,6 +2554,11 @@ func estilo_px(v: String, em_px: Int, cien: Int) -> Int
             r = valor * estilo_vw / 10000
         elif k == 2 and a == 118 and b == 104
             r = valor * estilo_vh / 10000
+        elif k == 3 and (a == 115 or a == 108 or a == 100) and b == 118 and _minuscula(str_code(v, i + 2)) == 104
+            # svh, lvh, dvh: como vh (en una ventana del Amiga no hay barras que aparezcan y se escondan)
+            r = valor * estilo_vh / 10000
+        elif k == 3 and (a == 115 or a == 108 or a == 100) and b == 118 and _minuscula(str_code(v, i + 2)) == 119
+            r = valor * estilo_vw / 10000
         elif k == 4 and a == 118 and b == 109
             menor = estilo_vw
             if estilo_vh < menor

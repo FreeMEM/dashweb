@@ -24,6 +24,15 @@ struct Animacion
     dx: Int = 0
     dy: Int = 0
     velado: Bool = false
+    # (scale en milésimas alrededor del centro de su caja; color y fondo, -1 si no los anima; box-shadow, "" si no)
+    sx: Int = 1000
+    sy: Int = 1000
+    centro_x: Int = 0
+    centro_y: Int = 0
+    color: Int = -1
+    fondo: Int = -1
+    sombra: String = ""
+    em: Int = 16
 end
 
 # Las animaciones de n que tienen @keyframes (vacía si ninguna)
@@ -319,7 +328,9 @@ func animacion_valor(a: Animacion, propiedad: String, p: Int) -> String
     if not toca
         return ""
     end
-    propio = _val_de(a.nodo.estilo, propiedad, "")
+    # el valor del propio elemento: el de debajo del estado final de la animación, si lo hay (lib/estilo.dash lo
+    # guarda en "~propiedad")
+    propio = _val_de(a.nodo.estilo, "~" + propiedad, _val_de(a.nodo.estilo, propiedad, ""))
     if antes_pos < 0
         antes_pos = 0
         antes = propio
@@ -371,6 +382,17 @@ func animacion_mezcla(a: String, b: String, q: Int) -> String
     var nb: [Int] = []
     fa = _sin_numeros(a, na)
     fb = _sin_numeros(b, nb)
+    if fa != fb and str_find(a, "0") >= 0
+        # un 0 sin unidad frente a un 10px ("0 0 0 0 red" -> "0 0 0 10px red"): el 0, en px (tarea 37d3)
+        a = _ceros_px(a)
+        b = _ceros_px(b)
+        var na2: [Int] = []
+        var nb2: [Int] = []
+        fa = _sin_numeros(a, na2)
+        fb = _sin_numeros(b, nb2)
+        na = na2
+        nb = nb2
+    end
     if fa != fb or na.length != nb.length or na.length == 0
         if q < 500
             return a
@@ -391,6 +413,32 @@ func animacion_mezcla(a: String, b: String, q: Int) -> String
             r = r + a[i:i + 1]
             i = i + 1
         end
+    end
+    return r
+end
+
+# Los 0 sueltos (sin unidad, entre espacios o comas) como 0px; los de dentro de un paréntesis no (rgba(1, 2, 3, 0):
+# ese 0 es el alfa)
+func _ceros_px(v: String) -> String
+    r = ""
+    n = v.length
+    i = 0
+    nivel = 0
+    while i < n
+        c = str_code(v, i)
+        if c == 40
+            nivel = nivel + 1
+        elif c == 41 and nivel > 0
+            nivel = nivel - 1
+        end
+        antes = i == 0 or str_code(v, i - 1) == 32 or str_code(v, i - 1) == 44
+        despues = i + 1 >= n or str_code(v, i + 1) == 32 or str_code(v, i + 1) == 44
+        if c == 48 and antes and despues and nivel == 0
+            r = r + "0px"
+        else
+            r = r + v[i:i + 1]
+        end
+        i = i + 1
     end
     return r
 end
@@ -501,23 +549,35 @@ func animaciones_pagina(p: Pagina, hojas: Hojas) -> [Animacion]
     return r
 end
 
-# Un fotograma: a los ms dados (desde que empezó la página) mueve lo dibujado de cada elemento animado (sus
-# translate) y lo esconde si su opacity baja de 0,5 (el pintor no mezcla texto); true si alguna sigue viva (hace
-# falta otro fotograma)
+# Un fotograma: a los ms dados (desde que empezó la página) mueve lo dibujado de cada elemento animado (translate),
+# lo escala alrededor del centro de su caja (scale: cajas e imágenes de tamaño, el texto solo de sitio y velado por
+# debajo de 0,3), lo recolorea (color, background-color), rehace su sombra (box-shadow) y lo esconde si su opacity
+# baja de 0,5 (el pintor no mezcla texto); true si alguna sigue viva (hace falta otro fotograma)
 func animar(p: Pagina, anims: [Animacion], ms: Int) -> Bool
     viva = false
-    # dónde estaba cada dibujo antes de animarse, y la caja de cada elemento (para los %)
+    # cómo estaba cada dibujo antes de animarse
     for d in p.dibujos
         if d.anim != nil and not d.base
             d.base = true
             d.bx = d.x
             d.by = d.y
+            d.bw = d.ancho
+            d.bh = d.alto
+            d.bcolor = d.color
+            d.bespaciado = d.espaciado
+            d.bcx = d.cx
+            d.bcy = d.cy
         end
     end
     for a in anims
         a.dx = 0
         a.dy = 0
         a.velado = false
+        a.sx = 1000
+        a.sy = 1000
+        a.color = -1
+        a.fondo = -1
+        a.sombra = ""
         prog = animacion_progreso(a, ms)
         if a.vueltas < 0 or ms < a.retardo + a.vueltas / 100 * a.duracion / 10
             viva = true
@@ -525,43 +585,66 @@ func animar(p: Pagina, anims: [Animacion], ms: Int) -> Bool
         if prog < 0
             continue
         end
-        t = animacion_valor(a, "transform", prog)
-        if t != ""
-            x0 = 1000000
-            x1 = -1000000
-            y0 = 1000000
-            y1 = -1000000
-            for d in p.dibujos
-                if d.anim == a.nodo
-                    if d.bx < x0
-                        x0 = d.bx
-                    end
-                    if d.bx + d.ancho > x1
-                        x1 = d.bx + d.ancho
-                    end
-                    if d.by < y0
-                        y0 = d.by
-                    end
-                    if d.by + d.alto > y1
-                        y1 = d.by + d.alto
-                    end
+        # la caja de lo dibujado del elemento (para los % y el centro de la escala)
+        x0 = 1000000
+        x1 = -1000000
+        y0 = 1000000
+        y1 = -1000000
+        for d in p.dibujos
+            if d.anim == a.nodo and not d.sombra
+                if d.bx < x0
+                    x0 = d.bx
+                end
+                if d.bx + d.bw > x1
+                    x1 = d.bx + d.bw
+                end
+                if d.by < y0
+                    y0 = d.by
+                end
+                if d.by + d.bh > y1
+                    y1 = d.by + d.bh
                 end
             end
-            em = estilo_px(_val_de(a.nodo.estilo, "font-size", "16px"), 0, 0)
-            mueve = maqueta_desplazamiento(t, x1 - x0, y1 - y0, em)
+        end
+        a.centro_x = (x0 + x1) / 2
+        a.centro_y = (y0 + y1) / 2
+        a.em = estilo_px(_val_de(a.nodo.estilo, "font-size", "16px"), 0, 0)
+        t = animacion_valor(a, "transform", prog)
+        if t != ""
+            mueve = maqueta_desplazamiento(t, x1 - x0, y1 - y0, a.em)
             a.dx = mueve[0]
             a.dy = mueve[1]
+            escala = maqueta_escala(t)
+            a.sx = escala[0]
+            a.sy = escala[1]
         end
         o = animacion_valor(a, "opacity", prog)
         if o != ""
             a.velado = _milesimas(o) < 500
         end
+        c = animacion_valor(a, "color", prog)
+        if c != ""
+            a.color = css_color_opaco(c)
+        end
+        f = animacion_valor(a, "background-color", prog)
+        if f != ""
+            a.fondo = css_color_opaco(f)
+        end
+        a.sombra = animacion_valor(a, "box-shadow", prog)
     end
     for d in p.dibujos
         if d.anim != nil
             dx = 0
             dy = 0
             velado = false
+            sx = 1000
+            sy = 1000
+            cx = 0
+            cy = 0
+            color = -1
+            fondo = -1
+            sombra = ""
+            em = 16
             for a in anims
                 if a.nodo == d.anim
                     dx = dx + a.dx
@@ -569,10 +652,66 @@ func animar(p: Pagina, anims: [Animacion], ms: Int) -> Bool
                     if a.velado
                         velado = true
                     end
+                    if a.sx != 1000 or a.sy != 1000
+                        sx = a.sx
+                        sy = a.sy
+                        cx = a.centro_x
+                        cy = a.centro_y
+                    end
+                    if a.color >= 0
+                        color = a.color
+                    end
+                    if a.fondo >= 0
+                        fondo = a.fondo
+                    end
+                    if a.sombra != ""
+                        sombra = a.sombra
+                        em = a.em
+                    end
                 end
             end
-            maqueta_mover(d, d.bx + dx - d.x, d.by + dy - d.y)
+            nx = d.bx
+            ny = d.by
+            texto = d.tipo == D_TEXTO or d.tipo == D_ICONO
+            if sx != 1000 or sy != 1000
+                nx = cx + (d.bx - cx) * sx / 1000
+                ny = cy + (d.by - cy) * sy / 1000
+                if texto
+                    if sx < 300 or sy < 300
+                        velado = true
+                    end
+                else
+                    d.ancho = d.bw * sx / 1000
+                    d.alto = d.bh * sy / 1000
+                end
+            elif not texto
+                d.ancho = d.bw
+                d.alto = d.bh
+            end
+            if d.sombra
+                # (la sombra se coloca desde su caja de antes de animarse, sin _mover, que también mueve cx, cy)
+                d.cx = d.bcx + dx
+                d.cy = d.bcy + dy
+                d.x = nx + dx
+                d.y = ny + dy
+            else
+                maqueta_mover(d, nx + dx - d.x, ny + dy - d.y)
+            end
+            d.color = d.bcolor
+            d.espaciado = d.bespaciado
+            if color >= 0 and texto
+                d.color = color
+            end
+            if fondo >= 0 and d.nodo == d.anim and not d.sombra and (d.tipo == D_RECT or d.tipo == D_REDONDO or d.tipo == D_ELIPSE)
+                d.color = fondo
+            end
             d.velado = velado
+            if d.sombra and sombra != ""
+                maqueta_sombra(d, sombra, em, 0, 0)
+                if velado
+                    d.velado = true
+                end
+            end
         end
     end
     return viva

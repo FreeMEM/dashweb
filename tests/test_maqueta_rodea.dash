@@ -1,0 +1,49 @@
+# Test: el texto rodea los flotantes (CSS 2.1 9.5, tarea 41a2): en una caja de 200 px con un flotante a la izquierda
+# de 100x40, las líneas de al lado empiezan en 100 y caben en 100 px; las de debajo del flotante, en 0 y en 200 px.
+# Con uno a la derecha, las de al lado acaban antes. Una palabra que no cabe al lado baja hasta donde acaba.
+# memcheck
+# expect-out: izquierda: true true true
+# expect-out: derecha: true true
+# expect-out: no cabe: true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func textos(cuerpo: String) -> [Dibujo]
+    d = dom_desde_html5("<!DOCTYPE html><html><head><style>body { margin: 0; font: 14px sans-serif } .c { width: 200px } .f { width: 100px; height: 40px; background: red }</style></head><body>" + cuerpo + "</body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    p = maquetar(d, 400)
+    var r: [Dibujo] = []
+    for x in p.dibujos
+        if x.tipo == D_TEXTO and str_trim(x.texto) != ""
+            r.push(x)
+        end
+    end
+    return r
+end
+
+Main
+    t = textos("<div class=c><div class=f style='float: left'></div>aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp qq rr ss tt uu vv ww xx yy zz</div>")
+    al_lado = true
+    debajo_hay = false
+    debajo_bien = true
+    for x in t
+        if x.y < 40
+            al_lado = al_lado and x.x >= 100 and x.x + x.ancho <= 200
+        else
+            debajo_hay = true
+            debajo_bien = debajo_bien and x.x + x.ancho <= 200
+        end
+    end
+    primera_al_lado = t.length > 0 and t[0].x >= 100 and t[0].y < 10
+    Print "izquierda: " + al_lado + " " + (debajo_hay and debajo_bien) + " " + primera_al_lado
+    t2 = textos("<div class=c><div class=f style='float: right'></div>aa bb cc dd ee ff gg hh ii jj kk ll mm</div>")
+    der_bien = true
+    for x in t2
+        if x.y < 40
+            der_bien = der_bien and x.x + x.ancho <= 100
+        end
+    end
+    Print "derecha: " + der_bien + " " + (t2.length > 0 and t2[0].x == 0 and t2[0].y < 10)
+    t3 = textos("<div class=c><div class=f style='float: left; width: 150px'></div>abcdefghijklmn</div>")
+    Print "no cabe: " + (t3.length > 0 and t3[0].y >= 40)
+end

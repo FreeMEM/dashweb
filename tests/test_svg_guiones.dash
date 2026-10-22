@@ -1,0 +1,20 @@
+# Test: los guiones de un trazo SVG (stroke-dasharray/stroke-dashoffset) y pathLength en nanosvg (tarea 37d4: la
+# curva de trainalong.fit se dibuja animando stroke-dashoffset de 120 a 0 con pathLength="120"). El final de la
+# curva se ve con el desplazamiento a 0 y no con 117 (solo el principio); con 60, el principio sí y el final no.
+# expect-out: 0: principio 200x200 alfa=true 255,0,0,255 final 200x200 alfa=true 255,0,0,255
+# expect-out: 60: principio 200x200 alfa=true 255,0,0,255 final 200x200 alfa=true 0,0,0,0
+# expect-out: 117: principio 200x200 alfa=true 255,0,0,255 final 200x200 alfa=true 0,0,0,0
+
+import "../lib/imagen_dec.dash"
+
+func svg(desplazamiento: String) -> String
+    t = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"200\" viewBox=\"0 0 64 64\"><path pathLength=\"120\" d=\"M7 40 C 20 40, 28 18, 55 16\""
+    return t + " style=\"fill:none;stroke:#ff0000;stroke-width:3;stroke-dasharray:120;stroke-dashoffset:" + desplazamiento + "\"></path></svg>"
+end
+
+Main
+    for d in ["0", "60", "117"]
+        file_write_text("T:guiones.svg", svg(d))
+        Print d + ": principio " + imagen_probar("T:guiones.svg", 200, 200, 25, 125) + " final " + imagen_probar("T:guiones.svg", 200, 200, 170, 50)
+    end
+end

@@ -29,7 +29,7 @@ func demostracion() -> String
     h = h + "<code>lib/pintor.dash</code>.</p><h2>Lo que ya hace</h2><ul><li>HTML y XHTML tolerantes"
     h = h + "<li>CSS: cascada, herencia, atajos<li>Red: HTTP y HTTPS (AmiSSL)<li>Fuentes del Amiga</ul>"
     h = h + "<ol><li>Leer<li>Dar estilo<li>Maquetar<li>Pintar</ol>"
-    h = h + "<p style='text-align: center'>Más en <a href=https://github.com/FreeMEM/dashweb>github.com/FreeMEM/dashweb</a></p>"
+    h = h + "<p style='text-align: center'>Más en <a href=https://github.com/FreeMEM/tachyon>github.com/FreeMEM/tachyon</a></p>"
     h = h + "<table border=1><tr><th>Fase<th>Módulo</tr><tr><td>Red<td>red.dash</tr><tr><td>HTML<td>html.dash</tr></table>"
     h = h + "</body></html>"
     return h

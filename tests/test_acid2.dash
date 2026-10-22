@@ -1,0 +1,109 @@
+# Test: lo que Acid2 (acid2.acidtests.org, CSS 2.1) pide, pieza a pieza (tarea 41a). Una hoja en una dirección
+# data: (<link rel="appendix stylesheet" href="data:text/css,...">) se aplica; un borde transparent no se pinta (ni
+# con el color del texto), uno semitransparente se mezcla y uno con un color que no se entiende va con el del texto.
+# Ir a #top lleva al borde de arriba de su caja, con su relleno (no a su texto). En modo estándar "width: 200" no
+# vale (en quirks, sí: 200px) y un ";" suelto tras una regla deja fuera la siguiente. La nariz: max-height 3em
+# corta el alto del contenido (los % de height y min-height, con el padre sin alto, no cuentan). La barbilla: una
+# línea con texto de 2px/4px en un bloque con line-height 1em (12 px) mide 12 (el strut del bloque).
+# memcheck
+# expect-out: hoja data: none
+# expect-out: borde transparente: 0 dibujos
+# expect-out: borde rgba: true 127
+# expect-out: borde raro: 16711680
+# expect-out: ancla: 100 true
+# expect-out: parser: 2em 1em | quirks: 200
+# expect-out: nariz: 168x48
+# expect-out: barbilla: 12
+# expect-out: cuarta: 48x12 | 96x12
+# expect-out: frente: 96 144 | ventana: 300
+# expect-out: sonrisa: 48 120 | 60 96 | 72 72
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+func rects(estilo: String) -> [Dibujo]
+    doc = dom_desde_html("<style>html { color: red } .p { height: 20px; " + estilo + " }</style><body><div class=p></div></body>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 300)
+    var r: [Dibujo] = []
+    for d in p.dibujos
+        if d.tipo == D_RECT
+            r.push(d)
+        end
+    end
+    return r
+end
+
+Main
+    doc = dom_desde_html("<head><style>.p { background: red }</style><link rel=\"appendix stylesheet\" href=\"data:text/css,.p%20%7B%20background%3A%20none%3B%20%7D\"></head><body><div class=p>x</div></body>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    n = dom_buscar(dom_buscar(doc, "body"), "div")
+    fondo = "?"
+    if n.estilo.has("background-color")
+        fondo = n.estilo["background-color"]
+    end
+    if n.estilo.has("background-image")
+        fondo = n.estilo["background-image"]
+    end
+    Print "hoja data: " + fondo
+    Print "borde transparente: " + rects("border: 1em solid transparent").length + " dibujos"
+    a = rects("border: 2px solid rgba(0, 0, 255, 0.5)")
+    Print "borde rgba: " + (a.length == 4 and a[0].color == 255) + " " + a[0].espaciado
+    b = rects("border: 2px solid nocolor")
+    Print "borde raro: " + b[0].color
+    d = documento_html("http://x/", "<body style='margin:0'><div style='height:100px'></div><h2 id=top style='margin:0;padding-top:40px;font:24px/24px sans-serif'>Hola</h2></body>")
+    documento_maquetar(d, 300)
+    t = 0
+    for dib in d.pagina.dibujos
+        if dib.tipo == D_TEXTO and str_trim(dib.texto) == "Hola"
+            t = dib.y
+        end
+    end
+    Print "ancla: " + documento_y_de(d, "top") + " " + (t >= 140)
+    documento_liberar(d)
+    css = "<style>.parser { width: 2em; height: 1em } .parser { m\\argin: 2em; }; .parser { height: 3em; } .parser { width: 200; }</style>"
+    e1 = dom_desde_html5("<!DOCTYPE html><html><head>" + css + "</head><body><div class=parser></div></body></html>")
+    estilo_aplicar(e1, estilo_hojas(e1, "http://x/"))
+    n1 = jsdom_selector(e1, ".parser", false)[0]
+    e2 = dom_desde_html5("<html><head>" + css + "</head><body><div class=parser></div></body></html>")
+    estilo_aplicar(e2, estilo_hojas(e2, "http://x/"))
+    n2 = jsdom_selector(e2, ".parser", false)[0]
+    Print "parser: " + n1.estilo["width"] + " " + n1.estilo["height"] + " | quirks: " + n2.estilo["width"]
+    nariz = "<style>body { margin: 0; font: 12px sans-serif } .nose { float: left; border: solid 1em black; border-top: 0; min-height: 80%; height: 60%; max-height: 3em; padding: 0; width: 12em } .nose > div { padding: 1em 1em 3em; height: 0 } .nose div div { width: 2em; height: 2em; margin: auto }</style>"
+    e3 = dom_desde_html5("<!DOCTYPE html><html><head>" + nariz + "</head><body><div class=nose><div><div></div></div></div></body></html>")
+    estilo_aplicar(e3, estilo_hojas(e3, "http://x/"))
+    maquetar(e3, 400)
+    n3 = jsdom_selector(e3, ".nose", false)[0]
+    Print "nariz: " + n3.caja_w + "x" + n3.caja_h
+    barbilla = "<style>body { margin: 0; font: 12px sans-serif } .chin { width: 8em; line-height: 1em } .chin div { display: inline; font: 2px/4px serif }</style>"
+    e4 = dom_desde_html5("<!DOCTYPE html><html><head>" + barbilla + "</head><body><div class=chin> <div> &nbsp; </div> </div></body></html>")
+    estilo_aplicar(e4, estilo_hojas(e4, "http://x/"))
+    maquetar(e4, 400)
+    Print "barbilla: " + jsdom_selector(e4, ".chin", false)[0].caja_h
+    cuarta = "<style>body { margin: 0; font: 12px sans-serif } [class~=one].first.one { position: absolute; top: 0; margin: 36px 0 0 60px; padding: 0; border: black 2em; border-style: none solid } [class~=one][class~=first] [class=second\\ two][class=\"second two\"] { float: right; width: 48px; height: 12px; background: yellow; margin: 0; padding: 0 }</style>"
+    e5 = dom_desde_html5("<!DOCTYPE html><html><head>" + cuarta + "</head><body><div style='position:relative'><blockquote class=\"first one\"><address class=\"second two\"></address></blockquote></div></body></html>")
+    estilo_aplicar(e5, estilo_hojas(e5, "http://x/"))
+    maquetar(e5, 400)
+    ad = jsdom_selector(e5, "address", false)[0]
+    bq = jsdom_selector(e5, "blockquote", false)[0]
+    Print "cuarta: " + ad.caja_w + "x" + ad.caja_h + " | " + bq.caja_w + "x" + bq.caja_h
+    frente = "<style>body { margin: 0; font: 12px sans-serif } .forehead { margin: 4em; width: 8em; border-left: solid black 1em; border-right: solid black 1em } .forehead * { width: 12em; line-height: 1em } .ancha { width: 600px }</style>"
+    e6 = dom_desde_html5("<!DOCTYPE html><html><head>" + frente + "</head><body><div class=forehead><div>&nbsp;</div></div><div style='margin: 0 50px'><div class=ancha>x</div></div></body></html>")
+    estilo_aplicar(e6, estilo_hojas(e6, "http://x/"))
+    maquetar(e6, 400)
+    fh = jsdom_selector(e6, ".forehead", false)[0]
+    Print "frente: " + (fh.caja_w - 24) + " " + jsdom_selector(e6, ".forehead div", false)[0].caja_w + " | ventana: " + jsdom_selector(e6, ".ancha", false)[0].caja_w
+    sonrisa = "<style>body { margin: 0; font: 12px sans-serif } .smile { margin: 5em 3em; clear: both } .smile div { margin-top: 0.25em; background: black; width: 12em; height: 2em; position: relative; bottom: -1em } .smile div div { position: absolute; top: 0; right: 1em; width: auto; height: 0; margin: 0; border: yellow solid 1em } .smile div div span { display: inline; margin: -1em 0 0 0; border: solid 1em transparent; border-style: none solid; float: right; background: black; height: 1em } .smile div div span em { float: inherit; border-top: solid yellow 1em; border-bottom: solid black 1em } .smile div div span em strong { width: 6em; display: block; margin-bottom: -1em }</style>"
+    e7 = dom_desde_html5("<!DOCTYPE html><html><head>" + sonrisa + "</head><body><div class=smile><div><div><span><em><strong></strong></em></span></div></div></div></body></html>")
+    estilo_aplicar(e7, estilo_hojas(e7, "http://x/"))
+    maquetar(e7, 400)
+    ts = "sonrisa:"
+    for sel in [".smile div div", "span", "em"]
+        k = jsdom_selector(e7, sel, false)[0]
+        if ts != "sonrisa:"
+            ts = ts + " |"
+        end
+        ts = ts + " " + k.caja_x + " " + k.caja_w
+    end
+    Print ts
+end

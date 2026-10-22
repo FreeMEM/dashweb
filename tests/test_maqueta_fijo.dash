@@ -1,0 +1,54 @@
+# Test: position: fixed va con la ventana (tarea 37h). Una cabecera fija roja de 20 px y una página de 1000 px con
+# un bloque azul a los 400: con la página desplazada 300, la cabecera se pinta arriba (y no a los -300), el azul a
+# los 100, y maqueta_nodo_en_vista encuentra la cabecera arriba y el azul donde se ve. position: sticky con top: 10px
+# en una sección de 500 px que empieza a los 100: desplazada 300 se ve a los 10 de arriba; desplazada 700 (la sección
+# ya pasó) se fue con ella.
+# memcheck
+# expect-out: fijo: true
+# expect-out: arriba rojo: true | azul a los 100: true
+# expect-out: debajo del ratón: cab azul
+# expect-out: sticky: 300 arriba true | 700 arriba false | ratón pega
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/pintor.dash"
+
+Window W
+    title "Fijo"
+    width 300
+    height 160
+end
+
+Main
+    h = "<html><body style='margin:0;background:#fff'><div id=cab style='position:fixed;top:0;left:0;right:0;height:20px;background:red'></div>"
+    h = h + "<div style='height:400px'></div><div id=azul style='height:50px;background:blue'></div><div style='height:550px'></div></body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    p = maquetar(doc, 280)
+    fijo = false
+    for d in p.dibujos
+        if d.nodo != nil and dom_atributo(d.nodo, "id") == "cab" and d.fijo
+            fijo = true
+        end
+    end
+    Print "fijo: " + fijo
+    W.open
+    x0 = W.inner_left
+    y0 = W.inner_top
+    pintar(p, nil, 300, x0, y0, 280, 140)
+    rojo = gfx_pixel_read(x0 + 5, y0 + 5)
+    azul = gfx_pixel_read(x0 + 5, y0 + 110)
+    Print "arriba rojo: " + (rojo != gfx_pixel_read(x0 + 5, y0 + 60)) + " | azul a los 100: " + (azul != rojo and azul != gfx_pixel_read(x0 + 5, y0 + 60))
+    Print "debajo del ratón: " + dom_atributo(maqueta_nodo_en_vista(p, 5, 5, 300), "id") + " " + dom_atributo(maqueta_nodo_en_vista(p, 5, 120, 300), "id")
+    h2 = "<html><body style='margin:0;background:#fff'><div style='height:100px'></div><section style='height:500px'>"
+    h2 = h2 + "<div id=pega style='position:sticky;top:10px;height:30px;background:green'></div></section><div style='height:600px'></div></body></html>"
+    doc2 = dom_desde_html(h2)
+    estilo_aplicar(doc2, estilo_hojas(doc2, "prueba.html"))
+    p2 = maquetar(doc2, 280)
+    pintar(p2, nil, 300, x0, y0, 280, 140)
+    fondo = gfx_pixel_read(x0 + 5, y0 + 100)
+    a300 = gfx_pixel_read(x0 + 5, y0 + 20) != fondo
+    pintar(p2, nil, 700, x0, y0, 280, 140)
+    a700 = gfx_pixel_read(x0 + 5, y0 + 20) != fondo
+    Print "sticky: 300 arriba " + a300 + " | 700 arriba " + a700 + " | ratón " + dom_atributo(maqueta_nodo_en_vista(p2, 5, 20, 300), "id")
+    W.close
+end

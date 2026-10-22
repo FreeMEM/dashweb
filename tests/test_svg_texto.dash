@@ -1,0 +1,46 @@
+# Test (tarea 37h, el esquema de "Ficha desde donde ya trabaja tu gente" de pre.opentimetrack.com): un <svg> con
+# width: 100% y viewBox 0 0 200 100 en una caja de 400 se maqueta a 400x200; sus <text> salen como textos de la página
+# encima (x 100 con text-anchor middle: centrado a los 200; font-size 10 a escala 2: 20 px; en los tests solo hay topaz 8); en el SVG que se
+# escribe para nanosvg, un fill con rgba() o var() va en #rrggbb con su fill-opacity.
+# memcheck
+# expect-out: imagen 400x200
+# expect-out: texto [Su móvil] centrado true alto true color 15f2f2
+# expect-out: svg: fill="#e7ece4" true fill-opacity:0.058 true fill="#123456" true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+Main
+    h = "<style>:root { --verde: #123456 } p { color: var(--verde) } .w-full { width: 100% }</style><body style='margin:0'><div style='width:400px'>"
+    h = h + "<svg viewBox='0 0 200 100' class=w-full><rect x=0 y=0 width=200 height=50 rx=10 fill='rgba(231,236,228,0.06)' stroke='var(--verde)'/>"
+    h = h + "<g transform='translate(0, 10)'><text x=100 y=40 text-anchor=middle font-size=10 fill='#15f2f2'>Su móvil</text></g>"
+    h = h + "<circle cx=150 cy=80 r=10 fill='var(--verde)'/></svg></div><p>x</p></body>"
+    d = documento_html("http://x/", h)
+    documento_maquetar(d, 400)
+    for dib in d.pagina.dibujos
+        if dib.tipo == D_IMAGEN
+            Print "imagen " + dib.ancho + "x" + dib.alto
+        end
+    end
+    for dib in d.pagina.dibujos
+        if dib.tipo == D_TEXTO and dib.texto == "Su móvil"
+            centro = dib.x + dib.ancho / 2
+            Print "texto [" + dib.texto + "] centrado " + (centro >= 196 and centro <= 204) + " alto " + (dib.alto > 0) + " color " + _hex(dib.color)
+        end
+    end
+    svg = dom_buscar(d.doc, "svg")
+    t = file_read_text(dom_atributo(svg, "data-dashweb-svg"))
+    Print "svg: fill=\"#e7ece4\" " + (str_find(t, "fill=\"#e7ece4\"") >= 0) + " fill-opacity:0.058 " + (str_find(t, "fill-opacity:0.058") >= 0) + " fill=\"#123456\" " + (str_find(t, "fill=\"#123456\"") >= 0)
+    documento_liberar(d)
+end
+
+func _hex(c: Int) -> String
+    cifras = "0123456789abcdef"
+    r = ""
+    k = 20
+    while k >= 0
+        r = r + cifras[(c >> k) & 15]
+        k = k - 4
+    end
+    return r
+end

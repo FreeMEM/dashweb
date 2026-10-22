@@ -10,13 +10,12 @@
 # expect-out: T [x] c=0 8,1 8x8
 # expect-out: T [>] c=0 16,1 8x8
 # expect-out: T [rojo] c=cc0000 0,11 32x8
-# expect-out: I f002 0,21 13x8
-# expect-out: T [busca] c=0 13,21 40x8
+# expect-out: I f002 0,21 16x8
+# expect-out: T [busca] c=0 16,21 40x8
 # expect-out: R c=ff 50,31 20x10
 # expect-out: T [aaaa bbbb] c=0 0,43 80x8
 # expect-out: T [cc dd ee ff gg] c=0 0,54 112x8
 # expect-out: T [z] c=0 6,75 8x8
-# expect-out: R c=ff00 6,74 8x4
 # expect-out: E g=0 0,84 10x10
 # expect-out: E g=2 10,84 16x16
 # expect-out: Z 0 g=1 23,86 7x7
@@ -24,6 +23,7 @@
 # expect-out: G 0/0 0/127 v 0,100 120x10
 # expect-out: G ff0000/255 ff/127 h 0,110 120x4
 # expect-out: G 0/0 111111/255 v 0,114 120x2
+# expect-out: R c=ff00 6,74 8x4
 # expect-out: alfa 204 128 0 255 102030
 # expect-out: alto 116
 # expect-out: fin

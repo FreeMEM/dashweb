@@ -34,6 +34,7 @@ typedef struct {
     LONG cuantos, cap;
     char *doctype;
     BOOL mal;                /* out of memory */
+    int modo;                /* hubbub_quirks_mode: 0 no-quirks, 1 limited, 2 quirks */
 } _H5;
 
 static char *_h5_copia(const uint8_t *p, size_t len, BOOL minusculas) {
@@ -269,7 +270,7 @@ static hubbub_error _h5_atributos(void *ctx, void *n, const hubbub_attribute *a,
     return h->mal ? HUBBUB_NOMEM : HUBBUB_OK;
 }
 
-static hubbub_error _h5_modo(void *ctx, hubbub_quirks_mode m) { return HUBBUB_OK; }
+static hubbub_error _h5_modo(void *ctx, hubbub_quirks_mode m) { ((_H5 *)ctx)->modo = (int)m; return HUBBUB_OK; }
 static hubbub_error _h5_juego(void *ctx, const char *e) { return HUBBUB_OK; }
 static hubbub_error _h5_script(void *ctx, void *s) { return HUBBUB_OK; }
 
@@ -407,6 +408,13 @@ end
 """
 end
 
+# El modo de la página según su doctype: 0 estándar, 1 casi estándar, 2 quirks (las páginas viejas sin doctype)
+@native(borrow) func _h5_modo_de(h: Int) -> Int
+"""
+    return (LONG)((_H5 *)h)->modo;
+"""
+end
+
 # El árbol del documento con las reglas de HTML5 (o el de dom_desde_html si Hubbub no puede)
 func dom_desde_html5(texto: String) -> Nodo
     return _dom_desde_html5(texto, false)
@@ -428,6 +436,10 @@ func _dom_desde_html5(texto: String, utf8: Bool) -> Nodo
     end
     doc = dom_nodo(DOM_DOCUMENTO, "#document", "")
     doc.texto = _h5_doctype_de(h)
+    # (lib/estilo.dash lo mira: en modo estándar una longitud sin unidad no vale; tarea 41a)
+    if _h5_modo_de(h) == 2
+        doc.atributos.push(Atributo("modo", "quirks"))
+    end
     _h5_copiar(h, 1, doc)
     _h5_liberar(h)
     return doc

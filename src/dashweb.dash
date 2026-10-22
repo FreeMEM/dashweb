@@ -41,14 +41,15 @@ const ID_VER_HISTORIAL = 20
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
 const ID_CERRADA = 100    # + número de ventana: su botón de cerrar
+const ID_RATON = 120      # + número de ventana: el ratón se movió sobre su página (o salió; D63, tarea 37f3)
 const ID_COMPLETA = 90    # la ventana del vídeo a pantalla completa: un clic o una tecla
 const ID_COMPLETA_CERRADA = 91
 
 const MAX_VENTANAS = 4
-const FICHERO_MARCADORES = "PROGDIR:dashweb.marcadores"
-const FICHERO_PREFERENCIAS = "PROGDIR:dashweb.prefs"
+const FICHERO_MARCADORES = "PROGDIR:Tachyon.marcadores"
+const FICHERO_PREFERENCIAS = "PROGDIR:Tachyon.prefs"
 # Las cookies que duran más que la sesión (lib/cookies.dash), de una vez para otra
-const FICHERO_COOKIES = "PROGDIR:dashweb.cookies"
+const FICHERO_COOKIES = "PROGDIR:Tachyon.cookies"
 
 # Una ventana del navegador y lo que tiene
 struct Ventana
@@ -62,6 +63,7 @@ struct Ventana
     carga_dir: String = ""
     preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
     js_cuando: Int = -1      # time_ms del siguiente temporizador del JavaScript, -1 si no hay
+    zona: Bool = false       # el repintado pedido es solo de la zona que cambió el JavaScript (tarea 37e7)
     estado_video: Int = 0    # time_ms de la última vez que la barra de estado dijo cómo va el vídeo
     foco: Nodo = nil         # el campo de formulario donde se escribe
     con_historial: Bool = false   # la lista del historial desplegada (empieza oculta)
@@ -74,17 +76,21 @@ struct Ventana
     empezada: Int = 0        # time_ms de cuando se pidió la página (para medir la carga entera)
     descarga: Carga = nil    # algo que se está guardando en un fichero (un .lha, un .zip...)
     descarga_ruta: String = ""
+    aviso_scroll: Bool = false   # la vista se movió: el evento scroll del JavaScript, en el siguiente tic
+    animando: Bool = false       # alguna animación de CSS viva: un fotograma en cada tic (unos 15 por segundo)
+    fotograma: Int = 0           # time_ms del último fotograma pintado
+    io_pagina: Pagina = nil      # la maqueta de la última vez que se miraron los IntersectionObserver
 end
 
 var dw_ventanas: [Ventana] = []
 
 func dw_inicio() -> String
-    h = "<html><head><title>dashweb</title><style>body { font-family: sans-serif; margin: 12px }"
+    h = "<html><head><title>Tachyon</title><style>body { font-family: sans-serif; margin: 12px }"
     h = h + " h1 { color: #036 } .nota { color: #555 }</style></head><body>"
-    h = h + "<h1>dashweb</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
+    h = h + "<h1>Tachyon</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
     h = h + "<p>Escribe una dirección arriba (http o https) y pulsa Return.</p>"
     h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
-    h = h + "<p><a href=\"dashweb:marcadores\">Marcadores</a> · <a href=\"dashweb:cookies\">Cookies</a></p>"
+    h = h + "<p><a href=\"tachyon:marcadores\">Marcadores</a> · <a href=\"tachyon:cookies\">Cookies</a></p>"
     h = h + "<p class=nota>Fase B: ventanas con MUI 5.</p></body></html>"
     return h
 end
@@ -125,7 +131,7 @@ func pantalla_completa(w: Ventana, r: Reproductor)
         return
     end
     if dw_completa_win == 0
-        dw_completa_win = mui_window_begin("dashweb: vídeo", 0)
+        dw_completa_win = mui_window_begin("Tachyon: vídeo", 0)
         dw_completa_lienzo = mui_canvas(320, 200)
         mui_window_end()
         mui_canvas_on_draw(dw_completa_lienzo, pinta_completa)
@@ -257,14 +263,32 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         mui_timer(1, ID_RANGO)
     end
     imagenes_hasta(w.actual.im, w.desde, alto)
+    # lo que se ve, para el JavaScript (innerWidth/innerHeight, scrollY, getBoundingClientRect)
+    if w.actual.js != 0 and w.actual.pagina != nil
+        jsdom_vista(w.actual.js, ancho, alto, w.desde, w.actual.pagina.alto)
+    end
     pintor_foco = w.foco
     pintor_videos = w.actual.videos
+    t0 = time_ms()
+    if mui_canvas_updating() and w.zona
+        # solo lo que cambió el JavaScript (documento_al_dia: d.zona, en coordenadas de página)
+        w.zona = false
+        d = w.actual
+        pintor_zona = true
+        pintor_zx0 = x + d.zx0
+        pintor_zy0 = y + d.zy0
+        pintor_zx1 = x + d.zx1 - 1
+        pintor_zy1 = y + d.zy1 - 1
+        pintar(d.pagina, d.im, w.desde, x, y, ancho, alto)
+        pintor_zona = false
+        traza("pintada la zona " + d.zx0 + "," + d.zy0 + " " + (d.zx1 - d.zx0) + "x" + (d.zy1 - d.zy0) + " en " + (time_ms() - t0) + " ms")
+        return
+    end
     if mui_canvas_updating()
         # una imagen nueva de un vídeo (mui_canvas_update: MUI no borra el lienzo): solo los vídeos
         pintar_videos(w.actual.pagina, w.desde, x, y, ancho, alto)
         return
     end
-    t0 = time_ms()
     pintar(w.actual.pagina, w.actual.im, w.desde, x, y, ancho, alto)
     traza("pintada en " + (time_ms() - t0) + " ms")
 end
@@ -297,6 +321,10 @@ end
 # vuelve: la página llega en los tics (la ventana sigue respondiendo y se puede parar).
 func abrir(w: Ventana, direccion: String)
     parar_carga(w)
+    # (las direcciones internas de antes del nombre Tachyon: dashweb:marcadores...)
+    if str_starts(str_lower(direccion), "dashweb:")
+        direccion = "tachyon:" + direccion[8:]
+    end
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
         dw_estado(w, "Conectando con " + direccion + "...")
         mui_set_value(w.v.progreso, 5)
@@ -311,21 +339,21 @@ func abrir(w: Ventana, direccion: String)
     dw_estado(w, "Abriendo " + direccion + "...")
     vista(w)
     var d: Documento = nil
-    if direccion == "" or direccion == "dashweb:inicio"
-        d = documento_html("dashweb:inicio", dw_inicio())
-    elif direccion == "dashweb:marcadores"
-        d = documento_html("dashweb:marcadores", marcadores_html(FICHERO_MARCADORES))
-    elif str_starts(direccion, "dashweb:cookies")
+    if direccion == "" or direccion == "tachyon:inicio"
+        d = documento_html("tachyon:inicio", dw_inicio())
+    elif direccion == "tachyon:marcadores"
+        d = documento_html("tachyon:marcadores", marcadores_html(FICHERO_MARCADORES))
+    elif str_starts(direccion, "tachyon:cookies")
         # dashweb:cookies?borrar (todas) o ?borrar=dominio
-        if str_starts(direccion, "dashweb:cookies?borrar")
+        if str_starts(direccion, "tachyon:cookies?borrar")
             dominio = ""
-            if str_starts(direccion, "dashweb:cookies?borrar=")
+            if str_starts(direccion, "tachyon:cookies?borrar=")
                 dominio = direccion[23:]
             end
             cookies_borrar(dominio)
             cookies_guardar(FICHERO_COOKIES)
         end
-        d = documento_html("dashweb:cookies", cookies_html())
+        d = documento_html("tachyon:cookies", cookies_html())
     else
         d = documento_abrir(direccion)
     end
@@ -430,7 +458,8 @@ func empezar_descarga(w: Ventana, r: Respuesta)
     if w.descarga != nil
         http_cancelar(w.descarga)
     end
-    w.descarga = http_empezar_a_fichero(direccion, ruta, 30000)
+    # (según llega, sin juntarla en memoria: un fichero grande no cabría; tarea 40b)
+    w.descarga = http_volcar(http_empezar_a_fichero(direccion, ruta, 30000))
     w.descarga_ruta = ruta
     dw_estado(w, "Bajando " + nombre + " a " + ruta + "...")
     actualizar_giro(w)
@@ -476,6 +505,8 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
         documento_liberar(w.actual)
     end
     w.actual = d
+    w.fotograma = 0
+    w.animando = false
     if direccion != ""
         mui_set_text(w.v.url, w.actual.direccion)
     end
@@ -492,9 +523,9 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     var nadie: Nodo = nil
     w.foco = nadie
     if w.actual.titulo != ""
-        mui_set_text(w.v.window, w.actual.titulo + " - dashweb")
+        mui_set_text(w.v.window, w.actual.titulo + " - Tachyon")
     else
-        mui_set_text(w.v.window, "dashweb")
+        mui_set_text(w.v.window, "Tachyon")
     end
     ajustar_barra(w)
     if w.actual.error != ""
@@ -528,6 +559,22 @@ func programar()
             if trayendo and (espera < 0 or espera > 50)
                 espera = 50
             end
+            if w.aviso_scroll and (espera < 0 or espera > 30)
+                espera = 30
+            end
+            if w.actual != nil and w.actual.js != 0 and jsdom_peticiones_pendientes(w.actual.js) > 0 and (espera < 0 or espera > 50)
+                espera = 50
+            end
+            # una página con animaciones de CSS vivas (o recién maquetada: aún no se sabe): el siguiente fotograma
+            if w.actual != nil and w.carga == nil and documento_animado(w.actual) and (w.animando or w.fotograma == 0)
+                e = ANIMACION_MS - (time_ms() - w.fotograma)
+                if e < 10
+                    e = 10
+                end
+                if espera < 0 or e < espera
+                    espera = e
+                end
+            end
             # un vídeo sonando: el tic, cuando toca su siguiente imagen
             if w.actual != nil and w.actual.videos != nil
                 ev = videos_espera(w.actual.videos)
@@ -542,31 +589,139 @@ func programar()
     end
 end
 
+# Lo que acaba de cambiar el JavaScript: si documento_al_dia sabe la zona (la ruta ligera), solo esa; si no, todo
+# (tarea 37e7). Con la ventana a pantalla completa abierta, todo.
+func repintar_cambiado(w: Ventana)
+    d = w.actual
+    if d.zona and (dw_completa == nil or dw_completa_de != w)
+        if d.zx0 >= d.zx1 or d.zy0 >= d.zy1 or d.zy1 <= 0 or d.zy0 >= mui_height(w.v.pagina)
+            return
+        end
+        w.zona = true
+        mui_canvas_update_area(w.v.pagina, d.zx0, d.zy0, d.zx1 - d.zx0, d.zy1 - d.zy0)
+        w.zona = false
+        return
+    end
+    mui_canvas_redraw(w.v.pagina)
+end
+
 # Los setTimeout/setInterval que tocan en esa ventana
 func temporizadores(w: Ventana)
     if w.actual != nil and w.actual.js != 0 and w.carga == nil
         t0 = time_ms()
         espera = jsdom_temporizadores(w.actual.js)
+        w.actual.desde = w.desde
+        w.actual.alto_vista = mui_height(w.v.pagina)
         if traza_activa
             traza("temporizadores del JavaScript en " + (time_ms() - t0) + " ms; el siguiente en " + espera + " ms")
         end
         if documento_al_dia(w.actual)
             ajustar_barra(w)
-            mui_canvas_redraw(w.v.pagina)
+            repintar_cambiado(w)
         end
         w.js_cuando = -1
         if espera >= 0
             w.js_cuando = time_ms() + espera
         end
         envio_del_js(w)
+        desplazamiento_del_js(w)
+        intersecciones(w, false)
     end
     programar()
 end
 
+# Las animaciones de CSS de la página: un fotograma (como mucho cada ANIMACION_MS) y se repinta
+const ANIMACION_MS = 66
+
+func animar_ventana(w: Ventana)
+    if w.actual == nil or w.carga != nil or not documento_animado(w.actual)
+        w.animando = false
+        return
+    end
+    if time_ms() - w.fotograma < ANIMACION_MS
+        w.animando = true
+        return
+    end
+    w.fotograma = time_ms()
+    w.actual.desde = w.desde
+    w.actual.alto_vista = mui_height(w.v.pagina)
+    w.animando = documento_animar(w.actual)
+    repintar_cambiado(w)
+end
+
+# Si el JavaScript pidió desplazar la vista (scrollTo, scrollIntoView...), se desplaza
+func desplazamiento_del_js(w: Ventana)
+    if w.actual == nil or w.actual.js == 0 or w.actual.pagina == nil
+        return
+    end
+    y = jsdom_desplazamiento(w.actual.js)
+    if y >= 0 and y != w.desde
+        w.desde = y
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+        w.aviso_scroll = true
+    end
+end
+
+# Los IntersectionObserver de la página (todo: todos; si no, solo si hay observe nuevos), con la vista de ahora
+func intersecciones(w: Ventana, todo: Bool)
+    if w.actual == nil or w.actual.js == 0 or w.actual.pagina == nil or w.carga != nil
+        return
+    end
+    jsdom_vista(w.actual.js, mui_width(w.v.pagina), mui_height(w.v.pagina), w.desde, w.actual.pagina.alto)
+    w.io_pagina = w.actual.pagina
+    jsdom_intersecciones(w.actual.js, todo)
+end
+
+# La vista se movió: el evento scroll al JavaScript (uno por tic aunque la barra mande muchos)
+func avisar_desplazamiento(w: Ventana)
+    w.aviso_scroll = false
+    if w.actual == nil or w.actual.js == 0 or w.actual.pagina == nil or w.carga != nil
+        return
+    end
+    jsdom_vista(w.actual.js, mui_width(w.v.pagina), mui_height(w.v.pagina), w.desde, w.actual.pagina.alto)
+    t0 = time_ms()
+    jsdom_desplazado(w.actual.js)
+    intersecciones(w, true)
+    if documento_al_dia(w.actual)
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+    end
+    if traza_activa
+        traza("evento scroll (desde " + w.desde + ") en " + (time_ms() - t0) + " ms")
+    end
+    desplazamiento_del_js(w)
+end
+
 # Un tic: cargas, imágenes y temporizadores de una ventana
+# El ratón se movió sobre la página (o salió de ella): :hover y los sucesos del ratón del JavaScript (tarea 37f3)
+func raton(w: Ventana)
+    if not w.abierta or w.actual == nil or w.carga != nil or w.actual.pagina == nil
+        return
+    end
+    if mui_canvas_pointer_inside(w.v.pagina)
+        x = mui_canvas_pointer_x(w.v.pagina)
+        y = mui_canvas_pointer_y(w.v.pagina)
+        documento_raton(w.actual, x, y + w.desde, y)
+    else
+        documento_raton(w.actual, -1, -1, -1)
+    end
+    if documento_al_dia(w.actual)
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+    end
+    # (lo que el JavaScript haya programado al moverse el ratón)
+    temporizadores(w)
+end
+
 func tic(w: Ventana)
     avanzar_carga(w)
     avanzar_descarga(w)
+    # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
+    if js_cortado()
+        dw_estado(w, "Un script de la página tardaba demasiado: cortado")
+        Print "tachyon: un script de la página pasaba de 30 s y se cortó"
+    end
     if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
         ajustar_barra(w)
         mui_canvas_redraw(w.v.pagina)
@@ -576,8 +731,32 @@ func tic(w: Ventana)
     elif w.actual != nil and w.carga == nil and str_starts(mui_get_text(w.v.estado), "Imágenes")
         dw_estado(w, "Listo")
         # (en la salida: para medir la página entera, con sus imágenes)
-        Print "dashweb: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms"
+        kb_js = 0
+        if w.actual.js != 0
+            kb_js = js_memoria(w.actual.js) / 1024
+        end
+        Print "tachyon: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB, " + imagenes_kb(w.actual.im) + ")"
     end
+    if w.aviso_scroll
+        avisar_desplazamiento(w)
+    end
+    # las respuestas a los XMLHttpRequest y fetch del JavaScript (tarea 37e2)
+    if w.actual != nil and w.actual.js != 0 and w.carga == nil and jsdom_peticiones_avanzar(w.actual.js) > 0
+        if documento_al_dia(w.actual)
+            ajustar_barra(w)
+            mui_canvas_redraw(w.v.pagina)
+        end
+        temporizadores(w)
+    end
+    # una maqueta nueva: los IntersectionObserver otra vez
+    if w.actual != nil and w.actual.pagina != nil and w.io_pagina != w.actual.pagina
+        intersecciones(w, true)
+        if documento_al_dia(w.actual)
+            ajustar_barra(w)
+            mui_canvas_redraw(w.v.pagina)
+        end
+    end
+    animar_ventana(w)
     if w.js_cuando >= 0 and time_ms() >= w.js_cuando
         temporizadores(w)
     end
@@ -618,7 +797,7 @@ func clic(w: Ventana)
     if w.actual == nil or w.actual.pagina == nil
         return
     end
-    n = maqueta_nodo_en(w.actual.pagina, mui_canvas_mouse_x(w.v.pagina), mui_canvas_mouse_y(w.v.pagina) + w.desde)
+    n = maqueta_nodo_en_vista(w.actual.pagina, mui_canvas_mouse_x(w.v.pagina), mui_canvas_mouse_y(w.v.pagina), w.desde)
     if n == nil
         return
     end
@@ -763,6 +942,19 @@ func desplazar(w: Ventana, n: Int)
     mui_set_value(w.v.barra, mui_get_value(w.v.barra) + n)
 end
 
+# La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló; y para el comando Version del Amiga,
+# la cadena $VER del ejecutable (con la fecha del día en que se cambia la versión: van juntas)
+const DASHWEB_VERSION = "0.3.0-alfa"
+
+@native(borrow) func texto_version(v: String) -> String
+"""
+    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.3.0-alfa (22.10.2026)";
+    static char b[160];
+    sprintf(b, "\033c\033bTachyon %s\033n\n\033ccompilado el %s a las %s", (char *)v, __DATE__, __TIME__);
+    return (STRPTR)b;
+"""
+end
+
 # Corre la ventana (las del mismo .dashui salen en el mismo sitio)
 @native func mover_ventana(win: Int, dx: Int, dy: Int)
 """
@@ -796,6 +988,7 @@ func nueva_ventana(direccion: String) -> Ventana
         mui_canvas_on_draw(v.actividad, giro3)
     end
     mui_canvas_on_input(v.pagina, ID_PAGINA)
+    mui_canvas_on_move(v.pagina, ID_RATON + k)
     # la página se pinta aparte y llega a la ventana de una vez: no se ve redibujarse
     mui_canvas_buffered(v.pagina, true)
     mui_on_close(v.window, ID_CERRADA + k)
@@ -851,19 +1044,33 @@ end
 func pagina_inicio() -> String
     inicio = preferencia(FICHERO_PREFERENCIAS, "inicio")
     if inicio == ""
-        inicio = "dashweb:inicio"
+        inicio = "tachyon:inicio"
     end
     return inicio
 end
 
+# Los marcadores, preferencias y cookies de cuando el navegador se llamaba dashweb (2026-10-21) pasan a su nombre
+# nuevo la primera vez (se renombran: los de antes no se pierden)
+func ficheros_de_antes()
+    for par in [["PROGDIR:dashweb.marcadores", FICHERO_MARCADORES], ["PROGDIR:dashweb.prefs", FICHERO_PREFERENCIAS], ["PROGDIR:dashweb.cookies", FICHERO_COOKIES]]
+        if not file_exists(par[1]) and file_exists(par[0])
+            file_rename(par[0], par[1])
+        end
+    end
+end
+
 Main
+    ficheros_de_antes()
     # las conexiones siguen abiertas para los recursos del mismo servidor (sin volver a negociar TLS)
     http_seguir = true
     cookies_cargar(FICHERO_COOKIES)
-    if mui_app_begin("dashweb", "DASHWEB") == 0
-        Print "dashweb necesita MUI (3.8 o 5) y un 68020"
+    # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)
+    dos_requesters(false)
+    if mui_app_begin("Tachyon", "TACHYON") == 0
+        Print "Tachyon necesita MUI (3.8 o 5) y un 68020"
     else
         a = Acerca_create()
+        mui_set_text(a.version, texto_version(DASHWEB_VERSION))
         # cada argumento en su ventana (hasta 4); sin argumentos, la página de inicio
         # TRAZA: la línea de tiempo de las cargas por la salida (lib/traza.dash)
         paginas = 0
@@ -871,6 +1078,7 @@ Main
             if arg(i) == "TRAZA"
                 traza_activa = true
                 traza_t0 = time_ms()
+                traza("memoria libre al empezar " + mem_total() / 1024 + " KB")
             elif arg(i) == "GCSIEMPRE"
                 js_gc_siempre(true)
             else
@@ -925,6 +1133,10 @@ Main
                 cerrar_ventana(dw_ventanas[ev - ID_CERRADA])
                 continue
             end
+            if ev >= ID_RATON and ev < ID_RATON + MAX_VENTANAS
+                raton(dw_ventanas[ev - ID_RATON])
+                continue
+            end
             w = activa()
             if w == nil
                 break
@@ -971,6 +1183,9 @@ Main
                 mui_set_visible(w.v.separador, w.con_historial)
             end
             if ev == ID_SCROLL
+                if w.desde != mui_get_value(w.v.barra)
+                    w.aviso_scroll = true
+                end
                 w.desde = mui_get_value(w.v.barra)
                 mui_canvas_redraw(w.v.pagina)
                 # (las imágenes perezosas que ahora quedan cerca empiezan a bajarse: el tic otra vez)
@@ -1012,7 +1227,7 @@ Main
                 end
             end
             if ev == ID_MARCADORES
-                navegar(w, "dashweb:marcadores")
+                navegar(w, "tachyon:marcadores")
             end
             if ev == ID_ANADIR and w.actual != nil
                 if marcadores_agregar(FICHERO_MARCADORES, w.actual.direccion, w.actual.titulo)

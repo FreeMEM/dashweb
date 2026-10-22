@@ -17,6 +17,30 @@ const DOM_COMENTARIO = 8
 const DOM_DOCUMENTO = 9
 const DOM_FRAGMENTO = 11       # document.createDocumentFragment(): al añadirlo pasan sus hijos
 
+# lib/maqueta.dash: lo que dio maquetar un elemento al medir (_bloque_de con _midiendo): con la misma clave en la
+# misma maqueta no se maqueta otra vez, se ponen dos dibujos que lo resumen (_medida_poner)
+struct Medida
+    ancho: Int       # la clave: anchos, alto definido, cómo estaba el maquetador y el tamaño forzado por flex (-2: no)
+    contenedor: Int
+    alto_def: Int
+    linea: Int
+    blanco0: Int
+    fz_w: Int
+    fz_h: Int
+    alto: Int
+    x1: Int          # lo que abarca todo lo dibujado (desde x, y)
+    y1: Int
+    x2: Int
+    y2: Int
+    izq: Int         # lo que cuenta para un ancho (_ancho_flotante_medir); izq >= der si nada
+    der: Int
+    fuente: Int      # el último texto (su línea base, para un inline-block); 0 si no hay
+    fy: Int
+    fh: Int
+    blanco: Int      # cómo deja el maquetador
+    ancho_linea: Int
+end
+
 struct Nodo
     tipo: Int
     nombre: String
@@ -33,6 +57,50 @@ struct Nodo
     id_cache: String = nil         # se piden (dom_olvidar_atributos al cambiar un atributo)
     vars: {String: String} = nil   # las propiedades --x que le llegan a sus hijos (lib/estilo.dash)
     toques: [Toque] = nil          # en el documento: lo que ha cambiado el JavaScript (lib/jsdom.dash)
+    # lib/maqueta.dash: los anchos medidos en la época af_pase con dom_reloj af_reloj (de tres en tres: ancho, alto
+    # definido, resultado); valen mientras no cambie nada dentro (sub_cambio, dom_tocar)
+    af_pase: Int = 0
+    af_reloj: Int = 0
+    af_lista: [Int] = nil
+    medidas: [Medida] = nil   # (de la época med_pase con dom_reloj med_reloj)
+    med_reloj: Int = 0
+    sub_cambio: Int = 0       # el dom_reloj del último cambio en él o dentro (dom_tocar)
+    raton: Bool = false       # el ratón está encima (él o uno de dentro): :hover (lib/documento.dash, tarea 37f3)
+    orden: Int = 0            # lib/maqueta.dash: su orden en el árbol en la última maqueta (para pintar lo posicionado)
+    cl: [Int] = nil           # márgenes, bordes y rellenos en px con el contenedor cl_cont en la maqueta cl_pase
+    cl_pase: Int = 0
+    cl_cont: Int = 0
+    cl_pct: Bool = false      # (alguno va en %: depende del contenedor)
+    pal_clave: String = nil   # un texto: los anchos de sus palabras con esa letra (lib/maqueta.dash _palabras_texto: con sus palabras)
+    pal_texto: String = nil
+    pal_anchos: [Int] = nil
+    pal_palabras: [String] = nil
+    pal_blancos: [Int] = nil  # (1: había blanco delante de esa palabra)
+    pal_final: Bool = false   # (acaba en blanco)
+    med_pase: Int = 0
+    # la caja (borde incluido) en la última maqueta del documento, en coordenadas de la página (lib/maqueta.dash;
+    # la leen getBoundingClientRect y offset* del JavaScript): vale si caja_pase es el caja_pase del documento
+    caja_pase: Int = 0
+    caja_bloque: Int = 0     # = caja_pase si la puso la maqueta de su bloque (si no, la unión de sus dibujos)
+    caja_x: Int = 0
+    caja_y: Int = 0
+    caja_w: Int = 0
+    caja_h: Int = 0
+    caja_fija: Bool = false  # su caja es de lo fijo (position: fixed): va con la ventana, no con la página
+    pg_pase: Int = 0         # position: sticky en la maqueta pg_pase: dónde está, su top y lo más abajo que va
+    pg_y0: Int = 0
+    pg_top: Int = 0
+    pg_fin: Int = 0
+    # lib/documento.dash, al aplicar cambios del JavaScript sin maqueta: marca (el número de la vuelta), lo que se
+    # desplaza y si puede haber cambiado su visibilidad
+    lig_marca: Int = 0
+    lig_dx: Int = 0
+    lig_dy: Int = 0
+    lig_vis: Bool = false
+    lig_fuera: Int = 0       # = la vuelta de lib/documento.dash: sus dibujos se quitan (salió o display: none)
+    # lib/imagenes.dash, al volver a escribir un <svg> en un fotograma de sus animaciones: lo que cambia en este
+    # elemento ("@r": un atributo; lo demás, propiedades de su style); nil si nada
+    svg_sobre: {String: String} = nil
 end
 
 # Un cambio del JavaScript, apuntado en el documento para rehacer después solo el estilo al que afecta
@@ -43,7 +111,7 @@ const TOQUE_CONTENIDO = 2      # nodo: el elemento al que le han cambiado todos 
 const TOQUE_ENTRA = 3          # nodo: el que acaba de entrar en el árbol
 const TOQUE_SALE = 4           # nodo: el padre del que ha salido
 const TOQUE_VECINO = 5         # nodo: un hermano del que ha entrado o salido
-const DOM_TOQUES_MAX = 200
+const DOM_TOQUES_MAX = 1000
 
 struct Toque
     tipo: Int
@@ -51,6 +119,20 @@ struct Toque
     nombre: String
     antes: String
     despues: String
+    quitado: Nodo = nil      # TOQUE_SALE: el que salió (lib/documento.dash quita sus dibujos si no ocupaba sitio)
+end
+
+# lib/maqueta.dash guarda lo medido de una maqueta a la siguiente (tarea 37e6): dom_tocar(n) dice que n cambió (su
+# estilo, sus hijos, un atributo) y lo medido en él y en los de fuera ya no vale
+var dom_reloj: Int = 0
+
+func dom_tocar(n: Nodo)
+    dom_reloj = dom_reloj + 1
+    a = n
+    while a != nil
+        a.sub_cambio = dom_reloj
+        a = a.padre
+    end
 end
 
 # Apunta un cambio en el documento de n (si n está en uno)
@@ -73,6 +155,21 @@ func dom_apuntar(n: Nodo, tipo: Int, nombre: String, antes: String, despues: Str
         doc.toques.push(Toque(tipo, n, nombre, antes, despues))
     elif doc.toques.length == DOM_TOQUES_MAX
         doc.toques.push(Toque(TOQUE_TODO, n, "", "", ""))
+    end
+end
+
+# El elemento hijo sale de padre: un TOQUE_SALE en padre que lo recuerda
+func dom_apuntar_salida(padre: Nodo, hijo: Nodo)
+    dom_apuntar(padre, TOQUE_SALE, "", "", "")
+    doc = padre
+    while doc.padre != nil
+        doc = doc.padre
+    end
+    if doc.toques != nil and doc.toques.length > 0
+        t = doc.toques[doc.toques.length - 1]
+        if t.tipo == TOQUE_SALE and t.nodo == padre
+            t.quitado = hijo
+        end
     end
 end
 

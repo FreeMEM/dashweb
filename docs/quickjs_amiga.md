@@ -17,7 +17,9 @@ investigación previa; los scripts están ahora en `tools/`.
 
 En `third_party/quickjs/quickjs.c` (segundo commit del repo, para ver el diff):
 
-1. `malloc_usable_size`: libnix no lo tiene; se usa la rama de Emscripten (devuelve 0).
+1. `malloc_usable_size`: libnix no lo tiene. Cada bloque lleva delante una cabecera de 8 bytes con su tamaño
+   (`amiga_malloc`, `amiga_free`, `amiga_realloc`), así que `malloc_size` y con él `JS_SetMemoryLimit` cuentan la
+   memoria de verdad (devolver 0, como la rama de Emscripten de antes, no contaba nada).
 2. `tm_gmtoff`: libnix no lo tiene; se usa el camino de Windows (`gmtime`/`localtime`).
 3. Sin `CONFIG_ATOMICS`: `Atomics` necesita hilos.
 4. Perfil por muestras, solo si se compila con `-DJS_PERFIL` (tarea 37a3): `JS_PerfilMuestra(rt)` apunta la

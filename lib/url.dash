@@ -302,7 +302,12 @@ end
 # file:///Programs/Web/a.html = Programs:Web/a.html; también file:///DH0:a.html, file://Work/a.html y
 # file://localhost/Work/a.html. Sin "/" (file:///a.html) es relativa al directorio actual. Los %XX se deshacen
 # (y los de UTF-8 pasan a Latin-1).
+# Las de esquemas de la web que no son ficheros (data:, about:, javascript:, blob:...) dan NIL: (se lee vacío): como
+# ruta del Amiga, "data:..." es el volumen DATA y AmigaOS pedía insertarlo (meneame.net, usuario 2026-10-21).
 func url_fichero(direccion: String) -> String
+    if _url_no_es_fichero(direccion)
+        return "NIL:"
+    end
     if not str_starts(str_lower(direccion), "file:")
         return direccion
     end
@@ -319,6 +324,25 @@ func url_fichero(direccion: String) -> String
         ruta = ruta[:barra] + ":" + ruta[barra + 1:]
     end
     return _url_deshacer(ruta)
+end
+
+# ¿Una dirección data: (lo que va dentro de la propia dirección: data:image/png;base64,...)?
+func url_es_data(direccion: String) -> Bool
+    return str_starts(str_lower(direccion[:5]), "data:")
+end
+
+# Los %XX deshechos (los de UTF-8 pasan a Latin-1)
+func url_deshacer(t: String) -> String
+    return _url_deshacer(t)
+end
+
+func _url_no_es_fichero(direccion: String) -> Bool
+    p = str_find(direccion, ":")
+    if p <= 0
+        return false
+    end
+    e = str_lower(direccion[:p])
+    return e == "data" or e == "about" or e == "javascript" or e == "blob" or e == "mailto" or e == "tel" or e == "sms" or e == "ws" or e == "wss" or e == "chrome" or e == "chrome-extension" or e == "moz-extension" or e == "intent" or e == "ftp" or e == "http" or e == "https"
 end
 
 func _url_hex(c: Int) -> Int

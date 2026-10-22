@@ -1,0 +1,21 @@
+# Test: un script que no acaba (while (true)) se corta con "interrupted" pasado el tope (tarea 40c; aquí 2 s con
+# js_tope) y el motor sigue sirviendo; js_cortado lo dice una vez. Un script corto no se corta.
+# memcheck
+# expect-out: corto: 3 false
+# expect-out: bucle: true InternalError: interrupted
+# expect-out: otra vez: 7 false
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/js.dash"
+
+Main
+    js = js_nuevo()
+    js_tope(2)
+    Print "corto: " + js_evaluar(js, "1 + 2", "a.js") + " " + js_cortado()
+    t0 = time_ms()
+    r = js_evaluar(js, "while (true) {}", "b.js")
+    e = js_error(js)
+    Print "bucle: " + (js_cortado() and time_ms() - t0 >= 1900) + " " + str_split(e, "\n")[0]
+    Print "otra vez: " + js_evaluar(js, "3 + 4", "c.js") + " " + js_cortado()
+    js_liberar(js)
+end

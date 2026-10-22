@@ -60,6 +60,8 @@ class Handler(socketserver.StreamRequestHandler):
         seguir = False
         self.acepta = ""
         self.galletas = ""
+        self.prueba = ""
+        self.tipo = ""
         while True:
             header = self.rfile.readline()
             if header in (b"\r\n", b"\n", b""):
@@ -68,6 +70,10 @@ class Handler(socketserver.StreamRequestHandler):
                 length = int(header.split(b":", 1)[1])
             if header.lower().startswith(b"cookie:"):
                 self.galletas = header.split(b":", 1)[1].strip().decode("latin-1")
+            if header.lower().startswith(b"x-prueba:"):
+                self.prueba = header.split(b":", 1)[1].strip().decode("latin-1")
+            if header.lower().startswith(b"content-type:"):
+                self.tipo = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().startswith(b"accept-encoding:"):
                 self.acepta = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().replace(b" ", b"").startswith(b"connection:keep-alive"):
@@ -175,6 +181,13 @@ class Handler(socketserver.StreamRequestHandler):
         if path.startswith("/galletas/ver") or path.startswith("/otra"):     # the Cookie header the client sent
             data = self.galletas.encode("latin-1")
             self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
+            return
+        if path == "/eco_js":       # what the JavaScript sent (XMLHttpRequest, fetch), as JSON (with a non-ASCII letter)
+            import json
+            data = json.dumps({"metodo": line.split(" ")[0], "prueba": self.prueba, "tipo": self.tipo,
+                               "cuerpo": body.decode("utf-8", "replace"), "letra": "ñ"}, ensure_ascii=False).encode("utf-8")
+            self.wfile.write(reply("200 OK", [("Content-Type", "application/json; charset=utf-8"),
+                                              ("X-Respuesta", "si"), ("Content-Length", str(len(data)))], data))
             return
         if path == "/acepta":       # the Accept-Encoding the client sent
             data = self.acepta.encode("latin-1")

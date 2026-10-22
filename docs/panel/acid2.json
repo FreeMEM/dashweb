@@ -1,0 +1,13 @@
+[
+ {"pieza": "Hoja en dirección data: (fondo rojo)", "estado": "hecha", "nota": "41a (1)"},
+ {"pieza": "Bordes transparentes", "estado": "hecha", "nota": "41a (1)"},
+ {"pieza": "Ir a #top (posición de todo)", "estado": "hecha", "nota": "41a (2)"},
+ {"pieza": "Parser de CSS (.parser)", "estado": "hecha", "nota": "41a (3): sin unidad, ';' suelto"},
+ {"pieza": "Nariz: max-height", "estado": "hecha", "nota": "41a (4): 168x48 como Chrome"},
+ {"pieza": "Barbilla: alto de línea del bloque", "estado": "hecha", "nota": "41a (5): el strut, 12 como Chrome"},
+ {"pieza": "Segunda línea: selector con espacio escapado", "estado": "hecha", "nota": "41a (6): el valor se desescapa"},
+ {"pieza": "Frente: hijo más ancho que el padre", "estado": "hecha", "nota": "41a (7): desborda si cabe en la ventana"},
+ {"pieza": "Ojos: floats detrás de bloques", "estado": "pendiente", "nota": "#eyes-c baja bajo el float"},
+ {"pieza": "Sonrisa: floats anidados", "estado": "hecha", "nota": "41a (9): anchos como Chrome (3 px de colapso de márgenes aparte)"},
+ {"pieza": "Última línea: display: table en ul/li", "estado": "hecha", "nota": "41a (8): filas y celdas anónimas"}
+]

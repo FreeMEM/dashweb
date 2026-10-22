@@ -1,0 +1,70 @@
+# Test: la geometría de la maqueta en el JavaScript (tarea 37b). getBoundingClientRect con margen, relleno y borde,
+# lo que flex coloca después (justify-content mueve los dibujos ya puestos), un <span> en línea (la unión de lo que
+# dibuja), offsetTop/offsetParent con position: relative, display: none (cero), y lo que se ve: innerWidth,
+# innerHeight, scrollY y el desplazamiento restado en getBoundingClientRect. Desplazar desde el JavaScript
+# (tarea 37c): scrollTo, scrollBy, scrollIntoView y scrollTop dejan la petición (jsdom_desplazamiento), scrollY la
+# ve ya, y jsdom_desplazado lanza scroll en document y window. IntersectionObserver (tarea 37e): la primera vez
+# avisa de todos; luego, al cruzar (con threshold 0.5 y rootMargin), y nada si nada cambia.
+# memcheck
+# expect-out: ninguna 0 0
+# expect-out: a 10 10 114 64 | f 350 50 | ninguna 0 0
+# expect-out: span true true | hijo 7 7 a | oculto 0 0 null
+# expect-out: vista 800 600 30 | -20 | 30 | 800 600
+# expect-out: pedido 200 200 -1
+# expect-out: scrollBy 250 250
+# expect-out: eventos document window 30
+# expect-out: io a:true:63 o:false:0
+# expect-out: io2 nada
+# expect-out: io3 a:true:22
+# expect-out: sticky 10 26 | 300 | fijo 5
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+import "../lib/jsdom.dash"
+import "../lib/html5.dash"
+
+Main
+    h = "<html><head><style>body { margin: 0 } #a { margin: 10px; padding: 5px; width: 100px; height: 50px; border: 2px solid red; position: relative } "
+    h = h + "#b { margin: 0; padding: 0 } #c { display: flex; justify-content: flex-end; width: 400px; height: 20px; margin: 0 } #f { width: 50px; height: 20px; background: blue } "
+    h = h + "#o { display: none } p { margin: 0 }</style></head><body>"
+    h = h + "<div id=a><div id=b>uno</div></div><div id=c><div id=f></div></div><p>hola <span id=s>mundo</span></p><div id=o>no</div></body></html>"
+    doc = dom_desde_html5(h)
+    css_vista(800, 600)
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    Print js_evaluar(js, "var r = function (id) { var b = document.getElementById(id).getBoundingClientRect(); return [b.left, b.top, b.width, b.height].join(' '); }; 'ninguna ' + r('a').split(' ').slice(0, 2).join(' ')", "t.js")
+    p = maquetar(doc, 800)
+    jsdom_vista(js, 800, 600, 0, p.alto)
+    Print js_evaluar(js, "var a = r('a').split(' '), f = document.getElementById('f').getBoundingClientRect(); 'a ' + a.join(' ') + ' | f ' + f.left + ' ' + f.width + ' | ninguna 0 0'", "t.js")
+    Print js_evaluar(js, "var s = document.getElementById('s').getBoundingClientRect(), b = document.getElementById('b'), o = document.getElementById('o'); 'span ' + (s.width > 0) + ' ' + (s.top > 64) + ' | hijo ' + b.offsetTop + ' ' + b.offsetLeft + ' ' + b.offsetParent.id + ' | oculto ' + o.offsetWidth + ' ' + o.getBoundingClientRect().height + ' ' + o.offsetParent", "t.js")
+    jsdom_vista(js, 800, 600, 30, p.alto)
+    Print js_evaluar(js, "'vista ' + innerWidth + ' ' + innerHeight + ' ' + scrollY + ' | ' + document.getElementById('a').getBoundingClientRect().top + ' | ' + document.documentElement.scrollTop + ' | ' + document.documentElement.clientWidth + ' ' + document.documentElement.clientHeight", "t.js")
+    jsdom_vista(js, 800, 600, 30, 2000)
+    Print js_evaluar(js, "scrollTo(0, 200); 'pedido ' + scrollY", "t.js") + " " + jsdom_desplazamiento(js) + " " + jsdom_desplazamiento(js)
+    Print js_evaluar(js, "scrollBy(0, 50); 'scrollBy ' + scrollY", "t.js") + " " + jsdom_desplazamiento(js)
+    js_evaluar(js, "var oidos = []; document.addEventListener('scroll', function () { oidos.push('document'); }); window.addEventListener('scroll', function () { oidos.push('window'); });", "t.js")
+    jsdom_desplazado(js)
+    Print js_evaluar(js, "'eventos ' + oidos.join(' ') + ' ' + scrollY", "t.js")
+    js_evaluar(js, "var vistos = []; var io = new IntersectionObserver(function (es) { es.forEach(function (e) { vistos.push(e.target.id + ':' + e.isIntersecting + ':' + Math.round(e.intersectionRatio * 100)); }); }, {threshold: 0.5}); io.observe(document.getElementById('a')); io.observe(document.getElementById('o'));", "t.js")
+    jsdom_vista(js, 800, 50, 0, 2000)
+    jsdom_intersecciones(js, true)
+    Print js_evaluar(js, "var r = 'io ' + vistos.join(' '); vistos = []; r", "t.js")
+    jsdom_intersecciones(js, true)
+    Print js_evaluar(js, "'io2 ' + (vistos.length ? vistos.join(' ') : 'nada')", "t.js")
+    jsdom_vista(js, 800, 50, 60, 2000)
+    jsdom_intersecciones(js, true)
+    Print js_evaluar(js, "'io3 ' + vistos.join(' ')", "t.js")
+    js_liberar(js)
+    # (tarea 37h2) lo de un sticky, con lo que lo empuja el desplazamiento; lo fijo (sin nada que pintar), sin desplazar
+    h2 = "<html><head><style>body { margin: 0 } #s { position: sticky; top: 10px; height: 30px } #f { position: fixed; top: 5px; height: 10px }</style></head>"
+    h2 = h2 + "<body><div style='height: 100px'></div><section style='height: 500px'><div id=s><p id=d>x</p></div></section><div style='height: 900px'></div><div id=f></div></body></html>"
+    doc2 = dom_desde_html5(h2)
+    estilo_aplicar(doc2, estilo_hojas(doc2, "prueba.html"))
+    js2 = js_nuevo()
+    jsdom_preparar(js2, doc2)
+    p2 = maquetar(doc2, 800)
+    jsdom_vista(js2, 800, 600, 300, p2.alto)
+    Print js_evaluar(js2, "var t = function (id) { return Math.round(document.getElementById(id).getBoundingClientRect().top); }; 'sticky ' + t('s') + ' ' + t('d') + ' | ' + scrollY + ' | fijo ' + t('f')", "t.js")
+    js_liberar(js2)
+end

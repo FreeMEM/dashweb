@@ -108,7 +108,10 @@ func imagenes_fondo(n: Nodo, base: Url) -> String
     if u == ""
         return ""
     end
-    completa = url_text(url_resolve(base, u))
+    completa = u
+    if not url_es_data(u)
+        completa = url_text(url_resolve(base, u))
+    end
     # la maqueta y el pintor no saben la dirección de la página: el estilo se queda con la completa
     n.estilo["background-image"] = "url(" + completa + ")"
     return completa
@@ -120,13 +123,16 @@ func _imagenes_pedir_fondo(im: Imagenes, n: Nodo, base: Url)
         return
     end
     u = url_parse(src)
-    if u.esquema == "http" or u.esquema == "https"
+    if u.esquema == "http" or u.esquema == "https" or url_es_data(src)
         im.por_src[src] = 0
         fichero = "T:dashweb_img" + im.ficheros.length
         im.ficheros.push(fichero)
         var sin: Carga = nil
         pedida = Pedida(src, src, fichero, sin)
         pedida.de_fondo = true
+        if url_es_data(src) and not _imagenes_data(im, pedida)
+            return
+        end
         # con cover o contain el tamaño de la imagen solo cuenta por su proporción: se puede reducir
         if n.tipo == DOM_ELEMENTO and n.estilo != nil and n.estilo.has("background-size")
             bs = n.estilo["background-size"]
@@ -148,7 +154,10 @@ func imagenes_cartel(n: Nodo, base: Url) -> String
     if p == ""
         return ""
     end
-    completa = url_text(url_resolve(base, p))
+    completa = p
+    if not url_es_data(p)
+        completa = url_text(url_resolve(base, p))
+    end
     _poner_atributo(n, "poster", completa)
     return completa
 end
@@ -159,12 +168,16 @@ func _imagenes_pedir_cartel(im: Imagenes, n: Nodo, base: Url)
         return
     end
     u = url_parse(src)
-    if u.esquema == "http" or u.esquema == "https"
+    if u.esquema == "http" or u.esquema == "https" or url_es_data(src)
         im.por_src[src] = 0
         fichero = "T:dashweb_img" + im.ficheros.length
         im.ficheros.push(fichero)
         var sin: Carga = nil
-        im.cola.push(Pedida(src, src, fichero, sin))
+        pedida = Pedida(src, src, fichero, sin)
+        if url_es_data(src) and not _imagenes_data(im, pedida)
+            return
+        end
+        im.cola.push(pedida)
     else
         im.por_src[src] = _imagen_traer(im, base, src)
     end
@@ -185,12 +198,20 @@ func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
             end
         elif src != ""
             u = url_resolve(base, src)
-            if u.esquema == "http" or u.esquema == "https"
+            data = url_es_data(src)
+            if u.esquema == "http" or u.esquema == "https" or data
                 im.por_src[src] = 0
                 fichero = "T:dashweb_img" + im.ficheros.length
                 im.ficheros.push(fichero)
                 var sin: Carga = nil
-                pedida = Pedida(src, url_text(u), fichero, sin)
+                direccion = src
+                if not data
+                    direccion = url_text(u)
+                end
+                pedida = Pedida(src, direccion, fichero, sin)
+                if data and not _imagenes_data(im, pedida)
+                    return
+                end
                 pedida.perezosa = str_lower(dom_atributo(n, "loading")) == "lazy"
                 w = Int(dom_atributo(n, "width"))
                 h = Int(dom_atributo(n, "height"))
@@ -307,8 +328,42 @@ func _imagen_tamano_final(im: Imagenes, p: Pedida)
     end
 end
 
+# Una imagen mayor que donde se ve (imagenes_vista de la última maqueta) se reduce a lo justo para cubrirlo con su
+# proporción y se suelta la grande: el pintor ya pintaba una copia a ese tamaño y guardaba las dos (freemem.space:
+# cinco de 820x480 que se ven a 412x241, una de 1376x768 a 453x442; tarea 40h). Sin vista sabida, tal cual.
+func _imagen_a_su_vista(im: Imagenes, src: String, img: Int) -> Int
+    if img == 0 or im.vistas == nil or not im.vistas.has(src)
+        return img
+    end
+    v = im.vistas[src]
+    vw = v / 65536
+    vh = v % 65536
+    iw = image_width(img)
+    ih = image_height(img)
+    if vw < 8 or vh < 8 or iw <= vw or ih <= vh
+        return img
+    end
+    # (el factor que cubre los dos lados, en milésimas)
+    f = vw * 1000 / iw
+    if vh * 1000 / ih > f
+        f = vh * 1000 / ih
+    end
+    nw = (iw * f + 999) / 1000
+    nh = (ih * f + 999) / 1000
+    if nw >= iw or nh >= ih
+        return img
+    end
+    nueva = image_scale(img, nw, nh)
+    if nueva == 0
+        return img
+    end
+    image_free(img)
+    return nueva
+end
+
 # La imagen ya decodificada, a su sitio; true si hay imagen (hay que volver a pintar: también un fondo)
 func _imagen_llegada(im: Imagenes, doc: Nodo, p: Pedida, img: Int) -> Bool
+    img = _imagen_a_su_vista(im, p.src, img)
     im.por_src[p.src] = img
     if img == 0
         return false
@@ -353,7 +408,7 @@ func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
             continue
         end
         u = url_parse(src)
-        if u.esquema != "http" and u.esquema != "https"
+        if u.esquema != "http" and u.esquema != "https" and not url_es_data(src)
             continue
         end
         im.por_src[src] = 0
@@ -362,6 +417,9 @@ func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
         var sin: Carga = nil
         pedida = Pedida(src, src, fichero, sin)
         pedida.fuente = c.familia + "|" + c.peso + "|" + c.estilo
+        if url_es_data(src) and not _imagenes_data(im, pedida)
+            continue
+        end
         im.cola.push(pedida)
         n = n + 1
     end
@@ -482,8 +540,43 @@ func _imagen_traer(im: Imagenes, base: Url, src: String) -> Int
         end
         return imagen_cargar(fichero)
     end
+    if url_es_data(src)
+        fichero = "T:dashweb_img" + im.ficheros.length
+        im.ficheros.push(fichero)
+        if not imagen_data_a_fichero(src, fichero)
+            return 0
+        end
+        return imagen_cargar(fichero)
+    end
     ruta = url_fichero(direccion)
     return imagen_cargar(ruta)
+end
+
+# Lo que lleva una dirección data: (imágenes y fuentes dentro de la página o del CSS: data:image/png;base64,... o
+# data:image/svg+xml,%3Csvg...) escrito en fichero; false si no se puede (D68: base64_to_file)
+func imagen_data_a_fichero(direccion: String, fichero: String) -> Bool
+    if not url_es_data(direccion)
+        return false
+    end
+    coma = str_find(direccion, ",")
+    if coma < 0
+        return false
+    end
+    cabecera = str_lower(direccion[5:coma])
+    datos = url_deshacer(direccion[coma + 1:])
+    if str_ends(cabecera, ";base64")
+        return base64_to_file(datos, fichero) >= 0
+    end
+    return file_write_text(fichero, datos)
+end
+
+# Una pedida de una dirección data: ya está en su fichero (solo le falta decodificarse); false si no se pudo
+func _imagenes_data(im: Imagenes, p: Pedida) -> Bool
+    p.llegada = imagen_data_a_fichero(p.direccion, p.fichero)
+    if not p.llegada
+        im.por_src[p.src] = 0
+    end
+    return p.llegada
 end
 
 # width/height que faltan, con el tamaño real de la imagen; true si les faltaba
@@ -512,6 +605,7 @@ func _imagen_tamano(n: Nodo, img: Int) -> Bool
 end
 
 func _poner_atributo(n: Nodo, nombre: String, valor: String)
+    dom_tocar(n)       # (lo medido en la maqueta anterior ya no vale; tarea 37e6)
     for a in n.atributos
         if a.nombre == nombre
             a.valor = valor
@@ -519,6 +613,25 @@ func _poner_atributo(n: Nodo, nombre: String, valor: String)
         end
     end
     n.atributos.push(Atributo(nombre, valor))
+end
+
+# KB que ocupan las imágenes decodificadas (a 4 bytes por punto): las cargadas y las copias escaladas (traza)
+func imagenes_kb(im: Imagenes) -> String
+    a = 0
+    for k in im.por_src.keys()
+        i = im.por_src[k]
+        if i != 0
+            a = a + image_width(i) * image_height(i) * 4 / 1024
+        end
+    end
+    b = 0
+    for k in im.escaladas.keys()
+        i = im.escaladas[k]
+        if i != 0
+            b = b + image_width(i) * image_height(i) * 4 / 1024
+        end
+    end
+    return "imágenes " + a + " KB y copias " + b + " KB"
 end
 
 # La imagen de src a ancho x alto (la cargada o una copia escalada, que se guarda); 0 si no hay
@@ -603,6 +716,107 @@ func _imagenes_svg(im: Imagenes, n: Nodo)
     end
 end
 
+# Vuelve a escribir y rasterizar un <svg> ya puesto (un fotograma de las animaciones de lo de dentro, con sus
+# svg_sobre: tarea 37d4) y cambia su imagen por la nueva; false si no se pudo (se queda la que había)
+func imagenes_svg_rehacer(im: Imagenes, n: Nodo) -> Bool
+    fichero = dom_atributo(n, "data-dashweb-svg")
+    if fichero == "" or not im.por_src.has(fichero)
+        return false
+    end
+    raiz = n
+    while raiz.padre != nil
+        raiz = raiz.padre
+    end
+    color = "#000000"
+    if n.estilo.has("color") and css_color(n.estilo["color"]) >= 0
+        color = _hex6(css_color(n.estilo["color"]))
+    end
+    # (al tamaño al que se ve en la última maqueta, si lo hay: un width en % no se sabe hasta maquetar)
+    w = svg_ancho(n)
+    h = svg_alto(n)
+    if n.caja_pase == raiz.caja_pase and n.caja_w > 0 and n.caja_h > 0
+        w = n.caja_w
+        h = n.caja_h
+    end
+    texto = _svg_elemento(n, raiz, true, w, h)
+    texto = str_replace(str_replace(str_replace(texto, "currentColor", color), "currentcolor", color), "CurrentColor", color)
+    temporal = fichero + ".f"
+    if not file_write_text(temporal, texto)
+        return false
+    end
+    nueva = imagen_cargar_a(temporal, IMAGEN_MAX_ANCHO, IMAGEN_MAX_ALTO)
+    file_delete(temporal)
+    if nueva == 0
+        return false
+    end
+    # las copias a otro tamaño de la vieja ya no valen
+    var fuera: [String] = []
+    for clave in im.escaladas.keys()
+        if str_starts(clave, fichero + " ")
+            fuera.push(clave)
+        end
+    end
+    for clave in fuera
+        image_free(im.escaladas[clave])
+        im.escaladas.remove(clave)
+    end
+    image_free(im.por_src[fichero])
+    im.por_src[fichero] = nueva
+    return true
+end
+
+# Un <svg> rasterizado a otro tamaño que el que tiene en la página (width en %): otra vez, a ese (tarea 37h)
+func imagenes_svg_a_tamano(im: Imagenes, n: Nodo) -> Bool
+    fichero = dom_atributo(n, "data-dashweb-svg")
+    if fichero == "" or not im.por_src.has(fichero) or im.por_src[fichero] == 0
+        return false
+    end
+    raiz = n
+    while raiz.padre != nil
+        raiz = raiz.padre
+    end
+    if n.caja_pase != raiz.caja_pase or n.caja_w <= 0
+        return false
+    end
+    dif = image_width(im.por_src[fichero]) - n.caja_w
+    if dif > 4 or dif < -4
+        return imagenes_svg_rehacer(im, n)
+    end
+    return false
+end
+
+# Un color de fill o stroke como lo lee nanosvg (#rrggbb); none, url(...) y lo que no sea un color, tal cual
+func _svg_color(v: String) -> String
+    t = str_lower(str_trim(v))
+    # (lo que nanosvg ya lee, tal cual: #rgb, #rrggbb, rgb() y los nombres)
+    if not (str_starts(t, "rgba(") or str_starts(t, "hsl") or (str_starts(t, "#") and (t.length == 5 or t.length == 9)))
+        return v
+    end
+    c = css_color_opaco(v)
+    if c < 0
+        return v
+    end
+    return _hex6(c)
+end
+
+# La opacidad de un color con alfa (rgba, hsla, #rrggbbaa) como "0.35"; "" si es opaco o no es un color
+func _svg_opacidad(v: String) -> String
+    t = str_lower(str_trim(v))
+    if t == "none" or t == "" or str_starts(t, "url(") or t == "currentcolor" or css_color_opaco(v) < 0
+        return ""
+    end
+    a = css_alfa(v)
+    if a >= 255
+        return ""
+    end
+    mil = a * 1000 / 255
+    r = "" + mil
+    while r.length < 3
+        r = "0" + r
+    end
+    return "0." + r
+end
+
 func _oculto_svg(n: Nodo) -> Bool
     return n.estilo.has("display") and n.estilo["display"] == "none"
 end
@@ -652,6 +866,8 @@ func _svg_nombre(x: String) -> String
         return "clipPathUnits"
     elif x == "patternunits"
         return "patternUnits"
+    elif x == "pathlength"
+        return "pathLength"
     end
     return x
 end
@@ -689,6 +905,7 @@ func _svg_elemento(n: Nodo, raiz: Nodo, es_raiz: Bool, w: Int, h: Int) -> String
         end
     end
     estilo = ""
+    opacidad_attr = ""
     for a in n.atributos
         if es_raiz and (a.nombre == "width" or a.nombre == "height" or a.nombre == "data-dashweb-svg")
             continue
@@ -700,12 +917,44 @@ func _svg_elemento(n: Nodo, raiz: Nodo, es_raiz: Bool, w: Int, h: Int) -> String
         if str_starts(a.nombre, "on")
             continue
         end
-        r = r + " " + _svg_nombre(a.nombre) + "=\"" + _svg_escapar(a.valor) + "\""
+        v = a.valor
+        if n.svg_sobre != nil and n.svg_sobre.has("@" + a.nombre)
+            v = n.svg_sobre["@" + a.nombre]
+        end
+        v = estilo_resolver_var(v, n)
+        if a.nombre == "fill" or a.nombre == "stroke"
+            # (nanosvg no sabe rgba() ni hsl(): el color en #rrggbb y su opacidad aparte)
+            opacidad = _svg_opacidad(v)
+            if opacidad != ""
+                opacidad_attr = opacidad_attr + ";" + a.nombre + "-opacity:" + opacidad
+            end
+            v = _svg_color(v)
+        end
+        r = r + " " + _svg_nombre(a.nombre) + "=\"" + _svg_escapar(v) + "\""
     end
-    # lo que le da el CSS de la página
-    for p in ["fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "opacity", "fill-rule", "stroke-linecap", "stroke-linejoin"]
+    if opacidad_attr != ""
+        estilo = opacidad_attr + ";" + estilo
+    end
+    # lo que le da el CSS de la página (con los guiones: la curva de trainalong.fit se dibuja con ellos)
+    for p in ["fill", "stroke", "stroke-width", "fill-opacity", "stroke-opacity", "opacity", "fill-rule", "stroke-linecap", "stroke-linejoin", "stroke-dasharray", "stroke-dashoffset"]
         if n.estilo.has(p)
-            estilo = estilo + ";" + p + ":" + n.estilo[p]
+            v = n.estilo[p]
+            if p == "fill" or p == "stroke"
+                opacidad = _svg_opacidad(v)
+                if opacidad != ""
+                    estilo = estilo + ";" + p + "-opacity:" + opacidad
+                end
+                v = _svg_color(v)
+            end
+            estilo = estilo + ";" + p + ":" + v
+        end
+    end
+    # y lo de este fotograma de su animación (tarea 37d4)
+    if n.svg_sobre != nil
+        for k in n.svg_sobre.keys()
+            if not str_starts(k, "@")
+                estilo = estilo + ";" + k + ":" + n.svg_sobre[k]
+            end
         end
     end
     if estilo != ""

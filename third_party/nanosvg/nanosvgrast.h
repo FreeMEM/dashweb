@@ -770,6 +770,7 @@ static void nsvg__flattenShapeStroke(NSVGrasterizer* r, NSVGshape* shape, float 
 		if (shape->strokeDashCount > 0) {
 			int idash = 0, dashState = 1;
 			float totalDist = 0, dashLen, allDashLen, dashOffset;
+			float dashes[8], dashOff;
 			NSVGpoint cur;
 
 			if (closed)
@@ -778,6 +779,22 @@ static void nsvg__flattenShapeStroke(NSVGrasterizer* r, NSVGshape* shape, float 
 			// Duplicate points -> points2.
 			nsvg__duplicatePoints(r);
 
+			/* dashweb: pathLength makes the dashes relative to it: scaled by the real length over it */
+			{
+				float largo = 0.0f, f = 1.0f;
+				for (j = 0; j < shape->strokeDashCount; j++) dashes[j] = shape->strokeDashArray[j];
+				dashOff = shape->strokeDashOffset;
+				if (shape->pathLength > 0.0f) {
+					for (j = 1; j < r->npoints2; j++) {
+						float ddx = r->points2[j].x - r->points2[j-1].x, ddy = r->points2[j].y - r->points2[j-1].y;
+						largo += sqrtf(ddx*ddx + ddy*ddy);
+					}
+					f = largo / (shape->pathLength * scale);
+					for (j = 0; j < shape->strokeDashCount; j++) dashes[j] *= f;
+					dashOff *= f;
+				}
+			}
+
 			r->npoints = 0;
  			cur = r->points2[0];
 			nsvg__appendPathPoint(r, cur);
@@ -785,19 +802,22 @@ static void nsvg__flattenShapeStroke(NSVGrasterizer* r, NSVGshape* shape, float 
 			// Figure out dash offset.
 			allDashLen = 0;
 			for (j = 0; j < shape->strokeDashCount; j++)
-				allDashLen += shape->strokeDashArray[j];
+				allDashLen += dashes[j];
 			if (shape->strokeDashCount & 1)
 				allDashLen *= 2.0f;
 			// Find location inside pattern
-			dashOffset = fmodf(shape->strokeDashOffset, allDashLen);
-			if (dashOffset < 0.0f)
-				dashOffset += allDashLen;
+			/* dashweb: without fmodf (from -lm: in the Amiga build it gave a wrong value and the dashes did nothing) */
+			dashOffset = dashOff;
+			if (allDashLen > 0.0f) {
+				while (dashOffset >= allDashLen) dashOffset -= allDashLen;
+				while (dashOffset < 0.0f) dashOffset += allDashLen;
+			}
 
-			while (dashOffset > shape->strokeDashArray[idash]) {
-				dashOffset -= shape->strokeDashArray[idash];
+			while (dashOffset > dashes[idash]) {
+				dashOffset -= dashes[idash];
 				idash = (idash + 1) % shape->strokeDashCount;
 			}
-			dashLen = (shape->strokeDashArray[idash] - dashOffset) * scale;
+			dashLen = (dashes[idash] - dashOffset) * scale;
 
 			for (j = 1; j < r->npoints2; ) {
 				float dx = r->points2[j].x - cur.x;
@@ -819,7 +839,7 @@ static void nsvg__flattenShapeStroke(NSVGrasterizer* r, NSVGshape* shape, float 
 					// Advance dash pattern
 					dashState = !dashState;
 					idash = (idash+1) % shape->strokeDashCount;
-					dashLen = shape->strokeDashArray[idash] * scale;
+					dashLen = dashes[idash] * scale;
 					// Restart
 					cur.x = x;
 					cur.y = y;

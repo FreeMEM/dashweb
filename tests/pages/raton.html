@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><head><title>Raton</title><style>
+body { margin: 0; font-family: sans-serif; background: #fff }
+.caja { margin: 20px; width: 200px; height: 80px; background: #ccc }
+.caja:hover { background: #c00 }
+#pos { margin: 20px }
+.con-raton { display: none; margin: 20px; color: #060 }
+@media (hover: hover) { .con-raton { display: block } }
+</style></head><body>
+<div class="caja" id="caja"></div>
+<p id="pos">sin ratón</p>
+<p class="con-raton">hay ratón</p>
+<script>
+var p = document.getElementById('pos'), n = 0;
+document.addEventListener('mousemove', function (e) { n++; p.textContent = 'ratón en ' + e.clientX + ',' + e.clientY + ' (' + n + ')'; });
+document.getElementById('caja').addEventListener('mouseleave', function () { p.textContent = 'salió de la caja'; });
+</script></body></html>

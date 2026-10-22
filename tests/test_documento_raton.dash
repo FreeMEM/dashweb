@@ -1,0 +1,41 @@
+# Test: el ratón sobre la página (tarea 37f3). documento_raton pone :hover en el elemento de debajo y en los de
+# fuera (a:hover cambia su color; .caja:hover, su relleno; .caja:hover .dentro, el fondo de uno de dentro) y lo quita
+# al irse; el
+# JavaScript recibe pointerover/mouseover, enter (sin subir), move con clientX/Y, y out/leave al salir.
+# memcheck
+# expect-out: encima: true red blue 2px
+# expect-out: sucesos: pointerover mouseover enter-caja pointermove mousemove(5,25)
+# expect-out: fuera: true #0000ee none
+# expect-out: al salir: pointerout mouseout leave-caja
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+func val(d: Documento, id: String, k: String, defecto: String) -> String
+    e = dom_por_id(d.doc, id).estilo
+    if e.has(k)
+        return e[k]
+    end
+    return defecto
+end
+
+Main
+    h = "<style>body { margin: 0; color: black } a:hover { color: red } .caja { height: 40px } .caja:hover .dentro { background-color: blue } .caja:hover { padding-left: 2px }</style>"
+    h = h + "<body><div class=caja id=caja><a id=a href=#>enlace</a><div class=dentro id=dentro>x</div></div><p>abajo</p>"
+    h = h + "<script>var r = []; var c = document.getElementById('caja');"
+    h = h + "c.addEventListener('mouseenter', function () { r.push('enter-caja') }); c.addEventListener('mouseleave', function () { r.push('leave-caja') });"
+    h = h + "['pointerover', 'mouseover', 'pointermove', 'pointerout', 'mouseout'].forEach(function (t) { document.addEventListener(t, function () { r.push(t) }) });"
+    h = h + "document.addEventListener('mousemove', function (e) { r.push('mousemove(' + e.clientX + ',' + e.clientY + ')') });</script></body>"
+    d = documento_html("http://x/", h)
+    documento_maquetar(d, 300)
+    a = dom_por_id(d.doc, "a")
+    cambia = documento_raton(d, a.caja_x + 5, a.caja_y + 2, 25)
+    documento_al_dia(d)
+    Print "encima: " + cambia + " " + val(d, "a", "color", "black") + " " + val(d, "dentro", "background-color", "none") + " " + val(d, "caja", "padding-left", "0")
+    Print "sucesos: " + js_evaluar(d.js, "var s = r.join(' '); r = []; s", "t.js")
+    cambia = documento_raton(d, -1, -1, -1)
+    documento_al_dia(d)
+    Print "fuera: " + cambia + " " + val(d, "a", "color", "black") + " " + val(d, "dentro", "background-color", "none")
+    Print "al salir: " + js_evaluar(d.js, "r.join(' ')", "t.js")
+    documento_liberar(d)
+end

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """dashweb test runner.
 
-Compiles tests/test_*.dash with Dash ($DASH, default ~/Projects/FreeMEMLang-dashweb) for a 68020
+Compiles tests/test_*.dash with Dash ($DASH, default ~/Projects/FreeMEMLang/.worktrees/dashweb) for a 68020
 with FPU and runs the ones with "# expect-out:" lines in FS-UAE (Dash's tools/emu_run.py),
 comparing what they print, line by line.
 
@@ -36,7 +36,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DASH = Path(os.environ.get("DASH", Path.home() / "Projects" / "FreeMEMLang-dashweb"))
+DASH = Path(os.environ.get("DASH", Path.home() / "Projects" / "FreeMEMLang" / ".worktrees" / "dashweb"))
 BUILD = ROOT / "build" / "tests"
 EMU_BASE = "fpu = 68882\n"          # the tests are built with --fpu (68020 + 68881)
 
@@ -113,6 +113,7 @@ def main():
     ap.add_argument("filter", nargs="?")
     ap.add_argument("--no-emu", action="store_true")
     ap.add_argument("--memcheck", action="store_true")
+    # (the tests with the same emulator config run in one session: it gets this plus 20 s per test)
     ap.add_argument("--timeout", type=float, default=600)
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -174,7 +175,7 @@ def main():
         if servers:
             time.sleep(1)       # let them listen
         try:
-            outs = run_programs([exe for _, exe, _ in group], timeout=args.timeout,
+            outs = run_programs([exe for _, exe, _ in group], timeout=args.timeout + 20 * len(group),
                                 kickstart=os.environ.get("DASH_KICKSTART"), extra_config=cfg, system=system or None)
         except RuntimeError as e:
             for src, _, _ in group:

@@ -1,0 +1,51 @@
+# Test: una descarga a fichero con http_volcar (tarea 40b): el cuerpo va al fichero según llega y no se junta en
+# memoria (a mitad de un goteo, con 64 KB ya llegados, lo que queda en la conexión es poco y lo volcado ya está en
+# el fichero); acaba con el fichero entero. Sin longitud (hasta el cierre), tras una redirección y con chunked (que
+# no se vuelca: va como siempre) el fichero también sale bien.
+# emu-server: http.py 40857
+# memcheck
+# expect-out: a medias: true true
+# expect-out: goteo: 200 299581 299581
+# expect-out: cerrar: 200 5000 5000
+# expect-out: redir: 200 4 hola
+# expect-out: chunked: 200 16
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/http.dash"
+
+@native(borrow) func esperar(ticks: Int)
+"""
+    Delay(ticks);
+"""
+end
+
+func bajar(direccion: String, fichero: String) -> Respuesta
+    c = http_volcar(http_empezar_a_fichero(direccion, fichero, 10000))
+    while not http_avanzar(c)
+        esperar(2)
+    end
+    return c.respuesta
+end
+
+Main
+    base = "http://127.0.0.1:40857"
+    c = http_volcar(http_empezar_a_fichero(base + "/goteo/video_prueba.mp4", "T:dw_v1", 10000))
+    visto = false
+    while not http_avanzar(c)
+        if not visto and c.volcados >= 65536
+            Print "a medias: " + (red_pendientes(c.conexion) < 4096) + " " + (c.volcados >= 65536 and not c.hecha)
+            visto = true
+        end
+        esperar(2)
+    end
+    Print "goteo: " + c.respuesta.estado + " " + c.respuesta.bytes + " " + file_size("T:dw_v1")
+    r = bajar(base + "/cerrar", "T:dw_v2")
+    Print "cerrar: " + r.estado + " " + r.bytes + " " + file_size("T:dw_v2")
+    r = bajar(base + "/redir", "T:dw_v3")
+    Print "redir: " + r.estado + " " + file_size("T:dw_v3") + " " + file_read_text("T:dw_v3")
+    r = bajar(base + "/chunked", "T:dw_v4")
+    Print "chunked: " + r.estado + " " + file_size("T:dw_v4")
+    for f in ["T:dw_v1", "T:dw_v2", "T:dw_v3", "T:dw_v4"]
+        file_delete(f)
+    end
+end

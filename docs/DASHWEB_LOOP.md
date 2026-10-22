@@ -3,7 +3,7 @@
 Arranque (desde cualquier directorio):
 
 ```
-/loop Sigue las instrucciones de ~/Projects/dashweb/docs/DASHWEB_LOOP.md: haz UNA tarea y actualiza la bitácora. No hagas pausas entre vuelta y vuelta
+/loop Sigue las instrucciones de ~/Projects/tachyon/docs/DASHWEB_LOOP.md: haz UNA tarea y actualiza la bitácora. No hagas pausas entre vuelta y vuelta
 ```
 
 **Encargo actual (usuario, 2026-10-20): la tarea 37, https://pre.opentimetrack.com, pasa delante de todo.**
@@ -31,13 +31,13 @@ Dos fases:
 
 1. **Encargo y uso.** Coge la subtarea de la 37 que toque (regla 5) mientras la 37 no esté `[x]`. Si el uso semanal
    pasa del 90 %, apúntalo en la bitácora, para el loop y avisa con PushNotification (lo pidió el usuario).
-2. **Rama.** Trabaja en `~/Projects/dashweb`, rama `dev` (sale de `main`). Sin push ni PR: eso lo pide el usuario.
+2. **Rama.** Trabaja en `~/Projects/tachyon`, rama `dev` (sale de `main`). Sin push ni PR: eso lo pide el usuario.
 3. **Dash.** Lo que le falte a Dash se añade a Dash, como tarea `D<n>` de la lista (sección "Dash"), pero **no lo
    hace el loop: se lo encarga a la sesión "dash"** (SendMessage a `dash`; `ListAgents` si no responde). El
    encargo lleva el porqué, cómo reproducirlo, lo que se propone y que avise con el commit. Mientras, el loop
    sigue con otra subtarea que no dependa de eso. Al recibir el aviso, el loop compila dashweb con ese Dash y
    lo apunta en la bitácora.
-   - La sesión "dash" trabaja en el worktree `~/Projects/FreeMEMLang-dashweb` (sus ramas salen de `main` de
+   - La sesión "dash" trabaja en el worktree `~/Projects/FreeMEMLang/.worktrees/dashweb` (sus ramas salen de `main` de
      FreeMEM/dash). El loop **no toca ese worktree** (ni `~/Projects/FreeMEMLang`): solo lo usa para compilar
      (`DASH` por defecto). Para probar un cambio de Dash antes de que esté hecho, una copia en el scratchpad.
    - Emulador y puertos de pruebas: antes de una batería o una medida larga, avisa a "dash" para no pisaros.
@@ -61,6 +61,11 @@ Dos fases:
 7b. **Capturas.** El usuario quiere ver cómo evoluciona (2026-10-16): cuando una tarea cambie lo que se ve, una
    captura del emulador enviada con SendUserFile (sin esperar al final).
 8. **Cerrar.** Marca `[x]`, añade una entrada a la bitácora y haz commit local `<tarea> - <resumen>`.
+8b. **Panel de progreso** (usuario, 2026-10-21): https://claude.ai/artifact/6RpPSBd7iEVaXduBDX9QEA ("Progreso de
+   dashweb"). Tras cada commit: pon al día `docs/panel/medidas.json`, `acid2.json` y `estandares.json` si cambian,
+   `python3 tools/panel_progreso.py <dir del scratchpad>` y, por cada JSON que cambie, súbelo (Artifact publish con
+   `url` del panel, `asset: true`) y actualiza su `datasets/<id>` con ArtifactData `update`: `source.url`, `name` y
+   `updated` ({at, by}). Las tareas, las baterías ("Batería: N/M" en la bitácora) y los commits salen solos.
 9. **Fin.** Si no quedan tareas `[ ]` en ninguna fase, escribe el resumen final, para el loop y avisa
    con PushNotification.
 
@@ -185,6 +190,28 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [ ] D66. **Menos copias de textos prestados** (2026-10-21, tarea 37e6; propuesta a la sesión "dash", que decide si
+      es viable). Una variable String que solo se lee y se toma de un diccionario se copia (_dash_str_set_copy) y
+      se libera; devolver un préstamo hace _dash_str_tmpcopy. _val y _px de lib/maqueta.dash: 3 millones de llamadas
+      al bajar por pre.opentimetrack.com.
+- [x] D65. **d.get(clave, defecto) en una búsqueda** (hecha por la sesión "dash", a19ece3; 2026-10-21, tarea 37e6). _val de
+      lib/maqueta.dash (has + [] + []: tres búsquedas) se llama 2,4 millones de veces al bajar por
+      pre.opentimetrack.com (9,5 % del perfil); estilo_px y _px igual.
+- [x] D64. **Más de 64 imágenes vivas** (hecha por la sesión "dash", 1204998; 2026-10-21, tarea 37h2). `_DASH_IMG_MAX 64`
+      en codegen.py: pre.opentimetrack.com tiene más de 100 iconos SVG (más las copias de image_scale); desde la
+      65, image_from_rgb da 0 (ni iconos ni el esquema grande). Sin tope fijo (lista, o una marca en _DashImg para
+      no buscar lineal en cada image_draw).
+- [x] D63. **El ratón sobre un mui_canvas sin clic** (hecha por la sesión "dash", 3980c80; 2026-10-20, tarea 37f3).
+      `mui_canvas_on_move(canvas, id)` (un aviso al mover dentro del área y al salir; varios seguidos, uno),
+      `mui_canvas_pointer_x/_y(canvas)` (dónde está ahora) y `mui_canvas_pointer_inside(canvas)`; MUI 3.8 y 5.
+- [x] D62. **Imágenes con alfa de verdad** (hecha por la sesión "dash", 31fd909) (2026-10-20, tarea 37; encargada a la sesión "dash"). `image_draw` e
+      `image_draw_part` de una imagen de `image_from_rgb(..., alfa)` pintan el pixel si su alfa es 128 o más y si no
+      nada: lo translúcido sale opaco o no sale. En trainalong.fit, el círculo y la curva grises (opacity .35 en el
+      SVG) salen como una mancha blanca opaca junto a "En construcción" y sin la curva. Se propone: en pantallas RTG
+      de 15 a 32 bits, mezclar con lo que hay debajo (WritePixelArrayAlpha de CyberGraphX V43 / Picasso96, o leer,
+      mezclar y escribir); en pantallas de paleta, seguir con el umbral. Test en el emulador. Y `image_scale` al
+      ampliar pierde filas de la máscara (BitMapScale): la curva de trainalong.fit (rasterizada a 1024 y ampliada a
+      1100) sale con una fila transparente cada ~14.
 - [x] D61. **Longitudes de textos hechos en C** (hecha por la sesión "dash", 8f04c61: la caché solo apunta los textos
       de Dash, que llevan una marca en su cabecera; 2026-10-20, tarea 37a3). La caché de
       longitudes de `_dash_str_len` (textos de 64 o más, por dirección) no se entera de un free() de C: el texto
@@ -278,28 +305,76 @@ tarea, con el estilo de Dash.
            *.js:1:4070) y Next.js no llega a montar nada (React, GSAP). Con test.
       [x] 37a3. Lentitud del JavaScript: de 31 s a 6,7 s (core-js cambiaba el Promise de QuickJS por el suyo), y
            Next.js ya monta la página sin errores.
-      37a5. Maqueta lenta y repetida: cada maqueta de esta página tarda 6,2-7 s (estilo_px, _borde, flex y grid en el
+      [x] 37a5. Maqueta lenta y repetida (hecha la parte de la velocidad: de 6,7 a 2,0 s; que un cambio que no mueve
+           nada no rehaga la maqueta queda en la 37d): cada maqueta de esta página tarda 6,2-7 s (estilo_px, _borde, flex y grid en el
            perfil de Dash) y el JavaScript la rehace entera por cada cambio, aunque sea uno (GSAP y React cambian
            style a cada rato: 6,2 s por fotograma). Hacer la maqueta más rápida y que un cambio de style que no mueve
            nada (opacity, transform, color) no la rehaga (enlaza con 37d).
       [x] 37a4. El JavaScript con sus caracteres: hoy los scripts pasan a Latin-1 (al traerlos y en el DOM) y lo que no
            cabe sale "?" ("https://тест"); por eso core-js descarta el URL de dashweb y pone el suyo. Dar a QuickJS el
            texto UTF-8 de los scripts (traídos y en línea) sin pasar por Latin-1, y punycode en URL.host.
-      37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
+      [x] 37b. Geometría real para el JavaScript, de la última maqueta: la caja de cada elemento (guardarla al maquetar),
            offsetTop/Left/Width/Height y offsetParent, getBoundingClientRect y getClientRects (respecto a lo que se
            ve), clientWidth/Height, scrollWidth/Height, window.innerWidth/innerHeight (la zona de dibujo),
            window.scrollY/pageYOffset y documentElement.scrollTop (el desplazamiento de la ventana). Con test.
-      37c. Desplazar y JavaScript: evento scroll en window y document al desplazar (como mucho uno por tic);
+      [x] 37c. Desplazar y JavaScript: evento scroll en window y document al desplazar (como mucho uno por tic);
            scrollTo, scrollBy y scrollIntoView mueven la vista de verdad. Con test.
-      37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
+      [x] 37d. Fotogramas: requestAnimationFrame con el tic de las animaciones (31q), y cuando el JavaScript solo cambia
            opacity o transform (lo que hace GSAP), repintar sin rehacer la maqueta. Medir el coste por fotograma.
-      37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
+      [x] 37d2. LAS ANIMACIONES CSS NO CORREN (el usuario, 2026-10-20: "no veo que las animaciones estén funcionando", y
+           trainalong.fit, con sus @keyframes, tampoco se mueve). lib/animacion.dash calcula fotogramas (31q paso 1,
+           con test) pero nadie lo usa: dashweb pinta el estado final. Conectarlo: tras cada maqueta,
+           animaciones_pagina; en el tic, animar(p, anims, ms) a 10-20 fotogramas por segundo mientras haya alguna
+           viva y repintar (solo la parte que cambia si se puede); transitions al cambiar style o clases desde el
+           JavaScript (lo que hace GSAP con CSS). Medir el coste en la máquina rtg. Probar con trainalong.fit (la curva
+           que se dibuja, el punto que parpadea) y pre.opentimetrack.com (revelar, parpadeo, invita, pista-baja).
+      [x] 37d3. Más propiedades en los fotogramas (lib/animacion.dash `animar` solo mueve con translate y vela con
+           opacity < 0,5): scale (posición y tamaño de las cajas; el texto se queda en su letra), box-shadow (el pulso
+           de "late" en trainalong.fit, "invita" en pre.opentimetrack.com), color y background-color (recolorear
+           los dibujos), opacity de verdad en los fondos (ya se mezclan), clip-path: inset(). Repintar solo la caja de
+           lo animado, no la página entera.
+      [x] 37d4. SVG animado: trainalong.fit dibuja su curva con stroke-dasharray/stroke-dashoffset (@keyframes dibuja) y
+           hace crecer sus círculos con transform: scale dentro del SVG. Hace falta: los guiones en el rasterizado
+           (nanosvg no los tiene: añadirlos), las animaciones de los elementos de dentro del SVG, y volver a
+           rasterizarlo en cada fotograma mientras dure (2,6 s una vez).
+      [x] 37e. IntersectionObserver de verdad (threshold, rootMargin), con la geometría de 37b, mirado al desplazar y al
            maquetar. Con test.
-      37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
+      [x] 37e2. fetch y XMLHttpRequest (es la 32a): con el IntersectionObserver de verdad, Next.js pide por adelantado
+           las páginas de los enlaces que se ven (prefetch) y su fetch (el de core-js, sobre XMLHttpRequest) falla:
+           "XMLHttpRequest is not defined" (no rompe la página). Sobre las cargas sin espera de lib/http.dash.
+      [x] 37e3. Rehacer la maqueta cuesta demasiado tras los cambios del JavaScript en pre.opentimetrack.com: 6-8 s por 2 o
+           3 cambios (cada pocos segundos: la página nunca está quieta), 13,7 s tras los 201 del montaje.
+      [x] 37e4. La maqueta entera aún cuesta: 13,8 s la del montaje de pre.opentimetrack.com (una vez).
+      [x] 37e5. Los toques SALE (un nodo que sale) y un absoluto o fijo que pasa a display: none, sin maqueta.
+      [~] 37h2. Lo que queda bajando por pre.opentimetrack.com (2026-10-21): crypto (getRandomValues, randomUUID,
+           subtle.digest SHA-256) para la huella del informe; un "TypeError: not a function" en un trozo cargado al
+           vuelo (init de una librería); el dibujo del esquema de "Ficha desde donde ya trabaja tu gente" no sale (sus
+           rótulos sí) cuando lo monta el JavaScript; el móvil de la historia asoma sobre la sección siguiente (el fin
+           de su sticky); cada cambio del JavaScript al bajar rehace la maqueta en 6-10 s.
+      [~] 37e6. (Después de la 37h: tras el montaje la página ya no está ocupada, 37e3.) La maqueta del montaje de pre.opentimetrack.com sigue en ~8,5 s (más 1,7 de estilo) por elementos visibles
+           que entran (React monta secciones): cada elemento se maqueta ~6 veces por las medidas de las cajas flex y
+           cada bloque cuesta ~0,7 ms. Idea: rehacer solo la parte que cambió cuando la caja de su contenedor no cambia
+           de tamaño (maqueta por trozos), o medir min/max-content sin maquetar.
+           (2026-10-21: lo medido se guarda de una maqueta a otra, 37e6 (4-5): al bajar casi todas en 1,6-3 s; quedan
+           los montajes grandes, 5-12 s.)
+      [x] 37e7. (2026-10-21, D67) Repintar solo lo que cambia: cada fotograma de una animación del JS pinta toda la vista (~40 ms en el
+           emulador, 2300 pintadas al bajar; pintar es ya el 29,5 % y la maqueta el 18 %). La ruta ligera sabe qué
+           dibujos movió: pintar solo la unión de sus rectángulos de antes y de después (puede necesitar en Dash
+           repintar una parte del lienzo de MUI: tarea D si falta).
+      [x] 37f. El CSS que use la página y falte: translate, rotate y scale como propiedades sueltas, clip-path: inset(),
            filter: blur() (o ignorarlo sin romper), lo que salga al comparar.
-      37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
+      [x] 37f2. Lo que queda al comparar la portada de pre.opentimetrack.com con Chrome: la tarjeta girada (rotate: -1.2deg
+           como propiedad suelta, md:-rotate-[1.2deg]) con su sombra, la portada más alta (min-height en svh/dvh?),
+           el texto "Mueve el ratón por la pantalla" que no sale.
+      [x] 37f3. El ratón (usuario, 2026-10-20: "cuando pasas con el ratón por encima de los gráficos, reaccionan en plan
+           hover"): @media (hover: hover) y (pointer: fine) verdaderos (el Amiga tiene ratón: la página enseña "Mueve
+           el ratón por la pantalla" solo así); los movimientos del ratón al JavaScript (mousemove/pointermove,
+           mouseover/out, mouseenter/leave con clientX/Y, sobre el elemento de debajo: la pila de la portada sigue al
+           ratón); :hover en el CSS del elemento de debajo (con la ruta ligera de 37d si no mueve nada). Sin inundar:
+           un suceso por tic como mucho.
+      [x] 37g. WOFF2 (es la 31h): Brotli (google/brotli, MIT, en third_party) y la reconstrucción de glyf/loca de WOFF2 a
            TTF para stb_truetype; las fuentes variables, con su instancia por defecto (o la del peso pedido si cabe).
-      37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
+      [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
 - [ ] 39. **Cargas despertadas por la red, no por un tic (necesita D60; después de la 37).** El bucle de
@@ -313,29 +388,59 @@ tarea, con el estilo de Dash.
       después en Amiberry (en FS-UAE no se puede). docs/ARQUITECTURA.md lo rehace la sesión dashweb-f7: no tocarlo,
       apuntar el cambio en la bitácora. Va delante de la 38 salvo que el usuario diga otra cosa: es
       pequeña y acelera todas las cargas.
+- [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
+      de HTML, CSS y JavaScript, y añadirlo. Por orden:
+      41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
+           arreglar lo que salga.
+      41a2. (2026-10-22, de Acid2: 10 de 11 piezas con la 41a) Flotantes como en CSS 2.1 (9.5): un bloque que
+           sigue a un flotante no baja bajo él: va donde iría sin el flotante (lo solapa) y son sus líneas las que se
+           acortan para dejarle sitio (el texto rodea la imagen flotante; hoy todo lo que no flota va debajo). Con
+           eso los ojos de Acid2 (#eyes-c sobre #eyes-b). Y el colapso del margen de arriba de un hijo con el de su
+           padre (8.3.1; la sonrisa de Acid2 queda 3 px baja). Comprobar con páginas de verdad antes y después.
+      [x] 41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
+           unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
+           Wikipedia lo da (font-size con clamp/var/calc, line-height...).
+      41b. Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
+           referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
+           Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
+           el porcentaje que pasa en cada uno y subirlo.
+      41c. css3test.com y html5test.com como lista de lo que falta (miden lo que el JavaScript dice que hay, no si se
+           pinta bien); Acid3 (DOM y JavaScript, nota sobre 100). test262 no: QuickJS ya lo pasa casi entero.
+      41d. Web Platform Tests entero, como en wpt.fyi (usuario, 2026-10-20: "en algún momento habrá que hacerlo"):
+           también las pruebas de JavaScript (testharness.js: la página dice por sí misma qué pasa y qué no), por
+           carpetas (html/, dom/, css/, fetch/, url/, encoding/...), con un resumen por carpeta como el de wpt.fyi
+           (pasan / total) guardado en docs/ para ver cómo sube. Ir tarea a tarea por las carpetas con más fallos.
+      Las pruebas de fuera no van al repo enteras: un guion que las baje (tools/) y las que se arreglen, copiadas
+      como test con su licencia (WPT es BSD de 3 cláusulas).
 - [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
       https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
       como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
 
 - [ ] 40. **Lo que encontró la sesión dashweb-f7 al rehacer docs/ARQUITECTURA.md (2026-10-20; después de la 37,
       salvo la (a), que va antes de la próxima versión).** Comprobado en el código por ella:
-      (a) tools/paquete.sh compila dashweb y el visor sin --fpu, pero libqjs, libimg y libvideo van con -m68881: la
+      [x] (a) tools/paquete.sh compila dashweb y el visor sin --fpu, pero libqjs, libimg y libvideo van con -m68881: la
       bitácora (28g, 29b) dice que mezclar las dos formas rompía números (Date.now, SVG de 0x0). Mirar si algún
       número con decimales cruza entre las dos partes en la v0.2.0-alfa y, casi seguro, añadir --fpu.
-      (b) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
+      [x] (b) (2026-10-21) lib/http.dash guarda la respuesta entera en memoria, también en http_empezar_a_fichero (descargas,
       imágenes, vídeo), sin tope: un .lha grande puede agotar la memoria. Escribir al fichero según llega, o un tope
       con un aviso claro.
-      (c) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
+      [x] (c) (2026-10-21) Sin JS_SetInterruptHandler: un bucle infinito en el JavaScript de una página cuelga el navegador. Cortar
       un script que pase de N segundos y decirlo.
-      (d) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
+      [x] (d) (2026-10-21) line-height no se aplica: estilo.dash lo lee y lo hereda, pero maqueta.dash nunca lo usa (alto de línea =
       la pieza más alta + 2 px en _poner_linea).
-      (e) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
+      [x] (e) (2026-10-21, D68) data: no está en las imágenes: una <img> o url(data:...) sale como hueco (_imagen_traer lo trata como
       fichero).
-      (f) Las animaciones de CSS no corren en dashweb: lib/animacion.dash tiene su test, pero nadie lo importa ni
+      [x] (f) (hecha en la 37d2: documento_animar) Las animaciones de CSS no corren en dashweb: lib/animacion.dash tiene su test, pero nadie lo importa ni
       llama a animar() (la 31q no está acabada aunque el README diga otra cosa).
-      (g) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
+      [x] (g) (2026-10-21) Textos desfasados: docs/quickjs_amiga.md (el malloc ya es una cabecera de 8 bytes con el tamaño), las
       cabeceras de maqueta.dash ("position, más adelante", tablas), video.dash y videos.dash ("sin sonido"), el
       README (el ahorro de reanudar TLS apenas se nota: D55, 9,0 -> 7,9 s; la tabla de medidas es del 2026-10-16).
+      [x] (h) (usuario, 2026-10-21: cuánto ocupa) La memoria de las imágenes: freemem.space gasta ~29-39 MB, casi todo
+      imágenes en RGBA de 32 bits (sus 10 imágenes a tamaño original son 30 MB; se decodifican hasta 1280x1024 y
+      además se guarda la copia escalada; los fondos del carrusel, que no se ven a la vez, enteros) y el pico al
+      decodificar llega a ~64 MB. En un A1200 con 8 MB no cabe. Ideas: decodificar fondos e imágenes sin medidas al
+      tamaño al que se ven y soltar el original; guardar en el formato de la pantalla (16 u 8 bits); no decodificar
+      lo que no se ve (diapositivas ocultas).
 
 ### Fase B: con MUI (cuando la regla 1 la abra)
 
@@ -2607,3 +2712,802 @@ Formato:
   devuelve ya `_dash_str_dup` en _h5_texto y _h5_atr_valor: 82 ms. Avisada la sesión dash: lo documentó en el
   manual de Dash (1a8e0cc, "Textos de C largos").
 - Test nuevo test_js_utf8. Base: 60/60 (936 s); freemem.space 21,3 s (igual).
+
+### 2026-10-20 — Tarea 37a5 (la maqueta de pre.opentimetrack.com, de 6,7 a 2,0 s); PR #3
+- `_ancho_flotante` (el ancho según el contenido: flex, grid, tablas y flotantes lo piden 2-3 veces por elemento y
+  cada medida maqueta todo lo de dentro, que mide a sus hijos: crecía exponencialmente con el anidamiento) recuerda
+  sus tres últimas medidas por nodo dentro de una maqueta (`_maqueta_pase`; campos af_* de Nodo; clave: el ancho y
+  `_alto_definido`). Maqueta: de 6,7 s a 2,36 s; rehacerla por un cambio del JavaScript: de 6,2 s a 1,65 s.
+- `_borde` sin montar "border-" + lado + ... en cada llamada y `_px` sin medir la letra si el valor no usa em, ch,
+  ex ni calc() (`_sin_letra`): estilo_px pasaba de 884.000 llamadas en una carga con 11 maquetas. Maqueta 2,04 s;
+  rehacerla por un cambio, 1,38 s.
+- freemem.space igual (21,7 s, la misma captura). Base: 60/60 (937 s).
+- La sesión dashweb-f7 subió dev hasta 807292c y la fusionó en main (PR #3, merge 4f56d0b), por encargo del usuario.
+
+### 2026-10-20 — Tarea 37b (la geometría de la maqueta en el JavaScript)
+- lib/maqueta.dash: al acabar cada bloque (no al medir: `_midiendo` en _ancho_flotante) apunta su caja de borde y
+  uno de sus dibujos (`CajaNodo`); al acabar la maqueta (`_cajas_finales`) la caja se mueve lo que se movió ese
+  dibujo (flex, alineación, transform mueven los dibujos ya puestos) y va a los campos caja_* del Nodo; lo que va en
+  línea (a, span...) toma la unión de sus dibujos. El documento lleva el número de la maqueta (caja_pase): una caja
+  vale si es de la última (`jsdom_caja_valida`).
+- lib/jsdom.dash: `__dashweb_caja(n)` y `__dashweb_vista()`, `jsdom_vista(js, ancho, alto, desde, total)` (por motor;
+  src/dashweb.dash lo llama al pintar). offsetWidth/offsetHeight dan la caja (antes 100x16 fijos).
+- Preludio: getBoundingClientRect y getClientRects (restando el desplazamiento), offsetTop/Left/Parent
+  (position), clientWidth/Height y scrollWidth/Height (de la vista en documentElement), scrollTop de la raíz,
+  innerWidth/innerHeight, scrollY/pageYOffset, document.scrollingElement, DOMRect.
+- Test nuevo test_jsdom_geometria (margen+relleno+borde, flex-end, span, offsetParent relativo, display none,
+  desplazamiento). pre.opentimetrack.com carga igual (9,6 s, sin errores). Base: 61/61 (983 s); freemem.space 20,9 s.
+
+### 2026-10-20 — Tarea 37c (el desplazamiento y el JavaScript)
+- Preludio: scrollTo/scroll/scrollBy de window, scrollIntoView (start, center, end, nearest), scrollTo/scrollBy y
+  scrollTop de la raíz dejan la petición en `__dashweb_desplazar` (recortada a la página) y scrollY ya la ve;
+  `__dashweb_desplazado` lanza scroll en document (sube a window).
+- lib/jsdom.dash: `jsdom_desplazamiento(js)` (la petición, -1 si ninguna) y `jsdom_desplazado(js)`.
+- src/dashweb.dash: tras los temporizadores (y los clics) se aplica la petición (`desplazamiento_del_js`); al
+  moverse la vista (la barra, la rueda, las teclas, la petición) `aviso_scroll` y, en el siguiente tic (programar:
+  30 ms), `avisar_desplazamiento`: la vista al JavaScript y el evento, uno por tic.
+- pre.opentimetrack.com bajando con la barra espaciadora (`--acciones`): cuatro eventos scroll, cada uno en
+  ~1,4 s, y GSAP responde cambiando estilos (5, 4, 1, 3 cambios...); cada cambio rehace la maqueta (1,3 s: la 37d).
+  Faltan los elementos que GSAP deja fijos al bajar (grandes huecos). Capturas enviadas.
+- test_jsdom_geometria con scrollTo, scrollBy y los eventos. Base: 61/61 (990 s); freemem.space 21,8 s.
+
+### 2026-10-20 — Tarea 37d (cambios del JavaScript sin rehacer la maqueta)
+- Lo invisible (opacity: 0, visibility: hidden) ya no pierde sus dibujos al maquetar: se quedan velados (el pintor
+  se los salta) y tiene su caja, como en CSS. test_maqueta_cajas y test_animacion, al día con eso.
+- lib/estilo.dash: con `estilo_apuntar`, `_estilo_propio` apunta en `estilo_cambios` cada elemento cuyo estilo
+  calculado cambió al rehacerlo (con el de antes; `pseudo` si cambió su ::before/::after).
+- lib/documento.dash (`documento_al_dia`): si todos los toques son de atributos que actúan por el estilo (class,
+  style, id, title, role, tabindex, data-*, aria-*) o textos cambiados, y lo que cambió en el estilo es solo
+  transform/translate (desplazamientos; un scale entre 0,9 y 1,1 cuenta como 1: GSAP los pone a cada fotograma),
+  opacity, visibility, transition, will-change, cursor o pointer-events, se aplica sobre los dibujos ya puestos en
+  una pasada (cada dibujo suma los desplazamientos de los suyos, campos lig_* de Nodo; velado según maqueta_escondido)
+  y sus cajas para el JavaScript se mueven. Un texto que cambia sin cambiar de forma (mismas palabras y largos: un
+  reloj, la "huella" que la página baraja) se cambia en sus dibujos; si es un único dibujo en un bloque y su ancho
+  cambia hasta 8 px, se recoloca según text-align. Si algo no cuadra, la maqueta entera como antes.
+- pre.opentimetrack.com bajando: de ~30 maquetas de 1,3-1,4 s a 5; 28 cambios aplicados en 0-200 ms; el evento
+  scroll, de 1,4 s a 12-220 ms. Lenis pone y quita clases en <html> al desplazar (ningún estilo cambia: ya no
+  maqueta).
+- El usuario lo probó: no ve animaciones (las CSS no corren: lib/animacion.dash no está conectado) y youtube.com sale
+  como esqueletos grises (tarea 38). Apuntada 37d2 (animaciones CSS de verdad) delante de la 37e.
+- Test nuevo test_documento_ligero. Base: 62/62 tras ajustar los dos tests; freemem.space 21,2 s.
+
+### 2026-10-20 — Tarea 37d2 (las animaciones de CSS conectadas a dashweb)
+- lib/documento.dash: tras cada maqueta (`_documento_vistas`) recoge las animaciones de la página
+  (`animaciones_pagina`; el reloj, `anim_t0`, empieza con la primera maqueta y sigue); `documento_animar` pinta un
+  fotograma (`animar`: translate y opacity < 0,5) y `documento_animado`. El camino sin maqueta de la 37d mueve también
+  la base (bx, by) de los dibujos animados.
+- src/dashweb.dash: `animar_ventana` en cada tic, un fotograma como mucho cada 66 ms y se repinta; programar pide el
+  tic mientras haya alguna viva (o recién maquetada). Al cambiar de página, desde cero.
+- Medido: trainalong.fit pinta un fotograma cada ~85 ms (24 ms cada uno) con 2 animaciones vivas, pero no cambia
+  ningún píxel: sus animaciones son stroke-dashoffset dentro de un SVG (la curva), scale dentro del SVG (los
+  círculos), box-shadow (el punto que late) y un translateX que queda fuera de la vista. pre.opentimetrack.com tiene
+  4 al cargar y ninguna tras la hidratación de React (en Chrome tampoco quedan casi; lo que se mueve es GSAP).
+  Apuntadas 37d3 (scale, box-shadow, colores, clip-path; repintar solo lo animado) y 37d4 (SVG animado:
+  guiones en nanosvg y volver a rasterizar).
+- Base: 62/62 (1028 s); freemem.space 21,7 s.
+
+### 2026-10-20 — Tareas 37d3 y 37d4 (más propiedades en los fotogramas; SVG animado)
+- 37d3: `animar` (lib/animacion.dash) escala alrededor del centro de la caja (cajas e imágenes de tamaño; el texto
+  solo de sitio, velado por debajo de 0,3), recolorea (color, background-color) y rehace la sombra (box-shadow:
+  `maqueta_sombra`, con la caja del elemento guardada en el dibujo de la sombra: Dibujo.sombra, cx, cy, cw, ch y
+  su base bcx, bcy; `_mover` la mueve con él). Una sombra que el estado final de su animación deja transparente se
+  crea igual, velada. Lo de antes de animarse (bw, bh, bcolor, bespaciado) vuelve al acabar. El mezclador junta un
+  0 sin unidad con 10px (`_ceros_px`, fuera de paréntesis: el alfa 0 de un rgba() se queda). El pintor mezcla las
+  elipses semitransparentes (`_elipse_mezcla`, fila a fila). trainalong.fit: el punto de "En construcción" late
+  (box-shadow de 0 a 10 px desvaneciéndose).
+- 37d4: los <svg> con animaciones dentro (`SvgAnimado` en lib/documento.dash) se reescriben y rasterizan otra vez
+  en cada fotograma (`imagenes_svg_rehacer`) con los valores del instante en `Nodo.svg_sobre` (propiedades, o "@r"
+  para un atributo: el scale de un <circle>, en su r). El SVG lleva ya stroke-dasharray y stroke-dashoffset, y
+  pathLength con su caja (_svg_nombre). nanosvg (third_party): pathLength (los guiones relativos a él, escalados
+  por la longitud de verdad) y sin fmodf de -lm en los guiones. lib/estilo.dash guarda lo que hay debajo del estado
+  final de una animación en "~propiedad": el origen de una animación sin fotograma 0 % (la curva iba de 0 a 0).
+  Primer fotograma antes de pintar (si no, la curva entera un momento).
+- trainalong.fit: la curva se dibuja al cargar, a saltos (~4 fotogramas en 1,5 s: rasterizar su SVG de 1100x1100
+  cuesta ~0,5 s en la máquina rtg; mejorable rasterizando solo la zona del trazo). Capturas enviadas.
+- Tests: test_animacion (scale, color, box-shadow) y test_svg_guiones (nuevo: guiones y pathLength en el emulador).
+  Base: 63/63 (1035 s); freemem.space 22,3 s.
+
+### 2026-10-20 — Tarea 37e (IntersectionObserver de verdad)
+- Preludio: IntersectionObserver con threshold (lista), rootMargin (px y %) y root; cada elemento observado guarda
+  el umbral que ha pasado y se avisa al cruzar uno (y siempre la primera vez, como los navegadores); entradas con
+  isIntersecting, intersectionRatio, boundingClientRect, intersectionRect y rootBounds; takeRecords, unobserve,
+  disconnect. `__dashweb_intersecciones(todo)`.
+- lib/jsdom.dash: `jsdom_intersecciones(js, todo)`. src/dashweb.dash: `intersecciones(w, todo)` (con la vista de
+  ahora) tras una maqueta nueva (en el tic), al desplazar, y tras los temporizadores si hubo observe nuevos.
+- pre.opentimetrack.com: los avisos llegan y Next.js empieza a pedir por adelantado los enlaces que se ven, con un
+  fetch sobre XMLHttpRequest que no hay (apuntada 37e2). Las zonas que GSAP deja fijas siguen vacías (37f/37h).
+- test_jsdom_geometria con IntersectionObserver. Base: 63/63 (1052 s); freemem.space 22,5 s.
+
+### 2026-10-20 — Tarea 37e2 (fetch y XMLHttpRequest); medidas de flex guardadas
+- lib/http.dash: `http_empezar_metodo(direccion, metodo, cuerpo, tipo, extra, espera_ms)`: cualquier método con
+  cuerpo y cabeceras de más (`Carga.extra`).
+- lib/jsdom.dash: la cola de peticiones del JavaScript (`jsdom_pedir`, `jsdom_peticiones_avanzar`, `_pendientes`,
+  `_cancelar`; quita las cabeceras prohibidas, 20 s sin llegar nada = error) y `_jsdom_responder` (texto UTF-8 y
+  ArrayBuffer). src/dashweb.dash las avanza en el tic (cada 50 ms mientras haya). documento_liberar las cancela.
+- Preludio: XMLHttpRequest (readyState, onload/onerror/onabort/ontimeout/onreadystatechange, responseType text,
+  json, arraybuffer y blob, getResponseHeader, abort), fetch sobre él (Request, Response con text/json/arrayBuffer/
+  blob/clone/body, Headers, AbortController/AbortSignal), Blob, File y FormData.
+- lib/js.dash: las promesas rechazadas sin manejar se dicen al final de los trabajos pendientes (antes salían las
+  que se manejaban un momento después).
+- pre.opentimetrack.com: los prefetch de Next.js (`?_rsc=`) llegan (307 y luego 200, 0,3 s en el servidor), pero
+  la respuesta se lee tarde: dashweb pasa hasta 25 s rehaciendo la maqueta tras los cambios del JavaScript.
+- lib/maqueta.dash: al medir (`_midiendo`), lo que se maqueta dentro de una caja flex se hacía una vez por cada
+  medida de cada caja de fuera (con 20 niveles, cientos de veces). Ahora cada nodo guarda lo que dio con la misma
+  clave en la misma maqueta (anchos, alto definido, estado del maquetador, el tamaño forzado por flex) y lo repite
+  con dos dibujos que lo resumen (lo que abarca, y lo que cuenta para un ancho con la letra de su último texto).
+  La memoria de `_ancho_flotante` pasa de tres anchos a una lista. pre.opentimetrack.com: la maqueta tras los 201
+  cambios de 25,5 a 13,7 s; las de 2-3 cambios, de 15 a 6,5-8 s. Sigue siendo mucho: apuntada 37e3.
+- test_js_fetch: fetch POST con cabeceras y JSON (y una ñ), XHR con sus sucesos, abort, Response/Headers/Blob
+  sueltos, error de red (tests/servers/http.py `/eco_js`). Sin probar en test: arrayBuffer, blob, redirecciones.
+- Batería: 64/64 (1164 s, con la de Dash a la vez); freemem.space 21,5 s.
+
+### 2026-10-20 — Tarea 37e3 (los cambios que se repiten, sin maqueta)
+- Con TRAZA, lib/documento.dash dice por qué unos cambios del JavaScript necesitan la maqueta entera
+  (`_lig_no`: "maqueta entera por view-transition-name: (nada) -> _t_0_ en div."). En pre.opentimetrack.com, tras el
+  montaje, eran las transiciones de React (`view-transition-name` puesto y quitado cada pocos segundos) y un
+  `<script>` que entra.
+- Ruta ligera (37d): `view-transition-name` y `view-transition-class` no mueven nada; un elemento que entra (y sus
+  vecinos) no mueve nada si no tiene caja (display: none él o uno de fuera: `_documento_sin_caja`).
+- lib/estilo.dash `_estilo_solo`: si en el estilo propio solo cambia lo que no llega a los de dentro
+  (`_estilo_no_baja`: view-transition-*, transform, translate, scale, rotate, opacity, will-change, transition*,
+  cursor, z-index), no se rehace todo lo suyo (un "inherit" explícito de esas no se mira).
+- pre.opentimetrack.com tras el montaje: cada cambio de las transiciones, de 7,4 s (maqueta entera) a 12 ms. Queda
+  la maqueta del montaje (13,8 s, una vez) y la de tres toques SALE al cargar: apuntada 37e4.
+- Tests: test_documento_ligero (view-transition-name, un script y un div que entran), test_estilo_partes
+  (transform en el padre no rehace al hijo; color sí). Batería 64/64 (1170 s); freemem.space 22,5 s.
+
+### 2026-10-20 — trainalong.fit en CoffinOS: la mancha blanca y las rayas (encargada D62)
+- El usuario lo prueba en CoffinOS: junto a "En construcción" sale una mancha blanca, la curva gris no sale y el
+  punto no late. Visto en la máquina rtg (MUI 3.8 y 5): el punto sí late; la mancha y las rayas también salen, y
+  ya salían en bf2292b (37e).
+- La mancha es el círculo `punto-acompana` del SVG de fondo (opacity .35; en Chrome, un círculo gris translúcido
+  detrás de la etiqueta). nanosvg da bien el alfa (~145 donde se solapa con la curva, ~89 en el resto), pero
+  `image_draw` pinta con umbral de 128: lo translúcido sale opaco o no sale. Antes de 37d4 el círculo estaba en
+  scale(0) y no se veía.
+- Las rayas de la curva verde: el SVG mide 1100 de alto, se rasteriza a IMAGEN_MAX_ALTO (1024) y `image_scale` lo
+  amplía: la máscara (BitMapScale) pierde una fila cada ~14.
+- Las dos cosas son de Dash: encargada D62 a la sesión "dash". Que el punto no lata en CoffinOS: pendiente de una
+  traza del usuario.
+
+### 2026-10-20 — Tarea 37e4 (la maqueta y el estilo del montaje, más baratos); D62 en Dash
+- lib/maqueta.dash: `_caja_leida(n, contenedor)`: márgenes, bordes y rellenos en px se leen del estilo una vez por
+  maqueta y contenedor (cada elemento se maqueta ~6 veces al medir las cajas flex). La clave de la caché de medidas
+  (37e2) son siete números y no un texto: el tamaño que fuerza `_flex_maquetar` solo cuenta para su elemento
+  (`_forzado`).
+- lib/dom.dash: `DOM_TOQUES_MAX` de 200 a 1000: el montaje de pre.opentimetrack.com hace 235 cambios y con 201 se
+  rehacía el estilo entero (3,6 s); por partes, 1,7 s.
+- pre.opentimetrack.com, el montaje: de 13,8 s a 10,2 s (estilo 1,7, maqueta ~8,5). Apuntada 37e5.
+- D62 hecha por la sesión dash (31fd909, main 9d3bb56): en RTG de 15 a 32 bits las imágenes con alfa se mezclan;
+  `image_scale` escala máscara y alfa a mano. trainalong.fit en la máquina rtg: la curva y el círculo grises,
+  translúcidos detrás de "En construcción" como en Chrome; las rayas de la curva ya no salen (con D62; no las
+  reproduje con un programa suelto).
+- Batería 64/64 (1166 s, con el Dash de D62); freemem.space 20,9 s.
+
+### 2026-10-20 — Tarea 37e5 (lo que sale sin ocupar sitio, sin maqueta)
+- lib/dom.dash: `Toque.quitado` (el nodo que salió, `dom_apuntar_salida` desde jsdom_quitar) y `Nodo.lig_fuera`.
+- lib/documento.dash: en la ruta ligera, un TOQUE_SALE vale si lo que salió no ocupaba sitio (display: none,
+  position: absolute o fixed) o su padre no tiene caja; y un estilo que pasa a display: none en uno absoluto o fijo
+  también. Sus dibujos (y los de dentro) se quitan de la página (`_documento_quitar_dibujos`).
+- pre.opentimetrack.com: ya no hay maquetas enteras por SALE; las que quedan son de elementos visibles que entran
+  (el montaje, 10,3 s: apuntada 37e6). freemem.space: el botón fijo "go-to-top" que se esconde, sin maqueta.
+- test_documento_ligero: sale un absoluto, un fijo pasa a none (sin maqueta y sin sus dibujos), sale uno normal
+  (con maqueta). Batería 64/64 (1168 s); freemem.space 20,9 s.
+
+### 2026-10-20 — Tarea 37f (propiedades lógicas, atajos con var() en la cascada, botones con CSS)
+- Comparando la portada de pre.opentimetrack.com con Chrome: la cabecera, la tarjeta y los botones sin relleno.
+- lib/estilo.dash: las propiedades lógicas (Tailwind 4: px-* es padding-inline, py-* padding-block, mx-* margin-inline;
+  inset-inline, -start/-end), en horizontal de izquierda a derecha (`_logica_lados`), como atajos (también con var()).
+- lib/estilo.dash `_calcular`: un atajo con var() se partía al final y "lo suelto ganaba" siempre: el `padding: 0`
+  del `*` de Tailwind (especificidad 0) le ganaba al `padding-inline: calc(var(--spacing) * 5)` de una clase. Ahora
+  cada parte compite en la cascada con la propiedad suelta (en empate, la suelta, como antes). Valía también para
+  margin, border y background con var().
+- lib/maqueta.dash `_boton_propio`: un <button> con fondo o borde de la página (el preflight de Tailwind:
+  background-color #0000, border 0 solid) o appearance: none lo dibuja su CSS, como los navegadores ("Menú" como
+  texto, "Pedir demo" con su caja).
+- pre.opentimetrack.com: la cabecera, los botones y la tarjeta con su relleno; queda la tarjeta girada, su sombra y
+  la altura de la portada (apuntada 37f2) y las fuentes (37g).
+- Tests: test_estilo (lógicas), test_estilo_vars (cascada de un atajo con var()), test_maqueta_boton (nuevo). Un
+  test de formularios se quedó una vez sin tiempo (618 s) y pasó al repetirlo (48 s): sin causa conocida.
+- Batería 65/65 (1183 s); freemem.space 21,4 s. Apuntadas por el usuario: 37f3 (el ratón) y la tarea 41 (baterías
+  de estándares: Acid2, WPT, css3test/html5test/Acid3, WPT entero como wpt.fyi), antes de youtube.com.
+
+### 2026-10-20 — Tarea 37f2 (orden de lo posicionado, sombras difuminadas, svh)
+- La pila de tarjetas de la portada de pre.opentimetrack.com (página de prueba aparte): las traseras (absolutas)
+  se pintaban encima de la delantera (relativa, detrás en el árbol), y las sombras no se veían.
+- lib/maqueta.dash: lo posicionado se pinta después de lo que no lo está y en el orden del árbol (CSS 2.1, apéndice
+  E): `Nodo.orden` (`_numerar` al empezar la maqueta, con ::before y ::after), `Dibujo.pos` (el orden del posicionado
+  que lo puso), `_por_capas` ordena por (capa, pos) con una mezcla estable (`_por_clave`).
+- box-shadow con difuminado: `Dibujo.difuso`; lib/pintor.dash `_sombra_difusa` la pinta en 2-6 capas translúcidas
+  de la caja ampliada a la reducida en medio difuminado (antes, un rectángulo nítido más claro: con extensión
+  negativa quedaba entero debajo de la caja).
+- lib/estilo.dash: svh, lvh, dvh (y sus -vw) como vh y vw; la portada (min-h-svh) ya tiene el alto de la ventana.
+- Sin hacer: los giros de cajas con contenido (la tarjeta, rotate -1.2deg; solo se giran barras).
+- Tests: test_maqueta_capas (sin z-index: estática, absoluta, relativa), test_estilo (svh, dvw). test_maqueta_cajas,
+  _css y _transform: los mismos dibujos, con lo posicionado al final (el orden nuevo). Batería: 61/65 y los 4 que
+  cambiaban de orden, arreglados y pasados aparte (maqueta 10/10, estilo 7/7); freemem.space 21,3 s.
+
+### 2026-10-20 — Tarea 37f3, primera parte (:hover y los sucesos del ratón, sin la ventana)
+- lib/css.dash: @media (hover: hover), (any-hover), (pointer: fine), (any-pointer) verdaderas (el Amiga tiene
+  ratón); la sintaxis de rango de Media Queries 4 ("width >= 48rem", "400px < width <= 700px").
+- lib/estilo.dash: :hover se cumple con `Nodo.raton`; entra en el índice y es un rasgo (":hover") para rehacer
+  solo lo que lo nombra (el elemento y, con `.caja:hover .dentro`, los de dentro).
+- lib/documento.dash `documento_raton(d, x, y, y_vista)`: el elemento de debajo (sin ::before/::after) y los de
+  fuera se marcan, los que se dejan se desmarcan, con un toque ":hover" (también por la ruta ligera de 37d); y
+  `jsdom_raton` lanza out/leave, over/enter y move (pointer* y mouse*, con clientX/Y, pageX/Y, movementX/Y)
+  como los navegadores (preludio: `__dashweb_raton`). documento_al_dia rehace el estilo con `raton_toques`
+  aunque el JavaScript no tocara nada (también en páginas sin scripts).
+- Falta conectarlo a la ventana: Dash no avisa de que el ratón se mueve sobre el lienzo (encargada D63).
+- Tests: test_estilo (media del ratón y de rango), test_documento_raton (nuevo).
+
+### 2026-10-21 — Tarea 37f3 (el ratón, conectado a la ventana); D63 en Dash
+- D63 hecha por la sesión dash (3980c80, main 55abbf4): `mui_canvas_on_move`, `mui_canvas_pointer_x/_y/_inside`.
+- src/dashweb.dash: cada ventana pide `mui_canvas_on_move(pagina, ID_RATON + k)`; `raton(w)` lee dónde está el
+  puntero (o que salió), llama a `documento_raton`, rehace si hace falta y corre los temporizadores.
+- lib/estilo.dash: `Hojas.con_hover` (algún selector nombra :hover). Con solo `invalida` no bastaba: un `.caja:hover`
+  de una parte no deja rastro ahí (invalida es para lo de dentro) y el :hover no se apuntaba.
+- tools/amiga/clicar.dash: la acción "v X Y" lleva el puntero sin pulsar. tests/pages/raton.html: una caja con
+  :hover, la posición desde mousemove, mouseleave y @media (hover: hover).
+- Visto en la máquina rtg con MUI 5 y con MUI 3.8 (sys32rtg38): la caja roja con el ratón encima, gris al salir;
+  "ratón en 52,68"; "hay ratón". Sin probar: con un ratón de verdad y en CoffinOS; pre.opentimetrack.com con el
+  ratón (la pila que lo sigue).
+- Batería 66/66 (1236 s); freemem.space 21,4 s.
+
+### 2026-10-21 — Tarea 37g (WOFF2) y 40a (--fpu en todo lo que se reparte y se mide)
+- third_party/brotli: el descompresor de google/brotli 1.1.0 (MIT; c/common, c/dec y las cabeceras), en libimg.a
+  (tools/build_img.sh; brotli/decode.h en build/img-lib/brotli).
+- lib/fuente_web.dash `_fw_de_woff2`: WOFF 2.0 a TrueType: el directorio (las 63 etiquetas conocidas, UIntBase128),
+  Brotli de una vez, glyf/loca transformadas rehechas (los siete flujos, los tripletes de 5.2, 255UInt16, la caja
+  explícita o calculada, los compuestos tal cual con sus instrucciones), hmtx transformada (los lsb del xMin de cada
+  glifo), el directorio por etiqueta, indexToLocFormat en head. Sin colecciones (ttcf). lib/css.dash: los src
+  woff2 valen. tf_BoldSmear crece con el tamaño (la negrita del Amiga de un titular de 64 px).
+- Comprobado en el PC (el mismo C con AllocVec simulado y stb_truetype): VeraMono.woff2 de woff2_compress da los
+  mismos glifos y métricas que el TTF (32-255); las tres fuentes de pre.opentimetrack.com (Archivo y Doto, variables,
+  e Inter) se convierten y se leen. En el A1200 emulado, convertirlas cuesta 2-7 s.
+- Pero en dashweb no salían: fuente_web daba 0 aunque la conversión iba bien. tools/medir_visor.py (y
+  tools/paquete.sh, y los dashweb dados al usuario) compilaban sin --fpu, y libimg va con -m68881: el float de
+  stbtt_ScaleForMappingEmToPixels llegaba en fp0 y se leía de d0 (el alto salía < 1). Es la 40a: ahora
+  tools/paquete.sh y tools/medir_visor.py compilan con --fpu (su A1200 lleva una 68882, como los tests). Las fuentes
+  web nunca habían salido en el navegador de verdad (sí en los tests, que van con --fpu); la v0.2.0-alfa también
+  va sin --fpu: lo que cruce floats con libimg/libqjs/libvideo puede estar mal en ella.
+- pre.opentimetrack.com: el titular en Archivo grueso, el reloj con los dígitos de puntos de Doto, como Chrome.
+- lib/estilo.dash `_calcular`: las --x de un elemento se ponen todas antes de resolver sus var() (--font-reloj:
+  var(--font-doto) con las dos en <html>, en cualquier orden).
+- Tests: test_fuente_web (WOFF2: medidas y la misma letra pixel a pixel que el TTF; src woff2), test_estilo_vars
+  (var() entre --x del mismo elemento).
+- Batería 66/66 (1245 s); freemem.space 23,5 s (antes 21,4: ahora con --fpu y sus fuentes web de verdad; sin
+  medir por separado).
+
+### 2026-10-21 — Tarea 37h, primera parte (position: fixed y sticky)
+- Bajando por pre.opentimetrack.com con espacios: tras la portada todo salía azul oscuro y vacío, y la cabecera se
+  iba. En Chrome: la cabecera fija y la sección "historia" con sus escenas (el móvil, el portátil) pegadas arriba
+  mientras se baja (historia-escenario: position: sticky; top: 0, en una sección de 3276 px).
+- lib/maqueta.dash: `Dibujo.fijo` (lo de un position: fixed va con la ventana: el pintor no le resta el
+  desplazamiento) y `Dibujo.pega` (`Pegajoso`: lo de un sticky con top se mueve lo que lo empuja el desplazamiento,
+  hasta el final del contenido de su padre; dentro de otro sticky, los dos: `maqueta_pega_dy`); `_pegajosos` con
+  las cajas de la maqueta. `maqueta_nodo_en_vista(p, x, y, desde)` para el clic y el ratón (con lo fijo y lo
+  pegajoso). `Nodo.caja_fija`: getBoundingClientRect de lo fijo no resta el desplazamiento.
+- pre.opentimetrack.com: la cabecera fija (oscura en las secciones oscuras, como en Chrome) y la historia se ve y
+  cambia al bajar (08 02 "Lucía llega y ficha", 15 40, 09 12 con el portátil), con su línea de tiempo abajo. Falta:
+  la pantalla del móvil vacía, el móvil a la izquierda (en Chrome, centrado), getBoundingClientRect de lo pegajoso
+  (sin el desplazamiento del sticky).
+- Test: test_maqueta_fijo (nuevo: fixed y sticky pintados y bajo el ratón). Batería 67/67 (1256 s); freemem.space
+  23,7 s.
+
+### 2026-10-21 — Tarea 37h, segunda parte (el móvil y el portátil de la historia)
+- El móvil de la historia salía vacío y a la izquierda. Con su HTML (sacado de Chrome) y la hoja de la página en una
+  prueba aparte, cuatro fallos:
+  - aspect-ratio no daba un alto definido a los de dentro (el h-full del móvil, una columna flex con flex-1, salía
+    de 40 px); y con border-box la proporción es de la caja con su relleno (280 de ancho: 591, no 571).
+  - el atajo inset no existía (Tailwind: inset-0): los absolutos con inset: 0 medían su contenido.
+  - place-items, place-content y place-self no se repartían en align-* y justify-*.
+  - al medir (_ancho_flotante_medir y la caché de 37e2), lo que desborda un overflow: hidden contaba entero: la
+    pantalla del portátil hacía mínimo de 10.021 px una columna de grid.
+- pre.opentimetrack.com: el móvil y el portátil, centrados y con su contenido ("Hola, Lucía", el contador que corre,
+  "Mi jornada", "Por decidir"), como en Chrome.
+- Test: test_maqueta_inset (nuevo: inset, absoluto en un flex-1, aspect-ratio con border-box y height: 100%,
+  place-items: center, overflow que no ensancha). Batería 68/68 (1268 s); freemem.space 22,9 s.
+
+### 2026-10-21 — Tarea 37h, tercera parte (scripts que mete el JavaScript; SVG con width en %, sus <text>, rgba)
+- Más abajo en pre.opentimetrack.com, las zonas del esquema de "Ficha desde donde ya trabaja tu gente" y de la tabla
+  de "Listo para la Inspección" salían vacías: en el HTML solo hay un hueco (min-height: 52rem); Next.js monta el
+  componente al llegar, bajando trozos de JavaScript con <script src> que mete en <head>. dashweb no ejecutaba
+  ningún <script> metido después de cargar.
+- Preludio: appendChild, insertBefore y replaceChild (y lo que va por ellos: append, before...) miran los <script>
+  que entran: en línea se ejecutan al momento; con src se bajan con XMLHttpRequest (la cola de 37e2), se ejecutan
+  con document.currentScript = él y lanzan load o error. Solo JavaScript (type vacío o text/javascript; JSON,
+  módulos y lo demás no). Los de la página, marcados al acabar de cargar (moverlos no los repite).
+  lib/jsdom.dash `jsdom_pedir`: los rastreadores (url_rastreador) no se piden (error de red), como los <script> de
+  la carga.
+- Con los trozos, React se caía ("This page couldn't load"): asignaba defaultValue y defaultChecked de un <input>
+  (solo tenían getter: en modo estricto, error). Con setter, y document.title también (Next.js lo pone al navegar).
+- SVG: un <svg> con width en % (w-full) se maquetaba a 300 px: ahora el % del ancho de la línea y el alto por la
+  proporción, y tras la maqueta se rasteriza otra vez a ese tamaño (`imagenes_svg_a_tamano`). Sus <text> (nanosvg
+  no los pinta) salen como textos de la página encima, a la escala del viewBox (`_svg_textos`). Al escribir el SVG
+  para nanosvg: los var() de los atributos se resuelven (`estilo_resolver_var`) y un fill/stroke con rgba(), hsl()
+  o #rrggbbaa va en #rrggbb con su fill-/stroke-opacity.
+- pre.opentimetrack.com: los componentes de abajo se montan (el esquema con sus rótulos, la tabla con sus campos de
+  hora). Lo que falta, apuntado como 37h2.
+- Tests: test_jsdom_scripts (nuevo: en línea, con src, currentScript, load, error, moverlo, JSON; document.title y
+  defaultValue/defaultChecked), test_svg_texto (nuevo: width en %, <text>, rgba y var() en el SVG escrito).
+  Batería 70/70 (1345 s); freemem.space 22,5 s.
+
+### 2026-10-21 — Tarea 37h2, primera parte (crypto, la API de SVG que piden las librerías; D64 encargada)
+- Preludio: crypto (getRandomValues, randomUUID, subtle.digest con SHA-256 y SHA-1 en JavaScript; comprobado con
+  sha256sum/sha1sum en el PC y en el emulador; sin generador de verdad: no vale para claves).
+- El "TypeError: not a function" de un trozo cargado al vuelo era el CSSPlugin de GSAP: getCTM() de lo que anima
+  dentro de un <svg>. Preludio: ownerSVGElement, getBBox (de los atributos de rect/circle/ellipse/line, de los
+  puntos de path/polygon o de la caja), getCTM/getScreenCTM, createSVGMatrix/createSVGPoint, DOMMatrix, getTotalLength
+  (los tramos entre los puntos de d) y transform.baseVal (las funciones del atributo transform como matrices, con
+  consolidate). Sin errores de JavaScript al bajar por pre.opentimetrack.com.
+- El esquema de "Ficha desde donde..." no salía porque su imagen era la número 65: Dash solo deja 64 vivas
+  (`_DASH_IMG_MAX`); encargada D64.
+- Queda de la 37h2: el móvil que asoma (el fin de su sticky) y que cada cambio del JavaScript al bajar rehace la
+  maqueta en 6-10 s (al bajar con espacios la página casi no avanza): 37e6.
+- Test: test_js_crypto (nuevo: digest, randomUUID, getRandomValues; la API de SVG y transform.baseVal).
+- D64 hecha por la sesión dash (1204998, main 5370bee: imágenes en una lista, sin tope; _dash_img en O(1) con una
+  marca): el esquema de "Ficha desde donde..." sale como en Chrome. Batería 71/71 (1458 s; parte compilada antes de
+  llegar D64); freemem.space 22,7 s.
+
+### 2026-10-21 — Tarea 37h2, segunda parte (getBoundingClientRect de lo pegajoso)
+- En pre.opentimetrack.com las secciones "escena" son sticky dentro de <main> (top negativo que pone GSAP: tarjetas
+  que se apilan), y lo de dentro lo mueve GSAP al bajar según getBoundingClientRect, que no contaba lo que empuja
+  el sticky: el esquema de "Ficha desde donde..." salía 500 px más arriba, encima de su título.
+- lib/maqueta.dash `_pegajosos`: cada sticky guarda en su nodo (pg_pase, pg_y0, pg_top, pg_fin) dónde está, su top y
+  lo más abajo que va. lib/jsdom.dash `__dashweb_caja` da además los del sticky más cercano hacia fuera, y
+  getBoundingClientRect suma lo que lo empuja el desplazamiento.
+- pre.opentimetrack.com: la sección "Ficha desde donde..." en orden (título, texto, esquema, la tabla "Fichajes").
+- Visto de paso: un position: fixed sin dibujos (sin fondo ni contenido) da su caja en y 0 (CajaNodo se apunta antes
+  de bajarlo a su top). Arreglado después (37e6): `_absoluto` baja también las cajas sin dibujo de referencia.
+- Test: test_jsdom_geometria (sticky y lo de dentro con la página desplazada; fixed). Batería 71/71 (1487 s);
+  freemem.space 24,2 s.
+
+### 2026-10-21 — Tarea 37h2, tercera parte (menos maquetas enteras al bajar)
+- Bajando por pre.opentimetrack.com, 13 maquetas enteras (6-10 s cada una); los motivos (la traza de 37e3): un
+  atributo name de un <input>, un transform de un <g> de un SVG, un rotate de la pila de tarjetas.
+- lib/documento.dash, ruta ligera: un atributo que no mueve nada (los que sí, `_documento_atributo_mueve`: src,
+  width, value, type...) y que el CSS no nombra, sin maqueta; lo de dentro de un <svg> (toques y estilos) no se
+  maqueta: su imagen se rasteriza otra vez (`_documento_svgs_tocados`, también por la maqueta entera: antes un
+  cambio dentro de un SVG no se veía nunca); un rotate o una matriz con giro en algo con hijos no cuenta (dashweb solo
+  gira una barra suelta).
+- Ahora las maquetas enteras al bajar son de cosas que mueven de verdad (textos que cambian de largo, elementos que
+  entran); el coste de cada una es la 37e6.
+- Test: test_documento_ligero (name, dentro de un <svg>, rotate en una caja con hijos; el rotate de #a, que tiene
+  texto, ya no pide maqueta). Batería 71/71 (1488 s); freemem.space 24,1 s.
+
+### 2026-10-21 — Tarea 37e6, primera parte (dos cachés)
+- Perfil bajando por pre.opentimetrack.com (150 s): _val 2 millones de llamadas (8 %), estilo_px, _borde 627.000,
+  _palabras y _calcular (el estilo), _flex_maquetar 65 % del total; fuente_web_para un 3 % en 45 llamadas.
+- lib/maqueta.dash `_caja_leida`: casi nunca acertaba (la clave llevaba el ancho del contenedor, que al medir las
+  cajas flex cambia en cada llamada): ahora solo cuenta si algún margen o relleno va en % (`Nodo.cl_pct`). _borde
+  de 627.000 a 384.000 llamadas.
+- lib/fuente_web.dash: la fuente leída y sacada del WOFF/WOFF2 se guarda (las 8 últimas, por fichero) para los demás
+  tamaños; se suelta al salir (atexit: AllocVec no se libera solo) y al registrar otra con el mismo nombre de fichero
+  (otra página). Al registrar se olvidan también las ya hechas de ese fichero (antes, otra página con
+  T:dashweb_fuente0 recibía la fuente de la anterior). Lo que pesa de fuente_web_para es rasterizar 225 letras para
+  cada tamaño (la página usa tamaños fluidos: muchos); sigue en un 2,6 %.
+- Lo que queda: _val (2,4 millones: las consultas de estilo de cada bloque maquetado) y las ~6 maquetas por elemento
+  de las medidas flex. Las maquetas al bajar siguen en 6-12 s.
+- Batería 71/71 (1488 s); freemem.space 23,5 s. Encargada D65 (d.get(clave, defecto): _val en una búsqueda).
+
+### 2026-10-21 — Tarea 37e6, segunda parte (D65; D66 propuesta)
+- D65 hecha por la sesión dash (a19ece3, main bea3a16): d.get(clave, defecto) en una búsqueda.
+- lib/maqueta.dash `_val` y `_px`, lib/documento.dash `_val_estilo`: con get. Guardar el valor en una variable lo
+  copia (lo vi en build/dashweb.c: _dash_str_set_copy y _dash_str_free en cada llamada): _val sin variable (dos
+  búsquedas, ninguna copia de más). _val del 9,5 al 9 % del perfil bajando; las maquetas al bajar, igual (8-12 s).
+- Propuesta a la sesión dash la D66 (no copiar un préstamo en una variable que solo se lee; devolverlo sin
+  tmpcopy).
+- Lo que más pesa sigue siendo cuántas veces se maqueta cada elemento al medir las cajas flex y el estilo (_calcular,
+  _palabras) de lo que cambia.
+- Batería 71/71 (1492 s; con la D66 a medio hacer en el worktree de Dash durante parte de ella); freemem.space 23,4 s.
+
+### 2026-10-21 — Tarea 37e6, tercera parte (las palabras de cada texto, guardadas)
+- El `_palabras` del perfil era el de lib/maqueta.dash (cortar el texto en palabras y medirlas), que se llama igual
+  que el de lib/estilo.dash: renombrado `_palabras_texto` para verlo aparte (9,1 % al bajar por
+  pre.opentimetrack.com).
+- Cada nodo de texto guarda sus palabras, si había blanco delante de cada una y sus anchos, con la clave de su letra
+  (fuente, estilo, text-transform, letter-spacing): al maquetarlo otra vez (las medidas flex lo hacen ~6 veces) no
+  se recorre el texto ni se mide con la fuente. Del 9,1 al 7,8 %; las maquetas al bajar siguen en 6-13 s.
+- Batería: 71/71; freemem.space entera en 22.989 ms.
+
+### 2026-10-21 — Memoria de dashweb (pregunta del usuario) y D66
+- El ejecutable: 3.104.676 de código, 235.984 de datos y 232.880 de bss (3,4 MB al cargarse).
+- dashweb escribe con TRAZA la memoria libre al empezar, y en la línea "entera en" la libre al final y la del
+  JavaScript. Máquina rtg (3.2, 128 MB): freemem.space gasta entre 28 y 36 MB según la vuelta, de ellos solo 1,6 MB
+  el JavaScript. Falta saber en qué se van los otros ~27 MB (¿imágenes descodificadas, bitmaps de la ventana,
+  fuentes?): en un A1200 con 8 MB de Fast no cabe.
+- Con D66 (802471e) las maquetas al bajar por pre.opentimetrack.com: 1516 3018 12126 5175 6987 9683 6238 10969
+  6122 8199 9110 10348 6670 9328 7449 ms; sin cambio claro frente a la medida anterior.
+
+### 2026-10-21 — En qué se va la memoria (pregunta del usuario)
+- lib/traza.dash: cada línea de la traza lleva la memoria libre ("[1234 98000K] ...").
+- freemem.space en la máquina rtg: al empezar 134.346 KB libres; abrir MUI, la red y AmiSSL ~5,7 MB; los scripts
+  1,8 MB; el estilo 8,4 MB (bloques pequeños de Dash, que se reciclan pero no vuelven al sistema); las fuentes web
+  ~80 KB cada una (medido aparte con un test suelto, no guardado); las imágenes el resto: el pico al decodificarlas
+  deja 70.674 KB libres (~64 MB gastados) y al final 95.716 KB (~38,6 MB gastados).
+- Las 10 imágenes (miniaturas y los fondos grandes del carrusel) a tamaño original son 30 MB en RGBA. Apuntado como
+  40h. Sin batería: solo cambia el texto de la traza.
+
+
+### 2026-10-21 — Tarea 37e6, cuarta parte (lo medido se guarda de una maqueta a otra)
+- Perfil al bajar por pre.opentimetrack.com con D66: `_ancho_flotante_medir` (medir el ancho de flex, grid y
+  flotantes maquetando lo de dentro) es el 55 % del tiempo; lo medido solo se recordaba dentro de una maqueta.
+- Ahora vale para una época: lib/dom.dash `dom_tocar(n)` marca n y los de fuera (`sub_cambio` con `dom_reloj`), y lo
+  medido en un nodo (`medidas`, `af_lista`) vale si nada cambió dentro desde que se midió. Se marcan: los toques del
+  JavaScript, cada elemento cuyo estilo calculado cambia al rehacer el estilo de lo cambiado (`estilo_marcar`), un
+  texto cambiado por el JS (no deja toque: sin marcarlo, la hora del móvil de Ficha se partía en dos líneas con el
+  ancho del texto de antes) y los atributos que pone una imagen al llegar. Cada maqueta empieza época salvo
+  la de documento_al_dia con estilo de lo cambiado (`maqueta_conservar`); estilo entero, imágenes, fuentes y cambio
+  de ancho la empiezan.
+- Maquetas al bajar: 1281 2798 11882 7007 5749 1810 8857 10768 1696 1728 2701 1858 2798 2859 5360 2308 6137 1846
+  1698 ms (antes 6-12 s casi todas). Comprobado con captura tras 8 espacios con 20 s entre ellos: igual que sin el
+  cambio salvo la hora del reloj.
+- Pendiente visto: un texto cambiado por el JS sin otro toque no pasa por la ruta ligera ni por las partes (estilo
+  entero y maqueta entera, como antes).
+- tests/test_maqueta_epoca.dash: tras un texto cambiado sin toque, una clase que agranda la letra y un hijo que
+  entra, la página es la misma que la del mismo HTML maquetada de nuevo (sin marcar el texto, falla "reloj").
+  Batería: 71/71 + el nuevo; freemem.space entera en 22.688 ms.
+
+### 2026-10-21 — Tarea 37e6, quinta parte (sin estilo entero por cambios que no tocan la página)
+- Dos maquetas al bajar eran "0 cambios: estilo (entero)" (7 y 9 s): el JS cambiaba algo sin dejar toque. Un texto
+  cambiado por el JS (nodeValue/data, el reloj de React) apunta ahora TOQUE_CONTENIDO en su elemento (si no cambia
+  de forma, ni maqueta: _documento_texto_igual); y si no queda nada apuntado (atributo con el valor que ya tenía,
+  nodos fuera del documento) documento_al_dia no hace nada.
+- Otra era "estilo entero: :hover en html" (10,7 s): el :hover de <html> ya no rehace el estilo (nadie usa
+  html:hover; está bajo el ratón mientras el ratón esté en la ventana).
+- Al bajar: 1285 2807 11870 5668 1752 1664 1629 1675 2681 1792 2881 2745 5065 2281 6106 1865 1683 ms; ningún
+  estilo entero. Captura tras 8 espacios igual que sin 37e6 (4-5) salvo los segundos del reloj.
+- test_maqueta_epoca: un cambio sin efecto no rehace nada.
+- La batería se pasaba de tiempo: los tests con la misma configuración van en una sesión de emulador con 600 s y
+  test_maqueta_epoca (152 s: cuatro documentos con JS) dejaba a los 17 de detrás en TIMEOUT. El test compara ahora
+  con páginas sin JS (58 s) y tests/run.py da a cada sesión 600 s más 20 por test. Batería: 72/72.
+
+### 2026-10-21 — "Acerca de..." con la versión (usuario)
+- El usuario quería ver qué dashweb tiene en CoffinOS: la ventana "Acerca de..." (menú Proyecto, Amiga+?) dice
+  "dashweb 0.3.0-dev" (DASHWEB_VERSION en src/dashweb.dash) y la fecha y hora en que se compiló. Comprobado en el
+  emulador con MUI 3.8 (sys32rtg38) abriéndola desde el menú. Copiado a Traspaso (10:51).
+
+### 2026-10-21 — Tarea 37e6, sexta parte (pintar: lo que pesa ahora)
+- Perfil al bajar con 37e6 (4-5): la maqueta ya es el 18 %; pintar el 29,5 % (2293 pintadas de toda la vista, la
+  mayoría fotogramas de las animaciones del JS): `_mezcla_recortada` (fondos semitransparentes) 12 %, `_tramo`
+  (cajas redondeadas fila a fila, 945.660 llamadas) 9 %, `maqueta_pega_dy` 1,6 %.
+- lib/pintor.dash `_redondo_pintar`: solo recorre las filas que se ven y pinta los dos lados del borde del medio de
+  una vez. Poco: de 40,2 a 39,4 ms por pintada; las filas de las esquinas (píldoras rounded-full: todo esquina)
+  siguen una a una. Captura igual salvo el reloj; test_maqueta_capas mira también el lado derecho del borde.
+- Lo que daría más: repintar solo lo que cambia (la ruta ligera sabe qué dibujos movió) en vez de toda la vista
+  en cada fotograma: apuntado como 37e7.
+- Batería: 72/72.
+
+### 2026-10-21 — Tarea 37e7 (repintar solo lo que cambia; D67)
+- D67 (sesión dash, 0afa10a): `mui_canvas_update_area(lienzo, x, y, w, h)` pinta en el búfer solo esa zona (región de
+  recorte) y copia ese rectángulo a la ventana.
+- lib/documento.dash: la ruta ligera y `documento_animar` (animaciones de CSS y <svg> animados) apuntan la zona que
+  cambian (`d.zona`, `zx0..zy1` en coordenadas de la vista): la unión de los dibujos tocados antes y después, con su
+  sombra difuminada y 2 px; lo fijo y lo de un sticky donde se ve (`d.desde`, `maqueta_pega_dy`); lo de fuera de la
+  vista no cuenta (`d.alto_vista`). src/dashweb.dash `repintar_cambiado`: si hay zona, `mui_canvas_update_area`;
+  `pinta_en` con `pintor_zona` pinta su fondo y lo que la toca, recortado (lib/pintor.dash: lo que solo se pinta
+  entero, como el texto, se mira contra lo visible y lo recorta la región).
+- Al bajar por pre.opentimetrack.com (270 s): antes 2284 pintadas enteras, 90,6 s; ahora 39 enteras (47 ms) y 2242
+  zonas (15 ms; casi todas 229x248 y 354x248, el punto que late y la ficha), 35,8 s. La mayoría eran fotogramas de
+  animaciones de CSS. Captura tras 8 espacios igual salvo el reloj.
+- Las rutas de Dash pasan a ~/Projects/FreeMEMLang/.worktrees/dashweb (la sesión dash movió el worktree) y su rama
+  dashweb está en origin/main (a756970: ./dash -q, cerrojo de build/, -Werror=implicit-function-declaration...).
+- Batería con Dash a756970: 72/72; freemem.space entera en 22.990 ms.
+
+### 2026-10-21 — "Inserte volumen data" y un <iframe> escrito en eldiario.es (usuario, CoffinOS)
+- eldiario.es tiene decenas de `<img src="data:image/svg+xml,...">` (huecos de las imágenes perezosas): `_imagen_traer`
+  pasaba lo que no es http por `url_fichero`, que lo dejaba igual, y "data:..." como ruta del Amiga es el volumen DATA:
+  AmigaOS pedía insertarlo. lib/url.dash `url_fichero`: data:, about:, javascript:, blob:, mailto:... (y http/https)
+  dan NIL: (se lee vacío). test_url lo mira. En el emulador, meneame.net no lo reproducía ni con ni sin el arreglo; la
+  captura del usuario ya tenía eldiario.es en la barra.
+- D68 encargada (dos_requesters para que ningún requester de DOS bloquee el navegador; base64_to_file para enseñar
+  las imágenes y fuentes data:...;base64,). Las data: siguen sin verse hasta usarla.
+- El `<noscript>` de Google Tag Manager salía como texto arriba de eldiario.es (su contenido es texto crudo con el
+  JavaScript activo): en la hoja del navegador pasa a display: none, como pide el HTML con scripting. test_estilo.
+- Sin batería entera (hay otra sesión dashweb en la misma carpeta): test_url y test_estilo* pasan.
+
+### 2026-10-21 — "Acerca de..." con autor, licencia y web (usuario)
+- src/navegador.dashui: © 2026 Francisco Antonio Tapias Bravo, Licencia MIT, github.com/FreeMEM/dashweb (lo del
+  fichero LICENSE). Visto en el emulador con MUI 3.8 (el © sale bien). Copiado a Traspaso (14:03).
+- (usuario) Créditos en "Acerca de...": hecho en Dash con MUI y AmiSSL; adaptados para AmigaOS QuickJS (Bellard y
+  Gordon) y Hubbub con LibParserUtils (NetSurf); también stb, NanoSVG, Brotli, libwebp, TJpgDec, fdlibm y MintVID;
+  licencias en el cajón Licencias. tools/paquete.sh no copiaba la licencia de Brotli (llegó con la 37g): añadida.
+
+### 2026-10-21 — Batería con lo de la otra sesión
+- Tras el reinicio hubo dos sesiones dashweb en esta carpeta; el usuario dejó el loop en esta. La otra subió
+  9f520b1 (data:, about:... dan NIL:; <noscript> escondido), b4d3d3d y 09e799c ("Acerca de..." y licencia de Brotli
+  en el paquete) con solo test_url y test_estilo*. Batería entera con todo ello: 72/72.
+- D68 (dos_requesters, base64_to_file) la lleva ahora este loop: cuando esté en main, dos_requesters(false) al
+  arrancar y las data: (base64 a T: con base64_to_file; las de %XX con file_write_text) para imágenes y fuentes.
+
+### 2026-10-21 — Tarea 40e con D68 (direcciones data: en imágenes y fuentes)
+- src/dashweb.dash: `dos_requesters(false)` al arrancar (una ruta que no existe, como "data:...", falla sin el
+  requester "Inserte el volumen DATA").
+- lib/imagenes.dash `imagen_data_a_fichero`: data:...;base64, con `base64_to_file` y data:..., con %XX deshechos y
+  `file_write_text`; las <img>, fondos, carteles y @font-face con data: se escriben en su fichero de T: y entran en
+  la cola ya llegados (solo les falta decodificarse). lib/url.dash: `url_es_data` y `url_deshacer` (públicas).
+- tests/test_imagenes_data.dash. eldiario.es en la RTG: 4 imágenes data: (SVG vacíos de hueco) decodificadas.
+- Fallo de Dash encontrado: base64_to_file con textos en variables los deja escapados (--memcheck: 2 strings por
+  llamada; con literales, 0): arreglado por la sesión dash (D68b, d39d8d9).
+- La traza de cada maqueta del JS cuenta bloques, medidas hechas y guardadas: un cambio pequeño maqueta la página
+  entera (~2600 bloques, 1,4-1,7 s en pre.opentimetrack.com); el montaje de 12 s, 10.058 bloques y 4344 medidas.
+- Batería con Dash d39d8d9: 73/73; freemem.space entera en 22.361 ms.
+
+### 2026-10-21 — Tarea 37h: comparando con Chrome al bajar (botones, font-stretch, letter-spacing negativo)
+- Capturas de dashweb a 1788, 3576, 5364, 7152 y 8576 px (3 a 15 espacios) contra Chrome a 954x615 (el mismo
+  clientWidth, 939). dashweb va por delante: la portada mide menos. Causa: el titular (.titular-portada) usa la
+  fuente variable Archivo con font-stretch: 125 %, peso 800 y letter-spacing -0,035em: en Chrome las letras son
+  más anchas, cortan en más líneas y la sección crece (1146 px contra ~526); lo de debajo se descoloca.
+- La línea de tiempo de la historia: <button><span class=block>Mié 14</span>08:02</button> salía en una línea; un
+  <button> que dibuja la página va ahora como inline-block (lib/maqueta.dash `boton_caja`): fecha arriba, hora debajo.
+- font-stretch (heredada): lib/fuente_web.dash `fuente_web_ancha` / `fuente_web_para_ancha` hacen la letra a ese %
+  de anchura (escala x de stb_truetype: se acerca al eje wdth); lib/maqueta.dash `_estiramiento` y `_fuente_ancha`.
+- letter-spacing negativo (hasta -font-size/4) ya no se queda en 0; el pintor pone las letras una a una con != 0.
+- Tests: test_maqueta_boton (span de bloque en un botón), test_fuente_web (estirada 54 y apretada 30).
+- Con ello, en pre.opentimetrack.com el titular corta en 3 líneas como en Chrome (antes 2) y la línea de tiempo pone
+  la fecha encima de la hora; la portada sigue más baja: line-height no se aplica (40d) y la tarjeta de la derecha
+  no se parte igual. Batería: 73/73; freemem.space entera en 23.157 ms.
+
+### 2026-10-21 — Tarea 40d (line-height) y lo que falta para medir como Chrome
+- lib/estilo.dash `estilo_alto_linea(v, em)`: número o calc() sin unidad x font-size, longitud o % en px, -1 con
+  normal. lib/maqueta.dash: cada pieza de texto lleva su `lh` (calculado una vez por texto en `_palabras_texto`);
+  `_poner_linea` con algún lh hace la línea como CSS 2.1 10.8 (media diferencia arriba y abajo, bases alineadas) y
+  sin ninguno, como siempre (la pieza más alta y 1 px arriba y abajo). Test test_maqueta_alto_linea (40px, 2, calc
+  de Tailwind, 150 %, normal). El titular de pre.opentimetrack.com (line-height 0.9) sale ya apretado como en Chrome.
+- Encontrado al comparar: ESTILO_MEDIUM (font-size normal y 1rem) es 13 px desde la tarea 11 (que quepa en una
+  pantalla de Amiga); en Chrome 16. Todo lo de rem sale un 19 % más pequeño (la entradilla: 15 px contra 18,4). Es
+  decisión del usuario: preguntado.
+- Batería: 74/74; freemem.space entera en 23.787 ms y se ve bien (captura).
+
+### 2026-10-21 — Tarea 40c (un script que no acaba ya no cuelga el navegador)
+- lib/js.dash: JS_SetInterruptHandler con `_js_interrumpir`: cada entrada al JavaScript (js_evaluar, los trabajos de
+  promesas y _jsdom_llamar de lib/jsdom.dash: temporizadores y eventos) apunta la hora (DateStamp) y, pasados
+  JS_SEGUNDOS (30; `js_tope` lo cambia), el script recibe "InternalError: interrupted". `js_cortado()` dice si se
+  cortó alguno; src/dashweb.dash `tic` lo pone en la barra de estado. 30 s porque un A1200 de verdad ejecuta el JS
+  unas 50 veces más despacio que la máquina RTG emulada.
+- tests/test_js_tope.dash: un 1 + 2 no se corta; while (true) se corta a los 2 s (js_tope(2)) y el motor sigue.
+- Batería: 75/75; freemem.space entera en 23.915 ms; pre.opentimetrack.com 90 s sin ningún corte.
+
+### 2026-10-21 — Tarea 40b (las descargas van al fichero según llegan)
+- lib/http.dash `http_volcar(carga)`: en una carga a fichero, cuando llegan las cabeceras de una respuesta 2xx sin
+  chunked ni compresión, se leen, se abre el fichero y cada http_avanzar escribe lo recibido (`_carga_volcar`, con
+  red_copiar de lo que ya hay, sin esperar a la red) en vez de juntar el cuerpo entero en la memoria de la conexión.
+  Acaba con Content-Length o al cerrar; las redirecciones siguen volcando la respuesta final; chunked y comprimido,
+  como siempre. Solo para las descargas del usuario (src/dashweb.dash `empezar_descarga`): los vídeos que se ven
+  mientras bajan leen lo llegado del búfer (http_parcial) y las imágenes son pequeñas.
+- tests/test_http_volcar.dash: a mitad de un goteo de 300 KB, lo volcado ya pasa de 64 KB y en la conexión quedan
+  menos de 4 KB; el fichero sale entero; sin longitud, tras redirección y chunked, también.
+- Batería: 76/76; freemem.space entera en 23.509 ms.
+
+### 2026-10-21 — Tareas 40f y 40g (textos al día)
+- 40f ya estaba hecha (la 37d2 llama a animar() desde documento_animar): marcada.
+- 40g: docs/quickjs_amiga.md (el malloc con cabecera de 8 bytes), la cabecera de lib/maqueta.dash (line-height,
+  flex, grid, position, lo medido guardado), lib/video.dash y lib/videos.dash (ya con sonido) y el README (las
+  descargas al fichero, lo poco que ahorra reanudar TLS, line-height, WOFF2 y font-stretch, animaciones de CSS,
+  fetch y XMLHttpRequest, crypto, el tope de 30 s, D1-D68, memoria y tiempos de hoy). Solo comentarios y textos:
+  compilado dashweb para ver que nada se rompe.
+
+
+### 2026-10-21 — Tarea 40h (la memoria de las imágenes)
+- La traza dice al final cuánto ocupan las imágenes (`imagenes_kb`): en freemem.space 12.917 KB las cargadas y
+  2.300 KB las copias escaladas que pide el pintor. Las de 820x480 se ven a 412x241 y la de 1376x768 a 453x442: el
+  decodificador solo reduce por mitades sin bajar del tamaño pedido y luego se guardaba además la copia.
+- lib/imagenes.dash `_imagen_a_su_vista`: al llegar, si se sabe dónde se ve (imagenes_vista de la última maqueta) y
+  es mayor, se reduce a lo justo para cubrirlo con su proporción y se suelta la grande. freemem.space: imágenes
+  4.251 KB y copias 0; la página gasta ~23 MB en vez de ~29. La captura, igual. El pico mientras se decodifican
+  (~62 MB) no cambia: es de los decodificadores.
+- Límite: si después se ve más grande (otra maqueta más ancha), se escala desde la reducida (más borrosa); el
+  fichero sigue en T: por si hace falta decodificarla otra vez.
+- Batería: 76/76.
+
+### 2026-10-21 — Tarea 41a, primera parte (Acid2: hoja data: y bordes transparentes)
+- Acid2 (http://acid2.acidtests.org/#top, abierta por la red; su referencia es una cara amarilla de 168x168) salía
+  como un bloque rojo con la cara a trozos. No se copia al repo (no sé su licencia): tests/test_acid2.dash copia
+  cada pieza que se arregla.
+- La hoja <link rel="appendix stylesheet" href="data:text/css,..."> (quita el fondo rojo de .picture) no se leía:
+  lib/estilo.dash `_estilo_cargar` lee las data: (con %XX o base64) y lib/recursos.dash no las pide por la red.
+- border: 1em solid transparent se pintaba con el color del texto (rojo): css_color da -1 a transparent y a lo que
+  no entiende. lib/maqueta.dash `_borde_lado`: alfa 0 no se pinta, alfa < 255 se mezcla, lo desconocido con color.
+- Queda (mirando la captura): la barra roja de .eyes (los <object> con fallback, el fondo fixed, el orden de pintado
+  del apéndice E), la nariz (:before/:after con bordes), la sonrisa (floats anidados, alturas negativas), la barbilla
+  (line-height 4px en inline), la línea de la tabla (display: table en ul/li), el pelo (position: fixed con
+  min/max-height) y la frente (overflow con width).
+- Batería: 77/77.
+
+### 2026-10-21 — font-size normal de 16 px (usuario)
+- Comparando 13 y 16 px en freemem.space, meneame.net (fijan px: iguales) y pre.opentimetrack.com (rem: con 16 sale
+  como en Chrome, hasta la tarjeta que parte la hora), el usuario eligió 16. lib/estilo.dash ESTILO_MEDIUM = 16.
+- Tests que esperaban las medidas de 13 px puestos al día (test_estilo, test_maqueta, test_maqueta_css,
+  test_animacion, test_jsdom_geometria): los nuevos valores cuadran con 16 (h1 2em 32 px, 0.8em 13 px...).
+- Batería: 76/77 con solo test_maqueta pendiente de poner al día (sus 21 líneas, en tres pasadas); después las de maqueta 14/14. freemem.space entera en 23.623 ms.
+
+### 2026-10-21 — Tarea 41a, segunda parte (ir a un #ancla: al borde de su caja)
+- documento_y_de daba la y del primer dibujo del elemento (su texto): en Acid2 #top lleva padding-top 2em y todo
+  salía 48 px más arriba que la referencia. Ahora da el borde de arriba de su caja (caja_y de la última maqueta;
+  sin caja, como antes). Con eso "Hello World!" queda a 48 px y lo de arriba de la cara a 108, como la referencia.
+- tests/test_acid2.dash: ancla a 100 con su texto debajo de los 40 px de relleno.
+- Para comparar: la captura de dashweb y reference.png en (72, 108) lado a lado y ampliadas (guion en el
+  scratchpad; Acid2 sigue sin copiarse al repo).
+- Batería: 77/77.
+
+### 2026-10-21 — $VER para el comando Version (usuario; hecho por la otra sesión dashweb, 56b0388)
+- src/dashweb.dash: el @native texto_version lleva "$VER: dashweb 0.3.0-dev (21.10.2026)" (con
+  __attribute__((used))). La fecha y la versión se cambian junto a DASHWEB_VERSION. Comprobado con strings en el
+  ejecutable; en el Amiga sin probar. Copiado a Traspaso a las 21:17, compilado desde un HEAD limpio.
+
+### 2026-10-21 — Tarea 41a, tercera parte (el parser de Acid2: sin unidad y ";" suelto)
+- Cajas de cada pieza de Acid2 en dashweb (un test suelto, no guardado) contra las de Chrome (getBoundingClientRect
+  relativo a .picture): lo que sale distinto, por orden: .parser (272x36 en vez de 96x12), la nariz (max-height 3em
+  no se aplica: 60 de alto en vez de 48), la barbilla (sin el alto de línea del bloque: 4 en vez de 12), el
+  blockquote y el address (el selector [class=second\ two] y el abs que envuelve un float), la frente (un hijo de
+  12em se recorta a los 8em del padre), los ojos (#eyes-c baja bajo el float en vez de quedar detrás; .eyes no
+  encoge), la sonrisa (floats anidados con width que no suben) y la tabla de ul/li (display: table en otros).
+- lib/html5.dash guarda el modo de Hubbub: en quirks el documento lleva modo="quirks". lib/estilo.dash `_declarar`:
+  fuera de quirks, una longitud sin unidad distinta de 0 en una propiedad de longitudes no cuenta (width: 200).
+- lib/css.dash: un ";" entre reglas ya no se salta: va con el selector de la siguiente, que no vale y no cuenta
+  (CSS Syntax 3), como en los navegadores. .parser sale ya de 96x12 como en Chrome.
+- test_acid2: parser 2em/1em en estándar; en quirks width: 200 vale 200.
+- Batería: 77/77.
+
+### 2026-10-21 — Panel de progreso (usuario)
+- El usuario quiere un artefacto que vaya señalando los progresos, las pruebas y lo que queda: "Progreso de
+  dashweb" (https://claude.ai/artifact/6RpPSBd7iEVaXduBDX9QEA, del tipo Dashboard): tareas hechas, última batería,
+  commits desde la v0.2.0-alfa, piezas de Acid2, el gráfico de las baterías, medidas antes y ahora, las pruebas de
+  estándares, las tareas con filtro por estado y los commits.
+- tools/panel_progreso.py saca los datos del plan, la bitácora y git; docs/panel/*.json, lo que no sale solo. Regla
+  8b del loop: ponerlo al día tras cada commit.
+
+
+### 2026-10-21 — El navegador se llama Tachyon (usuario)
+- El usuario encontró un navegador "Dash Web" para iPhone/iPad y quiso otro nombre; tras buscar libres (Astrolabe,
+  Valkyrie, Gaviero, DashNav... comprobados con búsquedas), eligió **Tachyon** (ningún programa de Amiga con ese
+  nombre; fuera, solo proyectos pequeños sin relación).
+- Cambiado lo que se ve: título de la ventana ("<página> - Tachyon"), "Acerca de Tachyon", $VER "Tachyon 0.3.0-dev",
+  mui_app_begin("Tachyon", "TACHYON"), User-Agent "Tachyon/0.3 (AmigaOS)", la página de inicio, las direcciones
+  internas tachyon:inicio, tachyon:marcadores y tachyon:cookies (abrir acepta también dashweb:...), los ficheros
+  PROGDIR:Tachyon.marcadores, .prefs y .cookies (al arrancar, `ficheros_de_antes` renombra los dashweb.* si no hay
+  nuevos), lo que escribe por la salida ("Tachyon: ... entera en"), el paquete (build/tachyon.lha con el cajón y el
+  programa Tachyon, iconos Tachyon.info, LEEME e Instalar), el README y CLAUDE.md. Por dentro sigue dashweb (la
+  carpeta, src/dashweb.dash, funciones y ganchos __dashweb_ del JavaScript, la rama dashweb de Dash).
+- Con permiso del usuario: el repositorio de GitHub pasa a FreeMEM/tachyon (GitHub redirige el nombre viejo; origin,
+  "Acerca de", el visor, el README y los documentos al día) y la carpeta a ~/Projects/tachyon (con un enlace
+  ~/Projects/dashweb a ella para lo que aún la nombre). En Traspaso: el cajón Tachyon (con el paquete).
+- Logo (elegido por el usuario tras muchas vueltas): una esfera azul con un anillo plano en perspectiva y dos cortes
+  gruesos que siguen sus paralelos (la esfera queda incompleta y el ojo la completa; nada de líneas finas, para que
+  aguante en iconos pequeños); letras Audiowide. `tools/logo_tachyon.py docs/logo` saca docs/logo/tachyon(_oscuro)
+  .svg/.png (letras en trazos) y tachyon_marca(_oscuro) (cuadrada). El icono del Workbench (`ICONO_TACHYON` en
+  tools/iconos_wb.py, 54x23 en 4 colores, píxel 1,35 veces más alto) lo saca `tools/logo_tachyon.py --icono`.
+- Comprobado en el emulador con MUI 3.8: "Acerca de Tachyon" con "Tachyon 0.3.0-dev".
+- Batería: 77/77 (1655 s; la primera, con la máquina cargada, dio 20 TIMEOUT en el grupo de red, que pasaron solos).
+
+### 2026-10-21 — Tarea 41a, cuarta parte (la nariz de Acid2: max-height)
+- max-height no se aplicaba a los bloques (solo a las imágenes): lib/maqueta.dash lo aplica tras height y
+  aspect-ratio y antes de min-height, que gana (CSS 2.1 10.7); en % aún no (sin alto fijo del padre no cuentan).
+- La nariz de Acid2 (float con height 60 %, min-height 80 % y max-height 3em; el padre sin alto) mide 168x48 como
+  en Chrome (antes 168x60). tests/test_acid2.dash: "nariz: 168x48".
+- Batería: 78/78 (1687 s, junto con las dos siguientes).
+
+### 2026-10-22 — Letras finas que perdían trazos (usuario, visto por la sesión dash en CoffinOS)
+- En freemem.space, con Lato 300 a 15-16 px, "Los" salía "_os" y faltaban palos en t, i, l: al pasar el glifo de
+  stb_truetype a 1 bit (gris >= 112), un palo fino que cae entre dos píxeles al 50 % se quedaba sin ninguno. No era
+  la FPU de Amiberry (lo sospeché primero: en FS-UAE, 68020 y 68040 con JIT, sale igual) ni el WOFF2 (comprobado en
+  el PC contra fontTools).
+- lib/fuente_web.dash `_fw_tinta`: además, el más oscuro de una pareja de vecinos (al lado, arriba o abajo) que
+  entre los dos pasan de 150 sin que ninguno llegue a 112. Lato Light queda entera; las demás, igual o un poco más
+  llenas.
+- test_fuente_web: Lato Light (tests/pages/LatoLight.woff2, el subconjunto latino de Google Fonts, OFL en
+  LatoLight.LICENSE) a 15 px, el palo de la L entero (con el umbral de antes da false).
+- Batería: 78/78. Visto por el usuario en CoffinOS: las letras finas salen enteras.
+
+### 2026-10-22 — El menú de freemem.space partido (usuario, visto por la sesión dash)
+- El menú (<nav> flotante, <li> inline-block, <a> de bloque con padding 0 10px) salía con cada <li> en una
+  columna estrecha y el texto partido ("INI / CIO"). Al medir el ancho de un flotante por lo dibujado solo
+  contaba el texto: el relleno del <a> quedaba fuera y cada <li> salía 20 px más estrecho que su texto (la palabra
+  se partía por el word-wrap: break-word de la página, que es correcto).
+- lib/maqueta.dash `_sangrias`: al medir (_ancho_flotante_medir y lo guardado de _medida_de), cada dibujo cuenta
+  con los márgenes, bordes y rellenos de sus cajas (las que no van en línea) hasta la caja medida;
+  _medida_poner deja su resumen colgado del padre del medido para que se sigan sumando las de fuera.
+- tests/test_maqueta_menu.dash: el menú en una línea de 50 px (728 de ancho) y un flotante con un <p> de margen 7,
+  borde 5 y relleno 8: 140.
+- Batería: 78/78. Visto por el usuario en CoffinOS: el menú casi en una línea (ARDUINO aún baja: sigue).
+
+
+### 2026-10-22 — El menú de freemem.space, segunda parte (ARDUINO bajaba a otra línea)
+- Con text-align: center (el del menú), un <li> inline-block va en la línea como una pieza; el salto de línea del
+  HTML que le sigue se pegaba a esa pieza (texto " " y 8 px más). Al medir el <nav> salía bien (el espacio entre
+  los <li> cuenta), pero al repartir la línea el último <li> llevaba su espacio pegado, no cabía y bajaba; la fila,
+  centrada, empezaba en x 135. Copia local de freemem.space a 1390 px: ahora una línea desde el borde del <nav>.
+- lib/maqueta.dash: tras un inline-block (como tras una imagen o un control) el blanco va delante de lo siguiente
+  (m.blanco), y `_pieza_caja` toma el blanco de antes de maquetar la caja aparte (que lo ponía a 0).
+- test_maqueta_menu: centrado y con saltos de línea entre los <li>: una línea, con 8 px entre cada dos.
+- Queda: un espacio al final de una palabra cuenta al ver si cabe la última de la línea (en los navegadores
+  cuelga); la línea con inline-blocks sale 2 px más alta que en Chrome.
+- Batería: 66/78 con 12 TIMEOUT en cascada en el grupo de red (compilaba a la vez); repetidas por grupos, todas
+  pasan (http_volcar, imagen 4/4, jquery, js_fetch, jsdom 6/6, recursos, red, video_cartel, youtube).
+
+### 2026-10-22 — El blanco del final de una palabra cuelga (CSS Text 3, 4.1.3)
+- Una palabra al final de un texto lleva su blanco pegado ("bbb "); al ver si cabía en la línea contaba también ese
+  espacio y la palabra bajaba a la siguiente aunque sin él cupiera justa. En los navegadores ese blanco cuelga.
+- lib/maqueta.dash `_cuelga`: en `_lineas`, una pieza de texto que acaba en blanco cabe si sin él cabe.
+- tests/test_maqueta_cuelga.dash: en 56 px "aaa bbb" seguido de " <b>c</b>": "bbb" en la primera línea (antes,
+  en la segunda).
+- Batería: 79/79 (1688 s).
+
+
+### 2026-10-22 — Tarea 41a, quinta parte (la barbilla de Acid2: el strut)
+- CSS 2.1 10.8.1: cada línea empieza con una caja vacía de la letra y el line-height de su bloque, así que no es
+  más baja que él. lib/maqueta.dash `_poner_linea` (la rama con line-height): si el bloque tiene line-height, su
+  strut cuenta para la base y lo de abajo de la línea.
+- La barbilla de Acid2 (texto de 2px/4px en un bloque con line-height 1em de 12 px) mide 12 como en Chrome (antes
+  4). test_acid2: "barbilla: 12". Las 16 de maqueta pasan igual.
+- Batería: 79/79 (1689 s).
+
+### 2026-10-22 — Tarea 41a, sexta parte (la cuarta línea de Acid2: [class=second\ two])
+- lib/css.dash `_css_sel_atributo`: el valor de un selector de atributo con escapes se desescapa (sin comillas,
+  "second\ two" es "second two"); antes se comparaba con la barra y no casaba nada.
+- Con eso la cuarta línea de la cara sale como en Chrome: el <address> flotante de 48x12 y el <blockquote> absoluto
+  sin ancho encoge a él con sus bordes de 2em: 96x12 (el encogido ya iba). test_acid2: "cuarta: 48x12 | 96x12".
+- Batería: 79/79 (1690 s).
+
+### 2026-10-22 — Tarea 41a, séptima parte (la frente de Acid2: un hijo más ancho que su padre)
+- Un width mayor que el sitio del contenedor se ignoraba siempre (a propósito: que una página de 1200 px quepa en
+  la ventana del Amiga). lib/maqueta.dash `_bloque_de_ya`: ahora desborda por la derecha (CSS 2.1 10.3.3) si la
+  caja sigue dentro de la ventana (estilo_vw); si no, se queda en lo que cabe, como antes.
+- La frente de Acid2 (padre de 8em, hijo de 12em) sale como en Chrome: 96 y 144. test_acid2: "frente: 96 144 |
+  ventana: 300" (un hijo de 600 px en una ventana de 400 sigue en 300).
+- Batería: 79/79 (1691 s).
+
+### 2026-10-22 — Tarea 41a, octava parte (tablas de CSS: la última línea de Acid2)
+- Un elemento con display: table cuyos hijos no eran <tr>/<td> no maquetaba nada de dentro (Acid2: el <ul> con
+  <li> de display table-cell, table y list-item; y cualquier página que haga tablas con <div>).
+- lib/maqueta.dash `_filas` y `_celdas_de` (CSS 2.1 17.2.1): filas y celdas también por display (table-row,
+  table-*-group, table-cell); lo que no es fila va a una fila anónima, y lo que no es celda a una celda anónima, una
+  por tramo seguido (`_tramo_anonimo`: la caja de bloque de `_anonima`, sin cambiar el padre de lo de dentro).
+- Una tabla de CSS (no <table>) sin width encoge a su contenido (`_bloque_de_ya`), como en Chrome.
+- tests/test_maqueta_tabla_css.dash: la línea de Acid2 (ul 48x12, cuatro de 12x12), dos celdas de <div> en fila y
+  dos <p> sueltos en la misma celda anónima, uno bajo el otro. test_maqueta_tabla igual.
+- Batería: 80/80 (1707 s).
+
+### 2026-10-22 — Tarea 41a, novena parte (la sonrisa de Acid2: anchos de flotantes anidados)
+- La sonrisa: un absoluto sin ancho con un <span> flotante (display: inline, bordes de 1em a los lados) con un <em>
+  flotante con un <strong> de width 6em que no pinta nada. Chrome: 120, 96 y 72; dashweb daba 25, 25 y 1.
+- lib/maqueta.dash: al medir, un bloque con width (no %) deja un rectángulo vacío de su caja (cuenta como las cajas
+  con width: su ancho llega aunque no pinte nada); `_sangrias` cuenta como bloque un flotante o un absoluto aunque
+  diga display: inline (los bordes del <span> se perdían). Con eso x y anchos como en Chrome.
+- Queda: en Chrome el margin-top del hijo se junta con el del padre (.smile, 5em, y su <div>, 0.25em: el colapso de
+  márgenes entre padre e hijo, CSS 2.1 8.3.1); en dashweb no, y la sonrisa queda 3 px más abajo. Es general: va
+  aparte.
+- test_acid2: "sonrisa: 48 120 | 60 96 | 72 72". Las 17 de maqueta pasan igual.
+- Batería: 80/80 (1711 s).
+
+### 2026-10-22 — Tarea 41a: Acid2 en 10 de 11 piezas; lo que queda, a la 41a2
+- Hechas (41a, partes 1 a 9): hoja data: y bordes transparentes, ir a #top, el parser, la nariz (max-height), la
+  barbilla (el strut), la cuarta línea ([class=second\ two]), la frente (desbordar), la línea de la tabla (tablas de
+  CSS y anónimas) y la sonrisa (anchos de flotantes anidados).
+- Los ojos piden flotantes como en CSS: #eyes-c, un bloque detrás del flotante #eyes-b, debe ir encima de él (los
+  bloques no se apartan de los flotantes; solo sus líneas). dashweb pone todo lo que no flota debajo de los
+  flotantes, así que el texto tampoco rodea una imagen flotante. Es un cambio de fondo en la maqueta: tarea nueva
+  41a2 en el plan, con el colapso de márgenes padre-hijo (los 3 px de la sonrisa).
+
+### 2026-10-22 — Tarea 41a2, primera parte (el texto rodea los flotantes)
+- Lo que seguía a un flotante iba siempre debajo de él. Ahora el texto del mismo bloque lo rodea (CSS 2.1 9.5): sus
+  líneas van a su lado, más cortas, y debajo vuelven a todo el ancho; una palabra que no cabe al lado baja hasta
+  donde acaba el flotante. Un bloque que sigue a un flotante aún va debajo (segunda parte).
+- lib/maqueta.dash: `_lineas` toma el sitio de cada línea de `_hueco` (lo que dejan los flotantes de `_flot_linea`
+  a esa altura); `_contenido` pone sus flotantes en `_flot_linea` mientras reparte sus líneas (`_lineas_flot`) y lo
+  deja a nil para lo de dentro. Un flotante que llega tras texto va debajo de ese texto.
+- tests/test_maqueta_rodea.dash: flotante a la izquierda (líneas de al lado en x >= 100 y dentro de los 200 px;
+  debajo, a todo el ancho), a la derecha (acaban antes de x 100) y una palabra que no cabe al lado (baja).
+- Batería: 81/81 (1728 s). es.wikipedia.org/wiki/Amiga_1200 sale igual antes y después de este cambio (el texto
+  aplastado ya pasaba antes: tarea nueva 41a3); con las tablas de CSS (41a, octava parte) ya sale la ficha con la foto.
+
+### 2026-10-22 — Tarea 41a3 (Wikipedia: el texto salía de 0 px)
+- Vector 2022 pone en <html> --font-size-medium: var(--font-size-medium, 1rem) y .vector-body { font-size:
+  var(--font-size-medium) }. Una --x que se nombra a sí misma es un ciclo (CSS Variables 1, 2.3): inválida. dashweb
+  daba vueltas hasta el tope y dejaba el var() sin resolver: font-size 0 px y el artículo entero aplastado.
+- lib/estilo.dash: `_var_cicla` (directo o por otras --x): la --x queda VAR_INVALIDA y quien la usa toma su respaldo;
+  un var() que se queda sin valor ni respaldo no se aplica (font-size y lo heredado se quedan como el padre).
+- lib/maqueta.dash `_con_mascara`: una caja con mask-image (url) no pinta su fondo (los iconos de Wikipedia son un
+  fondo del color del texto recortado por un SVG; sin máscaras salían cuadrados negros al dejar de medir 0).
+- es.wikipedia.org/wiki/Amiga_1200 en el emulador (RTG, MUI 3.8): el artículo se lee, con la ficha y su foto.
+- test_estilo_vars: "ciclo: 20px 3px"; tests/test_maqueta_mascara.dash.
+- Batería: 82/82 (1743 s).
