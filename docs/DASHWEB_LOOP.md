@@ -3784,3 +3784,10 @@ Formato:
 - Comparado con Amelinium 1.4.0 (Aminet, 040_JS) en la misma máquina: tareas 42g y 42h nuevas (iconos como cuadrados,
   buscador de Wikipedia, » de amigaworld).
 - Batería: 94/94 (2054 s); la anterior falló 51 por TIMEOUT con la máquina cargada (test_hola solo: 3 s, bien).
+
+### 2026-10-22 — Página de inicio con el logo (usuario)
+- src/dashweb.dash `dw_inicio`: el logo (docs/logo/tachyon.svg en PNG de 366x65 y 32 colores, 1,8 KB, como data: en
+  LOGO_INICIO), el lema, un buscador (Google), seis accesos en tarjetas (marcadores, cookies, Aminet, AmigaWorld.net,
+  Wikipedia, el GitHub de Tachyon) y la versión. El aviso del script cortado dice 120 s.
+- Comprobada en el emulador ancho: bien. El campo del buscador no toma el width de la hoja (los controles van con su
+  tamaño).
