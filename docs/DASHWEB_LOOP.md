@@ -3684,3 +3684,14 @@ Formato:
 - Error mío: al parar una batería maté con `pkill -f fs-uae` emuladores de la sesión dash (sus test_meter_);
   avisada. Apuntado en la memoria: matar solo por PID con padre propio.
 - Batería: 90/90 (2000 s). freemem.space y Wikipedia en el emulador, como antes. Compilación puesta en Traspaso.
+
+### 2026-10-22 — Tarea 42e, cuarta parte (las imágenes de las tarjetas de Xataka)
+- Las tarjetas: `.poster-figure a { position: relative; height: 0; padding-top: 75% }` y dentro `<picture>` con su
+  `<img>` absoluto (`width/height: 100%`, top/left/right/bottom 0, object-fit: cover). dashweb no veía el absoluto
+  (va dentro del <picture>, en línea): lo ponía como pieza de la línea, debajo de la caja de alto 0 y tapado por el
+  overflow; y el height: 100 % de una imagen absoluta no contaba.
+- lib/maqueta.dash: `_absolutos_de` (los absolutos de un bloque, también los de dentro de algo en línea suyo); `_piezas`
+  salta lo absoluto o fijo; `_absoluto_imagen`: height en % del alto de su caja de referencia (con el relleno) y, sin
+  height ni atributo, con top y bottom, lo de en medio. object-fit: cover ya lo hacía el pintor.
+- tests/test_maqueta_absoluto_img.dash (la tarjeta: 0,0 344x258 como en Chrome; un absoluto dentro de un span).
+- Batería: 91/91 (1983 s). xataka.com en el emulador: el aviso se lee entero (títulos, "Aceptar y leer GRATIS") y detrás asoman las fotos de las tarjetas; el euro sale "?" (Latin-1). freemem.space y Wikipedia, como antes.

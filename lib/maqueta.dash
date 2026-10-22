@@ -1044,11 +1044,10 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if alto < 0
         alto = 0
     end
-    # los hijos con position absolute o fixed, encima, respecto a esta caja (su relleno)
-    for h in _hijos(n)
-        if _fuera_del_flujo(h) and not _oculto(h)
-            _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, pl, pt)
-        end
+    # los hijos con position absolute o fixed, encima, respecto a esta caja (su relleno); también los que van dentro
+    # de algo en línea (el <img> absoluto de un <picture> en las tarjetas de xataka.com salía debajo, en la línea)
+    for h in _absolutos_de(n)
+        _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, pl, pt)
     end
     alto_caja = bt + pt + alto + pb + bb
     if _midiendo > 0 and n != _medido and e.has("width") and e["width"] != "auto" and not str_ends(e["width"], "%")
@@ -2055,6 +2054,14 @@ func _absoluto_imagen(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int
         m.ancho_linea = previo
         iw = medida[0]
         ih = medida[1]
+    end
+    # height en % del alto de la caja de referencia (su relleno); sin height, con top y bottom, lo de en medio (las
+    # tarjetas de xataka.com: <a> de alto 0 con padding-top y su <img> absoluto al 100 %, object-fit: cover)
+    hh = _val(e, "height", "auto")
+    if str_ends(hh, "%") and ch > 0
+        ih = _px(e, "height", ch)
+    elif hh == "auto" and _val(e, "top", "auto") != "auto" and _val(e, "bottom", "auto") != "auto" and n.nombre != "svg" and dom_atributo(n, "height") == "" and ch > 0
+        ih = ch - _px(e, "top", ch) - _px(e, "bottom", ch)
     end
     if src == "" or iw <= 0 or ih <= 0
         return
@@ -3139,12 +3146,34 @@ func _solo_blanco(n: Nodo) -> Bool
 end
 
 # Las piezas en línea de un nodo (texto, elementos en línea, br, img)
+# Los absolutos y fijos de n: sus hijos y los que van dentro de algo en línea suyo (no los de dentro de un bloque,
+# que los pone ese bloque)
+func _absolutos_de(n: Nodo) -> [Nodo]
+    var r: [Nodo] = []
+    _absolutos_en(n, r)
+    return r
+end
+
+func _absolutos_en(n: Nodo, r: [Nodo])
+    for h in _hijos(n)
+        if h.tipo != DOM_ELEMENTO or _oculto(h)
+            continue
+        end
+        if _fuera_del_flujo(h)
+            r.push(h)
+        elif _val(h.estilo, "display", "inline") == "inline" and _flota(h) == "" and not _reemplazado(h)
+            _absolutos_en(h, r)
+        end
+    end
+end
+
 func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza], enlace: String)
     if n.tipo == DOM_TEXTO
         _palabras_texto(m, n.texto, e_padre, piezas, enlace, n.padre, n)
         return
     end
-    if n.tipo != DOM_ELEMENTO or _oculto(n)
+    # (lo absoluto o fijo no va en la línea: lo pone el bloque, _absolutos_de)
+    if n.tipo != DOM_ELEMENTO or _oculto(n) or _fuera_del_flujo(n)
         return
     end
     e = n.estilo
