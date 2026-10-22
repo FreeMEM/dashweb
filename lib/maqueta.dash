@@ -2479,7 +2479,14 @@ struct Flotante
     ancho: Int
     alto: Int
     izquierda: Bool
+    real: Bool = true     # float de verdad (no un inline-block que va como uno de la izquierda)
+    desde: Int = 0        # sus dibujos en la página: de desde a hasta (sin él)
+    hasta: Int = 0
 end
+
+# Los flotantes de fuera que las líneas de un bloque que les pasa por debajo rodean (tarea 41a2): _contenido los
+# pone justo antes de maquetar ese bloque y el _contenido de él los toma (y lo deja a nil)
+var _flot_fuera: [Flotante] = nil
 
 # El contenido de un bloque: hijos de bloque uno debajo de otro y lo de en medio, en líneas. Cada
 # flotante va al primer sitio desde arriba donde cabe junto a los ya puestos (los de la izquierda
@@ -2500,6 +2507,9 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     # (las líneas de lo de dentro no rodean los flotantes de aquí: cada _contenido pone los suyos)
     flot_antes = _flot_linea
     _flot_linea = nil
+    # los de fuera, si este bloque les pasa por debajo
+    heredados = _flot_fuera
+    _flot_fuera = nil
     for h in _hijos(n)
         if _oculto(h) or _fuera_del_flujo(h)
             continue
@@ -2507,7 +2517,7 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         lado = _flota(h)
         if lado != ""
             if piezas.length > 0
-                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
+                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
                 piezas.clear()
                 if en_fila and cy > fila_y
                     fila_y = cy
@@ -2556,8 +2566,13 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             if lado != "left"
                 fx = der - w
             end
+            d0 = m.pagina.dibujos.length
             alto = _bloque_de(m, h, fx, fy, w, ancho)
-            flotantes.push(Flotante(fx, fy, w, alto, lado == "left"))
+            fl = Flotante(fx, fy, w, alto, lado == "left")
+            fl.real = h.estilo.has("float") and (h.estilo["float"] == "left" or h.estilo["float"] == "right")
+            fl.desde = d0
+            fl.hasta = m.pagina.dibujos.length
+            flotantes.push(fl)
             fila_y = fy
             if fy + alto > fondo
                 fondo = fy + alto
@@ -2567,17 +2582,27 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         end
         # un vídeo (<video>, el <iframe> de YouTube) va como una pieza aunque su CSS diga display: block
         bloque = _es_bloque(h) and not dom_es_video(h)
-        # el texto que sigue a los flotantes los rodea (sus líneas, al lado; tarea 41a2); un bloque, aún debajo
+        # el texto que sigue a los flotantes los rodea (sus líneas, al lado; tarea 41a2); un bloque normal les pasa por
+        # debajo y son sus líneas las que los rodean (CSS 2.1 9.5); uno con clear, o que es un contexto aparte
+        # (overflow, flex, grid, tabla, una imagen...), o tras un inline-block que va como flotante, va debajo
         if bloque
             if piezas.length > 0
-                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
+                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
                 piezas.clear()
                 margen_previo = 0
             end
-            if en_fila
+            por_debajo = _pasa_por_debajo(h) and _todos_reales(flotantes)
+            if en_fila and not por_debajo
                 en_fila = false
                 if fondo > cy
                     cy = fondo
+                end
+            end
+            if heredados != nil and _val(h.estilo, "clear", "none") != "none"
+                for f in heredados
+                    if f.y + f.alto > cy
+                        cy = f.y + f.alto
+                    end
                 end
             end
             # márgenes de hermanos seguidos: cuenta el mayor, no la suma
@@ -2589,14 +2614,24 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             if solape < 0
                 solape = 0
             end
+            rodea = _flotantes_juntos(en_fila, flotantes, heredados)
+            if rodea != nil and _pasa_por_debajo(h)
+                _flot_fuera = rodea
+            end
+            b0 = m.pagina.dibujos.length
             cy = cy - solape + _bloque(m, h, x, cy - solape, ancho)
+            _flot_fuera = nil
+            if en_fila
+                # los flotantes se pintan encima del fondo del bloque que les pasa por debajo (CSS 2.1, apéndice E)
+                _flotantes_encima(m, flotantes, b0)
+            end
             margen_previo = _px(h.estilo, "margin-bottom", ancho)
         else
             _piezas(m, h, n.estilo, piezas, "")
         end
     end
     if piezas.length > 0
-        cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
+        cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
     end
     if en_fila and fondo > cy
         cy = fondo
@@ -2606,14 +2641,106 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     return cy - y
 end
 
-# _lineas rodeando los flotantes de la fila, si hay
-func _lineas_flot(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}, en_fila: Bool, flotantes: [Flotante]) -> Int
-    if en_fila
-        _flot_linea = flotantes
-    end
+# _lineas rodeando los flotantes de la fila y los de fuera, si hay
+func _lineas_flot(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}, en_fila: Bool, flotantes: [Flotante], heredados: [Flotante]) -> Int
+    _flot_linea = _flotantes_juntos(en_fila, flotantes, heredados)
     r = _lineas(m, piezas, x, y, ancho, e)
     _flot_linea = nil
     return r
+end
+
+# Los flotantes de la fila (si la hay) y los de fuera juntos; nil si ninguno
+func _flotantes_juntos(en_fila: Bool, flotantes: [Flotante], heredados: [Flotante]) -> [Flotante]
+    if heredados == nil
+        if en_fila
+            return flotantes
+        end
+        var nada: [Flotante] = nil
+        return nada
+    end
+    if not en_fila
+        return heredados
+    end
+    var r: [Flotante] = []
+    for f in heredados
+        r.push(f)
+    end
+    for f in flotantes
+        r.push(f)
+    end
+    return r
+end
+
+func _todos_reales(flotantes: [Flotante]) -> Bool
+    for f in flotantes
+        if not f.real
+            return false
+        end
+    end
+    return true
+end
+
+# Un bloque que pasa por debajo de los flotantes (sus líneas los rodean): uno normal, sin clear, que no es un
+# contexto de formato aparte (CSS 2.1 9.4.1: overflow, flex, grid, tabla, flow-root; ni una imagen o un vídeo)
+func _pasa_por_debajo(h: Nodo) -> Bool
+    e = h.estilo
+    d = _val(e, "display", "block")
+    if d != "block" and d != "list-item"
+        return false
+    end
+    if _val(e, "clear", "none") != "none" or _reemplazado(h)
+        return false
+    end
+    for k in ["overflow", "overflow-x", "overflow-y"]
+        o = _val(e, k, "visible")
+        if o != "visible" and o != ""
+            return false
+        end
+    end
+    return true
+end
+
+# Los dibujos de los flotantes, detrás de lo dibujado desde b0 (el bloque que les ha pasado por debajo): así se
+# pintan encima de su fondo
+func _flotantes_encima(m: Maquetador, flotantes: [Flotante], b0: Int)
+    if flotantes.length == 0 or m.pagina.dibujos.length == b0
+        return
+    end
+    var suyos: [Dibujo] = []
+    var resto: [Dibujo] = []
+    primero = flotantes[0].desde
+    i = primero
+    while i < m.pagina.dibujos.length
+        de_flotante = false
+        for f in flotantes
+            if i >= f.desde and i < f.hasta
+                de_flotante = true
+            end
+        end
+        if de_flotante
+            suyos.push(m.pagina.dibujos[i])
+        else
+            resto.push(m.pagina.dibujos[i])
+        end
+        i = i + 1
+    end
+    while m.pagina.dibujos.length > primero
+        m.pagina.dibujos.pop()
+    end
+    for d in resto
+        m.pagina.dibujos.push(d)
+    end
+    # sus nuevos sitios, todos al final y en el mismo orden
+    k = m.pagina.dibujos.length
+    for f in flotantes
+        n = f.hasta - f.desde
+        f.desde = k
+        f.hasta = k + n
+        k = k + n
+    end
+    for d in suyos
+        m.pagina.dibujos.push(d)
+    end
 end
 
 # Un texto de solo blancos (entre flotantes no corta la fila)

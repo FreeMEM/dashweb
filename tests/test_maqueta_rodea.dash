@@ -1,12 +1,22 @@
 # Test: el texto rodea los flotantes (CSS 2.1 9.5, tarea 41a2): en una caja de 200 px con un flotante a la izquierda
 # de 100x40, las líneas de al lado empiezan en 100 y caben en 100 px; las de debajo del flotante, en 0 y en 200 px.
-# Con uno a la derecha, las de al lado acaban antes. Una palabra que no cabe al lado baja hasta donde acaba.
+# Con uno a la derecha, las de al lado acaban antes. Una palabra que no cabe al lado baja hasta donde acaba. Un <p>
+# detrás del flotante le pasa por debajo (empieza arriba, sus líneas al lado) y su fondo se pinta antes que el
+# flotante; uno con overflow: hidden o con clear va debajo.
 # memcheck
 # expect-out: izquierda: true true true
 # expect-out: derecha: true true
 # expect-out: no cabe: true
+# expect-out: por debajo: true true true
+# expect-out: debajo: true true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 import "../lib/documento.dash"
+
+func doc(cuerpo: String) -> Nodo
+    d = dom_desde_html5("<!DOCTYPE html><html><head><style>body { margin: 0; font: 14px sans-serif } .c { width: 200px } .f { width: 100px; height: 40px; background: red } p { margin: 0 }</style></head><body>" + cuerpo + "</body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    return d
+end
 
 func textos(cuerpo: String) -> [Dibujo]
     d = dom_desde_html5("<!DOCTYPE html><html><head><style>body { margin: 0; font: 14px sans-serif } .c { width: 200px } .f { width: 100px; height: 40px; background: red }</style></head><body>" + cuerpo + "</body></html>")
@@ -46,4 +56,28 @@ Main
     Print "derecha: " + der_bien + " " + (t2.length > 0 and t2[0].x == 0 and t2[0].y < 10)
     t3 = textos("<div class=c><div class=f style='float: left; width: 150px'></div>abcdefghijklmn</div>")
     Print "no cabe: " + (t3.length > 0 and t3[0].y >= 40)
+    d4 = doc("<div class=c><div class=f style='float: left'></div><p id=p style='background: #eee'>aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp</p></div>")
+    pg = maquetar(d4, 400)
+    p4 = dom_por_id(d4, "p")
+    ifondo = -1
+    iflot = -1
+    al_lado4 = false
+    i = 0
+    while i < pg.dibujos.length
+        x = pg.dibujos[i]
+        if x.tipo == D_RECT and x.color == 15658734 and ifondo < 0
+            ifondo = i
+        end
+        if x.tipo == D_RECT and x.color == 16711680
+            iflot = i
+        end
+        if x.tipo == D_TEXTO and str_trim(x.texto) != "" and x.y < 20 and x.x >= 100
+            al_lado4 = true
+        end
+        i = i + 1
+    end
+    Print "por debajo: " + (p4.caja_y == 0) + " " + al_lado4 + " " + (ifondo >= 0 and iflot > ifondo)
+    d5 = doc("<div class=c><div class=f style='float: left'></div><p id=a style='overflow: hidden'>x</p></div><div class=c><div class=f style='float: left'></div><p id=b style='clear: both'>y</p></div>")
+    maquetar(d5, 400)
+    Print "debajo: " + (dom_por_id(d5, "a").caja_y >= 40) + " " + (dom_por_id(d5, "b").caja_y >= 80)
 end

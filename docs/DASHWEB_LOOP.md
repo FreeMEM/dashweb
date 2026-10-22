@@ -3511,3 +3511,26 @@ Formato:
 - es.wikipedia.org/wiki/Amiga_1200 en el emulador (RTG, MUI 3.8): el artículo se lee, con la ficha y su foto.
 - test_estilo_vars: "ciclo: 20px 3px"; tests/test_maqueta_mascara.dash.
 - Batería: 82/82 (1743 s).
+
+### 2026-10-22 — Tarea 41a2, segunda parte (un bloque pasa por debajo de los flotantes)
+- Un bloque normal detrás de un flotante ya no baja: va donde iría sin él (le pasa por debajo, CSS 2.1 9.5) y sus
+  líneas lo rodean, también las de los bloques de dentro (`_flot_fuera`: _contenido se los pasa al bloque y el
+  _contenido de este los toma; `_flotantes_juntos` junta los de fuera con los suyos). Su fondo se pinta debajo del
+  flotante (`_flotantes_encima` deja los dibujos del flotante detrás de los del bloque; apéndice E).
+- Van debajo, como antes: con clear (también de los flotantes de fuera), los que son un contexto aparte
+  (`_pasa_por_debajo`: overflow, flex, grid, tabla, flow-root, imagen o vídeo) y tras un inline-block que va como
+  flotante (Flotante.real).
+- test_maqueta_rodea: un <p> con fondo detrás del flotante empieza arriba, con líneas al lado y su fondo antes que
+  el flotante; con overflow: hidden o clear: both, debajo. Las 19 de maqueta pasan igual.
+- Batería: 82/82 (1750 s).
+- En el emulador (RTG, MUI 3.8): en es.wikipedia.org/wiki/Amiga_1200 el primer párrafo ya rodea la ficha (antes
+  bajaba entero debajo); la ficha sale cortada igual que antes (aparte). freemem.space igual, y su menú desplegado
+  con ARDUINO en su sitio. Capturas enviadas al usuario.
+
+### 2026-10-22 — Publicada la v0.3.0-alfa (la primera como Tachyon)
+- Usuario: "Sí sube". Versión 0.3.0-alfa en Acerca de y $VER (c509ccc), README con la descarga nueva. PR #4 de dev a
+  main fusionado (a0298f3), etiqueta v0.3.0-alfa sobre él y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.3.0-alfa con build/tachyon.lha (6,7 MB), hecho con
+  tools/paquete.sh en un worktree limpio de a0298f3 (sin la segunda parte de 41a2, aún sin guardar) y Dash d39d8d9.
+- Base: 82/82 (df361b3). Probado en la máquina rtg con MUI 3.8: freemem.space entera en 23,9 s, bien.
+- Avisada la sesión dash (iba a crear ella la release): ya está hecha.
