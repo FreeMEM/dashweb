@@ -3631,3 +3631,13 @@ Formato:
 - Un flotante o un absoluto con display: inline no se parte (es un bloque): la sonrisa de Acid2 (span flotante con
   un strong de bloque dentro) se quedaba en 0x0.
 - Batería: 88/88 (1901 s). freemem.space y Wikipedia en el emulador, como antes.
+
+### 2026-10-22 — Tarea 42d y 42e, primer vistazo (Menéame y Xataka)
+- 42d meneame.net: en el emulador (1024) salen las noticias; con traza a 1620 px (el ancho de CoffinOS) #newswrap
+  tiene sus noticias de x 164 a 1144 y #sidebar flota a 1148: no se reproduce con el código de hoy (la captura del
+  usuario era de la compilación de las 00:50). Puesta en Traspaso la compilación de hoy (acc833c) para que lo mire.
+- 42e xataka.com: entera en 181 s en el emulador (un script se corta a los 30 s; ChunkLoadError del chunk 915). El
+  aviso de cookies es de Didomi (sdk.privacy-center.org) con el muro de Webedia "Elige cómo acceder": sale dentro de
+  la página, arriba, y no por encima como en Chrome. Las imágenes son <img> JPEG normales (i.blogs.es) y
+  <picture> con <source media>; a los 150 s faltaban 52. Pendiente: por qué no cierra "Aceptar y Cerrar" (clic con
+  --acciones tras la carga) y si las imágenes llegan.
