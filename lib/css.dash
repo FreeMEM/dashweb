@@ -577,6 +577,15 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
         if i >= n
             break
         end
+        # <!-- y --> entre reglas no cuentan (CSS 2.1 4.1.1, CDO y CDC: <style><!-- ... --></style> de las páginas viejas)
+        if str_starts(s[i:i + 4], "<!--")
+            i = i + 4
+            continue
+        end
+        if str_starts(s[i:i + 3], "-->")
+            i = i + 3
+            continue
+        end
         llave = _css_buscar(s, 123, i)
         if str_code(s, i) == 64
             # regla @: con bloque o hasta ";"
@@ -1074,6 +1083,10 @@ func css_importes(texto: String) -> [String]
         c = str_code(texto, i)
         if c == 32 or c == 9 or c == 10 or c == 13 or c == 59
             i = i + 1
+        elif c == 60 and str_starts(texto[i:i + 4], "<!--")
+            i = i + 4
+        elif c == 45 and str_starts(texto[i:i + 3], "-->")
+            i = i + 3
         elif c == 47 and i + 1 < n and str_code(texto, i + 1) == 42
             fin = str_find_from(texto, "*/", i + 2)
             if fin < 0

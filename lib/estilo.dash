@@ -1825,9 +1825,17 @@ func _estilo_propio(n: Nodo, hojas: Hojas, padre: {String: String}, padre_vars: 
     end
     var ganadoras: {String: Candidata} = nil
     pistas = _pistas_html(n)
-    if dom_tiene_atributo(n, "style") or pistas.length > 0
+    # en modo quirks una tabla no hereda la letra, la alineación ni white-space (HTML, 15.3.1: table { font-size:
+    # initial; text-align: initial; ... }): el <td align=center> de fuera no centra las tablas de dentro (amigaworld.net)
+    tabla_rara = estilo_raro and n.nombre == "table"
+    if dom_tiene_atributo(n, "style") or pistas.length > 0 or tabla_rara
         var propias: {String: Candidata} = {}
         ganadoras = propias
+        if tabla_rara
+            for d in [Declaracion("font-size", "" + ESTILO_MEDIUM + "px", false), Declaracion("font-weight", "normal", false), Declaracion("font-style", "normal", false), Declaracion("line-height", "normal", false), Declaracion("white-space", "normal", false), Declaracion("text-align", "left", false)]
+                _declarar(ganadoras, d, false, -1, -1)
+            end
+        end
         _declarar_todas(cumplidas, ganadoras)
         # los atributos de presentación (width, bgcolor, align...): de autor, pero por debajo de cualquier regla
         for d in pistas

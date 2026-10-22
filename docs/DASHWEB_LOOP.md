@@ -399,7 +399,7 @@ tarea, con el estilo de Dash.
       d. meneame.net: la columna de las noticias sale vacía (solo la barra de la derecha).
       e. xataka.com: "Aceptar y Cerrar" del aviso de cookies no hace nada; las imágenes de la portada no salen (cajas
          vacías).
-      f. amigaworld.net (comparada con Chrome): letra más grande, enlaces subrayados, temas centrados. Causa probable: su
+      [x] f. amigaworld.net (comparada con Chrome): letra más grande, enlaces subrayados, temas centrados. Causa probable: su
          hoja va en `<style><!-- @import url(.../style.css); --></style>` y dashweb no salta `<!--`/`-->` (CDO/CDC de
          CSS 2.1 4.1.1) y pierde el @import (body 12px, a sin subrayado). Ojo también con "color;#000000; font-size:
          12px;" en esa hoja: una declaración rota no debe llevarse la siguiente.
@@ -3591,3 +3591,17 @@ Formato:
   celda anónima de .second-part sale de 240). test_maqueta: alto 276 (el margen de abajo del último p con el de body).
 - Usuario: capturas de CoffinOS (Wikipedia, Google, Menéame, Xataka) con la compilación de las 00:50; puesta en
   Traspaso la v0.3.0-alfa publicada. Lo visto, a la tarea nueva 42.
+
+### 2026-10-22 — Tarea 42f (amigaworld.net: su hoja y las tablas en modo quirks)
+- La hoja va en `<style><!-- @import url(.../style.css); --></style>`: lib/css.dash no saltaba `<!--` ni `-->`
+  (CDO y CDC de CSS 2.1 4.1.1) y el @import se perdía (body 12px, enlaces sin subrayar). `_css_bloque` y
+  `css_importes` los saltan entre reglas. La declaración rota de esa hoja ("color;#000000; font-size: 12px;") ya no
+  se llevaba la de detrás (comprobado).
+- Los temas salían centrados: la columna es un `<td align=center>` y la tabla de los temas va dentro. En modo quirks
+  una tabla no hereda font-size, font-weight, font-style, line-height, white-space ni text-align (HTML 15.3.1, regla
+  del navegador `table { ...: initial }`): lib/estilo.dash `_estilo_propio` se las pone como del navegador a cada
+  <table> (las de la página mandan).
+- tests/test_css_cdo.dash y tests/test_estilo_quirks.dash. amigaworld.net en el emulador (RTG): letra de 12 px, temas
+  a la izquierda con su icono, como Chrome. Queda: la columna de la derecha (Aminet más ancha que las de arriba; en
+  Chrome todas igual de anchas).
+- Batería: 86/86 (1881 s).
