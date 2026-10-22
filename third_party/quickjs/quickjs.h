@@ -924,6 +924,8 @@ void JS_SetHostPromiseRejectionTracker(JSRuntime *rt, JSHostPromiseRejectionTrac
 /* return != 0 if the JS code needs to be interrupted */
 typedef int JSInterruptHandler(JSRuntime *rt, void *opaque);
 void JS_SetInterruptHandler(JSRuntime *rt, JSInterruptHandler *cb, void *opaque);
+/* AmigaOS (tachyon): the next interrupt is a catchable exception (catch and finally run) */
+void JS_SetInterruptCatchable(JSRuntime *rt, int catchable);
 #ifdef JS_PERFIL
 void JS_PerfilVolcar(JSContext *ctx, int cuantas); /* dashweb: the sampling profile (-DJS_PERFIL) */
 void JS_PerfilMuestra(JSRuntime *rt);             /* one sample (from an interrupt) */

@@ -1,9 +1,12 @@
 # Test: un script que no acaba (while (true)) se corta con "interrupted" pasado el tope (tarea 40c; aquí 2 s con
-# js_tope) y el motor sigue sirviendo; js_cortado lo dice una vez. Un script corto no se corta.
+# js_tope) y el motor sigue sirviendo; js_cortado lo dice una vez. Un script corto no se corta. El primer corte se
+# puede coger: corren los finally (tarea 42e); uno que lo coge y sigue se corta del todo 5 s después.
 # memcheck
 # expect-out: corto: 3 false
 # expect-out: bucle: true InternalError: interrupted
 # expect-out: otra vez: 7 false
+# expect-out: finally: sí true
+# expect-out: lo coge y sigue: true true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/js.dash"
@@ -17,5 +20,11 @@ Main
     e = js_error(js)
     Print "bucle: " + (js_cortado() and time_ms() - t0 >= 1900) + " " + str_split(e, "\n")[0]
     Print "otra vez: " + js_evaluar(js, "3 + 4", "c.js") + " " + js_cortado()
+    js_evaluar(js, "var s = 'no'; try { while (true) {} } finally { s = 'sí' }", "d.js")
+    c = js_cortado()
+    Print "finally: " + js_evaluar(js, "s", "e.js") + " " + c
+    t0 = time_ms()
+    js_evaluar(js, "while (true) { try { while (true) {} } catch (e) {} }", "f.js")
+    Print "lo coge y sigue: " + js_cortado() + " " + (time_ms() - t0 >= 6900)
     js_liberar(js)
 end

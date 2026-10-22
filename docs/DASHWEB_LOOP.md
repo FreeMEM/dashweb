@@ -3656,3 +3656,31 @@ Formato:
   detected" (Preact signals): probablemente porque antes un script suyo pasó de 30 s y se cortó (40c), y el corte de
   QuickJS no ejecuta los finally y deja una señal a medias. Pendiente: el corte sin estado roto, o más plazo.
 - Batería: 89/89 (1984 s). Wikipedia rehace las hojas 5 veces (los estilos de MediaWiki que llegan por JavaScript; "18 idiomas" ya lleva su flecha), entera en 60 s como antes; freemem.space ninguna, 28,6 s.
+
+### 2026-10-22 — Tarea 42e, segunda parte (el corte de los 30 s sin dejar el JavaScript roto)
+- El "Cycle detected" de Didomi al pulsar: el corte de los 30 s (40c) había parado un script dentro del `get` de un
+  computed de Preact signals, y QuickJS lo marca como imposible de coger: se salta los finally y el computed se queda
+  marcado como "corriendo" para siempre. Cambio 5 de QuickJS (docs/quickjs_amiga.md): `JS_SetInterruptCatchable`;
+  lib/js.dash corta primero con un "interrupted" que se puede coger (corren catch y finally) y, si el script sigue 5 s
+  más, con uno que no. test_js_tope: el finally corre; uno que lo coge y sigue se corta del todo a los 7 s.
+- Por qué pasa de 30 s: el cargador de Didomi elige su SDK "legacy" (dashweb no tiene noModule: no ejecuta
+  type=module, así que es lo correcto) y ahí un computed junta los ~1044 socios con reduce y la extensión de objetos
+  de Babel (cada paso copia todo lo de antes con defineProperty): cientos de miles de copias, más de 30 s en el 68k
+  emulado (RTG). Con el tope en 300 s (de prueba, no guardado) xataka.com tarda 315 s en cargar y tras el clic el aviso
+  ya no está (sin comprobar si llegó a verse antes del clic).
+- Queda: que el clic cierre el aviso con el tope de 30 s (el cálculo se corta y Didomi se queda sin su lista); y si
+  merece la pena un tope mayor, o acelerar QuickJS en defineProperty, o mirarlo en CoffinOS (que puede ser más rápido).
+
+### 2026-10-22 — Tarea 42e, tercera parte (captura del usuario en CoffinOS: letra diminuta y el aviso corto)
+- Usuario: xataka.com en CoffinOS (compilación de las 13:56) con el aviso encima, pero títulos, enlaces y letreros
+  diminutos, y la página de abajo sin tapar desde la mitad.
+- Letra diminuta: Didomi pone `#didomi-host a, #didomi-host p, #didomi-host span { font-size: inherit }`. lib/estilo.dash
+  copiaba bien el del padre con inherit y luego, al calcular font-size, medía "inherit" como tamaño: 0 px. Ahora
+  inherit y unset dejan el del padre e initial da medium. tests/test_estilo_hereda.dash.
+- El aviso corto: su fondo es position: fixed con top: 0 y bottom: 0, del alto de la vista (estilo_vh), que dashweb
+  solo ponía al maquetar por un ancho nuevo; con la ventana más alta que cuando se maquetó, el fijo se quedaba corto.
+  src/dashweb.dash `pinta_en`: estilo_vh siempre el de la vista y, si el documento se maquetó con otro alto
+  (Documento.vh), otra maqueta.
+- Error mío: al parar una batería maté con `pkill -f fs-uae` emuladores de la sesión dash (sus test_meter_);
+  avisada. Apuntado en la memoria: matar solo por PID con padre propio.
+- Batería: 90/90 (2000 s). freemem.space y Wikipedia en el emulador, como antes. Compilación puesta en Traspaso.

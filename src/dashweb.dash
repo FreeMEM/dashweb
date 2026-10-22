@@ -257,8 +257,11 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         gfx_rect(x, y, x + ancho - 1, y + alto - 1)
         return
     end
-    if w.actual.pagina == nil or w.actual.ancho != ancho
-        estilo_vh = alto           # (vh: el alto de donde se ve la página)
+    # (vh: el alto de donde se ve la página; con otro alto, otra maqueta: un fijo con top: 0 y bottom: 0, como el aviso
+    # de cookies de xataka.com, se quedaba del alto de antes y no tapaba la página de abajo)
+    estilo_vh = alto
+    if w.actual.pagina == nil or w.actual.ancho != ancho or w.actual.vh != alto
+        w.actual.vh = alto
         documento_maquetar(w.actual, ancho)
         mui_timer(1, ID_RANGO)
     end

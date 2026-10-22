@@ -33,6 +33,7 @@ struct Documento
     ms: Int              # lo que tardó en abrirse y maquetarse
     recursos: Recursos = nil   # documento_empezar: las hojas y scripts que están llegando
     hojas_firma: String = ""   # estilo_firma de cuando se hicieron las hojas: si cambia, el JS metió o tocó un <style>
+    vh: Int = 0                # el alto de la vista con que se maquetó (vh, position: fixed con top y bottom)
     videos: Videos = nil       # los reproductores de sus <video> (lib/videos.dash)
     sin_maquetar: Int = 0      # imágenes llegadas que cambian la maqueta (su <img> no tenía tamaño)
     sin_pintar: Int = 0        # imágenes llegadas que aún no se han pintado

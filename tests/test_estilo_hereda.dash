@@ -1,0 +1,37 @@
+# Test: font-size: inherit (y unset) toma el del padre; antes daba 0 px (tarea 42e: en el aviso de Didomi de xataka.com,
+# con "#didomi-host a, #didomi-host p, #didomi-host span { font-size: inherit }", títulos y enlaces salían diminutos).
+# initial: medium (16 px).
+# memcheck
+# expect-out: t fs=18px lh=1.5
+# expect-out: s fs=18px lh=1.5
+# expect-out: p fs=15px lh=1.5
+# expect-out: a fs=15px lh=1.5
+# expect-out: unset: 15px | initial: 16px
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func busca(n: Nodo, id: String) -> Nodo
+    var nada: Nodo = nil
+    if n.tipo == DOM_ELEMENTO and dom_atributo(n, "id") == id
+        return n
+    end
+    for h in n.hijos
+        r = busca(h, id)
+        if r != nil
+            return r
+        end
+    end
+    return nada
+end
+
+Main
+    doc = dom_desde_html5("<!DOCTYPE html><html><head><style>#h a, #h p, #h span { color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit } #h div { font-size: 15px; line-height: 1.5 } h4 { font-size: 18px; letter-spacing: -1px }</style></head><body><div id=h><div><h4 id=t><span id=s>Accede</span></h4><p id=p>Si <a id=a href=x>sus socios</a></p></div></div></body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    for id in ["t", "s", "p", "a"]
+        n = busca(doc, id)
+        Print id + " fs=" + n.estilo["font-size"] + " lh=" + n.estilo["line-height"]
+    end
+    doc2 = dom_desde_html5("<!DOCTYPE html><html><body style='font-size:15px'><p><span id=u style='font-size:unset'>u</span><span id=i style='font-size:initial'>i</span></p></body></html>")
+    estilo_aplicar(doc2, estilo_hojas(doc2, "http://x/"))
+    Print "unset: " + busca(doc2, "u").estilo["font-size"] + " | initial: " + busca(doc2, "i").estilo["font-size"]
+end

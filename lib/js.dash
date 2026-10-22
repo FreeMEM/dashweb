@@ -60,10 +60,26 @@ static ULONG _js_ms(void) {
     return ((ULONG)ds.ds_Days * 1440UL * 60UL + (ULONG)ds.ds_Minute * 60UL) * 1000UL + (ULONG)ds.ds_Tick * 20UL;
 }
 /* (each way into the JavaScript calls it: from then on the limit counts) */
-static void _js_empieza(void) { _js_desde = _js_ms(); }
+static int _js_avisado = 0;
+static void _js_empieza(void) { _js_desde = _js_ms(); _js_avisado = 0; }
+/* Past the limit, first an "interrupted" that the script can catch (its catch and finally run: Preact's signals in
+   xataka.com, cut inside a try/finally, kept a computed marked as running and every click after gave "Cycle
+   detected"; tarea 42e); if it goes on 5 s more, one that it cannot. */
 static int _js_interrumpir(JSRuntime *rt, void *o) {
-    if (_js_tope > 0 && _js_ms() - _js_desde > (ULONG)_js_tope * 1000UL) {
-        _js_cortado = 1;
+    ULONG t;
+    if (_js_tope <= 0)
+        return 0;
+    t = _js_ms() - _js_desde;
+    if (t <= (ULONG)_js_tope * 1000UL)
+        return 0;
+    _js_cortado = 1;
+    if (!_js_avisado) {
+        _js_avisado = 1;
+        JS_SetInterruptCatchable(rt, 1);
+        return 1;
+    }
+    if (t > (ULONG)_js_tope * 1000UL + 5000UL) {
+        JS_SetInterruptCatchable(rt, 0);
         return 1;
     }
     return 0;

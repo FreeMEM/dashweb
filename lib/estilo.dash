@@ -2167,7 +2167,16 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
     end
     if ganadoras.has("font-size")
         tam = _resolver_var(ganadoras["font-size"].valor, vars, 0)
-        if str_trim(tam) != ""
+        tl = str_lower(str_trim(tam))
+        # (inherit y unset: el del padre, ya puesto arriba; antes se medía "inherit" y daba 0 px: el texto de los
+        # enlaces y títulos del aviso de Didomi en xataka.com salía diminuto; initial: medium)
+        if tl == "inherit" or tl == "unset"
+            if padre.has("font-size")
+                e["font-size"] = padre["font-size"]
+            end
+        elif tl == "initial"
+            e["font-size"] = "" + ESTILO_MEDIUM + "px"
+        elif tl != ""
             e["font-size"] = "" + estilo_tamano(tam, estilo_px(padre["font-size"], 0, 0)) + "px"
         end
     end

@@ -359,6 +359,7 @@ struct JSRuntime {
 
     JSInterruptHandler *interrupt_handler;
     void *interrupt_opaque;
+    BOOL interrupt_catchable; /* AmigaOS (tachyon): the next "interrupted" runs catch and finally */
 
     JSHostPromiseRejectionTracker *host_promise_rejection_tracker;
     void *host_promise_rejection_tracker_opaque;
@@ -7896,7 +7897,15 @@ static JSValue JS_ThrowTypeErrorInvalidClass(JSContext *ctx, int class_id)
 static void JS_ThrowInterrupted(JSContext *ctx)
 {
     JS_ThrowInternalError(ctx, "interrupted");
-    JS_SetUncatchableException(ctx, TRUE);
+    if (!ctx->rt->interrupt_catchable)
+        JS_SetUncatchableException(ctx, TRUE);
+}
+
+/* AmigaOS (tachyon): with catchable != 0, the "interrupted" of the interrupt handler can be caught and runs the
+   finally blocks (a script cut in the middle of a try/finally keeps its state right) */
+void JS_SetInterruptCatchable(JSRuntime *rt, int catchable)
+{
+    rt->interrupt_catchable = catchable != 0;
 }
 
 #ifdef JS_PERFIL
