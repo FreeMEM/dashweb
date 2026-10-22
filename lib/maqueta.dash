@@ -919,6 +919,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if _con_mascara(e)
         fondo = -1
     end
+    mascara = mascara_clave(e)
     # background-clip: text: el fondo solo se ve dentro de las letras (las pinta _palabras con su color)
     recorta_texto = _clip_texto(e)
     if recorta_texto
@@ -975,6 +976,16 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         imagen_fondo.texto = css_url(e["background-image"])
         imagen_fondo.nodo = n
         m.pagina.dibujos.push(imagen_fondo)
+    end
+    # la máscara teñida (mask-image; estilo 1: el pintor toma mask-size, mask-position y mask-repeat), en la caja
+    # del borde, como los navegadores (mask-origin y mask-clip: border-box)
+    var imagen_mascara: Dibujo = nil
+    if mascara != ""
+        imagen_mascara = _dibujo(D_FONDO, x + ml, y + mt, interior + bl + br + pl + pr, 0, 0)
+        imagen_mascara.texto = mascara
+        imagen_mascara.nodo = n
+        imagen_mascara.estilo = 1
+        m.pagina.dibujos.push(imagen_mascara)
     end
     _cat_fondo = false
     cx = x + ml + bl + pl
@@ -1136,6 +1147,9 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             caja_fondo.estilo = 0
         end
     end
+    if imagen_mascara != nil
+        imagen_mascara.alto = bt + pt + alto + pb + bb
+    end
     if imagen_fondo != nil
         imagen_fondo.alto = pt + alto + pb
     end
@@ -1143,7 +1157,12 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         degradado.alto = alto_caja
     end
     _cat_fondo = true
-    if redonda and bt > 0 and bt == br and bt == bb and bt == bl
+    # (un borde redondo transparente no se pinta: el de los botones "quiet" de Wikipedia salía con el color del texto
+    # y enmarcaba sus iconos; tarea 42g)
+    sin_borde = (redonda or radios != 0) and _borde_invisible(e)
+    if sin_borde
+        _cat_fondo = true
+    elif redonda and bt > 0 and bt == br and bt == bb and bt == bl
         borde = _dibujo(D_ELIPSE, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, _color_borde(e, "top"))
         borde.estilo = bt
         borde.nodo = n
@@ -4144,6 +4163,11 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             ctl.fuente = p.fuente
             ctl.nodo = p.nodo
             ctl.enlace = p.enlace
+            # (con opacity: 0 o visibility: hidden, velado: la casilla invisible que abre los menús de Wikipedia salía
+            # como un recuadro junto a sus iconos; tarea 42g)
+            if p.nodo != nil and p.nodo.tipo == DOM_ELEMENTO and _invisible(p.nodo)
+                ctl.velado = true
+            end
             m.pagina.dibujos.push(ctl)
             actual = nil
         elif p.video
@@ -4375,6 +4399,17 @@ func _borde_lado(m: Maquetador, e: {String: String}, lado: String, x: Int, y: In
         d.espaciado = alfa
     end
     m.pagina.dibujos.push(d)
+end
+
+# Los cuatro lados del borde transparentes (o sin borde)
+func _borde_invisible(e: {String: String}) -> Bool
+    for lado in ["top", "right", "bottom", "left"]
+        k = "border-" + lado + "-color"
+        if not e.has(k) or css_alfa(e[k]) != 0
+            return false
+        end
+    end
+    return true
 end
 
 func _color_borde(e: {String: String}, lado: String) -> Int

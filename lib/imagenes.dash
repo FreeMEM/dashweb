@@ -67,6 +67,7 @@ struct Pedida
     fuente: String = ""         # una fuente de @font-face ("familia|peso|estilo"), no una imagen
     perezosa: Bool = false      # <img loading=lazy>: espera a estar cerca de lo que se ve
     de_fondo: Bool = false      # un background-image: espera a que algo lo pinte
+    tinte: Int = -1             # una máscara (mask-image, mascara_clave): teñida de este color al decodificarla
 end
 
 # Una imagen grande no se decodifica entera si el HTML ya dice a qué tamaño se ve (width y height)
@@ -144,6 +145,46 @@ func _imagenes_pedir_fondo(im: Imagenes, n: Nodo, base: Url)
     end
 end
 
+# La máscara de un elemento (mask-image: url(...), mascara_clave): con la dirección completa en su estilo, se pide
+# como un fondo y se tiñe al decodificarla
+func _imagenes_pedir_mascara(im: Imagenes, n: Nodo, base: Url)
+    if n.tipo != DOM_ELEMENTO or n.estilo == nil
+        return
+    end
+    e = n.estilo
+    u = mascara_url(e)
+    if u == ""
+        return
+    end
+    completa = u
+    if not url_es_data(u)
+        completa = url_text(url_resolve(base, u))
+    end
+    for k in ["mask-image", "-webkit-mask-image", "mask", "-webkit-mask"]
+        if e.has(k) and str_find(e[k], "url(") >= 0
+            e[k] = str_replace(e[k], u, completa)
+        end
+    end
+    clave = mascara_clave(e)
+    if clave == "" or im.por_src.has(clave)
+        return
+    end
+    pu = url_parse(completa)
+    if pu.esquema == "http" or pu.esquema == "https" or url_es_data(completa)
+        im.por_src[clave] = 0
+        fichero = "T:dashweb_img" + im.ficheros.length
+        im.ficheros.push(fichero)
+        var sin: Carga = nil
+        pedida = Pedida(clave, completa, fichero, sin)
+        pedida.de_fondo = true
+        pedida.tinte = css_color_opaco(e["background-color"])
+        if url_es_data(completa) and not _imagenes_data(im, pedida)
+            return
+        end
+        im.cola.push(pedida)
+    end
+end
+
 # El cartel de un vídeo (dom_video_poster), como dirección completa en su atributo poster (el pintor lo
 # busca ahí); "" si no tiene
 func imagenes_cartel(n: Nodo, base: Url) -> String
@@ -185,6 +226,7 @@ end
 
 func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
     _imagenes_pedir_fondo(im, n, base)
+    _imagenes_pedir_mascara(im, n, base)
     _imagenes_pedir_cartel(im, n, base)
     if n.tipo == DOM_ELEMENTO and n.nombre == "svg"
         _imagenes_svg(im, n)
@@ -249,8 +291,8 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
         if p.dec != nil
             if imagen_lista(p.dec)
                 img = imagen_acabar(p.dec)
-                if img == 0
-                    img = image_load(p.fichero)      # otro formato: los datatypes
+                if img == 0 and p.tinte < 0
+                    img = image_load(p.fichero)      # otro formato: los datatypes (una máscara no: no se tiñe)
                 end
                 if traza_activa
                     traza("decodificada " + p.src)
@@ -273,9 +315,18 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
             if decodificando < IMAGENES_DECODIFICANDO
                 _imagen_tamano_final(im, p)
                 p.dec = imagen_empezar(p.fichero, p.maxw, p.maxh)
+                if p.dec != nil
+                    p.dec.tinte = p.tinte
+                end
                 if p.dec == nil
                     # sin otro proceso: aquí mismo
-                    if _imagen_llegada(im, doc, p, imagen_cargar_a(p.fichero, p.maxw, p.maxh))
+                    img = 0
+                    if p.tinte >= 0
+                        img = imagen_decodificar_tinte(p.fichero, p.maxw, p.maxh, p.tinte)
+                    else
+                        img = imagen_cargar_a(p.fichero, p.maxw, p.maxh)
+                    end
+                    if _imagen_llegada(im, doc, p, img)
                         llegadas = llegadas + 1
                     end
                     im.cola.remove(i)

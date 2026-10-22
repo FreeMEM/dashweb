@@ -14,7 +14,7 @@
 # expect-out: tinta true
 # expect-out: woff2 como ttf true
 # expect-out: palo de la L entero: true
-# expect-out: caras 2: mi fuente 700 italic http://ejemplo.com/f/mi.woff2 | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2
+# expect-out: caras 3: mi fuente 700 italic http://ejemplo.com/f/mi.woff2 | otra 400 normal http://ejemplo.com/a/otra.ttf?v=2 | icons-min 400 normal http://ejemplo.com/i/icons.ttf?x
 # expect-out: maqueta 36 sin 0
 # expect-out: estirada 54 | apretada 30
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
@@ -118,6 +118,8 @@ Main
     # @font-face en una hoja: familia, peso, estilo y, del src, el primero que se sabe leer (no local)
     c = "@font-face { font-family: 'Mi Fuente'; src: local('X'), url(/f/mi.woff2) format('woff2'), url(/f/mi.woff) format('woff'); font-weight: bold; font-style: italic }"
     c = c + " @font-face { font-family: Otra; src: url(otra.ttf?v=2) }"
+    # (el EOT de Internet Explorer primero, como los iconos de Xataka: no se sabe leer; el TrueType sí)
+    c = c + " @font-face { font-family: icons-min; src: url('/i/icons.eot?x'); src: url('/i/icons.eot?x#iefix') format('embedded-opentype'), url('/i/icons.ttf?x') format('truetype') }"
     doc = dom_desde_html("<html><head><style>" + c + "</style></head><body>x</body></html>")
     hojas = estilo_hojas(doc, "http://ejemplo.com/a/b.html")
     caras = estilo_caras(hojas)

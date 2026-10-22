@@ -409,6 +409,9 @@ tarea, con el estilo de Dash.
          iconos, SVG en línea o en <use>) y pintarlos.
       h. (de la misma comparación) Wikipedia: el buscador sin su texto ("Buscar en Wikipedia") ni el botón "Buscar".
          amigaworld.net: las » del menú de la izquierda salen como "?".
+      i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
+         columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
+         repositorios en una pastilla alta con el número dos veces.
 - [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
       de HTML, CSS y JavaScript, y añadirlo. Por orden:
       41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
@@ -3791,3 +3794,18 @@ Formato:
   Wikipedia, el GitHub de Tachyon) y la versión. El aviso del script cortado dice 120 s.
 - Comprobada en el emulador ancho: bien. El campo del buscador no toma el width de la hoja (los controles van con su
   tamaño).
+
+### 2026-10-23 — Tarea 42g, primera parte (iconos de máscara y fuentes de iconos)
+- mask-image con url: antes solo se dejaba de pintar el fondo (el icono no salía). Ahora la imagen de la máscara se pide
+  como un fondo con la clave "mascara:color:dirección" (lib/colores.dash `mascara_clave`, lib/imagenes.dash
+  `_imagenes_pedir_mascara`), se tiñe del background-color al decodificarla (lib/imagen_dec.dash `_imgdec_tenir`,
+  también en la otra tarea) y se pinta como un D_FONDO de estilo 1 en la caja del borde, con mask-size,
+  mask-position y mask-repeat (lib/pintor.dash `_fondo_valor`). Wikipedia: ☰, ⋮ y el de idiomas.
+- El recuadro que los rodeaba: el borde "transparent" de los botones quiet de Codex con border-radius se pintaba con el
+  color del texto (el borde redondo no miraba la transparencia): lib/maqueta.dash `_borde_invisible`. Un control con
+  opacity: 0 en la línea, velado.
+- Xataka: sus fuentes de iconos ponen primero el EOT (format('embedded-opentype')) y se elegía ese; ya el TrueType
+  (lib/css.dash `css_fuente_src`). Los iconos siguen como cuadraditos: el pintor solo dibuja los de Font Awesome que
+  conoce (segunda parte).
+- tests: test_maqueta_mascara (la máscara teñida y el borde redondo transparente), test_fuente_web (el EOT).
+- Batería: 94/94 (2036 s); test_fuente_web y test_css otra vez después (el cambio de css.dash entró a mitad).

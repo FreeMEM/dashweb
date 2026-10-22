@@ -717,7 +717,9 @@ func css_fuente_src(src: String) -> String
         f = str_find(t, "format(")
         if f >= 0
             formato = t[f:]
-            if str_find(formato, "woff") >= 0 or str_find(formato, "truetype") >= 0 or str_find(formato, "opentype") >= 0
+            # (embedded-opentype es el EOT de Internet Explorer, que no se lee: los iconos de Xataka lo ponen primero
+            # y salían cuadrados; tarea 42g)
+            if str_find(formato, "embedded-opentype") < 0 and (str_find(formato, "woff") >= 0 or str_find(formato, "truetype") >= 0 or str_find(formato, "opentype") >= 0)
                 return u
             end
         else

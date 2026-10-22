@@ -454,6 +454,21 @@ end
 # La imagen de fondo de una caja (x, y, d.ancho, d.alto) recortada a ella y a la zona visible:
 # background-size (auto, cover, contain, px, %), background-position (palabras, %, px) y
 # background-repeat (repeat, no-repeat, repeat-x, repeat-y)
+# background-<nombre> del elemento; en una máscara (d.estilo 1, mask-image teñida) mask-<nombre> o
+# -webkit-mask-<nombre>; si no tiene, lo de siempre
+func _fondo_valor(e: {String: String}, d: Dibujo, nombre: String, siempre: String) -> String
+    var ks: [String] = ["background-" + nombre]
+    if d.estilo == 1
+        ks = ["mask-" + nombre, "-webkit-mask-" + nombre]
+    end
+    for k in ks
+        if e.has(k) and str_trim(e[k]) != ""
+            return str_lower(str_trim(e[k]))
+        end
+    end
+    return siempre
+end
+
 func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
     img = imagenes_cargada(im, d.texto)
     if img == 0 or d.ancho <= 0 or d.alto <= 0
@@ -468,10 +483,7 @@ func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1
     bw = d.ancho
     bh = d.alto
     # el tamaño
-    tam = "auto"
-    if e.has("background-size")
-        tam = str_lower(str_trim(e["background-size"]))
-    end
+    tam = _fondo_valor(e, d, "size", "auto")
     sw = iw
     sh = ih
     if tam == "cover" or tam == "contain"
@@ -500,10 +512,7 @@ func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1
         return
     end
     # el sitio
-    pos = "0% 0%"
-    if e.has("background-position")
-        pos = str_lower(str_trim(e["background-position"]))
-    end
+    pos = _fondo_valor(e, d, "position", "0% 0%")
     px = 0
     py = 0
     partes = css_partir(pos, 32)
@@ -549,15 +558,12 @@ func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1
     if escalada == 0
         return
     end
-    rep = "repeat"
-    if e.has("background-repeat")
-        rep = str_lower(str_trim(e["background-repeat"]))
-    end
+    rep = _fondo_valor(e, d, "repeat", "repeat")
     # los mosaicos: desde el sitio hacia atrás y hacia delante (como mucho 4000); con background-attachment: fixed, el
     # sitio es respecto a la vista, no a la caja (los dos fondos de los ojos de Acid2, desplazados 1 px, solo casan así)
     ax = x + px
     ay = y + py
-    if e.has("background-attachment") and e["background-attachment"] == "fixed"
+    if d.estilo != 1 and e.has("background-attachment") and e["background-attachment"] == "fixed"
         ax = _pintor_vx + px
         ay = _pintor_vy + py
     end
