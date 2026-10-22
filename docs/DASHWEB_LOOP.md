@@ -392,6 +392,11 @@ tarea, con el estilo de Dash.
       de HTML, CSS y JavaScript, y añadirlo. Por orden:
       41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
            arreglar lo que salga.
+      41a2. (2026-10-22, de Acid2: 10 de 11 piezas con la 41a) Flotantes como en CSS 2.1 (9.5): un bloque que
+           sigue a un flotante no baja bajo él: va donde iría sin el flotante (lo solapa) y son sus líneas las que se
+           acortan para dejarle sitio (el texto rodea la imagen flotante; hoy todo lo que no flota va debajo). Con
+           eso los ojos de Acid2 (#eyes-c sobre #eyes-b). Y el colapso del margen de arriba de un hijo con el de su
+           padre (8.3.1; la sonrisa de Acid2 queda 3 px baja). Comprobar con páginas de verdad antes y después.
       41b. Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
            referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
            Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
@@ -3470,3 +3475,12 @@ Formato:
   aparte.
 - test_acid2: "sonrisa: 48 120 | 60 96 | 72 72". Las 17 de maqueta pasan igual.
 - Batería: 80/80 (1711 s).
+
+### 2026-10-22 — Tarea 41a: Acid2 en 10 de 11 piezas; lo que queda, a la 41a2
+- Hechas (41a, partes 1 a 9): hoja data: y bordes transparentes, ir a #top, el parser, la nariz (max-height), la
+  barbilla (el strut), la cuarta línea ([class=second\ two]), la frente (desbordar), la línea de la tabla (tablas de
+  CSS y anónimas) y la sonrisa (anchos de flotantes anidados).
+- Los ojos piden flotantes como en CSS: #eyes-c, un bloque detrás del flotante #eyes-b, debe ir encima de él (los
+  bloques no se apartan de los flotantes; solo sus líneas). dashweb pone todo lo que no flota debajo de los
+  flotantes, así que el texto tampoco rodea una imagen flotante. Es un cambio de fondo en la maqueta: tarea nueva
+  41a2 en el plan, con el colapso de márgenes padre-hijo (los 3 px de la sonrisa).
