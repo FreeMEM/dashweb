@@ -397,6 +397,9 @@ tarea, con el estilo de Dash.
            acortan para dejarle sitio (el texto rodea la imagen flotante; hoy todo lo que no flota va debajo). Con
            eso los ojos de Acid2 (#eyes-c sobre #eyes-b). Y el colapso del margen de arriba de un hijo con el de su
            padre (8.3.1; la sonrisa de Acid2 queda 3 px baja). Comprobar con páginas de verdad antes y después.
+      41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
+           unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
+           Wikipedia lo da (font-size con clamp/var/calc, line-height...).
       41b. Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
            referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
            Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
@@ -3484,3 +3487,15 @@ Formato:
   bloques no se apartan de los flotantes; solo sus líneas). dashweb pone todo lo que no flota debajo de los
   flotantes, así que el texto tampoco rodea una imagen flotante. Es un cambio de fondo en la maqueta: tarea nueva
   41a2 en el plan, con el colapso de márgenes padre-hijo (los 3 px de la sonrisa).
+
+### 2026-10-22 — Tarea 41a2, primera parte (el texto rodea los flotantes)
+- Lo que seguía a un flotante iba siempre debajo de él. Ahora el texto del mismo bloque lo rodea (CSS 2.1 9.5): sus
+  líneas van a su lado, más cortas, y debajo vuelven a todo el ancho; una palabra que no cabe al lado baja hasta
+  donde acaba el flotante. Un bloque que sigue a un flotante aún va debajo (segunda parte).
+- lib/maqueta.dash: `_lineas` toma el sitio de cada línea de `_hueco` (lo que dejan los flotantes de `_flot_linea`
+  a esa altura); `_contenido` pone sus flotantes en `_flot_linea` mientras reparte sus líneas (`_lineas_flot`) y lo
+  deja a nil para lo de dentro. Un flotante que llega tras texto va debajo de ese texto.
+- tests/test_maqueta_rodea.dash: flotante a la izquierda (líneas de al lado en x >= 100 y dentro de los 200 px;
+  debajo, a todo el ancho), a la derecha (acaban antes de x 100) y una palabra que no cabe al lado (baja).
+- Batería: 81/81 (1728 s). es.wikipedia.org/wiki/Amiga_1200 sale igual antes y después de este cambio (el texto
+  aplastado ya pasaba antes: tarea nueva 41a3); con las tablas de CSS (41a, octava parte) ya sale la ficha con la foto.

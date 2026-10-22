@@ -2492,6 +2492,9 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     fila_y = 0
     fondo = 0
     var flotantes: [Flotante] = []
+    # (las líneas de lo de dentro no rodean los flotantes de aquí: cada _contenido pone los suyos)
+    flot_antes = _flot_linea
+    _flot_linea = nil
     for h in _hijos(n)
         if _oculto(h) or _fuera_del_flujo(h)
             continue
@@ -2499,8 +2502,11 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         lado = _flota(h)
         if lado != ""
             if piezas.length > 0
-                cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
+                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
                 piezas.clear()
+                if en_fila and cy > fila_y
+                    fila_y = cy
+                end
             end
             if not en_fila
                 en_fila = true
@@ -2556,17 +2562,18 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         end
         # un vídeo (<video>, el <iframe> de YouTube) va como una pieza aunque su CSS diga display: block
         bloque = _es_bloque(h) and not dom_es_video(h)
-        if en_fila and (bloque or not _solo_blanco(h))
-            en_fila = false
-            if fondo > cy
-                cy = fondo
-            end
-        end
+        # el texto que sigue a los flotantes los rodea (sus líneas, al lado; tarea 41a2); un bloque, aún debajo
         if bloque
             if piezas.length > 0
-                cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
+                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
                 piezas.clear()
                 margen_previo = 0
+            end
+            if en_fila
+                en_fila = false
+                if fondo > cy
+                    cy = fondo
+                end
             end
             # márgenes de hermanos seguidos: cuenta el mayor, no la suma
             mt = _px(h.estilo, "margin-top", ancho)
@@ -2584,13 +2591,24 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
         end
     end
     if piezas.length > 0
-        cy = cy + _lineas(m, piezas, x, cy, ancho, n.estilo)
+        cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
     end
     if en_fila and fondo > cy
         cy = fondo
     end
+    _flot_linea = flot_antes
     m.ancho_linea = ancho_previo
     return cy - y
+end
+
+# _lineas rodeando los flotantes de la fila, si hay
+func _lineas_flot(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}, en_fila: Bool, flotantes: [Flotante]) -> Int
+    if en_fila
+        _flot_linea = flotantes
+    end
+    r = _lineas(m, piezas, x, y, ancho, e)
+    _flot_linea = nil
+    return r
 end
 
 # Un texto de solo blancos (entre flotantes no corta la fila)
@@ -3119,6 +3137,40 @@ func _termina_en_blanco(piezas: [Pieza]) -> Bool
 end
 
 # Reparte las piezas en líneas de ese ancho; devuelve el alto
+# Los flotantes que las líneas del bloque que se maqueta rodean (tarea 41a2): los pone _contenido mientras reparte
+# sus líneas; nil fuera (cada _contenido lo guarda y lo deja a nil para lo de dentro)
+var _flot_linea: [Flotante] = nil
+var _hx: Int = 0         # _hueco: lo que la línea empieza más a la derecha, su ancho y dónde acaba el flotante
+var _hw: Int = 0         # que la estrecha (-1: ninguno)
+var _hbajo: Int = -1
+
+# El sitio de una línea que empieza en y entre x y x + ancho, apartándose de los flotantes de _flot_linea
+func _hueco(y: Int, x: Int, ancho: Int)
+    izq = x
+    der = x + ancho
+    _hbajo = -1
+    if _flot_linea != nil
+        for f in _flot_linea
+            if f.y <= y and f.y + f.alto > y
+                if f.izquierda and f.x + f.ancho > izq
+                    izq = f.x + f.ancho
+                end
+                if not f.izquierda and f.x < der
+                    der = f.x
+                end
+                if _hbajo < 0 or f.y + f.alto < _hbajo
+                    _hbajo = f.y + f.alto
+                end
+            end
+        end
+    end
+    if der < izq
+        der = izq
+    end
+    _hx = izq - x
+    _hw = der - izq
+end
+
 func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}) -> Int
     cy = y
     var linea: [Pieza] = []
@@ -3133,19 +3185,36 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
     if e.has("text-indent") and e["text-indent"] != "0" and e["text-indent"] != "0px"
         sangria = estilo_px(e["text-indent"], estilo_px(_val(e, "font-size", "16px"), 0, 0), ancho)
     end
+    # cada línea, de lx (desde x) y lw de ancho: menos al lado de un flotante
+    _hueco(cy, x, ancho)
+    lx = _hx
+    lw = _hw
+    bajo = _hbajo
     for p in piezas
         if p.salto
-            cy = cy + _poner_linea(m, linea, x + sangria, cy, ancho - sangria, e, p.alto)
+            cy = cy + _poner_linea(m, linea, x + lx + sangria, cy, lw - sangria, e, p.alto)
             sangria = 0
             linea.clear()
             ocupado = 0
+            _hueco(cy, x, ancho)
+            lx = _hx
+            lw = _hw
+            bajo = _hbajo
             continue
         end
         hueco = p.espacio
         if linea.length == 0
             hueco = 0
+            # lo que no cabe al lado de los flotantes baja hasta donde acaban
+            while p.ancho > lw - sangria and lw < ancho and bajo > cy
+                cy = bajo
+                _hueco(cy, x, ancho)
+                lx = _hx
+                lw = _hw
+                bajo = _hbajo
+            end
         end
-        if linea.length > 0 and ocupado + hueco + p.ancho > ancho - sangria and ocupado + hueco + p.ancho - _cuelga(p) > ancho - sangria
+        if linea.length > 0 and ocupado + hueco + p.ancho > lw - sangria and ocupado + hueco + p.ancho - _cuelga(p) > lw - sangria
             # (el blanco del final de una palabra cuelga fuera de la línea: no cuenta para ver si cabe)
             # se corta antes de la última pieza no pegada: las pegadas pasan juntas a la siguiente
             k = linea.length
@@ -3160,10 +3229,14 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
                 while linea.length > k
                     resto.insert(0, linea.pop())
                 end
-                cy = cy + _poner_linea(m, linea, x + sangria, cy, ancho - sangria, e, 0)
+                cy = cy + _poner_linea(m, linea, x + lx + sangria, cy, lw - sangria, e, 0)
                 sangria = 0
                 linea.clear()
                 ocupado = 0
+                _hueco(cy, x, ancho)
+                lx = _hx
+                lw = _hw
+                bajo = _hbajo
                 for r in resto
                     if linea.length == 0
                         r.espacio = 0
@@ -3182,7 +3255,7 @@ func _lineas(m: Maquetador, todas: [Pieza], x: Int, y: Int, ancho: Int, e: {Stri
         ocupado = ocupado + hueco + p.ancho
     end
     if linea.length > 0
-        cy = cy + _poner_linea(m, linea, x + sangria, cy, ancho - sangria, e, 0)
+        cy = cy + _poner_linea(m, linea, x + lx + sangria, cy, lw - sangria, e, 0)
     end
     return cy - y
 end
