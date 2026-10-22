@@ -6,7 +6,7 @@
  {"pieza": "Nariz: max-height", "estado": "hecha", "nota": "41a (4): 168x48 como Chrome"},
  {"pieza": "Barbilla: alto de línea del bloque", "estado": "hecha", "nota": "41a (5): el strut, 12 como Chrome"},
  {"pieza": "Segunda línea: selector con espacio escapado", "estado": "hecha", "nota": "41a (6): el valor se desescapa"},
- {"pieza": "Frente: hijo más ancho que el padre", "estado": "pendiente", "nota": "se recorta a 8em"},
+ {"pieza": "Frente: hijo más ancho que el padre", "estado": "hecha", "nota": "41a (7): desborda si cabe en la ventana"},
  {"pieza": "Ojos: floats detrás de bloques", "estado": "pendiente", "nota": "#eyes-c baja bajo el float"},
  {"pieza": "Sonrisa: floats anidados", "estado": "pendiente", "nota": "el ancho no sube"},
  {"pieza": "Última línea: display: table en ul/li", "estado": "pendiente", "nota": "tabla anónima"}

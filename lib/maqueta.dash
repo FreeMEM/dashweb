@@ -809,6 +809,10 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
                 ml = (ancho - w - bl - br - pl - pr) / 2
             end
             interior = w
+        elif w > interior and x + ml + bl + br + pl + pr + w <= estilo_vw
+            # más ancho que su contenedor: lo desborda por la derecha (CSS 2.1 10.3.3; la frente de Acid2), pero solo
+            # si sigue dentro de la ventana: una página de 1200 px en una del Amiga de 800 se queda en lo que cabe
+            interior = w
         end
     end
     if e.has("max-width") and e["max-width"] != "none"

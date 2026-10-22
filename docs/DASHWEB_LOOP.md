@@ -3439,3 +3439,11 @@ Formato:
 - Con eso la cuarta línea de la cara sale como en Chrome: el <address> flotante de 48x12 y el <blockquote> absoluto
   sin ancho encoge a él con sus bordes de 2em: 96x12 (el encogido ya iba). test_acid2: "cuarta: 48x12 | 96x12".
 - Batería: 79/79 (1690 s).
+
+### 2026-10-22 — Tarea 41a, séptima parte (la frente de Acid2: un hijo más ancho que su padre)
+- Un width mayor que el sitio del contenedor se ignoraba siempre (a propósito: que una página de 1200 px quepa en
+  la ventana del Amiga). lib/maqueta.dash `_bloque_de_ya`: ahora desborda por la derecha (CSS 2.1 10.3.3) si la
+  caja sigue dentro de la ventana (estilo_vw); si no, se queda en lo que cabe, como antes.
+- La frente de Acid2 (padre de 8em, hijo de 12em) sale como en Chrome: 96 y 144. test_acid2: "frente: 96 144 |
+  ventana: 300" (un hijo de 600 px en una ventana de 400 sigue en 300).
+- Batería: 79/79 (1691 s).
