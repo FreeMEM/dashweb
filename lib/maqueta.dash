@@ -3111,6 +3111,20 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
                 sw = pw
             end
         end
+        # sin ancho (ni CSS ni atributo) y con viewBox, como los navegadores (CSS 2.1 10.3.2): con alto, el ancho en
+        # proporción; sin él, el ancho de la línea (el icono de aplicaciones de Google, un <svg> sin tamaño en una caja
+        # de 24 px, salía a 300 y sus puntos, enormes). Al medir una caja que encoge, el de siempre
+        vb = css_partir(str_trim(str_replace(svg_viewbox(n), ",", " ")), 32)
+        sin_ancho = _val(e, "width", "auto") == "auto" and dom_atributo(n, "width") == ""
+        if sin_ancho and vb.length == 4 and Int(vb[2]) > 0 and Int(vb[3]) > 0
+            con_alto = (_val(e, "height", "auto") != "auto" and not str_ends(e["height"], "%")) or (dom_atributo(n, "height") != "" and not str_ends(dom_atributo(n, "height"), "%"))
+            if con_alto
+                sw = sh * Int(vb[2]) / Int(vb[3])
+            elif _midiendo == 0 and m.ancho_linea > 0
+                sw = m.ancho_linea
+                sh = sw * Int(vb[3]) / Int(vb[2])
+            end
+        end
         img = Pieza(dom_atributo(n, "data-dashweb-svg"), sw, sh, sh, 0, 0, 0, false, enlace, m.blanco, false, true)
         img.nodo = n
         piezas.push(img)

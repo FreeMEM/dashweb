@@ -393,7 +393,7 @@ tarea, con el estilo de Dash.
       en una copia de sys32rtg38) y comparar con Chrome:
       a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
          Leer/Discusión/Editar pisadas. Mirar si con la v0.3.0-alfa (ya con la 41a3) sigue.
-      b. google.com: el icono de las aplicaciones (nueve puntos) sale como nueve círculos enormes.
+      [x] b. google.com: el icono de las aplicaciones (nueve puntos) sale como nueve círculos enormes.
       c. Resultados de Google: el logo se parte ("Googl" y la "e" debajo); el título y la dirección de cada resultado
          van en la misma línea (la dirección debe ir aparte).
       d. meneame.net: la columna de las noticias sale vacía (solo la barra de la derecha).
@@ -3605,3 +3605,13 @@ Formato:
   a la izquierda con su icono, como Chrome. Queda: la columna de la derecha (Aminet más ancha que las de arriba; en
   Chrome todas igual de anchas).
 - Batería: 86/86 (1881 s).
+
+### 2026-10-22 — Tarea 42b (google.com: el icono de aplicaciones, nueve círculos enormes)
+- El icono es un `<svg viewBox="0 0 24 24">` sin width ni height dentro de un `a.gb_C` de 40 px con 8 de relleno.
+  Los navegadores le dan el ancho de su caja (24) y el alto en proporción (CSS 2.1 10.3.2); dashweb, 300x150 (los
+  puntos, 12 veces más grandes).
+- lib/maqueta.dash (`_piezas`, <svg>): sin ancho y con viewBox, con alto (CSS o atributo) el ancho en proporción y sin
+  él el ancho de la línea; al medir una caja que encoge, como antes (300).
+- tests/test_maqueta_svg_tam.dash (cinco casos). google.com en el emulador: los nueve puntos, pequeños. Queda: la
+  barra de arriba (Gmail, Imágenes, el icono) no va a la derecha junto a "Iniciar sesión" como en Chrome.
+- Batería: 87/87 (1886 s). freemem.space y Wikipedia en el emulador, como antes.

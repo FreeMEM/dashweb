@@ -1,0 +1,28 @@
+# Test: el tamaño de un <svg> con viewBox y sin ancho (CSS 2.1 10.3.2, tarea 42b): sin alto, el ancho de su caja y el
+# alto en proporción (el icono de aplicaciones de Google en su caja de 24 px salía a 300); con alto, el ancho en
+# proporción; con width, el suyo; sin viewBox, 300x150 como siempre.
+# memcheck
+# expect-out: caja 24: 24x24 | 100 y 2:1: 100x50 | alto 10: 20x10 | width 30: 30x15 | sin viewBox: 300x150
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func tam(cuerpo: String) -> String
+    doc = dom_desde_html5("<!DOCTYPE html><html><body style='margin:0'>" + cuerpo + "</body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 400)
+    for d in p.dibujos
+        if d.tipo == D_IMAGEN
+            return "" + d.ancho + "x" + d.alto
+        end
+    end
+    return "?"
+end
+
+Main
+    s = "caja 24: " + tam("<div style='width:24px'><svg viewBox='0 0 24 24'><circle cx='6' cy='6' r='2'/></svg></div>")
+    s = s + " | 100 y 2:1: " + tam("<div style='width:100px'><svg viewBox='0 0 20 10'><circle cx='6' cy='6' r='2'/></svg></div>")
+    s = s + " | alto 10: " + tam("<svg viewBox='0 0 20 10' style='height:10px'><circle cx='6' cy='6' r='2'/></svg>")
+    s = s + " | width 30: " + tam("<svg viewBox='0 0 20 10' width='30'><circle cx='6' cy='6' r='2'/></svg>")
+    s = s + " | sin viewBox: " + tam("<svg><circle cx='6' cy='6' r='2'/></svg>")
+    Print s
+end
