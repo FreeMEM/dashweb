@@ -64,17 +64,24 @@ Main
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
     p = maquetar(doc, 600)
-    # cada caja respecto al último contenedor visto (el rectángulo gris de antes)
-    cx = 0
-    cy = 0
+    # cada caja respecto a su contenedor (su padre; los fondos de los bloques se pintan antes que las cajas flex/grid)
+    var conts: [Dibujo] = []
     for d in p.dibujos
-        if d.tipo == D_RECT and d.nodo != nil
-            if dom_atributo(d.nodo, "class") == "f"
-                cx = d.x
-                cy = d.y
-            elif dom_atributo(d.nodo, "id") != ""
-                Print dom_atributo(d.nodo, "id") + " " + (d.x - cx) + "," + (d.y - cy) + " " + d.ancho + "x" + d.alto
+        if d.tipo == D_RECT and d.nodo != nil and dom_atributo(d.nodo, "class") == "f"
+            conts.push(d)
+        end
+    end
+    for d in p.dibujos
+        if d.tipo == D_RECT and d.nodo != nil and dom_atributo(d.nodo, "id") != ""
+            cx = 0
+            cy = 0
+            for c in conts
+                if c.nodo == d.nodo.padre
+                    cx = c.x
+                    cy = c.y
+                end
             end
+            Print dom_atributo(d.nodo, "id") + " " + (d.x - cx) + "," + (d.y - cy) + " " + d.ancho + "x" + d.alto
         end
     end
 end

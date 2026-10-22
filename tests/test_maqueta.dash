@@ -3,6 +3,11 @@
 # negrita/enlace en la misma línea, br, listas, tabla, fondo, borde, pre, imagen, sin
 # corte entre piezas pegadas.
 # memcheck
+# expect-out: R 4,162 152x16 c=ffff00
+# expect-out: R 4,162 152x1 c=ff
+# expect-out: R 4,177 152x1 c=ff
+# expect-out: R 4,162 1x16 c=ff
+# expect-out: R 155,162 1x16 c=ff
 # expect-out: T 4,7 [uno dos tres cuatro] c=0 e=0
 # expect-out: T 4,17 [cinco seis siete] c=0 e=0
 # expect-out: T 60,33 [medio] c=0 e=0
@@ -18,12 +23,7 @@
 # expect-out: T 24,121 [1.] c=0 e=0
 # expect-out: T 7,150 [c1] c=0 e=0
 # expect-out: T 27,150 [c2] c=0 e=0
-# expect-out: R 4,162 152x16 c=ffff00
 # expect-out: T 7,166 [k] c=0 e=0
-# expect-out: R 4,162 152x1 c=ff
-# expect-out: R 4,177 152x1 c=ff
-# expect-out: R 4,162 1x16 c=ff
-# expect-out: R 155,162 1x16 c=ff
 # expect-out: T 4,195 [a  b] c=0 e=0
 # expect-out: T 4,205 [c] c=0 e=0
 # expect-out: I 4,231 10x12 f.png

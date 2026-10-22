@@ -582,7 +582,40 @@ const DOM_IMG_ANCHO = 1024
 # La dirección que se usa de un <img>: de su srcset (o del de un <source> de su <picture> con un tipo que
 # se sabe leer), la más pequeña que no se quede corta para el ancho al que se va a ver (su width o
 # DOM_IMG_ANCHO); con descriptores x, la de 1x. Si no hay srcset, su src.
+# Un <object> que es una imagen (data:image/..., type image/... o una dirección .png, .jpg, .gif, .webp): se ve como
+# un <img> de src su data; los demás enseñan lo de dentro (Acid2: sus ojos son el tercer <object> de una cadena en
+# la que los dos de fuera fallan)
+func dom_objeto_imagen(n: Nodo) -> Bool
+    if n.tipo != DOM_ELEMENTO or n.nombre != "object"
+        return false
+    end
+    d = str_lower(str_trim(dom_atributo(n, "data")))
+    if d == ""
+        return false
+    end
+    if str_starts(d, "data:")
+        return str_starts(d, "data:image/") and not str_starts(d, "data:image/svg")
+    end
+    t = str_lower(dom_atributo(n, "type"))
+    if t != ""
+        return str_starts(t, "image/") and not str_starts(t, "image/svg")
+    end
+    q = str_find(d, "?")
+    if q >= 0
+        d = d[:q]
+    end
+    return str_ends(d, ".png") or str_ends(d, ".jpg") or str_ends(d, ".jpeg") or str_ends(d, ".gif") or str_ends(d, ".webp")
+end
+
+# Un <img> o un <object> que es una imagen
+func dom_es_imagen(n: Nodo) -> Bool
+    return n.tipo == DOM_ELEMENTO and (n.nombre == "img" or (n.nombre == "object" and dom_objeto_imagen(n)))
+end
+
 func dom_img_src(n: Nodo) -> String
+    if n.nombre == "object"
+        return str_trim(dom_atributo(n, "data"))
+    end
     objetivo = Int(dom_atributo(n, "width"))
     if objetivo <= 0
         objetivo = DOM_IMG_ANCHO

@@ -190,7 +190,7 @@ func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
         _imagenes_svg(im, n)
         return
     end
-    if n.tipo == DOM_ELEMENTO and n.nombre == "img"
+    if dom_es_imagen(n)
         src = dom_img_src(n)
         if src != "" and im.por_src.has(src)
             if im.por_src[src] != 0
@@ -483,7 +483,7 @@ func _imagenes_tamano_de(im: Imagenes, n: Nodo, src: String, img: Int)
     if n == nil
         return
     end
-    if n.tipo == DOM_ELEMENTO and n.nombre == "img" and dom_img_src(n) == src
+    if dom_es_imagen(n) and dom_img_src(n) == src
         if _imagen_tamano(n, img)
             im.cambiados = im.cambiados + 1
         end
@@ -510,7 +510,7 @@ func _imagenes_recorrer(im: Imagenes, n: Nodo, base: Url)
     if cartel != "" and not im.por_src.has(cartel)
         im.por_src[cartel] = _imagen_traer(im, base, cartel)
     end
-    if n.tipo == DOM_ELEMENTO and n.nombre == "img"
+    if dom_es_imagen(n)
         src = dom_img_src(n)
         if src != ""
             if not im.por_src.has(src)

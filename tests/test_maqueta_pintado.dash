@@ -1,0 +1,50 @@
+# Test: el orden de pintado de CSS 2.1 (apéndice E; tarea 41a2): primero los fondos y bordes de los bloques, luego los
+# flotantes (enteros) y luego lo de las líneas. Una imagen de un bloque va encima del fondo de un bloque de después
+# que la solapa (los ojos de Acid2); el fondo de una fila de tabla, debajo del icono flotante de su celda
+# (amigaworld.net); un inline-block, entero con lo de su línea.
+# memcheck
+# expect-out: solapa: fondo-azul imagen
+# expect-out: fila: fondo-fila icono texto texto
+# expect-out: inline-block: fondo-div fondo-ib texto-ib texto
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func orden(html: String) -> String
+    doc = dom_desde_html5(html)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 400)
+    r = ""
+    for d in p.dibujos
+        t = ""
+        if d.tipo == D_IMAGEN and d.texto == "i.gif"
+            t = "icono"
+        elif d.tipo == D_IMAGEN
+            t = "imagen"
+        elif d.tipo == D_RECT and d.color == 255
+            t = "fondo-azul"
+        elif d.tipo == D_RECT and d.color == 14935011
+            t = "fondo-fila"
+        elif d.tipo == D_RECT and d.color == 16711680
+            t = "fondo-div"
+        elif d.tipo == D_RECT and d.color == 65280
+            t = "fondo-ib"
+        elif d.tipo == D_TEXTO and str_trim(d.texto) == "b"
+            t = "texto-ib"
+        elif d.tipo == D_TEXTO and str_trim(d.texto) != ""
+            t = "texto"
+        end
+        if t != ""
+            if r != ""
+                r = r + " "
+            end
+            r = r + t
+        end
+    end
+    return r
+end
+
+Main
+    Print "solapa: " + orden("<!DOCTYPE html><html><body style='margin:0'><div style='height:0'><img src='o.png' width=20 height=20></div><div style='height:20px;background:#00f'></div></body></html>")
+    Print "fila: " + orden("<html><body><table><tr bgcolor='#E3E3E3'><td><img align='left' src='i.gif' width=10 height=10>&nbsp;<a href=x>tema</a></td></tr></table></body></html>")
+    Print "inline-block: " + orden("<!DOCTYPE html><html><body style='margin:0'><div style='background:#f00'><span style='display:inline-block;background:#0f0'>b</span> a</div></body></html>")
+end

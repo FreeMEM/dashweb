@@ -3718,3 +3718,23 @@ Formato:
   su padre), `_sangria_corte` es el primero de arriba que está de verdad en el árbol y `_sangrias` para ahí.
 - test_acid2_pagina: ul 132,264 48x12, como Chrome; ya son trece cajas de la cara iguales.
 - Batería: 91/91 (1977 s). Acid2 en el navegador (RTG): ya es la cara entera, solo con rojo junto a los ojos (el <object> con la imagen) y una raya roja bajo la barbilla. freemem.space y Wikipedia, como antes (una carga de Wikipedia salió sin su JavaScript, 19 s y 2 MB: fallo de red; repetida, 56 s y bien).
+
+### 2026-10-22 — Tarea 41a2, sexta parte (los ojos de Acid2: <object> con imagen y el orden de pintado)
+- <object>: lib/dom.dash `dom_objeto_imagen` (data:image/..., type image/... o una dirección .png/.jpg/.gif/.webp) y
+  `dom_es_imagen`: se ve como un <img> de src su data (`dom_img_src`), sin lo de dentro; los demás enseñan lo de
+  dentro. lib/imagenes.dash y lib/maqueta.dash preguntan `dom_es_imagen` donde preguntaban por "img". Los ojos de
+  Acid2 son el tercer <object> de una cadena en la que los dos de fuera fallan (tipo desconocido, 404 en HTML).
+  tests/test_maqueta_objeto.dash.
+- La imagen salía tapada por el fondo rojo de #eyes-c (que va después en el árbol): CSS 2.1 apéndice E pinta primero
+  los fondos y bordes de los bloques, luego los flotantes y luego lo de las líneas. Dibujo.cat (0, 1, 2), puesto por
+  `_dibujo` según el contexto (`_cat_fondo` en los fondos y bordes de `_bloque_en`; `_cat_atomica` dentro de un
+  flotante, 1, o de un inline-block o una caja flex/grid, 2: se pintan enteros); un reemplazado de bloque va con los
+  fondos. `_por_capas` ordena por capa, pos y paso (sin z-index ni posicionados, en tres montones, O(n)).
+- Tests con el orden de los dibujos (test_maqueta, _cajas, _css, _transform): las mismas líneas, en el orden nuevo
+  (comprobado: mismo conjunto); test_maqueta_flex y _grid buscan el contenedor de cada caja por su padre.
+- Con el orden nuevo, amigaworld.net perdía los iconos de los temas (flotantes en las celdas): el fondo de la fila
+  (bgcolor del <tr>, que pinta `_tabla`) iba como contenido y los tapaba; ahora va con los fondos.
+  tests/test_maqueta_pintado.dash (solapa, fila, inline-block). test_animacion: el mismo cambio de orden.
+- Acid2 en el navegador: ya con los ojos (los círculos de la imagen) y la sonrisa curva. Queda: la trama del fondo de
+  los ojos (dos fondos fixed desplazados 1 px que juntos dan amarillo) y algo de rojo.
+- Batería: 93/93 (2009 s). freemem.space, Wikipedia, Xataka (ya "2EUR") y amigaworld.net (con sus iconos) en el emulador, bien.

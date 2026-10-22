@@ -69,6 +69,8 @@ struct Dibujo
     fijo: Bool = false   # de un elemento con position: fixed: va con la ventana, no con la página (el pintor no le
                          # resta el desplazamiento; tarea 37h)
     difuso: Int = 0      # una sombra (D_RECT) con difuminado (box-shadow blur, px): el pintor la pinta en capas
+    cat: Int = 2         # en qué paso se pinta (CSS 2.1 apéndice E): 0 fondos y bordes de los bloques, 1 los flotantes,
+                         # 2 lo de las líneas (textos, imágenes, inline-block); _por_capas los ordena así
     pos: Int = 0         # dentro de su capa, el orden en el árbol del elemento posicionado que lo puso (0: ninguno;
                          # lo posicionado se pinta después de lo demás y en el orden del árbol, CSS 2.1 apéndice E)
     recorte: Bool = false   # overflow: solo se pinta lo que cae en rx0..rx1, ry0..ry1 (coordenadas de página)
@@ -192,8 +194,19 @@ func _trazar(n: Nodo, x: Int, y: Int, ancho: Int, alto: Int, que: String)
     Print sangria + nombre + " " + que + " [" + x + "," + y + " " + ancho + "x" + alto + "] " + n.estilo["display"]
 end
 
+# El paso en que se pintan los dibujos que se están haciendo: dentro de un flotante, un inline-block o una caja flex o
+# grid, todo el de ella (se pintan enteros, de una vez); si no, 0 los fondos y bordes de un bloque y 2 lo demás
+var _cat_atomica: Int = -1
+var _cat_fondo: Bool = false
+
 func _dibujo(tipo: Int, x: Int, y: Int, ancho: Int, alto: Int, color: Int) -> Dibujo
-    return Dibujo(tipo, x, y, ancho, alto, color, "", 0, 0, "")
+    d = Dibujo(tipo, x, y, ancho, alto, color, "", 0, 0, "")
+    if _cat_atomica >= 0
+        d.cat = _cat_atomica
+    elif _cat_fondo
+        d.cat = 0
+    end
+    return d
 end
 
 # === Fuentes ===
@@ -581,9 +594,32 @@ func _por_capas(p: Pagina)
         end
     end
     if not hay
+        # sin z-index ni posicionados: solo los pasos (fondos de bloques, flotantes, líneas), en tres montones
+        var c0: [Dibujo] = []
+        var c1: [Dibujo] = []
+        var c2: [Dibujo] = []
+        for d in p.dibujos
+            if d.cat == 0
+                c0.push(d)
+            elif d.cat == 1
+                c1.push(d)
+            else
+                c2.push(d)
+            end
+        end
+        if c1.length == 0 and (c0.length == 0 or c2.length == 0)
+            return
+        end
+        for d in c1
+            c0.push(d)
+        end
+        for d in c2
+            c0.push(d)
+        end
+        p.dibujos = c0
         return
     end
-    # por capa y, dentro, por pos; los de la misma clave, como estaban (mezcla estable)
+    # por capa, dentro por pos y luego por paso; los de la misma clave, como estaban (mezcla estable)
     p.dibujos = _por_clave(p.dibujos)
 end
 
@@ -591,7 +627,10 @@ func _antes_que(a: Dibujo, b: Dibujo) -> Bool
     if a.capa != b.capa
         return a.capa < b.capa
     end
-    return a.pos < b.pos
+    if a.pos != b.pos
+        return a.pos < b.pos
+    end
+    return a.cat < b.cat
 end
 
 func _por_clave(l: [Dibujo]) -> [Dibujo]
@@ -885,6 +924,8 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if recorta_texto
         fondo = -1
     end
+    # (sombra, fondo, imagen de fondo y bordes: el paso de los fondos de los bloques)
+    _cat_fondo = true
     # box-shadow (la primera que no es inset), debajo del fondo
     var sombra: Dibujo = nil
     sombra_v = [0, 0, 0, 0]
@@ -935,6 +976,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         imagen_fondo.nodo = n
         m.pagina.dibujos.push(imagen_fondo)
     end
+    _cat_fondo = false
     cx = x + ml + bl + pl
     cy = y + mt + bt + pt
     # height en %: del alto del contenedor, si es fijo (_alto_definido); los hijos ven el de esta caja
@@ -993,14 +1035,23 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
                 alto_fijo = 0
             end
         end
+        # (sus cajas se pintan enteras, como un inline-block)
+        cat_antes = _cat_atomica
+        if cat_antes < 0
+            _cat_atomica = 2
+        end
         if e["display"] == "grid" or e["display"] == "inline-grid"
             alto = _grid(m, n, cx, cy, interior, alto_fijo)
         else
             alto = _flex(m, n, cx, cy, interior, alto_fijo)
         end
-    elif n.nombre == "img" or n.nombre == "svg"
-        # una imagen con display: block (la destacada de WordPress...): una línea con ella
+        _cat_atomica = cat_antes
+    elif dom_es_imagen(n) or n.nombre == "svg"
+        # una imagen con display: block (la destacada de WordPress...): una línea con ella (un reemplazado de bloque se
+        # pinta con los fondos de los bloques)
+        _cat_fondo = true
         alto = _imagen_en_bloque(m, n, cx, cy, interior)
+        _cat_fondo = false
     else
         alto = _contenido(m, n, cx, cy, interior)
     end
@@ -1091,6 +1142,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if degradado != nil
         degradado.alto = alto_caja
     end
+    _cat_fondo = true
     if redonda and bt > 0 and bt == br and bt == bb and bt == bl
         borde = _dibujo(D_ELIPSE, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, _color_borde(e, "top"))
         borde.estilo = bt
@@ -1113,6 +1165,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             k = k + 1
         end
     end
+    _cat_fondo = false
     # overflow (hidden, clip, auto, scroll): lo de dentro, recortado a su caja
     if _recorta(e)
         _recortar(m, inicio, x + ml, y + mt, x + ml + interior + bl + br + pl + pr - 1, y + mt + alto_caja - 1)
@@ -1905,7 +1958,7 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
         ax = cx + pl         # sin left ni right: donde estaría (al principio del contenido)
     end
     # una imagen o un <svg> (la curva de trainalong): a su tamaño (el del CSS o el suyo), en su sitio
-    if n.nombre == "img" or n.nombre == "svg"
+    if dom_es_imagen(n) or n.nombre == "svg"
         _absoluto_imagen(m, n, cx, cy, cw, ch, ax, pt)
         return
     end
@@ -2648,7 +2701,13 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
                 fx = der - w
             end
             d0 = m.pagina.dibujos.length
+            # (un flotante se pinta entero en su paso, tras los fondos de los bloques y antes que las líneas)
+            cat_antes = _cat_atomica
+            if cat_antes < 0
+                _cat_atomica = 1
+            end
             alto = _bloque_de(m, h, fx, fy, w, ancho)
+            _cat_atomica = cat_antes
             fl = Flotante(fx, fy, w, alto, lado == "left")
             fl.real = h.estilo.has("float") and (h.estilo["float"] == "left" or h.estilo["float"] == "right")
             fl.desde = d0
@@ -3205,7 +3264,7 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         piezas.push(Pieza("", 0, 0, 0, 0, 0, 0, false, enlace, 0, true, false))
         return
     end
-    if n.nombre == "img"
+    if dom_es_imagen(n)
         w = Int(dom_atributo(n, "width"))
         h = Int(dom_atributo(n, "height"))
         if w <= 0
@@ -3989,7 +4048,13 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     for p in linea
         cx = cx + p.espacio
         if p.caja != nil
+            # (un inline-block se pinta entero con lo de la línea)
+            cat_antes = _cat_atomica
+            if cat_antes < 0
+                _cat_atomica = 2
+            end
             _bloque_de(m, p.caja, cx, y + base - p.base + uno, p.ancho, ancho)
+            _cat_atomica = cat_antes
             actual = nil
         elif p.control
             ctl = _dibujo(D_CONTROL, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
@@ -4471,7 +4536,10 @@ func _tabla(m: Maquetador, t: Nodo, x: Int, y: Int, ancho: Int) -> Int
         # el fondo de la fila, debajo de sus celdas
         fe = filas[r].estilo
         if fe.has("background-color") and css_alfa(fe["background-color"]) > 0
+            # (con los fondos de los bloques: los iconos flotantes de las celdas de amigaworld.net quedaban debajo)
+            _cat_fondo = true
             fondo = _dibujo(D_RECT, x + esp, py, px - x - esp * 2 + esp, altos[r], css_color_opaco(fe["background-color"]))
+            _cat_fondo = false
             fondo.nodo = filas[r]
             m.pagina.dibujos.push(fondo)
         end
