@@ -3751,3 +3751,14 @@ Formato:
 - Acid2 en el navegador: la fila de los ojos casi amarilla, con los ojos. Queda: un trozo con trama a la izquierda,
   algo de rojo a la derecha de los ojos y una raya roja abajo a la izquierda.
 - Batería: 94/94 (2026 s). freemem.space y amigaworld.net, como antes; Wikipedia: la foto de la ficha ya con su borde gris de 1 px y fondo blanco (Chrome también: .mw-file-element).
+
+### 2026-10-22 — Tarea 41a2, octava parte (el strut en las líneas sin texto)
+- La raya roja bajo la cara de Acid2: .image-height-test (alto 10px, overflow: hidden, letra de 240 px) con una imagen
+  roja de 64x64 en una celda: con el strut de la letra la imagen va sobre la línea base, muy abajo, y no se ve.
+  dashweb solo ponía el strut con line-height; sin él, la imagen iba arriba de la línea.
+- lib/maqueta.dash `_poner_linea`: una línea sin texto (imágenes, inline-block, controles) lleva también el strut de
+  la letra del bloque (la medida de la fuente hasta 64 px; más grande, 0,9 del tamaño arriba y 0,25 abajo, sin abrir
+  la fuente). Bajo una imagen sola queda lo que baja la letra, como en los navegadores.
+- test_maqueta y test_maqueta_css: lo que va tras una línea solo con imagen, 2 px más abajo (lo que baja la topaz);
+  comprobado que solo cambian esos números.
+- Batería: 94/94 (2030 s). Acid2: ya sin la raya roja. freemem.space: las tarjetas 5 px más abajo (el hueco bajo una línea con solo una imagen, como en los navegadores); Wikipedia y amigaworld.net, como antes.

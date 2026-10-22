@@ -4046,10 +4046,39 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             alto = 1
         end
     else
+        # una línea sin texto (solo imágenes, inline-block, controles): también lleva el strut de la letra del bloque
+        # (10.8.1), así que la imagen va sobre la línea base y debajo queda lo que baja la letra (Acid2:
+        # .image-height-test, letra de 240 px y alto 10px con overflow: hidden, no debe dejar ver su imagen roja)
+        abajo_s = 0
+        sin_texto = true
+        for p in linea
+            if not (p.imagen or p.caja != nil or p.control or p.video or p.icono or p.salto)
+                sin_texto = false
+            end
+        end
+        if sin_texto
+            tam_b = estilo_px(_val(e, "font-size", "16px"), 0, 0)
+            if tam_b > 0
+                sa = tam_b * 9 / 10
+                sd = tam_b / 4
+                if tam_b <= 64
+                    font_use(_fuente_ancha(m, _val(e, "font-family", ""), tam_b, _estiramiento(e)))
+                    sa = font_baseline()
+                    sd = font_height() - font_baseline()
+                end
+                if sa > base
+                    base = sa
+                end
+                abajo_s = sd
+            end
+        end
         for p in linea
             if base - p.base + p.alto > alto
                 alto = base - p.base + p.alto
             end
+        end
+        if base + abajo_s > alto
+            alto = base + abajo_s
         end
         alto = alto + 2
     end

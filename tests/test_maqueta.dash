@@ -27,10 +27,10 @@
 # expect-out: T 4,195 [a  b] c=0 e=0
 # expect-out: T 4,205 [c] c=0 e=0
 # expect-out: I 4,231 10x12 f.png
-# expect-out: T 4,251 [aaaa bbbb cccc ] c=0 e=0
-# expect-out: T 4,261 [dddd] c=ee e=1 ->y.html
-# expect-out: T 36,261 [.] c=0 e=0
-# expect-out: alto 276 fondo ffffff
+# expect-out: T 4,253 [aaaa bbbb cccc ] c=0 e=0
+# expect-out: T 4,263 [dddd] c=ee e=1 ->y.html
+# expect-out: T 36,263 [.] c=0 e=0
+# expect-out: alto 278 fondo ffffff
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
