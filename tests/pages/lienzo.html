@@ -1,0 +1,23 @@
+<html><body style="margin:0;background:#eee;font-family:sans-serif">
+<p>Lienzo:</p>
+<canvas id=c width=400 height=200 style="border:1px solid #888"></canvas>
+<div style="position:relative;width:500px;height:150px;background:#123;margin-top:10px">
+<canvas id=e style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+<h2 style="position:relative;color:#fff;margin:0;padding:40px">Texto encima</h2></div>
+<script>
+var c = document.getElementById('c').getContext('2d');
+c.fillStyle = '#0b1736'; c.fillRect(0, 0, 400, 200);
+c.fillStyle = 'rgba(255, 0, 0, 0.5)'; c.fillRect(20, 20, 120, 80);
+c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.moveTo(10, 190); c.lineTo(390, 10); c.stroke();
+c.strokeStyle = 'rgba(120, 150, 255, 0.8)'; c.lineWidth = 4; c.beginPath(); c.moveTo(10, 10); c.lineTo(390, 190); c.stroke();
+c.fillStyle = 'red'; c.beginPath(); c.arc(300, 100, 50, 0, Math.PI * 2); c.fill();
+c.fillStyle = '#fff'; c.beginPath(); c.arc(300, 100, 20, 0, Math.PI * 2); c.closePath(); c.fill();
+var e = document.getElementById('e'), x = e.getContext('2d'), t = 0;
+e.width = 500; e.height = 150;
+function paso() {
+  x.fillStyle = 'rgba(11, 23, 54, 0.3)'; x.fillRect(0, 0, 500, 150);
+  x.strokeStyle = '#e8ecf8'; x.lineWidth = 2; x.beginPath(); x.moveTo(250, 75); x.lineTo(250 + 200 * Math.cos(t), 75 + 70 * Math.sin(t)); x.stroke();
+  t += 0.2; requestAnimationFrame(paso);
+}
+requestAnimationFrame(paso);
+</script></body></html>

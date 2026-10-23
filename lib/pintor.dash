@@ -10,6 +10,7 @@
 import "maqueta.dash"
 import "imagenes.dash"
 import "videos.dash"
+import "lienzo.dash"
 
 # El campo de formulario con el foco: se dibuja con el borde azul y el cursor
 var pintor_foco: Nodo = nil
@@ -202,6 +203,12 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             end
         elif d.tipo == D_VIDEO
             _video_dibujo(d, im, x, y, cx0, cy0, cx1, cy1)
+        elif d.tipo == D_LIENZO
+            # un <canvas>: su búfer (a la mitad si es grande) escalado a su caja (tarea 48a)
+            lz = lienzo_de(d.nodo)
+            if lz != 0 and lienzo_rgb(lz) != 0
+                gfx_rgb_draw_scaled(lienzo_rgb(lz), lienzo_bw(lz), lienzo_bh(lz), x, y, d.ancho, d.alto)
+            end
         elif d.tipo == D_DEGRADADO
             _degradado_pintar(d, x, y, cx0, cy0, cx1, cy1)
         elif d.tipo == D_TRAZO

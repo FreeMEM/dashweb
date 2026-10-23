@@ -28,6 +28,7 @@ const D_FONDO = 6        # la imagen de fondo de una caja (texto: su dirección)
 const D_ELIPSE = 8       # una caja redonda (border-radius: 50 %): estilo, el grosor del borde (0: rellena)
 const D_DEGRADADO = 10   # un linear-gradient de fondo: color/estilo, el primer color y su alfa (0-255);
                          # fuente/espaciado, el último; texto "v" (de arriba abajo) o "h" (de izquierda a derecha)
+const D_LIENZO = 13       # un <canvas> (tarea 48a): nodo, el elemento (su dibujo, el de lib/lienzo.dash)
 const D_REDONDO = 12     # una caja con las esquinas redondeadas (border-radius): radio, los cuatro radios (1 byte
                          # cada uno: arriba-izq, arriba-der, abajo-der, abajo-izq); estilo, el grosor del borde
                          # (0: rellena); espaciado > 0: con esa opacidad
@@ -2061,8 +2062,9 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
         return
     end
     # un vídeo con position absolute (WordPress: el iframe de YouTube llena una caja con la proporción hecha en
-    # CSS): su recuadro sale de left/right/top/bottom y del width/height en % del contenedor
-    if dom_es_video(n)
+    # CSS): su recuadro sale de left/right/top/bottom y del width/height en % del contenedor; un <canvas>, igual
+    # (las estrellas de tachyon.freemem.space llenan su caja con inset: 0)
+    if dom_es_video(n) or n.nombre == "canvas"
         vy = cy
         vh = 0
         if tiene_t
@@ -2087,9 +2089,31 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
         if not tiene_t and tiene_b
             vy = cy + ch - _px(e, "bottom", ch) - vh
         end
-        vd = _dibujo(D_VIDEO, ax, vy, w, vh, 0)
-        vd.texto = video_src(n)
+        tipo_d = D_VIDEO
+        if n.nombre == "canvas"
+            tipo_d = D_LIENZO
+        end
+        vd = _dibujo(tipo_d, ax, vy, w, vh, 0)
+        if tipo_d == D_VIDEO
+            vd.texto = video_src(n)
+        end
         vd.nodo = n
+        # su z-index, como _absoluto_imagen; uno negativo (las estrellas de tachyon.freemem.space, -1, detrás de la
+        # portada) va sobre el fondo de su contexto y bajo todo lo demás de él (CSS 2.1 apéndice E): en la lista,
+        # justo tras el fondo de su antepasado posicionado, con los fondos de los bloques
+        if _val(e, "z-index", "auto") != "auto"
+            z = Int(e["z-index"])
+            if z < 0
+                anc = n.padre
+                while anc != nil and anc.tipo == DOM_ELEMENTO and _val(anc.estilo, "position", "static") == "static" and _val(anc.estilo, "isolation", "auto") != "isolate"
+                    anc = anc.padre
+                end
+                vd.cat = 0
+                m.pagina.dibujos.insert(_tras_fondo_de(m, anc), vd)
+                return
+            end
+            vd.capa = z
+        end
         m.pagina.dibujos.push(vd)
         return
     end
@@ -2243,6 +2267,36 @@ func _absoluto_imagen(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int
         m.pagina.dibujos[k].capa = d.capa
         k = k + 1
     end
+end
+
+# Dónde va en la lista lo que se pinta sobre el fondo de anc y bajo lo demás suyo: tras el primero de los dibujos de anc
+# o de lo de dentro y los que son de anc mismo (su fondo y su borde); sin anc (o es la raíz), tras los de html y body
+func _tras_fondo_de(m: Maquetador, anc: Nodo) -> Int
+    i = 0
+    total = m.pagina.dibujos.length
+    if anc == nil or anc.tipo != DOM_ELEMENTO or anc.nombre == "html" or anc.nombre == "body"
+        while i < total and m.pagina.dibujos[i].nodo != nil and (m.pagina.dibujos[i].nodo.nombre == "html" or m.pagina.dibujos[i].nodo.nombre == "body")
+            i = i + 1
+        end
+        return i
+    end
+    while i < total and not _dentro_de(m.pagina.dibujos[i].nodo, anc)
+        i = i + 1
+    end
+    while i < total and m.pagina.dibujos[i].nodo == anc
+        i = i + 1
+    end
+    return i
+end
+
+func _dentro_de(x: Nodo, anc: Nodo) -> Bool
+    while x != nil
+        if x == anc
+            return true
+        end
+        x = x.padre
+    end
+    return false
 end
 
 func _imagen_en_bloque(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
@@ -3473,8 +3527,8 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         m.blanco = 0
         return
     end
-    if dom_es_video(n)
-        # como en los navegadores: 300x150 si no dice más; width en px o en % (del ancho de la línea) y el
+    if dom_es_video(n) or n.nombre == "canvas"
+        # como en los navegadores: 300x150 si no dice más (también un <canvas>); width en px o en % (del ancho de la línea) y el
         # alto con la proporción de sus atributos
         w = Int(dom_atributo(n, "width"))
         h = Int(dom_atributo(n, "height"))
@@ -3509,7 +3563,11 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
             h = h * mx / w
             w = mx
         end
-        vid = Pieza(video_src(n), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, false)
+        src = ""
+        if n.nombre != "canvas"
+            src = video_src(n)
+        end
+        vid = Pieza(src, w, h, h, 0, 0, 0, false, enlace, m.blanco, false, false)
         vid.video = true
         vid.nodo = n
         piezas.push(vid)
@@ -4342,6 +4400,12 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
                 ctl.velado = true
             end
             m.pagina.dibujos.push(ctl)
+            actual = nil
+        elif p.video and p.nodo != nil and p.nodo.nombre == "canvas"
+            vd = _dibujo(D_LIENZO, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
+            vd.enlace = p.enlace
+            vd.nodo = p.nodo
+            m.pagina.dibujos.push(vd)
             actual = nil
         elif p.video
             vd = _dibujo(D_VIDEO, cx, y + base - p.base + uno, p.ancho, p.alto, 0)

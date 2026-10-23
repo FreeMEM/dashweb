@@ -296,6 +296,14 @@ func marcador_alternar(w: Ventana)
     indicadores(w)
 end
 
+# Lo escrito por la salida (los errores del JavaScript, la traza), al fichero o la consola ya: si el navegador no
+# acaba (una página que no termina de llegar), no se pierde en el búfer de AmigaDOS
+@native func vaciar_salida()
+"""
+    Flush(Output());
+"""
+end
+
 # El cursor al campo de la dirección (Amiga-L)
 @native func activar(ventana: Int, objeto: Int)
 """
@@ -949,6 +957,70 @@ func repintar_cambiado(w: Ventana)
 end
 
 # Los setTimeout/setInterval que tocan en esa ventana
+# Los <canvas> que el JavaScript dibujó (tarea 48a): solo su zona de la ventana se repinta (con lo que tengan encima)
+func lienzos_al_dia(w: Ventana)
+    if lienzos_cambiados() == 0 or w.actual == nil or w.actual.pagina == nil
+        return
+    end
+    d = w.actual
+    alto = mui_height(w.v.pagina)
+    x0 = 1000000000
+    y0 = 1000000000
+    x1 = -1
+    y1 = -1
+    for dib in d.pagina.dibujos
+        if dib.tipo == D_LIENZO
+            lz = lienzo_de(dib.nodo)
+            if lz != 0 and lienzo_sucio(lz)
+                y = dib.y
+                if not dib.fijo
+                    y = y - w.desde
+                end
+                if y < alto and y + dib.alto > 0
+                    x0 = mini(x0, dib.x)
+                    y0 = mini(y0, y)
+                    x1 = maxi(x1, dib.x + dib.ancho)
+                    y1 = maxi(y1, y + dib.alto)
+                end
+            end
+        end
+    end
+    if x1 < 0
+        return
+    end
+    # (la zona del documento, la de un momento: la de los cambios del DOM se queda como estaba)
+    zona = d.zona
+    zx0 = d.zx0
+    zy0 = d.zy0
+    zx1 = d.zx1
+    zy1 = d.zy1
+    d.zona = true
+    d.zx0 = maxi(x0, 0)
+    d.zy0 = maxi(y0, 0)
+    d.zx1 = x1
+    d.zy1 = mini(y1, alto)
+    repintar_cambiado(w)
+    d.zona = zona
+    d.zx0 = zx0
+    d.zy0 = zy0
+    d.zx1 = zx1
+    d.zy1 = zy1
+end
+
+func mini(a: Int, b: Int) -> Int
+    if a < b
+        return a
+    end
+    return b
+end
+
+func maxi(a: Int, b: Int) -> Int
+    if a > b
+        return a
+    end
+    return b
+end
+
 func temporizadores(w: Ventana)
     if w.actual != nil and w.actual.js != 0 and w.carga == nil
         t0 = time_ms()
@@ -962,6 +1034,7 @@ func temporizadores(w: Ventana)
             ajustar_barra(w)
             repintar_cambiado(w)
         end
+        lienzos_al_dia(w)
         w.js_cuando = -1
         if espera >= 0
             w.js_cuando = time_ms() + espera
@@ -1505,6 +1578,7 @@ Main
                 end
                 versiones_avanzar()
                 descargas_tic()
+                vaciar_salida()
                 programar()
                 continue
             end

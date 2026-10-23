@@ -440,6 +440,18 @@ tarea, con el estilo de Dash.
          por lienzo (lo dibuja el JavaScript, en C), el pintor lo vuelca a su caja como un vídeo y cada
          requestAnimationFrame repinta solo esa zona. Las estrellas: 700 líneas por fotograma con estela (un fillRect
          translúcido): medir cuántos fotogramas da.
+         Hecho (2026-10-24; ver la bitácora): el lienzo y las estrellas en una página local con su mismo código;
+         en tachyon.freemem.space aún no: React no hidrata la portada y su efecto no llega a pedir el lienzo (48c).
+      c. tachyon.freemem.space: React no hidrata (ni __react* en los nodos ni efectos), así que el efecto de las
+         estrellas no llega a pedir el lienzo. La salida (ya vaciada en cada tic) dice: React #412 "Connection
+         closed" (el flujo de datos de Next, self.__next_f, se cierra con filas sin resolver). readyState y
+         DOMContentLoaded van bien (tras todos los scripts). Sin ejecutar el script noModule de parches de Next
+         (0cz1d0mv5g_q7.js) el #412 no sale, pero la página cambia (letras de una fuente web en cajitas) y
+         tampoco hidrata a los 35 s: mirar qué parchea (Promise, ReadableStream, TextDecoder...) y si su
+         flujo funciona con lo nuestro; y en esa vuelta, por qué salen cajitas.
+      d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
+         página (~83 ms en pasar a texto los decimales del color, dtoa.c de QuickJS con enteros largos: uno más
+         rápido ayudaría a todas las webs; ~90 ms en las 3500 llamadas; ~46 en sus cuentas).
       b. Cada web: comparar con Chrome y arreglar lo que salga.
 
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
@@ -4231,4 +4243,34 @@ Formato:
   argumentos en el emulador: vio la 0.6.0 en GitHub y con un clic la instaló (idéntica a la publicada).
 - En CoffinOS se queda el de dev con versión 0.5.0 (de antes de subir el número): el usuario prueba allí la
   actualización con el icono verde.
+
+### 2026-10-24 — Tarea 48a: Canvas 2D (las estrellas de tachyon.freemem.space)
+- lib/lienzo.dash: cada <canvas> con getContext("2d") es un búfer RGB de 24 bits dibujado en C. Pensado para un 68k:
+  - más de 90.000 píxeles, a media resolución (y el pintor lo vuelca al doble con gfx_rgb_draw_scaled: el camino
+    rápido de 16 bits);
+  - fillRect sin giro por filas: opaco copiando, translúcido con una tabla por transparencia;
+  - líneas de hasta 1,5 px con DDA en coma fija y su mezcla; las gruesas, un polígono;
+  - rellenos par-impar por líneas horizontales, con subcaminos;
+  - arcos y curvas en tramos rectos;
+  - colores con un lector propio de rgb()/rgba() (enteros, sin strtod) y una caché de 8;
+  - lo transparente, con el color de lo que tiene detrás (clearRect lo pone);
+  - matriz completa (setTransform, transform, scale, translate, rotate), save/restore.
+- lib/jsdom.dash: la clase CanvasRenderingContext2D de QuickJS sobre eso (fillRect, clearRect, strokeRect,
+  beginPath, moveTo, lineTo, closePath, rect, arc, ellipse, curvas, stroke, fill, las de la matriz; fillStyle,
+  strokeStyle, lineWidth y globalAlpha); lib/jsdom_preludio.js: getContext('2d'), width y height del lienzo (otro
+  búfer, como los navegadores), y lo que aún no dibuja (texto, imágenes, degradados, getImageData) sin romper.
+- ResizeObserver de verdad (antes un objeto que no avisaba): tras cada maqueta, el tamaño de lo observado. Las
+  estrellas miden así su lienzo; sin él salía de 104x31 y se veían como bloques gordos.
+- Maqueta y pintor: D_LIENZO (en línea y con position absolute, por los caminos del vídeo); un z-index negativo en
+  un absoluto (las estrellas: -1) va en la lista tras el fondo de su antepasado posicionado o con isolation, bajo lo
+  demás suyo (CSS 2.1 apéndice E). src/dashweb.dash, tras cada vuelta del JavaScript: solo la zona de los lienzos
+  que cambiaron se repinta, con lo que tengan encima.
+- Medido en el emulador (rtg) con el código de las estrellas en una página local (tests/pages/estrellas.html): ~265
+  ms por fotograma (antes del lector de colores, 309). El reparto: ~83 ms el JavaScript al hacer el texto del color
+  (los decimales), ~90 las 3500 llamadas, ~46 sus cuentas, ~44 mover las 700 estrellas y el velo. Ver 48d.
+- test_lienzo (fillRect opaco y translúcido, línea, círculo, setTransform, media resolución, width, null).
+- src/dashweb.dash vacía la salida (Flush) en cada tic: si el navegador no acaba (una página a la que le falta una
+  imagen), los errores del JavaScript ya no se pierden en el búfer de AmigaDOS.
+- En tachyon.freemem.space aún no salen: ver 48c.
+- Batería: 101/101 (2331 s).
 
