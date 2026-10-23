@@ -399,6 +399,12 @@ tarea, con el estilo de Dash.
       d. meneame.net: la columna de las noticias sale vacía (solo la barra de la derecha).
       e. xataka.com: "Aceptar y Cerrar" del aviso de cookies no hace nada; las imágenes de la portada no salen (cajas
          vacías).
+         (2026-10-23, con el tope de 120 s) El aviso ya no sale antes de unos 280 s: el loader de Didomi
+         (sdk.privacy-center.org) se pide a los 5 s pero sale a los 103 s, su SDK (810 KB) llega a los 198 s y su
+         interfaz se pide a los 274 s. No es la cola de descargas: las peticiones salen a golpes (61, 100, 153, 273 s),
+         también las de conexiones ya abiertas, porque mientras corre el JavaScript de la página (y las maquetas de
+         ~9 s) nada avanza la red. Haría falta que la red (DNS, TLS, envío y recepción) avance aparte del bucle
+         principal (otra tarea, como las imágenes), o partir el trabajo largo para dar paso a tic.
       [x] f. amigaworld.net (comparada con Chrome): letra más grande, enlaces subrayados, temas centrados. Causa probable: su
          hoja va en `<style><!-- @import url(.../style.css); --></style>` y dashweb no salta `<!--`/`-->` (CDO/CDC de
          CSS 2.1 4.1.1) y pierde el @import (body 12px, a sin subrayado). Ojo también con "color;#000000; font-size:
