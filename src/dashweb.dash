@@ -1109,6 +1109,8 @@ Main
     ficheros_de_antes()
     # las conexiones siguen abiertas para los recursos del mismo servidor (sin volver a negociar TLS)
     http_seguir = true
+    # la tarea de la red (lib/red.dash) sigue 30 s sin conexiones: guarda las sesiones TLS y los nombres entre páginas
+    red_ociosa_ms = 60000
     cookies_cargar(FICHERO_COOKIES)
     # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)
     dos_requesters(false)
@@ -1148,9 +1150,14 @@ Main
         end
         acerca_abierta = false
         while abiertas() > 0
-            ev = mui_wait_event()
+            # también despierta con la señal de las tareas: la de la red (lib/red.dash) avisa al recibir algo, y las
+            # que decodifican imágenes al acabar (0: una de ellas)
+            ev = mui_wait_event_signals(task_signal())
             if ev == -1 or ev == ID_SALIR
                 break
+            end
+            if ev == 0
+                ev = ID_TIC
             end
             if ev == ID_TIC or ev == ID_RANGO
                 # mui_timer es uno solo: sirve a todas las ventanas
@@ -1321,6 +1328,8 @@ Main
             end
         end
         http_cerrar_libres()
+        # la tarea de la red, parada (el programa espera a sus tareas al acabar)
+        red_terminar()
         cookies_guardar(FICHERO_COOKIES)
         mui_app_end()
     end

@@ -190,7 +190,7 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
-- [ ] D69. **La red desde una tarea de task_start** (usuario, 2026-10-23, tarea 42e; propuesta a la sesión "dash").
+- [x] D69. **La red desde una tarea de task_start** (usuario, 2026-10-23, tarea 42e; propuesta a la sesión "dash").
       net_* y tls_* usan la SocketBase y el AmiSSL de la tarea que arrancó el programa: una tarea de task_start (como
       la que decodifica imágenes) no puede abrir ni leer sockets. Con eso dashweb movería toda su red (DNS, conexión,
       TLS, envío y recepción) a una tarea aparte que avanza aunque el JavaScript o la maqueta tarden (hoy la red se
@@ -387,6 +387,14 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
+- [ ] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
+      (Grim Reaper) al iniciar, en código 68k bajo Petunia; luego otra vez sí arrancó y navegó (Aminet). En sus
+      registros: ___main+0x300 (la vuelta de main al arranque), una llamada a FreeVec (LVO -690) y _strchr+0x10.
+      Sospecha: una lectura de un puntero nulo (o liberado) que en un 68k clásico pasa sin ruido y OS4 no deja (la
+      página cero no está). Buscarlo en FS-UAE con MMU (68040 con MMU) y MuForce/Enforcer: arrancar desde el icono y
+      desde el Shell, con y sin red, y arreglar cada acceso que salga. Pedir al usuario el registro entero (con la
+      pila) si vuelve a pasar.
+
 - [ ] 39. **Cargas despertadas por la red, no por un tic (necesita D60; después de la 37).** El bucle de
       src/dashweb.dash espera con `mui_wait_event_signals(net_signal() | señal de las tareas)` y, al llegar una
       señal (ev == 0), avanza las cargas de las ventanas. `mui_timer` queda solo para lo que va por reloj
@@ -448,6 +456,7 @@ tarea, con el estilo de Dash.
          maquetas por imágenes al doble de lo que tardó la última: 6 maquetas en vez de 10 pero entera a los 261 s (la
          red varía mucho de una carga a otra); deshecho. Lo que pesa es lo de 42e: la red no avanza mientras se
          maqueta o corre el JavaScript.
+         (2026-10-23) Con la red en tarea (D69): entera a los 168 s.
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
          columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
          repositorios en una pastilla alta con el número dos veces.
@@ -3979,3 +3988,22 @@ Formato:
 - normal-flow: 73 -> 76/100.
 - Batería: 92/97 con los cinco de arriba; luego los 28 de maqueta y los de imágenes, bien.
 - D69 (la red desde una tarea) hecha por la sesión dash en main (a133133, PR #21).
+
+### 2026-10-23 — Tarea 42e: la red en una tarea aparte (D69)
+- lib/red.dash: toda la red (buscar el nombre, conectar, TLS, enviar y recibir) va en una tarea de task_start que
+  avanza aunque la maqueta o el JavaScript tarden segundos. El programa pide y lee por una tabla en C (`_rt`, 48
+  sitios) detrás de un semáforo; la tarea despierta al programa con task_wake (src/dashweb.dash espera con
+  `mui_wait_event_signals(task_signal())`). red_terminar() al salir; la tarea acaba sola tras red_ociosa_ms sin
+  tráfico (60 s en el navegador), aunque guarde conexiones para reusar (si no, el programa no acababa: espera a sus
+  tareas).
+- Tres atascos encontrados por el camino: SSL_read con el socket listo se quedaba esperando (tras el saludo llegan
+  los billetes de sesión de TLS 1.3 y luego espera la respuesta a una petición que aún no salió) y paraba todas las
+  conexiones: lee con el socket sin bloqueo. Dash abre como mucho 16 a la vez: las demás esperan turno en vez de
+  fallar. Y la conexión abierta enseguida puede esperar a su petición 10-35 s (el programa maquetaba) y el servidor
+  la cierra: la tarea abre otra si no se mandó nada; si ya salió la petición, lib/http.dash reintenta un GET una vez.
+- Medido en la RTG: cuatro descargas a la vez en 1,8 s; Menéame entera en 168 s (antes 208); Xataka 290 s con todos
+  sus scripts (antes 272: ahí manda la maqueta, ~7 s por vuelta, no la red).
+- Sigue sin arreglar (también con la red de antes): player.twitch.tv da "no se pudo descomprimir" y en Xataka falla
+  un chunk de webpack (999 o 915) a los ~8 s de pedirlo.
+- Batería: 97/97 (2345 s); luego las de red, recursos, imágenes y documento otra vez tras el reintento del GET.
+

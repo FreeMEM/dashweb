@@ -463,6 +463,7 @@ struct Carga
     cabecera: Int = -1     # bytes de la línea de estado y las cabeceras, cuando ya llegaron (http_parcial)
     enviada: Bool = false  # la petición ya salió por la conexión
     reusada: Bool = false  # la conexión venía de otra respuesta (si resulta cerrada, se abre otra)
+    otra: Bool = false     # ya se abrió otra porque el servidor cerró una nueva sin responder
     t0: Int = 0            # time_ms de cuando se pidió (traza)
     # http_volcar: el cuerpo de una respuesta 2xx va a su fichero según llega, sin juntarlo entero en memoria (un
     # .lha grande agotaba la memoria; tarea 40b). volcando: ya se escribe en el fichero f; restan: bytes del cuerpo
@@ -672,6 +673,13 @@ func http_avanzar(c: Carga) -> Bool
     end
     if n < 0 and c.reusada and red_pendientes(c.conexion) == 0
         # el servidor había cerrado la conexión libre: otra vez, con una nueva
+        _carga_otra_conexion(c)
+        return false
+    end
+    if n < 0 and not c.otra and c.metodo == "GET" and red_pendientes(c.conexion) == 0
+        # una nueva que cerró sin responder nada: la red la abre en cuanto se pide y la petición puede salir muchos
+        # segundos después (el programa maquetaba), cuando el servidor ya se cansó de esperarla; una vez más
+        c.otra = true
         _carga_otra_conexion(c)
         return false
     end
