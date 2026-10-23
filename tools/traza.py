@@ -27,7 +27,9 @@ with tempfile.TemporaryDirectory(prefix="traza_") as tmp:
     exe = Path(tmp) / "traza"
     # TRAZA_PERFIL=1: con ./dash --profile (la tabla de tiempos por función sale al final)
     perfil = ["--profile"] if os.environ.get("TRAZA_PERFIL") else []
-    r = subprocess.run([str(DASH / "dash"), str(ROOT / "tools" / "traza_maqueta.dash"), "-o", str(exe)] + perfil, cwd=DASH,
+    # (con --fpu, como el navegador: sin él nanosvg rasteriza mal y una imagen data:image/svg+xml dejaba la traza
+    # colgada; tarea 42j)
+    r = subprocess.run([str(DASH / "dash"), "--fpu", str(ROOT / "tools" / "traza_maqueta.dash"), "-o", str(exe)] + perfil, cwd=DASH,
                        capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit(r.stdout + r.stderr)

@@ -420,8 +420,12 @@ tarea, con el estilo de Dash.
          1 de ancho); en una copia local de la cabecera (tests, sin JS) sale de 41 (Chrome 71) y con letra de 13 px
          (Chrome 14: font-size var(--font-size-small, 0.875rem), y --font-size-medium se nombra a sí misma). No es
          rem (con html { font-size: 100% } rem ya vale 16).
-      j. tools/traza.py (máquina objetivo, sys31) no acaba con una imagen data:image/svg+xml;utf8,... de fondo o de
+      [x] j. tools/traza.py (máquina objetivo, sys31) no acaba con una imagen data:image/svg+xml;utf8,... de fondo o de
          máscara (el navegador, en 3.1 y en 3.2, sí: es la herramienta); así no se puede trazar Wikipedia en local.
+         Hecho (2026-10-23): compilaba traza_maqueta sin --fpu (nanosvg con floats mal); ya con --fpu.
+      k. meneame.net (2026-10-23): sale bien pero entera a los 208 s (10 maquetas de ~5 s por imágenes que llegan
+         poco a poco) y a cada título de noticia le falta la primera línea (en Chrome: "Susto en directo: una ola
+         engulle a un reportero de ETB2 mientras informaba en pleno temporal"; dashweb solo "pleno temporal").
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
          columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
          repositorios en una pastilla alta con el número dos veces.
@@ -3876,3 +3880,9 @@ Formato:
   (en px, con box-sizing), el flex se rehace con ese alto (fuera lo dibujado la primera vez).
 - test_maqueta_flex: una caja centrada en un flex con min-height de 40 (y=15).
 - Batería: 95/95 (2136 s). Wikipedia: "Buscar" centrado; GitHub y freemem.space, como antes.
+
+### 2026-10-23 — Tarea 42j (la traza con imágenes SVG)
+- tools/traza.py compilaba tools/traza_maqueta.dash sin --fpu: nanosvg (floats) rasterizaba mal y una imagen
+  data:image/svg+xml dejaba la traza colgada (no el navegador, que va con --fpu). Ya con --fpu: la página mínima
+  con la lupa de Wikipedia, en 21 ms.
+- Menéame mirada: bien de aspecto, entera a los 208 s y sin la primera línea de los títulos (42k).
