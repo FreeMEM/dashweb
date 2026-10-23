@@ -2881,10 +2881,15 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             base = cy - margen_previo
             absorbido = _margen_absorbido(h)
             mt = 0
+            # (_margen_arriba usa el acumulador: antes de poner en él lo pendiente; si no, un bloque que junta su margen
+            # con el de su hijo perdía el de abajo del anterior: 16 px de menos tras un <p>, Web Platform Tests
+            # block-formatting-contexts-005; tarea 41b)
+            if not absorbido
+                mt = _margen_arriba(h, ancho)
+            end
             _acum_pos = pend_pos
             _acum_neg = pend_neg
             if not absorbido
-                mt = _margen_arriba(h, ancho)
                 _juntar_arriba(h, ancho)
             end
             yb = base + _acum_pos + _acum_neg - mt

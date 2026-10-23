@@ -425,6 +425,9 @@ tarea, con el estilo de Dash.
          1 de ancho); en una copia local de la cabecera (tests, sin JS) sale de 41 (Chrome 71) y con letra de 13 px
          (Chrome 14: font-size var(--font-size-small, 0.875rem), y --font-size-medium se nombra a sí misma). No es
          rem (con html { font-size: 100% } rem ya vale 16).
+      l. (2026-10-23) Wikipedia: la flecha del índice sale a veces como un cuadrado negro (la máscara de relleno de 1x1
+         en vez del SVG), según la carga; con @supports ya bien en otras. Mirar el orden de las hojas que mete el
+         JavaScript (skins.vector.icons) frente al de Chrome.
       [x] j. tools/traza.py (máquina objetivo, sys31) no acaba con una imagen data:image/svg+xml;utf8,... de fondo o de
          máscara (el navegador, en 3.1 y en 3.2, sí: es la herramienta); así no se puede trazar Wikipedia en local.
          Hecho (2026-10-23): compilaba traza_maqueta sin --fpu (nanosvg con floats mal); ya con --fpu.
@@ -455,7 +458,8 @@ tarea, con el estilo de Dash.
       [x] 41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
            unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
            Wikipedia lo da (font-size con clamp/var/calc, line-height...).
-      41b. Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
+      41b. (2026-10-23: el corredor ya está, tools/wpt.py y tools/wpt_reftest.dash; normal-flow 12/30 de las primeras)
+           Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
            referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
            Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
            el porcentaje que pasa en cada uno y subirlo.
@@ -3928,3 +3932,17 @@ Formato:
   `_sangrias` (el primer antepasado de verdad de una caja anónima), como la suma de sangrías.
 - tests/test_maqueta_flex_absoluto.dash (nuevo): un flex absoluto a la derecha y a la izquierda.
 - Batería: 97/97 (2298 s). Xataka: "NUEVO" y su icono a la derecha; la barra de Wikipedia, como antes.
+
+### 2026-10-23 — Tarea 41b (el corredor de Web Platform Tests) y dos fallos que encontró
+- tools/wpt.py: sirve un clon parcial de WPT (~/.cache/dashweb/wpt, fuera de git; cómo bajarlo, en su cabecera),
+  apunta las pruebas con <link rel="match"> (sin reftest-wait) y lanza tools/wpt_reftest.dash en la máquina rtg:
+  pinta la prueba en una ventana de 600x400, guarda sus píxeles con rtg_read_pixel, pinta la referencia y compara
+  ("WPT PASS/FAIL ruta píxeles"). --guardar escribe docs/wpt/<carpeta>.txt. Sin JavaScript ni fuentes de la página.
+- Las referencias en .xht llevan su CSS en <![CDATA[ ... ]]> (el analizador XML lo quita; dashweb lee XHTML como
+  HTML) y perdían su primera regla: lib/css.dash salta <![CDATA[ y ]]> como <!-- y -->.
+- Los márgenes que se juntan (41a2): un bloque que junta su margen de arriba con el de su hijo perdía el de abajo del
+  anterior (16 px de menos tras un <p>): `_margen_arriba` usa el acumulador y se llamaba después de cargar en él lo
+  pendiente; ya antes. test_maqueta_margenes: el caso i.
+- normal-flow: de 0/10 a 12/30 (las 30 primeras de 492).
+- Batería: 97/97 (2363 s). freemem.space, Wikipedia, amigaworld.net y GitHub, como antes (Wikipedia con la flecha del
+  índice en cuadrado negro en esta captura: 42l).

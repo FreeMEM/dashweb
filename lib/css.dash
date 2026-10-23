@@ -590,6 +590,16 @@ func _css_bloque(hoja: HojaCSS, s: String, orden: Int, medios: [String]) -> Int
             i = i + 3
             continue
         end
+        # y <![CDATA[ y ]]> de las páginas XHTML (el analizador XML los quita; dashweb las lee como HTML: las
+        # referencias de Web Platform Tests en .xht perdían su primera regla; tarea 41b)
+        if str_starts(s[i:i + 9], "<![CDATA[")
+            i = i + 9
+            continue
+        end
+        if str_starts(s[i:i + 3], "]]>")
+            i = i + 3
+            continue
+        end
         llave = _css_buscar(s, 123, i)
         if str_code(s, i) == 64
             # regla @: con bloque o hasta ";"
@@ -1092,6 +1102,10 @@ func css_importes(texto: String) -> [String]
         elif c == 60 and str_starts(texto[i:i + 4], "<!--")
             i = i + 4
         elif c == 45 and str_starts(texto[i:i + 3], "-->")
+            i = i + 3
+        elif c == 60 and str_starts(texto[i:i + 9], "<![CDATA[")
+            i = i + 9
+        elif c == 93 and str_starts(texto[i:i + 3], "]]>")
             i = i + 3
         elif c == 47 and i + 1 < n and str_code(texto, i + 1) == 42
             fin = str_find_from(texto, "*/", i + 2)

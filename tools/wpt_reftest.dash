@@ -1,0 +1,103 @@
+# Las pruebas de pintado de Web Platform Tests (reftests: cada página con su referencia, que debe verse igual) en el
+# Amiga, sin capturas: pinta la prueba en una ventana, guarda sus píxeles (rtg_read_pixel: hace falta una pantalla
+# RTG), pinta la referencia y las compara. tools/wpt.py la lanza con una lista servida por HTTP (tarea 41b).
+#
+#   wpt_reftest http://10.0.2.2:PUERTO/ lista.txt
+#
+# lista.txt: una prueba por línea, "prueba referencia" (rutas desde la base). Por cada una escribe
+# "WPT PASS ruta" o "WPT FAIL ruta píxeles-distintos" (o "WPT ERROR ruta motivo"). Sin JavaScript ni fuentes de la
+# página (las que usan Ahem salen con la del sistema en las dos, que suele bastar para comparar).
+
+import "../lib/pintor.dash"
+
+Window Pruebas
+    title "WPT"
+    width 600
+    height 400
+end
+
+# El texto de la página (en Latin-1); "" si no llega
+func traer(direccion: String) -> String
+    r = http_get(direccion, 20000)
+    if r.error != "" or r.estado < 200 or r.estado >= 300
+        return ""
+    end
+    return http_texto(r)
+end
+
+# Pinta la página en la ventana (el pintor pone el fondo) y devuelve "" o el motivo de no poder
+func pintar_pagina(direccion: String, x0: Int, y0: Int, ancho: Int, alto: Int) -> String
+    texto = traer(direccion)
+    if texto == ""
+        return "no llega"
+    end
+    doc = dom_desde_html(texto)
+    hojas = estilo_hojas(doc, direccion)
+    estilo_aplicar(doc, hojas)
+    im = imagenes_nuevas()
+    imagenes_cargar(im, doc, direccion)
+    pagina = maquetar(doc, ancho)
+    pintar(pagina, im, 0, x0, y0, ancho, alto)
+    imagenes_liberar(im)
+    return ""
+end
+
+func correr(base: String, fichero: String)
+    lista = traer(base + fichero)
+    Pruebas.open
+    x0 = Pruebas.inner_left
+    y0 = Pruebas.inner_top
+    ancho = Pruebas.inner_width
+    alto = Pruebas.inner_height
+    pasan = 0
+    total = 0
+    for linea in str_split(lista, "\n")
+        partes = str_split(str_trim(linea), " ")
+        if partes.length < 2
+            continue
+        end
+        total = total + 1
+        prueba = partes[0]
+        motivo = pintar_pagina(base + prueba, x0, y0, ancho, alto)
+        if motivo != ""
+            Print "WPT ERROR " + prueba + " " + motivo
+            continue
+        end
+        var pix: [Int] = []
+        for y in (0..alto - 1)
+            for x in (0..ancho - 1)
+                pix.push(rtg_read_pixel(x0 + x, y0 + y))
+            end
+        end
+        motivo = pintar_pagina(base + partes[1], x0, y0, ancho, alto)
+        if motivo != ""
+            Print "WPT ERROR " + prueba + " referencia " + motivo
+            continue
+        end
+        distintos = 0
+        k = 0
+        for y in (0..alto - 1)
+            for x in (0..ancho - 1)
+                if rtg_read_pixel(x0 + x, y0 + y) != pix[k]
+                    distintos = distintos + 1
+                end
+                k = k + 1
+            end
+        end
+        if distintos == 0
+            pasan = pasan + 1
+            Print "WPT PASS " + prueba
+        else
+            Print "WPT FAIL " + prueba + " " + distintos
+        end
+    end
+    Print "WPT TOTAL " + pasan + "/" + total
+end
+
+Main
+    if arg_count() < 2
+        Print "uso: wpt_reftest base lista"
+    else
+        correr(arg(0), arg(1))
+    end
+end

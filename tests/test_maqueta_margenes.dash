@@ -4,7 +4,7 @@
 # de antes cuenta el margen ya juntado. Un clearfix (bloque vacío con clear) tras un flotante no es vacío: el padre
 # abarca el flotante. Se mira la y del fondo rojo (el padre) y del azul (el hijo).
 # memcheck
-# expect-out: a: 20 20 | b: 10 31 | c: 6 6 | d: 30 | e: 10 30 | f: 10 | g: 17 17 | h: 0 30
+# expect-out: a: 20 20 | b: 10 31 | c: 6 6 | d: 30 | e: 10 30 | f: 10 | g: 17 17 | h: 0 30 | i: 18 18
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 import "../lib/documento.dash"
 
@@ -35,5 +35,7 @@ Main
     s = s + " | f: " + ys("<div style='margin-top:10px;background:#f00'>t<div><p style='margin-top:20px;height:5px'></p></div></div>", "margin:0")
     s = s + " | g: " + ys("<div style='margin-bottom:5px;height:2px'></div><div style='background:#f00'><p style='margin-top:15px;height:5px;background:#00f'></p></div>", "margin:0")
     s = s + " | h: " + ys("<div style='background:#f00'><div style='float:left;width:10px;height:30px'></div><div style='clear:both'></div></div><div style='height:2px;background:#00f'></div>", "margin:0")
+    # el margen de abajo del anterior (16) mayor que el que el bloque junta con su hijo (0): 2 + 16 (tarea 41b)
+    s = s + " | i: " + ys("<div style='margin-bottom:16px;height:2px'></div><div style='background:#f00'><p style='margin-top:0;height:5px;background:#00f'></p></div>", "margin:0")
     Print s
 end
