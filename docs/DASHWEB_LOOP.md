@@ -4222,3 +4222,13 @@ Formato:
   tachyon.freemem.space (una caja vacía: una imagen que no llega) y las animaciones (Canvas 2D).
 - Las 13 de js/jsdom pasan (590 s).
 
+### 2026-10-24 — Publicada la v0.6.0-alfa (la primera actualización automática)
+- Usuario: "publícala ya y la traducción para la 0.7.0". Base: 100/100 (4f791b3) y las 13 de js/jsdom con 48 (1).
+  Versión 0.6.0-alfa (7d87ca4); PR #7 (706fb0c), etiqueta v0.6.0-alfa y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.6.0-alfa con tachyon.lha (6,6 MB) y Tachyon.gz (1,7 MB), con
+  tools/paquete.sh en un worktree limpio y Dash 9c1c1f6.
+- Probado: freemem.space con el del paquete (27,6 s); y el ejecutable de la v0.5.0 publicada, tal cual, abierto sin
+  argumentos en el emulador: vio la 0.6.0 en GitHub y con un clic la instaló (idéntica a la publicada).
+- En CoffinOS se queda el de dev con versión 0.5.0 (de antes de subir el número): el usuario prueba allí la
+  actualización con el icono verde.
+
