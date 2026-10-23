@@ -4211,3 +4211,14 @@ Formato:
   progreso en pantalla (bajó en menos de 15 s) y "abrir el cajón" (sin Workbench en el emulador).
 - Batería: 100/100 (2221 s, Dash 9c1c1f6 con la D71).
 
+### 2026-10-23 — Tarea 48, primera parte: tachyon.freemem.space y dash.freemem.space cargan
+- Las dos (Next.js) enseñaban "This page couldn't load" (la pantalla de error de Next): React #418 (el texto del
+  servidor no cuadra con el del cliente) y, al rehacer el elemento, `removeAttributeNode` no existía ("not a
+  function") y React tiraba la página. lib/jsdom_preludio.js: getAttributeNode, removeAttributeNode y
+  setAttributeNode (nodos {name, value}); y getContext da null (y toDataURL "data:,") hasta que haya Canvas 2D
+  (48a): las estrellas lo llamaban sin mirar.
+- Ya salen: tachyon.freemem.space (cabecera, título, texto y botones) y dash.freemem.space (muy cerca de Chrome);
+  trasfondo.freemem.space ya salía bien. Faltan: los iconos del menú de arriba (cuadrados vacíos), el logo grande de
+  tachyon.freemem.space (una caja vacía: una imagen que no llega) y las animaciones (Canvas 2D).
+- Las 13 de js/jsdom pasan (590 s).
+
