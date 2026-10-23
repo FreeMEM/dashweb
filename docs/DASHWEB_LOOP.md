@@ -4037,3 +4037,11 @@ Formato:
   entera (con su JavaScript). Queda una de muigfx.library (BYTE READ de 0x2B) desde Dtpic.mui al abrir la ventana:
   es del MUI 5 de 68k (en OS4 se usa el MUI de OS4); sin mirar si se lo provoca Tachyon.
 
+
+### 2026-10-23 — Publicada la v0.4.0-alfa
+- Usuario: "Haz nuevo release". Versión 0.4.0-alfa en Acerca de y $VER (59d869b), README con la descarga nueva. PR #5
+  de dev a main fusionado (1236181), etiqueta v0.4.0-alfa sobre él y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.4.0-alfa con build/tachyon.lha (6,6 MB), hecho con
+  tools/paquete.sh en un worktree limpio de 1236181 y Dash 028c67d (con D69 y D70).
+- Base: 97/97 (2210 s, con la D70). Probado en la máquina rtg: freemem.space entera en 26,7 s, bien. Copiado a
+  CoffinOS el Tachyon del paquete.
