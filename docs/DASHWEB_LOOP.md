@@ -4150,3 +4150,14 @@ Formato:
   lib/pintor.dash _campo_propio_pintar).
 - Batería de la 44 (31d49ae): 98/98 (2204 s).
 
+### 2026-10-23 — Publicada la v0.5.0-alfa (la primera que se actualiza sola)
+- Usuario: "sí, queremos la 0.5.0". Base: 99/99 (2212 s, 827c348). Versión 0.5.0-alfa en Acerca de, $VER y el
+  User-Agent (982f60b); PR #6 de dev a main (fcf5c8d), etiqueta v0.5.0-alfa y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.5.0-alfa con tachyon.lha (6,6 MB) y Tachyon.gz (1,7 MB: el
+  ejecutable solo, para actualizarse), hechos con tools/paquete.sh en un worktree limpio y Dash 028c67d.
+- Probado: el ejecutable del paquete en la máquina rtg (freemem.space entera en 26,7 s); Tachyon.gz descomprimido es
+  el del paquete. Y la actualización de verdad: uno compilado como 0.4.9-alfa, abierto sin argumentos, vio la
+  0.5.0 en GitHub, con un clic en el icono verde la bajó, la comprobó y la instaló (idéntica al publicado; la de
+  antes como p0.old) y el icono pasó a reiniciar ("Instalada la 0.5.0-alfa: pulsa el icono verde").
+- Copiado a CoffinOS el del paquete, con sus iconos, el LEEME y las licencias (la de Lucide, nueva).
+
