@@ -424,8 +424,8 @@ tarea, con el estilo de Dash.
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
          columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
          repositorios en una pastilla alta con el número dos veces.
-         Hecho (2026-10-23): el avatar y la columna (las --x con mayúsculas). Queda: las pestañas (icono lejos de su
-         nombre), el contador "3 3" y el gráfico de contribuciones (se queda cargando).
+         Hecho (2026-10-23): el avatar y la columna (las --x con mayúsculas), las pestañas y su contador (la caja
+         anónima del flex). Queda: el gráfico de contribuciones (se queda cargando).
 - [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
       de HTML, CSS y JavaScript, y añadirlo. Por orden:
       41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
@@ -3858,3 +3858,13 @@ Formato:
   dashweb decía que no. Las propiedades de máscara, ya conocidas para @supports (CSS_CONOCIDAS).
 - tests: test_estilo_vars (--x con mayúsculas), test_estilo_capas (@supports de máscaras).
 - Batería: 95/95 (2139 s; también 95/95 solo con el primer cambio). GitHub, Wikipedia y freemem.space en el emulador.
+
+### 2026-10-23 — Tarea 42i, segunda parte (las pestañas de GitHub)
+- Cada pestaña (a.UnderlineNav-item, flex con un <svg>, su texto y un contador) medía unos 80 px de más y el contador
+  "33" se partía en dos líneas. Buscado por mitades en una copia de la barra con sus reglas (en tests/pages, solo
+  mientras tanto): la caja anónima que envuelve un reemplazado en un flex (`_anonima`) no tenía padre, y al medirla
+  `_sangrias` subía desde el <svg> hasta la raíz sumando los rellenos de la pestaña y de la barra (p-responsive, 40 px
+  por lado). Ya tiene padre (como las anónimas de las tablas): se corta en el contenedor.
+- test_maqueta_flex: una imagen en un elemento flex dentro de un contenedor con relleno (48 de ancho; antes 144).
+- Batería: 95/95 (2147 s). GitHub: las pestañas juntas, "Repositories 33" y "Stars 31", como en Chrome. freemem.space
+  y Xataka, como antes.

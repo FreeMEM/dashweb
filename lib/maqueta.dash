@@ -4977,6 +4977,10 @@ func _anonima(n: Nodo) -> Nodo
         end
     end
     a.estilo["display"] = "block"
+    # (con padre pero fuera de sus hijos, como las anónimas de las tablas: al medirla, las sangrías de lo de dentro
+    # se cortan en n; sin padre subían hasta la raíz y el icono de cada pestaña de GitHub sumaba los rellenos de la
+    # pestaña y de la barra, 96 px de más; tarea 42i)
+    a.padre = n
     return a
 end
 
