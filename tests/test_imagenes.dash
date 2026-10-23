@@ -7,9 +7,9 @@
 # expect-out: cuadro.iff 8x4
 # expect-out: cuadro.iff 16x8
 # expect-out: no.iff sin tamaño
-# expect-out: I 4,17 8x4 cuadro.iff
-# expect-out: I 20,13 16x8 cuadro.iff
-# expect-out: I 44,5 16x16 no.iff
+# expect-out: I 4,16 8x4 cuadro.iff
+# expect-out: I 20,12 16x8 cuadro.iff
+# expect-out: I 44,4 16x16 no.iff
 # expect-out: 2 2 2 2 1 1 1 1
 # expect-out: 2 2 2 2 2 2 2 2 1 1
 # expect-out: 1 1 2 2
@@ -65,10 +65,10 @@ Main
         end
     end
     pintar(p, im, 0, x0, y0, 280, 100)
-    Print fila(x0 + 4, y0 + 17, 8)
-    Print fila(x0 + 20, y0 + 13, 8) + " " + fila(x0 + 34, y0 + 13, 2)
+    Print fila(x0 + 4, y0 + 16, 8)
+    Print fila(x0 + 20, y0 + 12, 8) + " " + fila(x0 + 34, y0 + 12, 2)
     # la imagen al doble, su última fila (la 4ª del original, 01010101, con cada píxel dos veces)
-    Print fila(x0 + 20, y0 + 20, 4)
+    Print fila(x0 + 20, y0 + 19, 4)
     imagenes_liberar(im)
     W.close
 end

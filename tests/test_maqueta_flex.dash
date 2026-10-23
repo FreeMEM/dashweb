@@ -34,7 +34,7 @@
 # expect-out: z5 0,0 100x10
 # expect-out: z6 100,0 500x10
 # expect-out: z8 0,15 10x10
-# expect-out: z7 40,0 48x20
+# expect-out: z7 40,0 48x19
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"

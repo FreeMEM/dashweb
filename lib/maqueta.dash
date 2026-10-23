@@ -876,7 +876,9 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     interior = ancho - ml - mr - bl - br - pl - pr
     if e.has("width") and e["width"] != "auto"
         w = _px(e, "width", contenedor)
-        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+        # (el de una tabla es el de su caja con los bordes, como en los navegadores: una de width 100% y borde de 1 px
+        # salía 2 px más ancha; Web Platform Tests block-formatting-contexts-001; tarea 41b)
+        if (e.has("box-sizing") and e["box-sizing"] == "border-box") or e["display"] == "table" or e["display"] == "inline-table"
             w = w - bl - br - pl - pr
         end
         if w > 0 and w <= interior
@@ -2597,7 +2599,7 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     if e.has("width") and e["width"] != "auto"
         w = _px(e, "width", ancho)
         if w > 0
-            if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            if (e.has("box-sizing") and e["box-sizing"] == "border-box") or e["display"] == "table" or e["display"] == "inline-table"
                 return w + extra
             end
             return w + caja + extra
@@ -4223,9 +4225,13 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
         # .image-height-test, letra de 240 px y alto 10px con overflow: hidden, no debe dejar ver su imagen roja)
         abajo_s = 0
         sin_texto = true
+        base_texto = 0
         for p in linea
             if not (p.imagen or p.caja != nil or p.control or p.video or p.icono or p.salto)
                 sin_texto = false
+                if p.base > base_texto
+                    base_texto = p.base
+                end
             end
         end
         if sin_texto
@@ -4242,6 +4248,7 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
                     base = sa
                 end
                 abajo_s = sd
+                base_texto = sa
             end
         end
         for p in linea
@@ -4252,7 +4259,15 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
         if base + abajo_s > alto
             alto = base + abajo_s
         end
-        alto = alto + 2
+        # el px de aire de arriba es de la letra: si lo más alto es una imagen o un inline-block que pasa de ella, la
+        # línea empieza en su borde, como en los navegadores (la imagen de 100 px quedaba 1 px baja; Web Platform
+        # Tests block-replaced-height-002 y block-formatting-contexts-008; tarea 41b)
+        if base > base_texto + 1
+            uno = 0
+            alto = alto + 1
+        else
+            alto = alto + 2
+        end
     end
     desplaza = 0
     alinea = e["text-align"]

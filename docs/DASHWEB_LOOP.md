@@ -190,6 +190,16 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [ ] D69. **La red desde una tarea de task_start** (usuario, 2026-10-23, tarea 42e; propuesta a la sesión "dash").
+      net_* y tls_* usan la SocketBase y el AmiSSL de la tarea que arrancó el programa: una tarea de task_start (como
+      la que decodifica imágenes) no puede abrir ni leer sockets. Con eso dashweb movería toda su red (DNS, conexión,
+      TLS, envío y recepción) a una tarea aparte que avanza aunque el JavaScript o la maqueta tarden (hoy la red se
+      para: el aviso de cookies de xataka.com sale a los ~280 s). Mientras, dashweb lo hace cooperativo (una bomba en C
+      que se llama también desde dentro del JavaScript y de la maqueta).
+      (2026-10-23) La sesión dash la ve viable: cada tarea abre su bsdsocket (BSDSOCKET_BASE_NAME por tarea) y su
+      AmiSSL (InitAmiSSLA con su SocketBase y su errno); v1 con una sola dueña de la red (el programa o una tarea);
+      en la tarea solo las variantes C (búferes); task_wake() despierta al programa. Aceptada (semáforo propio en C y
+      task_wake); la hace en la rama dashweb. Tachyon espera a ella en vez de la bomba cooperativa.
 - [ ] D66. **Menos copias de textos prestados** (2026-10-21, tarea 37e6; propuesta a la sesión "dash", que decide si
       es viable). Una variable String que solo se lee y se toma de un diccionario se copia (_dash_str_set_copy) y
       se libera; devolver un préstamo hace _dash_str_tmpcopy. _val y _px de lib/maqueta.dash: 3 millones de llamadas
@@ -459,7 +469,7 @@ tarea, con el estilo de Dash.
            unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
            Wikipedia lo da (font-size con clamp/var/calc, line-height...).
       41b. (2026-10-23: el corredor ya está, tools/wpt.py y tools/wpt_reftest.dash; normal-flow 73/100 de las primeras,
-           en docs/wpt/)
+           en docs/wpt/; 76/100 con las tablas y las imágenes en línea)
            Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
            referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
            Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
@@ -3957,3 +3967,15 @@ Formato:
 - normal-flow: 29/100 -> 73/100 (docs/wpt/css_CSS2_normal-flow.txt). De las que fallan, block-replaced-height-002
   (30 px) es la altura de la letra del Amiga sobre la línea base (las imágenes en línea 2 px más abajo), no maqueta.
 - Batería: 97/97 (2484 s).
+
+### 2026-10-23 — Tarea 41b: el ancho de las tablas y las imágenes en línea
+- El width de una tabla es el de su caja con los bordes y el relleno, como en los navegadores (una de 100 % con borde de
+  1 px salía 2 px más ancha): lib/maqueta.dash, al poner el ancho y al medir (WPT block-formatting-contexts-001).
+- El px de aire de arriba de una línea sin line-height es de la letra: si lo más alto es una imagen o un inline-block
+  que pasa de ella, la línea empieza en su borde (`base_texto`; la imagen de 100 px quedaba 1 px baja: WPT
+  block-replaced-height-002 y block-formatting-contexts-008).
+- Tests: un px menos en test_imagenes (las filas que lee, también), test_maqueta, test_maqueta_css, test_maqueta_flex
+  (z7) y test_maqueta_menu (los inline-block del menú en y 0, como en Chrome); comprobado que solo cambian esos números.
+- normal-flow: 73 -> 76/100.
+- Batería: 92/97 con los cinco de arriba; luego los 28 de maqueta y los de imágenes, bien.
+- D69 (la red desde una tarea) hecha por la sesión dash en main (a133133, PR #21).
