@@ -410,9 +410,10 @@ tarea, con el estilo de Dash.
       e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
          una estrella para el marcador (llena si la página está en marcadores; un clic la añade o la quita); en
          tachyon:marcadores, quitar cada uno; los atajos en el menú.
-      f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
+      [x] f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
          al lado) salía con el campo de ~200 px y el botón cortado ("Busc"); en Chrome, 520 px entre los dos. Puesto
          sin flex mientras; arreglar el flex en lib/maqueta.dash y volver a ponerlo. El logo, también en Acerca de.
+         Hecho (2026-10-23; ver la bitácora): otra vez con flex.
       [x] h. Buscador por defecto (usuario, 2026-10-23): elegir uno de una lista (DuckDuckGo HTML, Google, Bing,
          Brave, Startpage, Mojeek, Ecosia, y Wikipedia y Aminet como búsquedas especiales), guardado en
          Tachyon.prefs; lo usan el buscador de la página de inicio y la barra de la dirección (unas palabras sin
@@ -4160,4 +4161,19 @@ Formato:
   0.5.0 en GitHub, con un clic en el icono verde la bajó, la comprobó y la instaló (idéntica al publicado; la de
   antes como p0.old) y el icono pasó a reiniciar ("Instalada la 0.5.0-alfa: pulsa el icono verde").
 - Copiado a CoffinOS el del paquete, con sus iconos, el LEEME y las licencias (la de Lucide, nueva).
+
+### 2026-10-23 — Tarea 45f: un campo de texto con flex: 1 (el buscador de la página de inicio)
+- Tres cosas, todas de controles de formulario dentro de un flex (lib/maqueta.dash):
+  1. Un reemplazado va en una caja anónima (42i) y su flex-grow, flex-shrink, flex-basis, order y align-self se
+     quedaban en él: la caja no crecía. Ahora pasan a la caja; y el control (input, select, textarea) llena el ancho
+     que el flex le da (_forzado_w, menos sus márgenes).
+  2. Un control usa su width de la página (en px, con relleno y borde si no es border-box): antes, siempre las 20
+     letras de su size.
+  3. Un botón de estilo propio (_boton_propio) ya no va en caja anónima: es él el elemento flex, con su relleno (en
+     la caja se medía sin él y "Buscar" salía cortado).
+  Y el alto de un campo o desplegable suma el relleno y el borde de arriba y abajo de la página, con el texto
+  centrado (lib/pintor.dash): el campo, tan alto como su botón.
+- La página de inicio vuelve a su buscador con flex (el campo a lo ancho, el botón entero), como en Chrome.
+- test_maqueta_flex: z9 y z10 (un campo con flex: 1 y width: 400px y un botón propio llenan los 600: 516 + 84).
+- Batería: 99/99 (2243 s).
 

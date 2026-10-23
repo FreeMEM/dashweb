@@ -35,6 +35,8 @@
 # expect-out: z6 100,0 500x10
 # expect-out: z8 0,15 10x10
 # expect-out: z7 40,0 48x19
+# expect-out: z9 0,0 516x14
+# expect-out: z10 516,0 84x15
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -67,6 +69,9 @@ Main
     # align-items: center con min-height (sin height): se centra en ese alto (el botón Buscar de Wikipedia; 42h)
     h = h + contenedor("align-items:center;min-height:40px", caja("z8", "red", "width:10px;height:10px"))
     h = h + contenedor("padding:0 40px", "<div id=z7 style='background:red;display:flex;padding:0 8px'><img width=16 height=16 src=x.png>ab</div>")
+    # un campo con flex: 1 y width crece hasta su botón (de estilo propio: él es el elemento, con su relleno); los dos
+    # llenan los 600 (el buscador de la página de inicio; tarea 45f)
+    h = h + contenedor("", "<input id=z9 style='flex:1;width:400px'><button id=z10 style='background:blue;border:0;padding:0 18px'>Buscar</button>")
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
@@ -79,11 +84,11 @@ Main
         end
     end
     for d in p.dibujos
-        if d.tipo == D_RECT and d.nodo != nil and dom_atributo(d.nodo, "id") != ""
+        if (d.tipo == D_RECT or d.tipo == D_CONTROL) and d.nodo != nil and dom_atributo(d.nodo, "id") != ""
             cx = 0
             cy = 0
             for c in conts
-                if c.nodo == d.nodo.padre
+                if c.nodo == d.nodo.padre or (d.nodo.padre != nil and c.nodo == d.nodo.padre.padre)
                     cx = c.x
                     cy = c.y
                 end

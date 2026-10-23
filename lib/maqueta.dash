@@ -3690,6 +3690,31 @@ func _control(m: Maquetador, n: Nodo, e: {String: String}, piezas: [Pieza], enla
         end
         w = cols * font_text_width("n") + 6
     end
+    # su width de la página en px (o el que le da un flex: _flex_maquetar lo pone en px), con su relleno y su borde si
+    # no es border-box: el campo con flex: 1 del buscador de la página de inicio se quedaba en sus 20 letras (tarea 45f)
+    ancho_css = _val(e, "width", "auto")
+    if _forzado != nil and _forzado_w >= 0 and _forzado.hijos.length == 1 and _forzado.hijos[0] == n and tipo != "checkbox" and tipo != "radio" and (_val(e, "flex-grow", "0") != "0" or _val(e, "flex-shrink", "1") != "1" or _val(e, "flex-basis", "auto") != "auto")
+        # el elemento de un flex (en su caja anónima) que crece o encoge: del ancho que le dio el flex, menos sus
+        # márgenes
+        w = _forzado_w - _px(e, "margin-left", 0) - _px(e, "margin-right", 0)
+    elif tipo != "checkbox" and tipo != "radio" and ancho_css != "auto" and not str_ends(ancho_css, "%")
+        wc = _px(e, "width", 0)
+        if _val(e, "box-sizing", "content-box") != "border-box"
+            wc = wc + _px(e, "padding-left", 0) + _px(e, "padding-right", 0) + _borde(e, "left") + _borde(e, "right")
+        end
+        if wc > 0
+            w = wc
+        end
+    end
+    # el alto con el relleno y el borde de arriba y abajo de la página (el campo del buscador de inicio, 8 px de
+    # relleno: tan alto como su botón; el texto va centrado; tarea 45f)
+    if (n.nombre == "input" and tipo != "checkbox" and tipo != "radio" and tipo != "submit" and tipo != "reset" and tipo != "button") or n.nombre == "select"
+        hc = alto_texto + _px(e, "padding-top", 0) + _px(e, "padding-bottom", 0) + _borde(e, "top") + _borde(e, "bottom")
+        if hc > h
+            b = b + (hc - h) / 2
+            h = hc
+        end
+    end
     pz = Pieza("", w, h, b, f, 0, 0, false, enlace, m.blanco, false, false)
     pz.control = true
     pz.nodo = n
@@ -5100,9 +5125,18 @@ func _flex_hijos(n: Nodo) -> [Nodo]
         end
         var nada: Nodo = nil
         texto = nada
-        if _reemplazado(h)
+        # (un botón con estilo propio se maqueta como una caja con su texto: es él el elemento, con su relleno; en una
+        # caja anónima se medía sin él y su texto salía cortado: el "Buscar" de la página de inicio; tarea 45f)
+        if _reemplazado(h) and not _boton_propio(h)
             caja = _anonima(n)
             caja.hijos.push(h)
+            # el elemento flex es él: lo que dice cómo crece y dónde va, a su caja (un campo con flex: 1 no crecía;
+            # tarea 45f). Su ancho y sus márgenes se quedan en él (dentro de la caja)
+            for k in ["flex-grow", "flex-shrink", "flex-basis", "order", "align-self"]
+                if h.estilo.has(k)
+                    caja.estilo[k] = h.estilo[k]
+                end
+            end
             r.push(caja)
         else
             r.push(h)

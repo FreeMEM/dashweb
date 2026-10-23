@@ -207,10 +207,9 @@ func dw_inicio() -> String
     h = h + "body { margin: 0; font-family: sans-serif; background: #eef2fb; color: #0b1736 }"
     h = h + ".cab { background: #fff; border-bottom: 1px solid #d5ddef; padding: 40px 16px 28px; text-align: center }"
     h = h + ".lema { color: #4a5878; margin: 10px 0 0 }"
-    # (sin flex: el campo con flex: 1 y su width salía estrecho y cortaba el botón; tarea 45f)
-    h = h + "form { width: 520px; margin: 24px auto 0; white-space: nowrap }"
-    h = h + "form input { width: 400px; padding: 8px 10px; border: 2px solid #2e5bff; border-radius: 6px 0 0 6px; font-size: 16px; vertical-align: top }"
-    h = h + "form button { padding: 10px 18px; background: #2e5bff; color: #fff; border: 0; border-radius: 0 6px 6px 0; font-weight: bold; font-size: 16px; vertical-align: top }"
+    h = h + "form { display: flex; max-width: 520px; margin: 24px auto 0 }"
+    h = h + "form input { flex: 1; width: 400px; padding: 8px 10px; border: 2px solid #2e5bff; border-radius: 6px 0 0 6px; font-size: 16px }"
+    h = h + "form button { padding: 8px 18px; background: #2e5bff; color: #fff; border: 0; border-radius: 0 6px 6px 0; font-weight: bold; font-size: 16px }"
     h = h + ".rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-width: 720px; margin: 28px auto; padding: 0 16px }"
     h = h + ".rejilla a { display: block; background: #fff; border: 1px solid #d5ddef; border-radius: 8px; padding: 12px; text-decoration: none; color: #4a5878; font-size: 12px; box-shadow: 0 2px 4px rgba(11, 23, 54, 0.12) }"
     h = h + ".rejilla b { display: block; color: #2e5bff; font-size: 15px; margin-bottom: 4px }"

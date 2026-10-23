@@ -399,7 +399,7 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
             texto = str_trim(dom_texto(o))
         end
         gfx_pen(_lapiz(0))
-        gfx_text_at(x + w - 12, y + 3 + font_baseline(), "v")
+        gfx_text_at(x + w - 12, y + (h - font_height()) / 2 + font_baseline(), "v")
         while texto != "" and font_text_width(texto) > hueco
             texto = texto[:texto.length - 1]
         end
@@ -418,8 +418,10 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
         end
     end
     gfx_pen(_lapiz(0))
+    # (centrado en su alto: con el relleno de la página el campo es más alto que su letra; tarea 45f)
+    ty = y + (h - font_height()) / 2
     if texto != ""
-        gfx_text_at(x + izq, y + 3 + font_baseline(), texto)
+        gfx_text_at(x + izq, ty + font_baseline(), texto)
     elif n.nombre == "input" and dom_atributo(n, "placeholder") != ""
         # vacío: su placeholder en gris, cortado por detrás si no cabe (tarea 42h)
         ayuda = dom_atributo(n, "placeholder")
@@ -427,13 +429,13 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
             ayuda = ayuda[:ayuda.length - 1]
         end
         gfx_pen(_lapiz(7697781))
-        gfx_text_at(x + izq, y + 3 + font_baseline(), ayuda)
+        gfx_text_at(x + izq, ty + font_baseline(), ayuda)
         gfx_pen(_lapiz(0))
     end
     if pintor_foco == n and n.nombre != "select"
         cx = x + izq + font_text_width(texto)
         gfx_pen(_lapiz(204))
-        gfx_rect(cx, y + 2, cx, y + h - 3)
+        gfx_rect(cx, ty, cx, ty + font_height() - 1)
     end
 end
 
