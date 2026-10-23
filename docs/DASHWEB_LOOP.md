@@ -410,9 +410,10 @@ tarea, con el estilo de Dash.
       e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
          una estrella para el marcador (llena si la página está en marcadores; un clic la añade o la quita); en
          tachyon:marcadores, quitar cada uno; los atajos en el menú.
-      f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
+      [x] f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
          al lado) salía con el campo de ~200 px y el botón cortado ("Busc"); en Chrome, 520 px entre los dos. Puesto
          sin flex mientras; arreglar el flex en lib/maqueta.dash y volver a ponerlo. El logo, también en Acerca de.
+         Hecho (2026-10-23; ver la bitácora): otra vez con flex.
       [x] h. Buscador por defecto (usuario, 2026-10-23): elegir uno de una lista (DuckDuckGo HTML, Google, Bing,
          Brave, Startpage, Mojeek, Ecosia, y Wikipedia y Aminet como búsquedas especiales), guardado en
          Tachyon.prefs; lo usan el buscador de la página de inicio y la barra de la dirección (unas palabras sin
@@ -421,13 +422,26 @@ tarea, con el estilo de Dash.
          Mojeek y Ecosia fuera (piden demostrar que no se es un robot). Google enseña antes su aviso de cookies.
       [ ] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
-- [ ] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
+         (2026-10-23) Dash no los tiene: propuesto a la sesión dash como D71 (@catalog, tr(id, texto), ids en el
+         .dashui y una herramienta .cd/.ct -> .catalog). Espera a ella.
+         (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
+- [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
       la ventana; la página tachyon:descargas con cada una (nombre, dónde se guarda, KB de cuántos, velocidad, lo que
       falta), con parar, reintentar, quitar de la lista y "abrir el cajón" (el Workbench, OpenWorkbenchObject en 3.2);
       las acabadas se guardan en Tachyon.descargas. Un icono de descarga en la barra mientras alguna va (con la ayuda
       "2 descargas: 45 %"), que abre la página; menú Herramientas, Descargas (Amiga-J). Preguntar dónde guardar o usar
       un cajón por defecto (preferencia; por defecto, preguntar como hoy).
+- [ ] 48. **Las webs de FreeMEM (usuario, 2026-10-23): tachyon.freemem.space, dash.freemem.space y
+      trasfondo.freemem.space, que se vean decentes; y la animación de estrellas de tachyon.freemem.space "sería la
+      rehostia".** Las tres son Next.js (turbopack). Las estrellas y la bola Boing de dash son un <canvas> 2D:
+      a. Canvas 2D (lo que usan): getContext("2d"), fillStyle/strokeStyle con rgba, fillRect, clearRect, lineWidth,
+         beginPath, moveTo, lineTo, stroke, setTransform; luego arc, fill y lo que pida la Boing. Un búfer de píxeles
+         por lienzo (lo dibuja el JavaScript, en C), el pintor lo vuelca a su caja como un vídeo y cada
+         requestAnimationFrame repinta solo esa zona. Las estrellas: 700 líneas por fotograma con estela (un fillRect
+         translúcido): medir cuántos fotogramas da.
+      b. Cada web: comparar con Chrome y arreglar lo que salga.
+
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
@@ -4149,4 +4163,62 @@ Formato:
   como los campos de texto de 42h: una línea con la opción elegida en un control sin marco (lib/maqueta.dash,
   lib/pintor.dash _campo_propio_pintar).
 - Batería de la 44 (31d49ae): 98/98 (2204 s).
+
+### 2026-10-23 — Publicada la v0.5.0-alfa (la primera que se actualiza sola)
+- Usuario: "sí, queremos la 0.5.0". Base: 99/99 (2212 s, 827c348). Versión 0.5.0-alfa en Acerca de, $VER y el
+  User-Agent (982f60b); PR #6 de dev a main (fcf5c8d), etiqueta v0.5.0-alfa y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.5.0-alfa con tachyon.lha (6,6 MB) y Tachyon.gz (1,7 MB: el
+  ejecutable solo, para actualizarse), hechos con tools/paquete.sh en un worktree limpio y Dash 028c67d.
+- Probado: el ejecutable del paquete en la máquina rtg (freemem.space entera en 26,7 s); Tachyon.gz descomprimido es
+  el del paquete. Y la actualización de verdad: uno compilado como 0.4.9-alfa, abierto sin argumentos, vio la
+  0.5.0 en GitHub, con un clic en el icono verde la bajó, la comprobó y la instaló (idéntica al publicado; la de
+  antes como p0.old) y el icono pasó a reiniciar ("Instalada la 0.5.0-alfa: pulsa el icono verde").
+- Copiado a CoffinOS el del paquete, con sus iconos, el LEEME y las licencias (la de Lucide, nueva).
+
+### 2026-10-23 — Tarea 45f: un campo de texto con flex: 1 (el buscador de la página de inicio)
+- Tres cosas, todas de controles de formulario dentro de un flex (lib/maqueta.dash):
+  1. Un reemplazado va en una caja anónima (42i) y su flex-grow, flex-shrink, flex-basis, order y align-self se
+     quedaban en él: la caja no crecía. Ahora pasan a la caja; y el control (input, select, textarea) llena el ancho
+     que el flex le da (_forzado_w, menos sus márgenes).
+  2. Un control usa su width de la página (en px, con relleno y borde si no es border-box): antes, siempre las 20
+     letras de su size.
+  3. Un botón de estilo propio (_boton_propio) ya no va en caja anónima: es él el elemento flex, con su relleno (en
+     la caja se medía sin él y "Buscar" salía cortado).
+  Y el alto de un campo o desplegable suma el relleno y el borde de arriba y abajo de la página, con el texto
+  centrado (lib/pintor.dash): el campo, tan alto como su botón.
+- La página de inicio vuelve a su buscador con flex (el campo a lo ancho, el botón entero), como en Chrome.
+- test_maqueta_flex: z9 y z10 (un campo con flex: 1 y width: 400px y un botón propio llenan los 600: 516 + 84).
+- Batería: 99/99 (2243 s).
+
+### 2026-10-23 — Tarea 47: el gestor de descargas
+- lib/descargas.dash: una lista para todo el navegador (antes, una por ventana y solo en la barra de estado): varias a
+  la vez, según llegan al fichero (http_volcar), que siguen aunque se cambie de página o se cierre la ventana. La
+  página tachyon:descargas con cada una (nombre, ruta, dirección; KB de cuántos, %, velocidad y lo que falta, una
+  barra; hecha o por qué falló) y sus acciones (parar, reintentar, quitar de la lista, abrir el cajón en el Workbench:
+  OpenWorkbenchObjectA de workbench.library 44). Las acabadas, paradas o fallidas, en Tachyon.descargas (50).
+- src/dashweb.dash: el icono de descargas en la barra (Lucide "download") mientras alguna baja, con su ayuda ("2
+  descargas: 45 %"), que abre la página; Herramientas > Descargas (Amiga-J); la página, al día cada segundo mientras
+  bajan; "Descarga hecha: x" en la barra de estado; si la ventana no tenía página, abre tachyon:descargas. Dónde
+  guardar: el selector de ASL con el nombre ya puesto y en el cajón de la última vez (RAM: la primera; preferencia
+  cajon_descargas): Return y listo (el dialog_file de Dash no deja dar un nombre y Return sin él cancelaba). Se guarda
+  la dirección pedida, no la de después de las redirecciones (la de GitHub caduca).
+- Un cuelgue al arrancar por un nombre: el botón del .dashui se llamaba "descargas", como la lista global de
+  lib/descargas.dash, y el programa leía el objeto MUI como la lista (MuForce: lecturas de 0x0F000000 y de campos
+  nulos desde abrir). Renombrado a ver_descargas; contado a la sesión dash (debería avisar el compilador).
+- Probado: test_descargas (dos a la vez, un 404, parar a medias y reintentar, quitar, la página, guardar y cargar).
+  En el emulador, tachyon.lha de la v0.5.0 desde GitHub (con su redirección): el selector con el nombre, Return, y
+  bajado entero (6.929.268 bytes) con la página de descargas abierta ("Hecha: 6,6 MB"). Sin ver: la barra de
+  progreso en pantalla (bajó en menos de 15 s) y "abrir el cajón" (sin Workbench en el emulador).
+- Batería: 100/100 (2221 s, Dash 9c1c1f6 con la D71).
+
+### 2026-10-23 — Tarea 48, primera parte: tachyon.freemem.space y dash.freemem.space cargan
+- Las dos (Next.js) enseñaban "This page couldn't load" (la pantalla de error de Next): React #418 (el texto del
+  servidor no cuadra con el del cliente) y, al rehacer el elemento, `removeAttributeNode` no existía ("not a
+  function") y React tiraba la página. lib/jsdom_preludio.js: getAttributeNode, removeAttributeNode y
+  setAttributeNode (nodos {name, value}); y getContext da null (y toDataURL "data:,") hasta que haya Canvas 2D
+  (48a): las estrellas lo llamaban sin mirar.
+- Ya salen: tachyon.freemem.space (cabecera, título, texto y botones) y dash.freemem.space (muy cerca de Chrome);
+  trasfondo.freemem.space ya salía bien. Faltan: los iconos del menú de arriba (cuadrados vacíos), el logo grande de
+  tachyon.freemem.space (una caja vacía: una imagen que no llega) y las animaciones (Canvas 2D).
+- Las 13 de js/jsdom pasan (590 s).
 

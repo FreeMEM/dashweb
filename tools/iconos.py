@@ -36,6 +36,7 @@ ICONOS = {
     "parar": ("x", "#b3261e", None, 2.6),
     "inicio": ("house", AZUL, None, 2.0),
     "historial": ("history", AZUL, None, 2.0),
+    "descargas": ("download", AZUL, None, 2.2),
     "actualizar": ("circle-arrow-down", "#ffffff", "#2e9e48", 2.2, "#1e7a34"),
     "reiniciar": ("refresh-cw", "#1e7a34", None, 2.4),
     "candado": ("lock", "#5c4400", "#e8b100", 2.0),

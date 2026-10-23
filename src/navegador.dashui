@@ -110,6 +110,11 @@
               "event": 25
             },
             {
+              "label": "Descargas",
+              "key": "J",
+              "event": 29
+            },
+            {
               "label": "Buscador...",
               "event": 28
             },
@@ -231,6 +236,14 @@
                 "file": "PROGDIR:iconos/historial.iff",
                 "event": 20,
                 "help": "Historial: lo que has visto"
+              },
+              {
+                "type": "image_button",
+                "name": "ver_descargas",
+                "file": "PROGDIR:iconos/descargas.iff",
+                "event": 29,
+                "help": "Descargas",
+                "hidden": true
               },
               {
                 "type": "image_button",

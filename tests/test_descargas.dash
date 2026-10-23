@@ -1,0 +1,50 @@
+# Test: lib/descargas.dash (tarea 47) con el servidor de pruebas: dos a la vez (una llega, la otra es un 404), una
+# parada a medias (/lento) y reintentada, quitar una, la página tachyon:descargas y guardar y volver a cargar la lista.
+# emu-server: http.py 40893
+# memcheck
+# expect-out: dos activas: 2
+# expect-out: hecha: 1 true, error: 2 [el servidor respondió 404]
+# expect-out: parada: 3 0
+# expect-out: reintentada: 0 -> 1 true
+# expect-out: página: true true true
+# expect-out: quitada: 2, cargadas: 2 1 true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/descargas.dash"
+
+func esperar()
+    t0 = time_ms()
+    while descargas_activas() > 0 and time_ms() - t0 < 30000
+        descargas_avanzar()
+        time_delay(1)
+    end
+end
+
+Main
+    file_delete("T:prueba.descargas")
+    descargas_fichero = "T:prueba.descargas"
+    a = descargas_empezar("http://127.0.0.1:40893/pages/dec_base.jpg", "T:dec_base.jpg", "dec_base.jpg")
+    b = descargas_empezar("http://127.0.0.1:40893/pages/no_esta.zip", "T:no_esta.zip", "no_esta.zip")
+    Print "dos activas: " + descargas_activas()
+    esperar()
+    Print "hecha: " + a.estado + " " + (a.bytes == file_size("T:dec_base.jpg") and a.bytes == 681) + ", error: " + b.estado + " [" + b.error + "]"
+    c = descargas_empezar("http://127.0.0.1:40893/lento", "T:lento.txt", "lento.txt")
+    descargas_avanzar()
+    descargas_accion("parar", c.id)
+    Print "parada: " + c.estado + " " + descargas_activas()
+    antes = c.estado
+    descargas_accion("reintentar", c.id)
+    otra = c.estado
+    esperar()
+    Print "reintentada: " + otra + " -> " + c.estado + " " + (file_size("T:lento.txt") == 2000)
+    h = descargas_html()
+    Print "página: " + str_contains(h, "dec_base.jpg") + " " + str_contains(h, "No se pudo") + " " + str_contains(h, "tachyon:descargas?quitar=" + b.id)
+    descargas_accion("quitar", b.id)
+    quedan = descargas.length
+    # otra vez desde el fichero (las acabadas)
+    var nada: [Descarga] = []
+    descargas = nada
+    descargas_cargar("T:prueba.descargas")
+    Print "quitada: " + quedan + ", cargadas: " + descargas.length + " " + descargas[0].estado + " " + (descargas[1].nombre == "dec_base.jpg")
+    red_terminar()
+end
