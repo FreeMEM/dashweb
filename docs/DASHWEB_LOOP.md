@@ -424,6 +424,8 @@ tarea, con el estilo de Dash.
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
          columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
          repositorios en una pastilla alta con el número dos veces.
+         Hecho (2026-10-23): el avatar y la columna (las --x con mayúsculas). Queda: las pestañas (icono lejos de su
+         nombre), el contador "3 3" y el gráfico de contribuciones (se queda cargando).
 - [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
       de HTML, CSS y JavaScript, y añadirlo. Por orden:
       41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
@@ -3845,3 +3847,14 @@ Formato:
   en 42h) y tools/traza.py no acaba con imágenes data: SVG en utf8 (42j).
 - tests/test_maqueta_campo.dash (nuevo): el control de un campo de bloque, uno en la línea y que no ensancha al medir.
 - Batería: 95/95 (2138 s). Wikipedia: "Buscar en Wikipedia" en gris tras la lupa. Google y amigaworld.net, como antes.
+
+### 2026-10-23 — Tarea 42i (GitHub) y el icono del índice de Wikipedia
+- GitHub: el avatar enorme y la columna izquierda de la mitad de la pantalla. --Layout-sidebar-width (con mayúsculas):
+  lib/css.dash pasaba a minúsculas también los nombres de las propiedades propias, y var(--Layout-sidebar-width) no
+  la encontraba (los nombres de --x distinguen mayúsculas). Ya como en Chrome: la columna de 296, el avatar, el
+  nombre, Follow, la biografía, los logros y los fijados en dos columnas.
+- Wikipedia: la flecha de "Información Técnica" del índice salía como un cuadrado negro desde 42g (1): todos sus iconos
+  llevan una máscara de relleno (un PNG de 1x1 opaco) y la buena, el SVG, va en @supports (mask-image: none), que
+  dashweb decía que no. Las propiedades de máscara, ya conocidas para @supports (CSS_CONOCIDAS).
+- tests: test_estilo_vars (--x con mayúsculas), test_estilo_capas (@supports de máscaras).
+- Batería: 95/95 (2139 s; también 95/95 solo con el primer cambio). GitHub, Wikipedia y freemem.space en el emulador.

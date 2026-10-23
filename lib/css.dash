@@ -188,7 +188,11 @@ func css_declaraciones(texto: String) -> [Declaracion]
     for trozo in css_partir(texto, 59)
         p = str_find(trozo, ":")
         if p > 0
-            propiedad = str_lower(str_trim(trozo[:p]))
+            propiedad = str_trim(trozo[:p])
+            # (los nombres de las propiedades propias, --x, distinguen mayúsculas: --Layout-sidebar-width de GitHub)
+            if not str_starts(propiedad, "--")
+                propiedad = str_lower(propiedad)
+            end
             valor = str_trim(trozo[p + 1:])
             importante = false
             q = str_find(str_lower(valor), "!important")
@@ -553,7 +557,7 @@ func _css_soporta_uno(t: String) -> Bool
 end
 
 var _css_conocidas: {String: Int} = nil
-const CSS_CONOCIDAS = "color background background-color background-image background-size background-position background-repeat border border-top border-right border-bottom border-left border-width border-style border-color border-radius border-collapse border-spacing box-shadow box-sizing margin margin-top margin-right margin-bottom margin-left padding padding-top padding-right padding-bottom padding-left width height min-width min-height max-width max-height position top right bottom left inset z-index overflow overflow-x overflow-y float clear visibility opacity flex flex-direction flex-wrap flex-flow flex-grow flex-shrink flex-basis order justify-content align-items align-self align-content place-items place-content gap row-gap column-gap grid grid-template grid-template-columns grid-template-rows grid-template-areas grid-area grid-column grid-row grid-auto-flow grid-auto-rows grid-auto-columns aspect-ratio object-fit transform transform-origin translate rotate scale animation animation-name transition font font-family font-size font-weight font-style line-height letter-spacing word-spacing text-align text-decoration text-transform text-indent text-shadow text-overflow white-space overflow-wrap word-wrap word-break vertical-align list-style list-style-type content table-layout caption-side"
+const CSS_CONOCIDAS = "color background background-color background-image background-size background-position background-repeat border border-top border-right border-bottom border-left border-width border-style border-color border-radius border-collapse border-spacing box-shadow box-sizing margin margin-top margin-right margin-bottom margin-left padding padding-top padding-right padding-bottom padding-left width height min-width min-height max-width max-height position top right bottom left inset z-index overflow overflow-x overflow-y float clear visibility opacity flex flex-direction flex-wrap flex-flow flex-grow flex-shrink flex-basis order justify-content align-items align-self align-content place-items place-content gap row-gap column-gap grid grid-template grid-template-columns grid-template-rows grid-template-areas grid-area grid-column grid-row grid-auto-flow grid-auto-rows grid-auto-columns aspect-ratio object-fit transform transform-origin translate rotate scale animation animation-name transition font font-family font-size font-weight font-style line-height letter-spacing word-spacing text-align text-decoration text-transform text-indent text-shadow text-overflow white-space overflow-wrap word-wrap word-break vertical-align list-style list-style-type content table-layout caption-side mask mask-image mask-size mask-position mask-repeat -webkit-mask -webkit-mask-image -webkit-mask-size -webkit-mask-position -webkit-mask-repeat"
 
 # Hoja de estilo de un texto CSS; orden: número de la primera regla (para la cascada)
 func css_leer(texto: String, orden: Int) -> HojaCSS
