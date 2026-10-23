@@ -414,9 +414,8 @@ tarea, con el estilo de Dash.
          y la fila de webs del grupo. Amelinium los pinta. Mirar con qué los hace cada página (mask-image, fuente de
          iconos, SVG en línea o en <use>) y pintarlos.
          Hechos (2026-10-23): los de máscara (Wikipedia) y los de fuentes de iconos que no son Font Awesome (Xataka).
-         Queda en Xataka: la fila de los favicons sale sobre la barra de patrocinadores (en Chrome va arriba del todo,
-         y=0), la fila de redes sociales y las secciones (Análisis, Ciencia...) no salen, y en "NUEVO" se pinta un
-         icono encima de la U.
+         Queda en Xataka: en "NUEVO" se pinta un icono encima de la U. (Hechos: la fila de favicons arriba, las
+         redes y las secciones; y la noticia destacada con su foto grande, que no salía.)
       h. (de la misma comparación) Wikipedia: el buscador sin su texto ("Buscar en Wikipedia") ni el botón "Buscar".
          amigaworld.net: las » del menú de la izquierda salen como "?".
          Hecho (2026-10-23): el texto del buscador (los campos con display block llevan su control). Las » de
@@ -3905,3 +3904,16 @@ Formato:
   ahora solo se rehace en fila (el botón "Buscar", en fila, sigue centrado).
 - Batería: 95/95 (2196 s). Menéame: los títulos enteros; Wikipedia: "Apariencia" entera y "Buscar" centrado; Xataka:
   ya con sus secciones (ANÁLISIS, CIENCIA...) y los iconos de las redes.
+
+### 2026-10-23 — Los absolutos respecto al antepasado posicionado (42g)
+- Un position: absolute se ponía siempre respecto a la caja de su padre, posicionado o no; en CSS (10.1) va respecto
+  al antepasado posicionado más cercano (o con transform; si no hay, la raíz). xataka.com: la fila de favicons
+  (aside absolute, top: 0, en un div estático dentro de .head-content-favs relative) salía bajo la cabecera.
+- lib/maqueta.dash: si el bloque no es la caja de sus absolutos (`_caja_de_absolutos`), los apunta con su sitio
+  estático (`_abs_pend`, x/y) y los pone el primer antepasado que lo sea, al acabar su maqueta (con pl/pt de su sitio
+  estático para left/top auto). Al medir y en las maquetas de un momento que luego se mueven (_flex_maquetar: flex,
+  grid y celdas; _pieza_caja), como antes (`_abs_temporal`). maquetar vacía lo apuntado al empezar.
+- tests/test_maqueta_absoluto_caja.dash (nuevo): padre posicionado, abuelo posicionado, sitio estático y la raíz.
+- Batería: 96/96 (2244 s). Xataka: la fila de favicons arriba y la noticia destacada con su foto, como en Chrome;
+  freemem.space, GitHub y Wikipedia, como antes (la columna "Apariencia" salió vacía en una captura a los 150 s y
+  entera en otras dos a los 150 y 290 s: un momento de la carga).

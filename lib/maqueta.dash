@@ -433,6 +433,12 @@ var maqueta_guardadas: Int = 0
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
     estilo_vw = ancho              # (vw: el ancho de donde se ve la página)
     _alto_definido = -1
+    _abs_temporal = 0
+    while _abs_pend.length > 0
+        _abs_pend.pop()
+        _abs_px.pop()
+        _abs_py.pop()
+    end
     _maqueta_pase = _maqueta_pase + 1
     if not maqueta_conservar
         _maqueta_epoca = _maqueta_epoca + 1
@@ -844,6 +850,7 @@ end
 func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
     e = n.estilo
     inicio = m.pagina.dibujos.length
+    pend_inicio = _abs_pend.length
     c = _caja_leida(n, contenedor)
     mt = c[0]
     mb = c[1]
@@ -1140,8 +1147,31 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     end
     # los hijos con position absolute o fixed, encima, respecto a esta caja (su relleno); también los que van dentro
     # de algo en línea (el <img> absoluto de un <picture> en las tarjetas de xataka.com salía debajo, en la línea)
+    # Su caja es la del antepasado posicionado más cercano (CSS 2.1 10.1): si esta no lo es, se apuntan con su sitio
+    # estático y los pone el primero de arriba que lo sea (la fila de favicons de xataka.com, absolute y top: 0 en un
+    # padre sin posicionar, salía bajo la cabecera; tarea 42g). Al medir y en las maquetas de un momento (flex, grid,
+    # celdas, inline-block: luego se mueven), como antes, respecto a esta caja.
+    es_caja = _midiendo > 0 or _abs_temporal > 0 or _caja_de_absolutos(n)
     for h in _absolutos_de(n)
-        _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, pl, pt)
+        if es_caja or _val(h.estilo, "position", "absolute") == "fixed"
+            _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, pl, pt)
+        else
+            _abs_pend.push(h)
+            _abs_px.push(x + ml + bl + pl)
+            _abs_py.push(y + mt + bt + pt)
+        end
+    end
+    if es_caja and _abs_pend.length > pend_inicio
+        k = pend_inicio
+        while k < _abs_pend.length
+            _absoluto(m, _abs_pend[k], x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, _abs_px[k] - (x + ml + bl), _abs_py[k] - (y + mt + bt))
+            k = k + 1
+        end
+        while _abs_pend.length > pend_inicio
+            _abs_pend.pop()
+            _abs_px.pop()
+            _abs_py.pop()
+        end
     end
     alto_caja = bt + pt + alto + pb + bb
     if _midiendo > 0 and n != _medido and e.has("width") and e["width"] != "auto" and not str_ends(e["width"], "%")
@@ -3318,6 +3348,26 @@ end
 # Las piezas en línea de un nodo (texto, elementos en línea, br, img)
 # Los absolutos y fijos de n: sus hijos y los que van dentro de algo en línea suyo (no los de dentro de un bloque,
 # que los pone ese bloque)
+# Los absolutos de los que esta caja no es la suya, esperando al antepasado posicionado (con su sitio estático), y
+# cuántas maquetas de un momento hay abiertas (_flex_maquetar, _pieza_caja: allí, como antes)
+var _abs_pend: [Nodo] = []
+var _abs_px: [Int] = []
+var _abs_py: [Int] = []
+var _abs_temporal: Int = 0
+
+# ¿Es la caja de sus absolutos? Posicionada, con transform, o la raíz
+func _caja_de_absolutos(n: Nodo) -> Bool
+    if n.padre == nil or n.padre.tipo == DOM_DOCUMENTO or n.nombre == "html"
+        return true
+    end
+    e = n.estilo
+    if _val(e, "position", "static") != "static"
+        return true
+    end
+    t = _val(e, "transform", "none")
+    return t != "none" and t != ""
+end
+
 func _absolutos_de(n: Nodo) -> [Nodo]
     var r: [Nodo] = []
     _absolutos_en(n, r)
@@ -3515,7 +3565,9 @@ func _pieza_caja(m: Maquetador, n: Nodo, piezas: [Pieza], enlace: String)
         w = m.ancho_linea
     end
     antes = m.pagina.dibujos.length
+    _abs_temporal = _abs_temporal + 1
     h = _bloque_de(m, n, 0, 0, w, m.ancho_linea)
+    _abs_temporal = _abs_temporal - 1
     base = h
     i = m.pagina.dibujos.length - 1
     while i >= antes
@@ -5074,7 +5126,9 @@ func _flex_maquetar(m: Maquetador, it: FlexHijo, ancho_ext: Int, contenedor: Int
     _forzado = it.nodo
     _forzado_w = w
     _forzado_h = h
+    _abs_temporal = _abs_temporal + 1
     alto = _bloque_de(m, it.nodo, 0, 0, ancho_ext, contenedor)
+    _abs_temporal = _abs_temporal - 1
     _forzado = forzado
     _forzado_w = forzado_w
     _forzado_h = forzado_h
