@@ -5,10 +5,12 @@
 #   wpt_reftest http://10.0.2.2:PUERTO/ lista.txt
 #
 # lista.txt: una prueba por línea, "prueba referencia" (rutas desde la base). Por cada una escribe
-# "WPT PASS ruta" o "WPT FAIL ruta píxeles-distintos" (o "WPT ERROR ruta motivo"). Sin JavaScript ni fuentes de la
-# página (las que usan Ahem salen con la del sistema en las dos, que suele bastar para comparar).
+# "WPT PASS ruta" o "WPT FAIL ruta píxeles-distintos" (o "WPT ERROR ruta motivo"). Con el JavaScript de la página
+# (sus scripts, DOMContentLoaded y load, y los temporizadores de hasta medio segundo, como el visor); sin sus fuentes
+# (las que usan Ahem salen con la del sistema en las dos, que suele bastar para comparar).
 
 import "../lib/pintor.dash"
+import "../lib/jsdom.dash"
 
 Window Pruebas
     title "WPT"
@@ -25,13 +27,65 @@ func traer(direccion: String) -> String
     return http_texto(r)
 end
 
+# Una página XHTML (.xht) como la deja el analizador XML: dentro de <style> y <script>, sin <![CDATA[ ]]> y con
+# &lt; &gt; &amp; &quot; &apos; ya puestos (dashweb la lee como HTML, donde ese texto va tal cual)
+func xhtml(texto: String) -> String
+    r = ""
+    i = 0
+    while i < texto.length
+        a = str_find_from(texto, "<style", i)
+        b = str_find_from(texto, "<script", i)
+        p = a
+        if p < 0 or (b >= 0 and b < p)
+            p = b
+        end
+        if p < 0
+            r = r + texto[i:]
+            break
+        end
+        cierre_tag = "</style>"
+        if p == b
+            cierre_tag = "</script>"
+        end
+        dentro = str_find_from(texto, ">", p)
+        fin = str_find_from(texto, cierre_tag, p)
+        if dentro < 0 or fin < 0
+            r = r + texto[i:]
+            break
+        end
+        cuerpo = texto[dentro + 1:fin]
+        cuerpo = str_replace(str_replace(cuerpo, "<![CDATA[", ""), "]]>", "")
+        cuerpo = str_replace(str_replace(str_replace(cuerpo, "&lt;", "<"), "&gt;", ">"), "&quot;", "\"")
+        cuerpo = str_replace(str_replace(cuerpo, "&apos;", "'"), "&amp;", "&")
+        r = r + texto[i:dentro + 1] + cuerpo
+        i = fin
+    end
+    return r
+end
+
 # Pinta la página en la ventana (el pintor pone el fondo) y devuelve "" o el motivo de no poder
 func pintar_pagina(direccion: String, x0: Int, y0: Int, ancho: Int, alto: Int) -> String
     texto = traer(direccion)
     if texto == ""
         return "no llega"
     end
+    if str_ends(direccion, ".xht") or str_ends(direccion, ".xhtml")
+        texto = xhtml(texto)
+    end
     doc = dom_desde_html(texto)
+    js = 0
+    if dom_buscar(doc, "script") != nil
+        js = js_nuevo()
+        jsdom_preparar(js, doc)
+        jsdom_ejecutar_scripts(js, doc, direccion)
+        vueltas = 0
+        espera = jsdom_temporizadores(js)
+        while espera >= 0 and espera < 500 and vueltas < 50
+            time_delay(1)
+            espera = jsdom_temporizadores(js)
+            vueltas = vueltas + 1
+        end
+    end
     hojas = estilo_hojas(doc, direccion)
     estilo_aplicar(doc, hojas)
     im = imagenes_nuevas()
@@ -39,6 +93,9 @@ func pintar_pagina(direccion: String, x0: Int, y0: Int, ancho: Int, alto: Int) -
     pagina = maquetar(doc, ancho)
     pintar(pagina, im, 0, x0, y0, ancho, alto)
     imagenes_liberar(im)
+    if js != 0
+        js_liberar(js)
+    end
     return ""
 end
 

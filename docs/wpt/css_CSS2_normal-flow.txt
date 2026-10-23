@@ -1,0 +1,102 @@
+# css/CSS2/normal-flow, las 100 primeras de 492 (tools/wpt.py css/CSS2/normal-flow 100), 2026-10-23
+WPT FAIL css/CSS2/normal-flow/block-formatting-context-height-003.xht 7125
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-001.xht 130
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-003.xht 1516
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-004.xht 3330
+WPT PASS css/CSS2/normal-flow/block-formatting-contexts-005.xht
+WPT PASS css/CSS2/normal-flow/block-formatting-contexts-006.xht
+WPT PASS css/CSS2/normal-flow/block-formatting-contexts-007.xht
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-008.xht 400
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-009.xht 17435
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-010.xht 400
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-011.xht 334
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-012.xht 20000
+WPT FAIL css/CSS2/normal-flow/block-formatting-contexts-015.xht 5050
+WPT PASS css/CSS2/normal-flow/block-in-inline-after-block-in-inline-with-margin-collapse.html
+WPT FAIL css/CSS2/normal-flow/block-in-inline-align-001.html 686
+WPT PASS css/CSS2/normal-flow/block-in-inline-align-justify-001.html
+WPT FAIL css/CSS2/normal-flow/block-in-inline-align-last-001.html 738
+WPT PASS css/CSS2/normal-flow/block-in-inline-append-001.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-append-002.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-baseline-001.html
+WPT PASS css/CSS2/normal-flow/block-in-inline-empty-001.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-empty-002.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-empty-003.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-empty-004.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-first-line-001.html
+WPT FAIL css/CSS2/normal-flow/block-in-inline-first-line-002.html 144
+WPT FAIL css/CSS2/normal-flow/block-in-inline-float-between-001.xht 312
+WPT PASS css/CSS2/normal-flow/block-in-inline-float-in-layer-001.html
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001a.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001b.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001c.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001d.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001e.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001f.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001g.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001h.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001i.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001j.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001k.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-001l.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002a.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002b.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002c.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002d.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002e.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002f.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002g.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002h.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-002i.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-003.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-004.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-006.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-007.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-008a.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-008b.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-008c.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-009.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-010.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-011.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-012.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-013.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-014.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-015.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-016a.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-016b.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-insert-017.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-margins-001a.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-margins-001b.xht
+WPT FAIL css/CSS2/normal-flow/block-in-inline-margins-002a.xht 600
+WPT FAIL css/CSS2/normal-flow/block-in-inline-margins-002b.xht 600
+WPT FAIL css/CSS2/normal-flow/block-in-inline-margins-003.html 138
+WPT PASS css/CSS2/normal-flow/block-in-inline-margins-004.html
+WPT PASS css/CSS2/normal-flow/block-in-inline-nested-001.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-nested-002.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-percents-001.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-remove-000.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-remove-001.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-remove-002.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-remove-003.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-remove-004.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-remove-005.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-remove-006.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-whitespace-001a.xht
+WPT PASS css/CSS2/normal-flow/block-in-inline-whitespace-001b.xht
+WPT PASS css/CSS2/normal-flow/block-non-replaced-height-001.xht
+WPT FAIL css/CSS2/normal-flow/block-non-replaced-height-005.xht 34016
+WPT FAIL css/CSS2/normal-flow/block-non-replaced-width-001.xht 480
+WPT PASS css/CSS2/normal-flow/block-non-replaced-width-002.xht
+WPT PASS css/CSS2/normal-flow/block-non-replaced-width-003.xht
+WPT FAIL css/CSS2/normal-flow/block-non-replaced-width-004.xht 9000
+WPT PASS css/CSS2/normal-flow/block-non-replaced-width-005.xht
+WPT PASS css/CSS2/normal-flow/block-non-replaced-width-006.xht
+WPT FAIL css/CSS2/normal-flow/block-non-replaced-width-007.xht 12751
+WPT PASS css/CSS2/normal-flow/block-replaced-height-001.xht
+WPT FAIL css/CSS2/normal-flow/block-replaced-height-002.xht 30
+WPT FAIL css/CSS2/normal-flow/block-replaced-height-004.xht 2520
+WPT FAIL css/CSS2/normal-flow/block-replaced-height-005.xht 1908
+WPT FAIL css/CSS2/normal-flow/block-replaced-height-006.xht 19600
+WPT FAIL css/CSS2/normal-flow/block-replaced-height-007.xht 2520
+WPT FAIL css/CSS2/normal-flow/block-replaced-width-002.xht 9667
+WPT TOTAL 73/100

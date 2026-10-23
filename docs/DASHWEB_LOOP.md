@@ -458,7 +458,8 @@ tarea, con el estilo de Dash.
       [x] 41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
            unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
            Wikipedia lo da (font-size con clamp/var/calc, line-height...).
-      41b. (2026-10-23: el corredor ya está, tools/wpt.py y tools/wpt_reftest.dash; normal-flow 12/30 de las primeras)
+      41b. (2026-10-23: el corredor ya está, tools/wpt.py y tools/wpt_reftest.dash; normal-flow 73/100 de las primeras,
+           en docs/wpt/)
            Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
            referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
            Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
@@ -3946,3 +3947,13 @@ Formato:
 - normal-flow: de 0/10 a 12/30 (las 30 primeras de 492).
 - Batería: 97/97 (2363 s). freemem.space, Wikipedia, amigaworld.net y GitHub, como antes (Wikipedia con la flecha del
   índice en cuadrado negro en esta captura: 42l).
+
+### 2026-10-23 — Tarea 41b: XHTML en el corredor y el onload de <body>
+- tools/wpt_reftest.dash: con el JavaScript de la página (scripts, DOMContentLoaded, load y los temporizadores de
+  hasta medio segundo) y los .xht como los deja el analizador XML (dentro de <style> y <script>, sin CDATA y con
+  &lt; &gt; &amp; &quot; &apos; puestos: los selectores con &gt; no valían).
+- lib/jsdom_preludio.js: el atributo onload de <body> es el de window (HTML): <body onload="boom()"> no se llamaba en
+  ninguna página. (Regenerado lib/jsdom_preludio.dash.)
+- normal-flow: 29/100 -> 73/100 (docs/wpt/css_CSS2_normal-flow.txt). De las que fallan, block-replaced-height-002
+  (30 px) es la altura de la letra del Amiga sobre la línea base (las imágenes en línea 2 px más abajo), no maqueta.
+- Batería: 97/97 (2484 s).
