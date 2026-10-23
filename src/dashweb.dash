@@ -83,6 +83,9 @@ struct Ventana
 end
 
 var dw_ventanas: [Ventana] = []
+# DIBUJOS=y0-y1 (argumento): los dibujos de la página entre esas alturas, por la salida al acabar (-1: no)
+var dw_dibujos_y0: Int = -1
+var dw_dibujos_y1: Int = -1
 
 # El logo de la página de inicio: docs/logo/tachyon.svg a 540 de ancho sobre blanco (rsvg-convert), recortado y en
 # 32 colores (PIL), en PNG de 366x65 (1,8 KB)
@@ -759,6 +762,25 @@ func tic(w: Ventana)
         if w.actual.js != 0
             kb_js = js_memoria(w.actual.js) / 1024
         end
+        if dw_dibujos_y0 >= 0 and w.actual.pagina != nil
+            for d in w.actual.pagina.dibujos
+                if d.y + d.alto >= dw_dibujos_y0 and d.y <= dw_dibujos_y1
+                    nodo = ""
+                    if d.nodo != nil
+                        nodo = d.nodo.nombre + "." + dom_atributo(d.nodo, "class")
+                    end
+                    t = d.texto
+                    if t.length > 40
+                        t = t[:40]
+                    end
+                    rec = ""
+                    if d.recorte
+                        rec = " recorte " + d.rx0 + "," + d.ry0 + "-" + d.rx1 + "," + d.ry1
+                    end
+                    Print "dibujo " + d.tipo + " [" + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + "] " + d.color + " capa " + d.capa + " velado " + d.velado + rec + " " + t + " <" + nodo + ">"
+                end
+            end
+        end
         Print "tachyon: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB, " + imagenes_kb(w.actual.im) + ")"
     end
     if w.aviso_scroll
@@ -1105,6 +1127,13 @@ Main
                 traza("memoria libre al empezar " + mem_total() / 1024 + " KB")
             elif arg(i) == "GCSIEMPRE"
                 js_gc_siempre(true)
+            elif str_starts(arg(i), "DIBUJOS=")
+                # DIBUJOS=y0-y1: al acabar la página, sus dibujos de entre esas alturas por la salida (para depurar)
+                trozos = css_partir(arg(i)[8:], 45)
+                if trozos.length == 2
+                    dw_dibujos_y0 = Int(trozos[0])
+                    dw_dibujos_y1 = Int(trozos[1])
+                end
             else
                 paginas = paginas + 1
             end
@@ -1113,7 +1142,7 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE"
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=")
                 nueva_ventana(arg(i))
             end
         end

@@ -1074,7 +1074,8 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             alto = _flex(m, n, cx, cy, interior, alto_fijo)
             # sin alto fijo y con min-height mayor que lo que ocupa: otra vez con ese alto, para que align-items y
             # justify-content repartan en él (el texto del botón "Buscar" de Wikipedia, centrado; tarea 42h)
-            if alto_fijo < 0 and e.has("min-height") and not str_ends(e["min-height"], "%")
+            # (solo en fila: en columna rehacerlo dejaba sin pintar las opciones de "Apariencia" de Wikipedia)
+            if alto_fijo < 0 and e.has("min-height") and not str_ends(e["min-height"], "%") and not str_starts(_val(e, "flex-direction", "row"), "column")
                 alto_min = _px(e, "min-height", 0)
                 if e.has("box-sizing") and e["box-sizing"] == "border-box"
                     alto_min = alto_min - bt - bb - pt - pb

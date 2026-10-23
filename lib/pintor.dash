@@ -126,7 +126,17 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             end
         end
         if d.tipo == D_TEXTO
-            if y >= vy0 and y + d.alto - 1 <= vy1 and x <= vx1 and x + d.ancho > vx0
+            # una línea que se sale poco (hasta un cuarto de su alto) del recorte de un overflow se pinta igual: la
+            # letra es algo más alta que su línea y Chrome solo recorta esos píxeles (el título de cada noticia de
+            # meneame.net, 1 px por encima de su caja con overflow: hidden, no salía; tarea 42k). Nunca fuera de la zona
+            ty0 = vy0
+            ty1 = vy1
+            if d.recorte
+                holgura = d.alto / 4
+                ty0 = _mayor(vy0 - holgura, y0)
+                ty1 = _menor(vy1 + holgura, abajo)
+            end
+            if y >= ty0 and y + d.alto - 1 <= ty1 and x <= vx1 and x + d.ancho > vx0
                 font_use(d.fuente)
                 font_style(d.estilo)
                 gfx_pen(_lapiz(d.color))

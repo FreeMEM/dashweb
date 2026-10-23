@@ -426,6 +426,7 @@ tarea, con el estilo de Dash.
       k. meneame.net (2026-10-23): sale bien pero entera a los 208 s (10 maquetas de ~5 s por imágenes que llegan
          poco a poco) y a cada título de noticia le falta la primera línea (en Chrome: "Susto en directo: una ola
          engulle a un reportero de ETB2 mientras informaba en pleno temporal"; dashweb solo "pleno temporal").
+         Hecho (2026-10-23): los títulos enteros. Queda: entera a los 208 s.
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
          columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
          repositorios en una pastilla alta con el número dos veces.
@@ -3886,3 +3887,15 @@ Formato:
   data:image/svg+xml dejaba la traza colgada (no el navegador, que va con --fpu). Ya con --fpu: la página mínima
   con la lupa de Wikipedia, en 21 ms.
 - Menéame mirada: bien de aspecto, entera a los 208 s y sin la primera línea de los títulos (42k).
+
+### 2026-10-23 — Tarea 42k (los títulos de Menéame) y DIBUJOS=
+- A cada título de noticia de meneame.net le faltaba la primera línea: va en una caja con overflow: hidden que empieza
+  1 px por debajo de la línea (la letra, de 25 px, es más alta que la línea de 22) y el pintor solo pinta una línea de
+  texto entera dentro de su recorte. lib/pintor.dash: una que se sale del recorte de un overflow hasta un cuarto de su
+  alto se pinta igual (nunca fuera de la zona de la página).
+- Encontrado con DIBUJOS=y0-y1, argumento nuevo de dashweb (tools/medir_visor.py --dibujos Y0-Y1): al acabar la
+  página, sus dibujos entre esas alturas por la salida (tipo, caja, color, capa, velado, recorte, texto y elemento).
+- El flex con min-height (178fe1c) dejaba sin pintar las opciones de "Apariencia" de Wikipedia (flex en columna):
+  ahora solo se rehace en fila (el botón "Buscar", en fila, sigue centrado).
+- Batería: 95/95 (2196 s). Menéame: los títulos enteros; Wikipedia: "Apariencia" entera y "Buscar" centrado; Xataka:
+  ya con sus secciones (ANÁLISIS, CIENCIA...) y los iconos de las redes.
