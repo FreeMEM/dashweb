@@ -82,25 +82,27 @@ func _html_escapar(t: String) -> String
     return str_replace(str_replace(str_replace(t, "&", "&amp;"), "<", "&lt;"), "\"", "&quot;")
 end
 
-# Una página con los marcadores como enlaces
+# Una página con los marcadores como enlaces, cada uno con su dirección y un enlace para quitarlo
+# (tachyon:marcadores?quitar=dirección)
 func marcadores_html(fichero: String) -> String
-    h = "<html><head><title>Marcadores</title><style>body { font-family: sans-serif; margin: 12px } "
-    h = h + "h1 { color: #036 } .dir { color: #666 }</style></head><body><h1>Marcadores</h1>"
+    h = "<html><head><title>Marcadores</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
+    h = h + "h1 { color: #1d3557 } .e { margin: 8px 0; padding: 6px 10px; background: #f3f5f9; border-radius: 6px } "
+    h = h + ".dir { color: #2a7a3a; font-size: 12px } a { color: #1a4fa0 } .quitar { float: right; font-size: 12px; "
+    h = h + "color: #a33 }</style></head><body><h1>Marcadores</h1>"
     direcciones = marcadores_direcciones(fichero)
     titulos = marcadores_titulos(fichero)
     if direcciones.length == 0
-        h = h + "<p>Aún no hay marcadores: menú Proyecto, Añadir marcador.</p>"
+        h = h + "<p>Aún no hay marcadores: la estrella junto a la dirección, o menú Marcadores, Añadir.</p>"
     else
-        h = h + "<ul>"
         for i in (0..direcciones.length - 1)
             d = _html_escapar(direcciones[i])
             t = _html_escapar(titulos[i])
             if t == ""
                 t = d
             end
-            h = h + "<li><a href=\"" + d + "\">" + t + "</a> <span class=dir>" + d + "</span>"
+            h = h + "<div class=e><a class=quitar href=\"tachyon:marcadores?quitar=" + d + "\">quitar</a>"
+            h = h + "<a href=\"" + d + "\">" + t + "</a><div class=dir>" + d + "</div></div>"
         end
-        h = h + "</ul>"
     end
     return h + "</body></html>"
 end
@@ -123,4 +125,140 @@ func preferencia_poner(fichero: String, clave: String, valor: String) -> Bool
     end
     nuevas.push(clave + "=" + valor)
     return _escribir_lineas(fichero, nuevas)
+end
+
+# Si la dirección está en marcadores
+func marcadores_tiene(fichero: String, direccion: String) -> Bool
+    for d in marcadores_direcciones(fichero)
+        if d == direccion
+            return true
+        end
+    end
+    return false
+end
+
+# La quita de marcadores; false si no se pudo escribir
+func marcadores_quitar(fichero: String, direccion: String) -> Bool
+    var quedan: [String] = []
+    for l in _lineas_de(fichero)
+        if l != direccion and not str_starts(l, direccion + "\t")
+            quedan.push(l)
+        end
+    end
+    return _escribir_lineas(fichero, quedan)
+end
+
+# === El historial (tarea 45) ===
+# Lo visto en todas las ventanas, en un fichero: "minuto<TAB>dirección<TAB>título" por línea, lo último al final,
+# como mucho HISTORIAL_MAX. El minuto cuenta desde el 1-1-1978 (el de AmigaDOS: días * 1440 + minutos del día).
+
+const HISTORIAL_MAX = 300
+
+@native func historial_ahora() -> Int
+"""
+    struct DateStamp d;
+    DateStamp(&d);
+    return d.ds_Days * 1440 + d.ds_Minute;
+"""
+end
+
+# Apunta una página vista (la misma que la última: solo su hora y su título)
+func historial_agregar(fichero: String, direccion: String, titulo: String, minuto: Int) -> Bool
+    lineas = _lineas_de(fichero)
+    t = str_replace(str_replace(titulo, "\t", " "), "\n", " ")
+    if lineas.length > 0
+        ultima = lineas[lineas.length - 1]
+        p = str_find(ultima, "\t")
+        if p >= 0 and str_starts(ultima[p + 1:], direccion + "\t")
+            lineas.remove(lineas.length - 1)
+        end
+    end
+    lineas.push("" + minuto + "\t" + direccion + "\t" + t)
+    while lineas.length > HISTORIAL_MAX
+        lineas.remove(0)
+    end
+    return _escribir_lineas(fichero, lineas)
+end
+
+func historial_borrar(fichero: String) -> Bool
+    var nada: [String] = []
+    return _escribir_lineas(fichero, nada)
+end
+
+func _dos_cifras(n: Int) -> String
+    if n < 10
+        return "0" + n
+    end
+    return "" + n
+end
+
+# "23/10/2026" de los días desde el 1-1-1978
+func _fecha(dias: Int) -> String
+    anio = 1978
+    d = dias
+    while true
+        largo = 365
+        if (anio % 4 == 0 and anio % 100 != 0) or anio % 400 == 0
+            largo = 366
+        end
+        if d < largo
+            break
+        end
+        d = d - largo
+        anio = anio + 1
+    end
+    var meses: [Int] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    if (anio % 4 == 0 and anio % 100 != 0) or anio % 400 == 0
+        meses[1] = 29
+    end
+    mes = 0
+    while d >= meses[mes]
+        d = d - meses[mes]
+        mes = mes + 1
+    end
+    return _dos_cifras(d + 1) + "/" + _dos_cifras(mes + 1) + "/" + anio
+end
+
+# Una página con lo visto, lo último arriba, por días (Hoy, Ayer, la fecha), con la hora, el título y la dirección
+func historial_html(fichero: String, ahora: Int) -> String
+    h = "<html><head><title>Historial</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
+    h = h + "h1 { color: #1d3557; margin-bottom: 4px } h2 { color: #1d3557; font-size: 15px; border-bottom: 1px solid #ccd; "
+    h = h + "padding-bottom: 3px; margin-top: 18px } .e { margin: 6px 0 } .hora { color: #888; display: inline-block; "
+    h = h + "width: 48px } .dir { color: #2a7a3a; font-size: 12px; margin-left: 48px } a { color: #1a4fa0 } "
+    h = h + ".borrar { font-size: 13px }</style></head><body><h1>Historial</h1>"
+    lineas = _lineas_de(fichero)
+    if lineas.length == 0
+        return h + "<p>Aún no has visto ninguna página.</p></body></html>"
+    end
+    h = h + "<p class=borrar><a href=\"tachyon:historial?borrar\">Borrar el historial</a></p>"
+    hoy = ahora / 1440
+    dia = -1
+    i = lineas.length - 1
+    while i >= 0
+        linea = lineas[i]
+        partes = str_split(linea, "\t")
+        i = i - 1
+        if partes.length < 2
+            continue
+        end
+        minuto = str_to_int(partes[0], 10)
+        if minuto / 1440 != dia
+            dia = minuto / 1440
+            if dia == hoy
+                h = h + "<h2>Hoy</h2>"
+            elif dia == hoy - 1
+                h = h + "<h2>Ayer</h2>"
+            else
+                h = h + "<h2>" + _fecha(dia) + "</h2>"
+            end
+        end
+        d = _html_escapar(partes[1])
+        t = d
+        if partes.length > 2 and partes[2] != ""
+            t = _html_escapar(partes[2])
+        end
+        h = h + "<div class=e><span class=hora>" + _dos_cifras((minuto % 1440) / 60) + ":" + _dos_cifras(minuto % 60) + "</span>"
+        h = h + "<a href=\"" + d + "\">" + t + "</a><div class=dir>" + d + "</div></div>"
+    end
+    return h + "</body></html>"
 end

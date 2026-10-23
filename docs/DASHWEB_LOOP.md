@@ -410,6 +410,16 @@ tarea, con el estilo de Dash.
       e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
          una estrella para el marcador (llena si la página está en marcadores; un clic la añade o la quita); en
          tachyon:marcadores, quitar cada uno; los atajos en el menú.
+      f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
+         al lado) salía con el campo de ~200 px y el botón cortado ("Busc"); en Chrome, 520 px entre los dos. Puesto
+         sin flex mientras; arreglar el flex en lib/maqueta.dash y volver a ponerlo. El logo, también en Acerca de.
+      [ ] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
+         (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
+- [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
+      de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
+      sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
+      su JavaScript parado; con poca memoria libre, las de detrás se "descartan" como en Chrome (solo dirección,
+      título y desplazamiento; se cargan al volver). Medir cuánto ocupa cada una antes y después.
 
 - [x] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
       una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
@@ -4088,4 +4098,28 @@ Formato:
   y Reiniciar abre el nuevo (uno de mentira que deja una marca en el disco) tras salir el viejo con rc 0. Contra
   GitHub de verdad: la lista llega (200, 16 KB en 1,1 s) y la descarga de un fichero de una versión sigue la
   redirección y llega entera (tachyon.lha, 6.887.714 bytes). La v0.4.0 no lleva Tachyon.gz (no tiene esto).
+
+### 2026-10-23 — Tarea 45: la interfaz (menús, iconos, led, historial, candado y estrella)
+- Iconos nuevos: los de 16x14 en 4 colores (el usuario: "parece que los ha dibujado un niño") pasan a los SVG de
+  Lucide (third_party/lucide, ISC; su licencia al paquete) pintados a 20x20 con rsvg-convert, suavizados sobre el gris
+  de los botones y en hasta 32 colores, uno por función (azul navegar, rojo parar, verde actualizar, dorado el
+  candado): tools/iconos.py. También iconos/logo.iff (docs/logo/tachyon.svg a 260x57) arriba en Acerca de.
+- MUI 3.8 no cambia la imagen de un botón ya hecho (MUIA_Dtpic_Name solo al crearlo): por eso las flechas de atrás y
+  adelante nunca se encendían. Ahora un botón por estado (atrás y atrás apagado, candado cerrado y abierto, estrella
+  vacía y llena, actualizar y reiniciar) y se enseña uno u otro.
+- src/navegador.dashui: cuatro menús (Proyecto, Navegar, Marcadores, Herramientas; con Ir a la dirección, Amiga-L:
+  MUIA_Window_ActiveObject, y Cookies); fuera el punto de actividad de arriba y el panel del historial; en la barra de
+  la dirección, el candado (HTTPS u HTTP; nada en tachyon:) y la estrella (un clic añade o quita el marcador); abajo,
+  un led: verde que parpadea mientras algo llega (cada 300 ms), rojo si la página falló, gris parado.
+- lib/marcadores.dash: el historial en Tachyon.historial (minuto, dirección y título; 300 como mucho; la misma página
+  seguida, una vez) y la página tachyon:historial por días (Hoy, Ayer, la fecha) con la hora, el título y la dirección
+  entera, y "Borrar el historial"; marcadores_tiene y marcadores_quitar, y en tachyon:marcadores un "quitar" en cada
+  uno. Atrás y adelante, con una lista de cada ventana (pasos).
+- La página de inicio: el buscador con flex salía estrecho y cortaba "Buscar" (45f, sin arreglar en la maqueta: puesto
+  sin flex); el título de la ventana, "Tachyon" y no "Tachyon - Tachyon".
+- Probado en el emulador (rtg, MUI 3.8) con capturas y clics (tools/amiga/clicar): freemem.space con el candado
+  dorado; la estrella guarda el marcador y se llena; Navegar > Historial y Marcadores > Ver marcadores desde el menú;
+  atrás encendido tras navegar; Acerca de con el logo; el icono verde con --versiones. En un A1200 de 640x256 (sys31,
+  pocos colores) MUI ajusta los iconos a la paleta y se entienden. test_marcadores ampliado (quitar, el historial por
+  días y la fecha). tools/medir_visor.py deja pasar --pagina tachyon:... tal cual.
 

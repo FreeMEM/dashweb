@@ -1,9 +1,12 @@
 # Test: lib/marcadores.dash. Marcadores (sin repetir una dirección; tabuladores del título quitados),
-# la página con sus enlaces, y preferencias clave=valor (poner, leer, cambiar).
+# la página con sus enlaces (y el de quitar de cada uno), quitar uno, y preferencias clave=valor (poner, leer,
+# cambiar); el historial (la misma página seguida, una vez; por días, lo último arriba; la fecha de un día).
 # memcheck
 # expect-out: 2 marcadores: http://a.org/ [A org] http://b.org/x?y=1&z=2 [B dos]
-# expect-out: página: 2 enlaces, escapado: true
+# expect-out: página: 4 enlaces, escapado: true
+# expect-out: quitada: false true 1
 # expect-out: inicio [] -> [http://a.org/] -> [http://b.org/], otra [sí]
+# expect-out: historial: 3 líneas; Hoy primero true, Ayer true, 23/10/2026 true, borrado true
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/marcadores.dash"
@@ -34,10 +37,25 @@ Main
     html = marcadores_html(m)
     doc = dom_desde_html(html)
     Print "página: " + contar(doc, "a") + " enlaces, escapado: " + (str_find(html, "y=1&amp;z=2") >= 0)
+    marcadores_quitar(m, "http://a.org/")
+    Print "quitada: " + marcadores_tiene(m, "http://a.org/") + " " + marcadores_tiene(m, "http://b.org/x?y=1&z=2") + " " + marcadores_direcciones(m).length
     antes = preferencia(p, "inicio")
     preferencia_poner(p, "inicio", "http://a.org/")
     uno = preferencia(p, "inicio")
     preferencia_poner(p, "otra", "sí")
     preferencia_poner(p, "inicio", "http://b.org/")
     Print "inicio [" + antes + "] -> [" + uno + "] -> [" + preferencia(p, "inicio") + "], otra [" + preferencia(p, "otra") + "]"
+    # el 23-10-2026 son 17827 días desde el 1-1-1978
+    hoy = 17827 * 1440 + 20 * 60 + 40
+    hf = "T:prueba.historial"
+    historial_borrar(hf)
+    historial_agregar(hf, "http://a.org/", "A", hoy - 1440 - 5)
+    historial_agregar(hf, "http://b.org/", "B", hoy - 10)
+    historial_agregar(hf, "http://b.org/", "B de nuevo", hoy)
+    historial_agregar(hf, "http://c.org/", "C", hoy)
+    lineas = str_split(str_trim(file_read_text(hf)), "\n")
+    hh = historial_html(hf, hoy)
+    a = str_find(hh, "<h2>Hoy</h2>")
+    b = str_find(hh, "<h2>Ayer</h2>")
+    Print "historial: " + lineas.length + " líneas; Hoy primero " + (a >= 0 and a < b and str_find(hh, "C</a>") < str_find(hh, "B de nuevo")) + ", Ayer " + (b >= 0) + ", 23/10/2026 " + str_contains(historial_html(hf, hoy + 3 * 1440), "<h2>23/10/2026</h2>") + ", borrado " + (historial_borrar(hf) and str_contains(historial_html(hf, hoy), "Aún no"))
 end

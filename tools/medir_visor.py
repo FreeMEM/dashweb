@@ -121,7 +121,7 @@ def main():
                 shot = [(float(tiempos[min(i, len(tiempos) - 1)]), f) for i, f in enumerate(ficheros)]
             esquema = "https" if modo else "http"
             programs = [str(exe)]
-            prog_args = [" ".join(p if "://" in p else f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")
+            prog_args = [" ".join(p if "://" in p or p.startswith("tachyon:") else f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")
                                   else f"{esquema}://{args.host}:{PORT}/pages/{p}" for p in args.pagina.split(","))]
             if args.traza:
                 prog_args[0] += " TRAZA"

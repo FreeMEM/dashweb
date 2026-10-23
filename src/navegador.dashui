@@ -23,34 +23,9 @@
               "separator": true
             },
             {
-              "label": "Página de inicio",
-              "key": "H",
-              "event": 17
-            },
-            {
-              "label": "Marcadores",
-              "key": "B",
-              "event": 14
-            },
-            {
-              "label": "Añadir marcador",
-              "key": "D",
-              "event": 15
-            },
-            {
-              "label": "Usar como página de inicio",
-              "event": 16
-            },
-            {
-              "separator": true
-            },
-            {
-              "label": "Buscar actualizaciones",
-              "event": 22
-            },
-            {
-              "label": "No avisar de versiones nuevas",
-              "event": 23
+              "label": "Ir a la dirección",
+              "key": "L",
+              "event": 24
             },
             {
               "separator": true
@@ -69,6 +44,83 @@
               "event": 9
             }
           ]
+        },
+        {
+          "title": "Navegar",
+          "items": [
+            {
+              "label": "Atrás",
+              "event": 1
+            },
+            {
+              "label": "Adelante",
+              "event": 2
+            },
+            {
+              "label": "Recargar",
+              "key": "R",
+              "event": 3
+            },
+            {
+              "label": "Parar",
+              "event": 13
+            },
+            {
+              "separator": true
+            },
+            {
+              "label": "Página de inicio",
+              "key": "H",
+              "event": 17
+            },
+            {
+              "label": "Historial",
+              "key": "Y",
+              "event": 20
+            }
+          ]
+        },
+        {
+          "title": "Marcadores",
+          "items": [
+            {
+              "label": "Ver marcadores",
+              "key": "B",
+              "event": 14
+            },
+            {
+              "label": "Añadir o quitar esta página",
+              "key": "D",
+              "event": 15
+            },
+            {
+              "separator": true
+            },
+            {
+              "label": "Usar como página de inicio",
+              "event": 16
+            }
+          ]
+        },
+        {
+          "title": "Herramientas",
+          "items": [
+            {
+              "label": "Cookies",
+              "event": 25
+            },
+            {
+              "separator": true
+            },
+            {
+              "label": "Buscar actualizaciones",
+              "event": 22
+            },
+            {
+              "label": "No avisar de versiones nuevas",
+              "event": 23
+            }
+          ]
         }
       ],
       "root": {
@@ -80,6 +132,14 @@
               {
                 "type": "image_button",
                 "name": "atras",
+                "file": "PROGDIR:iconos/atras.iff",
+                "event": 1,
+                "help": "Atrás",
+                "hidden": true
+              },
+              {
+                "type": "image_button",
+                "name": "atras_no",
                 "file": "PROGDIR:iconos/atras_apagado.iff",
                 "event": 1,
                 "help": "Atrás"
@@ -87,6 +147,14 @@
               {
                 "type": "image_button",
                 "name": "adelante",
+                "file": "PROGDIR:iconos/adelante.iff",
+                "event": 2,
+                "help": "Adelante",
+                "hidden": true
+              },
+              {
+                "type": "image_button",
+                "name": "adelante_no",
                 "file": "PROGDIR:iconos/adelante_apagado.iff",
                 "event": 2,
                 "help": "Adelante"
@@ -114,6 +182,22 @@
                 "help": "Página de inicio"
               },
               {
+                "type": "image_button",
+                "name": "candado",
+                "file": "PROGDIR:iconos/candado.iff",
+                "event": 27,
+                "help": "Conexión cifrada (HTTPS)",
+                "hidden": true
+              },
+              {
+                "type": "image_button",
+                "name": "candado_abierto",
+                "file": "PROGDIR:iconos/candado_abierto.iff",
+                "event": 27,
+                "help": "Conexión sin cifrar (HTTP)",
+                "hidden": true
+              },
+              {
                 "type": "string",
                 "name": "url",
                 "text": "",
@@ -123,26 +207,41 @@
                 "help": "Dirección: escríbela y pulsa Return"
               },
               {
-                "type": "canvas",
-                "name": "actividad",
-                "min_width": 16,
-                "min_height": 16,
-                "weight": 0
+                "type": "image_button",
+                "name": "estrella",
+                "file": "PROGDIR:iconos/estrella.iff",
+                "event": 26,
+                "help": "Añadir a marcadores"
+              },
+              {
+                "type": "image_button",
+                "name": "estrella_llena",
+                "file": "PROGDIR:iconos/estrella_llena.iff",
+                "event": 26,
+                "help": "En marcadores: pulsa para quitarla",
+                "hidden": true
               },
               {
                 "type": "image_button",
                 "name": "ver_historial",
                 "file": "PROGDIR:iconos/historial.iff",
                 "event": 20,
-                "help": "Historial (mostrar u ocultar)"
+                "help": "Historial: lo que has visto"
               },
               {
-                "type": "button",
+                "type": "image_button",
                 "name": "actualizar",
-                "label": "Actualizar",
+                "file": "PROGDIR:iconos/actualizar.iff",
                 "event": 21,
-                "weight": 0,
                 "help": "Hay una versión nueva de Tachyon: pulsa para instalarla",
+                "hidden": true
+              },
+              {
+                "type": "image_button",
+                "name": "reiniciar",
+                "file": "PROGDIR:iconos/reiniciar.iff",
+                "event": 21,
+                "help": "Instalada la versión nueva: pulsa para reiniciar Tachyon con ella",
                 "hidden": true
               }
             ]
@@ -150,18 +249,6 @@
           {
             "type": "hgroup",
             "children": [
-              {
-                "type": "list",
-                "name": "historial",
-                "double": 6,
-                "weight": 25,
-                "hidden": true
-              },
-              {
-                "type": "balance",
-                "name": "separador",
-                "hidden": true
-              },
               {
                 "type": "canvas",
                 "name": "pagina",
@@ -179,6 +266,13 @@
           {
             "type": "hgroup",
             "children": [
+              {
+                "type": "canvas",
+                "name": "led",
+                "min_width": 14,
+                "min_height": 12,
+                "weight": 0
+              },
               {
                 "type": "text",
                 "name": "estado",
@@ -209,13 +303,18 @@
         "type": "vgroup",
         "children": [
           {
+            "type": "image",
+            "name": "logo",
+            "file": "PROGDIR:iconos/logo.iff"
+          },
+          {
             "type": "text",
             "name": "version",
             "text": "\u001bcTachyon"
           },
           {
             "type": "text",
-            "text": "\u001bc\u00a9 2026 Francisco Antonio Tapias Bravo\n\u001bcLicencia MIT \u00b7 github.com/FreeMEM/tachyon\n\n\u001bcUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\u001bcLleva, adaptados para AmigaOS:\n\u001bcQuickJS (Fabrice Bellard y Charlie Gordon)\n\u001bcHubbub y LibParserUtils (NetSurf)\n\u001bcy tambi\u00e9n stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm y MintVID.\n\u001bcSus licencias, en el caj\u00f3n Licencias."
+            "text": "\u001bc© 2026 Francisco Antonio Tapias Bravo\n\u001bcLicencia MIT · github.com/FreeMEM/tachyon\n\n\u001bcUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\u001bcLleva, adaptados para AmigaOS:\n\u001bcQuickJS (Fabrice Bellard y Charlie Gordon)\n\u001bcHubbub y LibParserUtils (NetSurf)\n\u001bcy también stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm y MintVID.\n\u001bcSus licencias, en el cajón Licencias."
           },
           {
             "type": "button",
