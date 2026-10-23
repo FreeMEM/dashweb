@@ -1,0 +1,27 @@
+# Test: lib/buscadores.dash (tarea 45h). Qué escrito en la barra es una búsqueda, la dirección de cada buscador con lo
+# buscado codificado (espacios, &, letras con tilde en UTF-8), el de por defecto si no existe, y la página de elegir.
+# memcheck
+# expect-out: búsquedas: true true false false false false false
+# expect-out: ddg: https://html.duckduckgo.com/html/?q=amiga+1200
+# expect-out: aminet: https://aminet.net/search?query=c%26a+m%C3%BAsica
+# expect-out: desconocido: DuckDuckGo
+# expect-out: página: 6 buscadores, en uso Brave true, 5 para usar
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/buscadores.dash"
+
+Main
+    Print "búsquedas: " + es_busqueda("amiga") + " " + es_busqueda(" amiga 1200 ") + " " + es_busqueda("aminet.net") + " " + es_busqueda("localhost:8080") + " " + es_busqueda("file:///a") + " " + es_busqueda("tachyon:historial") + " " + es_busqueda("")
+    Print "ddg: " + buscar_url("ddg", "amiga 1200")
+    Print "aminet: " + buscar_url("aminet", "c&a música")
+    Print "desconocido: " + buscador_de("nada").nombre
+    h = buscadores_html("brave")
+    usar = 0
+    p = str_find(h, "?usar=")
+    while p >= 0
+        usar = usar + 1
+        p = str_find_from(h, "?usar=", p + 1)
+    end
+    m = str_find(h, "Brave")
+    Print "página: " + buscadores().length + " buscadores, en uso Brave " + (str_find(h, "En uso") >= 0 and str_find(h, "En uso") < m) + ", " + usar + " para usar"
+end

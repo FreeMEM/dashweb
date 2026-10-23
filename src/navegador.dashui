@@ -110,6 +110,10 @@
               "event": 25
             },
             {
+              "label": "Buscador...",
+              "event": 28
+            },
+            {
               "separator": true
             },
             {

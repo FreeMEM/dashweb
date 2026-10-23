@@ -413,8 +413,21 @@ tarea, con el estilo de Dash.
       f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
          al lado) salía con el campo de ~200 px y el botón cortado ("Busc"); en Chrome, 520 px entre los dos. Puesto
          sin flex mientras; arreglar el flex en lib/maqueta.dash y volver a ponerlo. El logo, también en Acerca de.
+      [x] h. Buscador por defecto (usuario, 2026-10-23): elegir uno de una lista (DuckDuckGo HTML, Google, Bing,
+         Brave, Startpage, Mojeek, Ecosia, y Wikipedia y Aminet como búsquedas especiales), guardado en
+         Tachyon.prefs; lo usan el buscador de la página de inicio y la barra de la dirección (unas palabras sin
+         punto ni esquema se buscan, como en Chrome). Antes, ver en el emulador qué páginas de resultados salen bien.
+         Hecho (2026-10-23): DuckDuckGo (HTML) por defecto, Google, Bing, Brave, Wikipedia y Aminet; Startpage,
+         Mojeek y Ecosia fuera (piden demostrar que no se es un robot). Google enseña antes su aviso de cookies.
       [ ] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
+- [ ] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
+      lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
+      la ventana; la página tachyon:descargas con cada una (nombre, dónde se guarda, KB de cuántos, velocidad, lo que
+      falta), con parar, reintentar, quitar de la lista y "abrir el cajón" (el Workbench, OpenWorkbenchObject en 3.2);
+      las acabadas se guardan en Tachyon.descargas. Un icono de descarga en la barra mientras alguna va (con la ayuda
+      "2 descargas: 45 %"), que abre la página; menú Herramientas, Descargas (Amiga-J). Preguntar dónde guardar o usar
+      un cajón por defecto (preferencia; por defecto, preguntar como hoy).
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
@@ -4122,4 +4135,18 @@ Formato:
   atrás encendido tras navegar; Acerca de con el logo; el icono verde con --versiones. En un A1200 de 640x256 (sys31,
   pocos colores) MUI ajusta los iconos a la paleta y se entienden. test_marcadores ampliado (quitar, el historial por
   días y la fecha). tools/medir_visor.py deja pasar --pagina tachyon:... tal cual.
+
+### 2026-10-23 — Tarea 45h: el buscador por defecto (y los desplegables con display block)
+- lib/buscadores.dash: DuckDuckGo en HTML (por defecto: sin JavaScript, sus resultados salen en ~6 s), Google, Bing,
+  Brave, Wikipedia y Aminet; tachyon:buscadores para elegir (Herramientas > Buscador..., y una tarjeta en la página
+  de inicio), guardado en Tachyon.prefs (buscador=). La barra de la dirección busca lo que no es una dirección (con
+  espacios, o sin punto, dos puntos ni barra: es_busqueda); la página de inicio manda a tachyon:buscar?q=..., que va
+  a los resultados del elegido (y cambia ese paso de atrás por ellos). test_buscadores.
+- Mirados en el emulador (rtg): DuckDuckGo bien; Bing bien; Brave con resultados y la maqueta algo revuelta; Google
+  enseña antes su aviso de cookies; Startpage, Mojeek y Ecosia piden demostrar que no se es un robot (fuera).
+- Los desplegables de DuckDuckGo (.frm__select select { display: block; appearance: none }) salían como una lista
+  con todas sus opciones: un <select> con display block se maquetaba como un bloque con sus <option> de texto. Ahora,
+  como los campos de texto de 42h: una línea con la opción elegida en un control sin marco (lib/maqueta.dash,
+  lib/pintor.dash _campo_propio_pintar).
+- Batería de la 44 (31d49ae): 98/98 (2204 s).
 

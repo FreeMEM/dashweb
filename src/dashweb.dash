@@ -16,6 +16,7 @@ import "../lib/documento.dash"
 import "../lib/formularios.dash"
 import "../lib/marcadores.dash"
 import "../lib/actualizar.dash"
+import "../lib/buscadores.dash"
 
 # desde el icono del Workbench, lo que escribe (console.log de las páginas, «entera en») no abre una consola
 @workbench_output "NIL:"
@@ -44,6 +45,7 @@ const ID_IR_DIRECCION = 24
 const ID_COOKIES = 25
 const ID_ESTRELLA = 26
 const ID_CANDADO = 27
+const ID_BUSCADORES = 28
 # y los del programa
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
@@ -216,11 +218,13 @@ func dw_inicio() -> String
     h = h + "</style></head><body><div class=cab>"
     h = h + "<img src=\"" + LOGO_INICIO + "\" width=366 height=65 alt=Tachyon>"
     h = h + "<p class=lema>Un navegador web para <b>AmigaOS</b>, escrito en <i>Dash</i></p>"
-    h = h + "<form action=\"https://www.google.com/search\" method=get><input type=text name=q placeholder=\"Busca en la web o escribe una dirección arriba\">"
+    h = h + "<form action=\"tachyon:buscar\" method=get><input type=text name=q placeholder=\"Busca con " + buscador_de(buscador_elegido()).nombre + "\">"
     h = h + "<button type=submit>Buscar</button></form></div>"
     h = h + "<div class=rejilla>"
     h = h + "<a href=\"tachyon:marcadores\"><b>Marcadores</b>Tus páginas guardadas</a>"
     h = h + "<a href=\"tachyon:cookies\"><b>Cookies</b>Qué guarda cada web</a>"
+    h = h + "<a href=\"tachyon:historial\"><b>Historial</b>Lo que has visto</a>"
+    h = h + "<a href=\"tachyon:buscadores\"><b>Buscador</b>Con cuál buscar</a>"
     h = h + "<a href=\"https://aminet.net/\"><b>Aminet</b>Programas para Amiga</a>"
     h = h + "<a href=\"https://amigaworld.net/\"><b>AmigaWorld.net</b>Noticias y foros</a>"
     h = h + "<a href=\"https://es.wikipedia.org/\"><b>Wikipedia</b>La enciclopedia libre</a>"
@@ -542,6 +546,26 @@ func abrir(w: Ventana, direccion: String)
     if str_starts(str_lower(direccion), "dashweb:")
         direccion = "tachyon:" + direccion[8:]
     end
+    # tachyon:buscar?q=...: el buscador de la página de inicio, con el buscador elegido (la barra y atrás ya llevan a
+    # la de sus resultados)
+    if str_starts(direccion, "tachyon:buscar?")
+        q = ""
+        p = str_find(direccion, "q=")
+        if p >= 0
+            q = direccion[p + 2:]
+            f = str_find(q, "&")
+            if f >= 0
+                q = q[:f]
+            end
+            q = url_deshacer(str_replace(q, "+", " "))
+        end
+        resultados = buscar_url(buscador_elegido(), q)
+        if w.visto >= 0 and w.visto < w.pasos.length and w.pasos[w.visto] == direccion
+            w.pasos[w.visto] = resultados
+        end
+        direccion = resultados
+        mui_set_text(w.v.url, direccion)
+    end
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
         dw_estado(w, "Conectando con " + direccion + "...")
         mui_set_value(w.v.progreso, 5)
@@ -565,6 +589,12 @@ func abrir(w: Ventana, direccion: String)
             marcadores_quitar(FICHERO_MARCADORES, direccion[p + 8:])
         end
         d = documento_html("tachyon:marcadores", marcadores_html(FICHERO_MARCADORES))
+    elif str_starts(direccion, "tachyon:buscadores")
+        p = str_find(direccion, "?usar=")
+        if p >= 0
+            preferencia_poner(FICHERO_PREFERENCIAS, "buscador", direccion[p + 6:])
+        end
+        d = documento_html("tachyon:buscadores", buscadores_html(buscador_elegido()))
     elif str_starts(direccion, "tachyon:historial")
         if str_starts(direccion, "tachyon:historial?borrar")
             historial_borrar(FICHERO_HISTORIAL)
@@ -1291,6 +1321,15 @@ func activa() -> Ventana
     return primera
 end
 
+# El buscador elegido (tachyon:buscadores; DuckDuckGo si no se eligió ninguno)
+func buscador_elegido() -> String
+    b = preferencia(FICHERO_PREFERENCIAS, "buscador")
+    if b == ""
+        return BUSCADOR_POR_DEFECTO
+    end
+    return b
+end
+
 func pagina_inicio() -> String
     inicio = preferencia(FICHERO_PREFERENCIAS, "inicio")
     if inicio == ""
@@ -1417,7 +1456,10 @@ Main
             end
             if ev == ID_IR
                 direccion = str_trim(mui_get_text(w.v.url))
-                if direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
+                if es_busqueda(direccion)
+                    # unas palabras: se buscan con el buscador elegido, como en Chrome
+                    direccion = buscar_url(buscador_elegido(), direccion)
+                elif direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
                     direccion = "http://" + direccion
                 end
                 if direccion == ""
@@ -1451,6 +1493,9 @@ Main
             end
             if ev == ID_COOKIES
                 navegar(w, "tachyon:cookies")
+            end
+            if ev == ID_BUSCADORES
+                navegar(w, "tachyon:buscadores")
             end
             if ev == ID_IR_DIRECCION
                 activar(w.v.window, w.v.url)

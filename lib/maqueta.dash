@@ -1104,6 +1104,11 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         _cat_fondo = true
         alto = _imagen_en_bloque(m, n, cx, cy, interior)
         _cat_fondo = false
+    elif n.nombre == "select"
+        # un desplegable con display block (DuckDuckGo): sus opciones no se maquetan; una línea con la elegida (su
+        # control, abajo; tarea 45h)
+        font_use(_fuente(m, e["font-family"], estilo_px(e["font-size"], 0, 0)))
+        alto = font_height() + 2
     else
         alto = _contenido(m, n, cx, cy, interior)
     end
@@ -1217,7 +1222,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     # un campo de texto que maqueta su CSS (display block, inline-block...: su caja, fondo y borde son de la página):
     # su texto, su placeholder y su cursor, en un control sin marco en la caja de contenido (el buscador de Wikipedia
     # no enseñaba nada, ni lo que se escribía; tarea 42h)
-    if _campo_de_texto(n)
+    if _campo_de_texto(n) or n.nombre == "select"
         ctl = _dibujo(D_CONTROL, cx, cy, interior, alto, 0)
         ctl.fuente = _fuente(m, e["font-family"], estilo_px(e["font-size"], 0, 0))
         ctl.nodo = n
