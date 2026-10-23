@@ -1070,7 +1070,22 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         if e["display"] == "grid" or e["display"] == "inline-grid"
             alto = _grid(m, n, cx, cy, interior, alto_fijo)
         else
+            antes_flex = m.pagina.dibujos.length
             alto = _flex(m, n, cx, cy, interior, alto_fijo)
+            # sin alto fijo y con min-height mayor que lo que ocupa: otra vez con ese alto, para que align-items y
+            # justify-content repartan en él (el texto del botón "Buscar" de Wikipedia, centrado; tarea 42h)
+            if alto_fijo < 0 and e.has("min-height") and not str_ends(e["min-height"], "%")
+                alto_min = _px(e, "min-height", 0)
+                if e.has("box-sizing") and e["box-sizing"] == "border-box"
+                    alto_min = alto_min - bt - bb - pt - pb
+                end
+                if alto_min > alto
+                    while m.pagina.dibujos.length > antes_flex
+                        m.pagina.dibujos.pop()
+                    end
+                    alto = _flex(m, n, cx, cy, interior, alto_min)
+                end
+            end
         end
         _cat_atomica = cat_antes
     elif dom_es_imagen(n) or n.nombre == "svg"
