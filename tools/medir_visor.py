@@ -29,6 +29,18 @@ MAQUINAS = {
     # ($DASH_KICKSTART_32; sistema ~/.cache/dash-emu/sys32rtg, ver tools/emu_sys_rtg.sh)
     "rtg": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n"
            "graphics_card = uaegfx\n",
+    # la misma con la MMU del 68040 (sin JIT: FS-UAE no la emula con él), para MuForce: avisa de cada lectura o
+    # escritura fuera de la memoria (la dirección 0: un 68k clásico la lee sin ruido y AmigaOS 4 se cuelga; tarea
+    # 43). Sistema: ~/.cache/dash-emu/sys32rtg38mmu (sys32rtg38 con C/MuForce, Libs/disassembler.library de MuTools
+    # y "Run >NIL: C:MuForce FILE=DH0:muforce.txt" en S/Startup-Extra); los avisos, en muforce.txt con --guardar
+    "rtgmmu": "cpu = 68040\nfpu = 68040\nuae_mmu_model = 68040\nzorro_iii_memory = 131072\n"
+              "graphics_card = uaegfx\n",
+    # la misma con la pantalla ancha de 1680x1050 (FS-UAE añade a uaegfx la resolución de pantalla completa);
+    # sistema: una copia de sys32rtg38 con el modo 0x50971100 (1680x1050 de 16 bits) en
+    # Prefs/Env-Archive/Sys/ScreenMode.prefs, como hace tools/emu_sys_rtg.sh con el de 1024x768
+    "rtgancha": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n"
+                "graphics_card = uaegfx\ngraphics_card_memory = 16384\n"
+                "fullscreen_width = 1680\nfullscreen_height = 1050\n",
 }
 
 
@@ -49,6 +61,7 @@ def main():
                          "emulated CPU many times slower (measure the A1200 like this)")
     ap.add_argument("--memcheck", action="store_true", help="build with ./dash --memcheck (memory errors to the output)")
     ap.add_argument("--gc-siempre", action="store_true", help="dashweb GCSIEMPRE: QuickJS's cycle collector after every script and call")
+    ap.add_argument("--dibujos", metavar="Y0-Y1", help="dashweb DIBUJOS=Y0-Y1: when the page is whole, its drawings between those heights")
     ap.add_argument("--traza", action="store_true", help="dashweb TRAZA: the timeline of the load (lib/traza.dash)")
     ap.add_argument("--perfil", action="store_true", help="build with ./dash --profile (the table goes to the output)")
     ap.add_argument("--guardar", metavar="DIR", help="keep the emulated disk there (outputs: out0.txt, bg0.txt)")
@@ -110,6 +123,8 @@ def main():
                                   else f"{esquema}://{args.host}:{PORT}/pages/{p}" for p in args.pagina.split(","))]
             if args.traza:
                 prog_args[0] += " TRAZA"
+            if args.dibujos:
+                prog_args[0] += " DIBUJOS=" + args.dibujos
             if args.gc_siempre:
                 prog_args[0] += " GCSIEMPRE"
             red = "bsdsocket_library = 1\n"
@@ -119,7 +134,7 @@ def main():
                 prog_args = ["DH0:p1", ""]
                 red = ""
             out = run_programs(programs, timeout=args.segundos + 60,
-                               kickstart=os.environ.get("DASH_KICKSTART_32" if args.maquina == "rtg" else "DASH_KICKSTART"),
+                               kickstart=os.environ.get("DASH_KICKSTART_32" if args.maquina.startswith("rtg") else "DASH_KICKSTART"),
                                extra_config=red + MAQUINAS[args.maquina],
                                screenshot=shot, system=args.sistema, keep=args.guardar,
                                background=[(str(ROOT / "tools" / "amiga" / "clicar.dash"), args.acciones)]

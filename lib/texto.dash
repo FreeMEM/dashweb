@@ -16,8 +16,13 @@ func latin1_de(cp: Int) -> String
         end
         return str_char(cp)
     end
-    if cp == 8216 or cp == 8217 or cp == 8218 or cp == 8242 or cp == 8249 or cp == 8250
+    if cp == 8216 or cp == 8217 or cp == 8218 or cp == 8242
         return "'"
+    elif cp == 8249
+        return str_char(171)
+    elif cp == 8250
+        # (los separadores de las direcciones de Google: es.wikipedia.org › wiki › ...)
+        return str_char(187)
     elif cp == 8220 or cp == 8221 or cp == 8222 or cp == 8243
         return "\""
     elif cp == 8211 or cp == 8212 or cp == 8722 or cp == 8208 or cp == 8209

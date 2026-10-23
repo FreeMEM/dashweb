@@ -30,6 +30,12 @@ En `third_party/quickjs/quickjs.c` (segundo commit del repo, para ver el diff):
    al acabar los scripts de la página); luego `tools/build_qjs.sh lib` para volver a la normal. Sin la macro, el
    código ni se compila.
 
+5. `JS_SetInterruptCatchable(rt, 1)` (tarea 42e): el "interrupted" siguiente del manejador de interrupción se puede
+   coger, así que corren los catch y los finally del script cortado (sin el cambio, QuickJS lo marca como imposible
+   de coger y se salta los finally: la librería de señales de Preact en xataka.com se quedaba con un computed a
+   medias y luego cada clic daba "Cycle detected"). lib/js.dash lo usa en el primer corte de los 30 s; si el script
+   sigue 5 s más, el corte ya no se puede coger.
+
 `third_party/quickjs/amiga/fenv.h` está vacío: el de libnix no compila y QuickJS no usa nada de él.
 `third_party/quickjs/amiga/qjsamiga.c` es un lanzador de pruebas: ejecuta los `.js` dados y mide tiempo
 (EClock de `timer.device`) y memoria. Pide 256 KB de pila.

@@ -356,6 +356,38 @@ end
 struct Decodificando
     tarea: Int
     pedido: Int
+    tinte: Int = -1     # una máscara (mask-image): todos los píxeles de este color (0xRRGGBB), con su transparencia
+end
+
+# Todos los píxeles del color rgb, con su transparencia (una máscara de mask-image teñida con el fondo del elemento)
+@native func _imgdec_tenir(d: Int, rgb: Int)
+"""
+    _ImgDec *img = (_ImgDec *)d;
+    LONG n, k;
+    UBYTE *p;
+    if (!img || !img->px) return;
+    k = img->alfa ? 4 : 3;
+    n = img->w * img->h;
+    p = (UBYTE *)img->px;
+    while (n-- > 0) {
+        p[0] = (UBYTE)((rgb >> 16) & 255);
+        p[1] = (UBYTE)((rgb >> 8) & 255);
+        p[2] = (UBYTE)(rgb & 255);
+        p += k;
+    }
+"""
+end
+
+# imagen_decodificar teñida (tinte: 0xRRGGBB)
+func imagen_decodificar_tinte(fichero: String, maxw: Int, maxh: Int, tinte: Int) -> Int
+    d = _imgdec(fichero, maxw, maxh)
+    if d == 0
+        return 0
+    end
+    _imgdec_tenir(d, tinte)
+    img = image_from_rgb(_imgdec_pixeles(d), _imgdec_ancho(d), _imgdec_alto(d), _imgdec_alfa(d))
+    _imgdec_liberar(d)
+    return img
 end
 
 # Empieza a decodificar el fichero en otro proceso, con prioridad -1 (avanza cuando el programa espera);
@@ -388,6 +420,9 @@ func imagen_acabar(d: Decodificando) -> Int
     r = _imagen_terminar(d)
     if r == 0
         return 0
+    end
+    if d.tinte >= 0
+        _imgdec_tenir(r, d.tinte)
     end
     img = image_from_rgb(_imgdec_pixeles(r), _imgdec_ancho(r), _imgdec_alto(r), _imgdec_alfa(r))
     _imgdec_liberar(r)

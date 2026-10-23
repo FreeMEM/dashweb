@@ -69,6 +69,8 @@ struct Dibujo
     fijo: Bool = false   # de un elemento con position: fixed: va con la ventana, no con la página (el pintor no le
                          # resta el desplazamiento; tarea 37h)
     difuso: Int = 0      # una sombra (D_RECT) con difuminado (box-shadow blur, px): el pintor la pinta en capas
+    cat: Int = 2         # en qué paso se pinta (CSS 2.1 apéndice E): 0 fondos y bordes de los bloques, 1 los flotantes,
+                         # 2 lo de las líneas (textos, imágenes, inline-block); _por_capas los ordena así
     pos: Int = 0         # dentro de su capa, el orden en el árbol del elemento posicionado que lo puso (0: ninguno;
                          # lo posicionado se pinta después de lo demás y en el orden del árbol, CSS 2.1 apéndice E)
     recorte: Bool = false   # overflow: solo se pinta lo que cae en rx0..rx1, ry0..ry1 (coordenadas de página)
@@ -127,6 +129,22 @@ struct Pieza
     caja: Nodo = nil         # un inline-block maquetado como bloque en su sitio de la línea (ancho: con márgenes)
     video: Bool = false      # un <video> (texto: su dirección)
     lh: Int = -1             # el line-height de su texto en px (-1: normal; tarea 40d)
+end
+
+# Un número en hexadecimal ("e60a"); 0 si no lo es
+func _hex_entero(t: String) -> Int
+    r = 0
+    for i in (0..t.length - 1)
+        c = str_code(str_lower(t), i)
+        if c >= 48 and c <= 57
+            r = r * 16 + c - 48
+        elif c >= 97 and c <= 102
+            r = r * 16 + c - 87
+        else
+            return 0
+        end
+    end
+    return r
 end
 
 # Los hijos de n con su ::before delante y su ::after detrás (lib/estilo.dash)
@@ -192,8 +210,19 @@ func _trazar(n: Nodo, x: Int, y: Int, ancho: Int, alto: Int, que: String)
     Print sangria + nombre + " " + que + " [" + x + "," + y + " " + ancho + "x" + alto + "] " + n.estilo["display"]
 end
 
+# El paso en que se pintan los dibujos que se están haciendo: dentro de un flotante, un inline-block o una caja flex o
+# grid, todo el de ella (se pintan enteros, de una vez); si no, 0 los fondos y bordes de un bloque y 2 lo demás
+var _cat_atomica: Int = -1
+var _cat_fondo: Bool = false
+
 func _dibujo(tipo: Int, x: Int, y: Int, ancho: Int, alto: Int, color: Int) -> Dibujo
-    return Dibujo(tipo, x, y, ancho, alto, color, "", 0, 0, "")
+    d = Dibujo(tipo, x, y, ancho, alto, color, "", 0, 0, "")
+    if _cat_atomica >= 0
+        d.cat = _cat_atomica
+    elif _cat_fondo
+        d.cat = 0
+    end
+    return d
 end
 
 # === Fuentes ===
@@ -404,6 +433,12 @@ var maqueta_guardadas: Int = 0
 func maquetar(doc: Nodo, ancho: Int) -> Pagina
     estilo_vw = ancho              # (vw: el ancho de donde se ve la página)
     _alto_definido = -1
+    _abs_temporal = 0
+    while _abs_pend.length > 0
+        _abs_pend.pop()
+        _abs_px.pop()
+        _abs_py.pop()
+    end
     _maqueta_pase = _maqueta_pase + 1
     if not maqueta_conservar
         _maqueta_epoca = _maqueta_epoca + 1
@@ -581,9 +616,32 @@ func _por_capas(p: Pagina)
         end
     end
     if not hay
+        # sin z-index ni posicionados: solo los pasos (fondos de bloques, flotantes, líneas), en tres montones
+        var c0: [Dibujo] = []
+        var c1: [Dibujo] = []
+        var c2: [Dibujo] = []
+        for d in p.dibujos
+            if d.cat == 0
+                c0.push(d)
+            elif d.cat == 1
+                c1.push(d)
+            else
+                c2.push(d)
+            end
+        end
+        if c1.length == 0 and (c0.length == 0 or c2.length == 0)
+            return
+        end
+        for d in c1
+            c0.push(d)
+        end
+        for d in c2
+            c0.push(d)
+        end
+        p.dibujos = c0
         return
     end
-    # por capa y, dentro, por pos; los de la misma clave, como estaban (mezcla estable)
+    # por capa, dentro por pos y luego por paso; los de la misma clave, como estaban (mezcla estable)
     p.dibujos = _por_clave(p.dibujos)
 end
 
@@ -591,7 +649,10 @@ func _antes_que(a: Dibujo, b: Dibujo) -> Bool
     if a.capa != b.capa
         return a.capa < b.capa
     end
-    return a.pos < b.pos
+    if a.pos != b.pos
+        return a.pos < b.pos
+    end
+    return a.cat < b.cat
 end
 
 func _por_clave(l: [Dibujo]) -> [Dibujo]
@@ -674,7 +735,12 @@ func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedo
     _maqueta_nivel = _maqueta_nivel + 1
     antes = m.pagina.dibujos.length
     r = _bloque_en(m, n, x, y, ancho, contenedor)
-    t = _transformacion(n.estilo)
+    # (al medir un ancho, ni transform ni position: relative: no mueven a los demás, y con lo movido la caja que
+    # encoge salía 1 px corta y la "e" del logo de Google, con left: -1px, bajaba de línea)
+    t = ""
+    if _midiendo == 0
+        t = _transformacion(n.estilo)
+    end
     if t != ""
         _transformar(m, n, t, antes)
     end
@@ -689,7 +755,7 @@ func _bloque_de_ya(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedo
         end
     end
     # position: relative: se desplaza lo dibujado (left o right, top o bottom) sin mover a los demás (CSS 2.1, 9.4.3)
-    if _val(n.estilo, "position", "static") == "relative"
+    if _midiendo == 0 and _val(n.estilo, "position", "static") == "relative"
         _relativo(m, n, antes, contenedor)
     end
     # sticky con top: lo suyo se mueve con el desplazamiento (_cajas_finales pone dónde está y hasta dónde llega)
@@ -784,6 +850,7 @@ end
 func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: Int) -> Int
     e = n.estilo
     inicio = m.pagina.dibujos.length
+    pend_inicio = _abs_pend.length
     c = _caja_leida(n, contenedor)
     mt = c[0]
     mb = c[1]
@@ -797,10 +864,21 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     pb = c[9]
     pl = c[10]
     pr = c[11]
+    # márgenes de arriba de padre e hijo juntos (8.3.1): el del primer hijo ya lo pone su padre
+    if _margen_absorbido(n)
+        mt = 0
+    elif _colapsa_arriba(n)
+        mt = _margen_arriba(n, contenedor)
+    end
+    if _colapsa_abajo(n)
+        mb = _margen_abajo(n, contenedor)
+    end
     interior = ancho - ml - mr - bl - br - pl - pr
     if e.has("width") and e["width"] != "auto"
         w = _px(e, "width", contenedor)
-        if e.has("box-sizing") and e["box-sizing"] == "border-box"
+        # (el de una tabla es el de su caja con los bordes, como en los navegadores: una de width 100% y borde de 1 px
+        # salía 2 px más ancha; Web Platform Tests block-formatting-contexts-001; tarea 41b)
+        if (e.has("box-sizing") and e["box-sizing"] == "border-box") or e["display"] == "table" or e["display"] == "inline-table"
             w = w - bl - br - pl - pr
         end
         if w > 0 and w <= interior
@@ -866,11 +944,14 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if _con_mascara(e)
         fondo = -1
     end
+    mascara = mascara_clave(e)
     # background-clip: text: el fondo solo se ve dentro de las letras (las pinta _palabras con su color)
     recorta_texto = _clip_texto(e)
     if recorta_texto
         fondo = -1
     end
+    # (sombra, fondo, imagen de fondo y bordes: el paso de los fondos de los bloques)
+    _cat_fondo = true
     # box-shadow (la primera que no es inset), debajo del fondo
     var sombra: Dibujo = nil
     sombra_v = [0, 0, 0, 0]
@@ -921,6 +1002,17 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         imagen_fondo.nodo = n
         m.pagina.dibujos.push(imagen_fondo)
     end
+    # la máscara teñida (mask-image; estilo 1: el pintor toma mask-size, mask-position y mask-repeat), en la caja
+    # del borde, como los navegadores (mask-origin y mask-clip: border-box)
+    var imagen_mascara: Dibujo = nil
+    if mascara != ""
+        imagen_mascara = _dibujo(D_FONDO, x + ml, y + mt, interior + bl + br + pl + pr, 0, 0)
+        imagen_mascara.texto = mascara
+        imagen_mascara.nodo = n
+        imagen_mascara.estilo = 1
+        m.pagina.dibujos.push(imagen_mascara)
+    end
+    _cat_fondo = false
     cx = x + ml + bl + pl
     cy = y + mt + bt + pt
     # height en %: del alto del contenedor, si es fijo (_alto_definido); los hijos ven el de esta caja
@@ -979,14 +1071,39 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
                 alto_fijo = 0
             end
         end
+        # (sus cajas se pintan enteras, como un inline-block)
+        cat_antes = _cat_atomica
+        if cat_antes < 0
+            _cat_atomica = 2
+        end
         if e["display"] == "grid" or e["display"] == "inline-grid"
             alto = _grid(m, n, cx, cy, interior, alto_fijo)
         else
+            antes_flex = m.pagina.dibujos.length
             alto = _flex(m, n, cx, cy, interior, alto_fijo)
+            # sin alto fijo y con min-height mayor que lo que ocupa: otra vez con ese alto, para que align-items y
+            # justify-content repartan en él (el texto del botón "Buscar" de Wikipedia, centrado; tarea 42h)
+            # (solo en fila: en columna rehacerlo dejaba sin pintar las opciones de "Apariencia" de Wikipedia)
+            if alto_fijo < 0 and e.has("min-height") and not str_ends(e["min-height"], "%") and not str_starts(_val(e, "flex-direction", "row"), "column")
+                alto_min = _px(e, "min-height", 0)
+                if e.has("box-sizing") and e["box-sizing"] == "border-box"
+                    alto_min = alto_min - bt - bb - pt - pb
+                end
+                if alto_min > alto
+                    while m.pagina.dibujos.length > antes_flex
+                        m.pagina.dibujos.pop()
+                    end
+                    alto = _flex(m, n, cx, cy, interior, alto_min)
+                end
+            end
         end
-    elif n.nombre == "img" or n.nombre == "svg"
-        # una imagen con display: block (la destacada de WordPress...): una línea con ella
+        _cat_atomica = cat_antes
+    elif dom_es_imagen(n) or n.nombre == "svg"
+        # una imagen con display: block (la destacada de WordPress...): una línea con ella (un reemplazado de bloque se
+        # pinta con los fondos de los bloques)
+        _cat_fondo = true
         alto = _imagen_en_bloque(m, n, cx, cy, interior)
+        _cat_fondo = false
     else
         alto = _contenido(m, n, cx, cy, interior)
     end
@@ -1030,10 +1147,32 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     if alto < 0
         alto = 0
     end
-    # los hijos con position absolute o fixed, encima, respecto a esta caja (su relleno)
-    for h in _hijos(n)
-        if _fuera_del_flujo(h) and not _oculto(h)
+    # los hijos con position absolute o fixed, encima, respecto a esta caja (su relleno); también los que van dentro
+    # de algo en línea (el <img> absoluto de un <picture> en las tarjetas de xataka.com salía debajo, en la línea)
+    # Su caja es la del antepasado posicionado más cercano (CSS 2.1 10.1): si esta no lo es, se apuntan con su sitio
+    # estático y los pone el primero de arriba que lo sea (la fila de favicons de xataka.com, absolute y top: 0 en un
+    # padre sin posicionar, salía bajo la cabecera; tarea 42g). Al medir y en las maquetas de un momento (flex, grid,
+    # celdas, inline-block: luego se mueven), como antes, respecto a esta caja.
+    es_caja = _midiendo > 0 or _abs_temporal > 0 or _caja_de_absolutos(n)
+    for h in _absolutos_de(n)
+        if es_caja or _val(h.estilo, "position", "absolute") == "fixed"
             _absoluto(m, h, x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, pl, pt)
+        else
+            _abs_pend.push(h)
+            _abs_px.push(x + ml + bl + pl)
+            _abs_py.push(y + mt + bt + pt)
+        end
+    end
+    if es_caja and _abs_pend.length > pend_inicio
+        k = pend_inicio
+        while k < _abs_pend.length
+            _absoluto(m, _abs_pend[k], x + ml + bl, y + mt + bt, interior + pl + pr, pt + alto + pb, _abs_px[k] - (x + ml + bl), _abs_py[k] - (y + mt + bt))
+            k = k + 1
+        end
+        while _abs_pend.length > pend_inicio
+            _abs_pend.pop()
+            _abs_px.pop()
+            _abs_py.pop()
         end
     end
     alto_caja = bt + pt + alto + pb + bb
@@ -1072,13 +1211,32 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             caja_fondo.estilo = 0
         end
     end
+    if imagen_mascara != nil
+        imagen_mascara.alto = bt + pt + alto + pb + bb
+    end
+    # un campo de texto que maqueta su CSS (display block, inline-block...: su caja, fondo y borde son de la página):
+    # su texto, su placeholder y su cursor, en un control sin marco en la caja de contenido (el buscador de Wikipedia
+    # no enseñaba nada, ni lo que se escribía; tarea 42h)
+    if _campo_de_texto(n)
+        ctl = _dibujo(D_CONTROL, cx, cy, interior, alto, 0)
+        ctl.fuente = _fuente(m, e["font-family"], estilo_px(e["font-size"], 0, 0))
+        ctl.nodo = n
+        ctl.estilo = 1
+        m.pagina.dibujos.push(ctl)
+    end
     if imagen_fondo != nil
         imagen_fondo.alto = pt + alto + pb
     end
     if degradado != nil
         degradado.alto = alto_caja
     end
-    if redonda and bt > 0 and bt == br and bt == bb and bt == bl
+    _cat_fondo = true
+    # (un borde redondo transparente no se pinta: el de los botones "quiet" de Wikipedia salía con el color del texto
+    # y enmarcaba sus iconos; tarea 42g)
+    sin_borde = (redonda or radios != 0) and _borde_invisible(e)
+    if sin_borde
+        _cat_fondo = true
+    elif redonda and bt > 0 and bt == br and bt == bb and bt == bl
         borde = _dibujo(D_ELIPSE, x + ml, y + mt, interior + bl + br + pl + pr, alto_caja, _color_borde(e, "top"))
         borde.estilo = bt
         borde.nodo = n
@@ -1100,6 +1258,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             k = k + 1
         end
     end
+    _cat_fondo = false
     # overflow (hidden, clip, auto, scroll): lo de dentro, recortado a su caja
     if _recorta(e)
         _recortar(m, inicio, x + ml, y + mt, x + ml + interior + bl + br + pl + pr - 1, y + mt + alto_caja - 1)
@@ -1892,7 +2051,7 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
         ax = cx + pl         # sin left ni right: donde estaría (al principio del contenido)
     end
     # una imagen o un <svg> (la curva de trainalong): a su tamaño (el del CSS o el suyo), en su sitio
-    if n.nombre == "img" or n.nombre == "svg"
+    if dom_es_imagen(n) or n.nombre == "svg"
         _absoluto_imagen(m, n, cx, cy, cw, ch, ax, pt)
         return
     end
@@ -2041,6 +2200,14 @@ func _absoluto_imagen(m: Maquetador, n: Nodo, cx: Int, cy: Int, cw: Int, ch: Int
         m.ancho_linea = previo
         iw = medida[0]
         ih = medida[1]
+    end
+    # height en % del alto de la caja de referencia (su relleno); sin height, con top y bottom, lo de en medio (las
+    # tarjetas de xataka.com: <a> de alto 0 con padding-top y su <img> absoluto al 100 %, object-fit: cover)
+    hh = _val(e, "height", "auto")
+    if str_ends(hh, "%") and ch > 0
+        ih = _px(e, "height", ch)
+    elif hh == "auto" and _val(e, "top", "auto") != "auto" and _val(e, "bottom", "auto") != "auto" and n.nombre != "svg" and dom_atributo(n, "height") == "" and ch > 0
+        ih = ch - _px(e, "top", ch) - _px(e, "bottom", ch)
     end
     if src == "" or iw <= 0 or ih <= 0
         return
@@ -2308,7 +2475,7 @@ func _medida_de(m: Maquetador, md: Medida, n: Nodo, alto: Int, antes: Int, x: In
             md.y2 = d.y + d.alto
         end
         # (lo que cuenta para un ancho, como en _ancho_flotante_medir: de dentro, nunca es lo medido)
-        decoracion = d.tipo == D_RECT or d.tipo == D_LINEA or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE
+        decoracion = d.tipo == D_RECT or d.tipo == D_LINEA or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE or (d.tipo == D_CONTROL and d.estilo == 1)
         cuenta = not decoracion
         if decoracion and d.nodo != nil
             w = _val(d.nodo.estilo, "width", "auto")
@@ -2381,11 +2548,14 @@ end
 # su texto sin el relleno del enlace)
 var _sangria_izq: Int = 0
 var _sangria_der: Int = 0
+# (si lo medido es una caja anónima, sus hijos tienen de padre el de ella: se para ahí; la celda anónima del <ul> de
+# Acid2 contaba los márgenes del <ul>, 168 px)
+var _sangria_corte: Nodo = nil
 func _sangrias(n: Nodo, tope: Nodo)
     _sangria_izq = 0
     _sangria_der = 0
     p = n
-    while p != nil and p != tope
+    while p != nil and p != tope and (_sangria_corte == nil or p != _sangria_corte)
         # (un flotante o un absoluto es un bloque aunque diga display: inline: el <span> flotante de Acid2)
         if p.tipo == DOM_ELEMENTO and (_val(p.estilo, "display", "inline") != "inline" or _val(p.estilo, "float", "none") != "none" or _fuera_del_flujo(p))
             e = p.estilo
@@ -2396,6 +2566,32 @@ func _sangrias(n: Nodo, tope: Nodo)
     end
 end
 
+# h está entre los hijos de p (no es una caja anónima de la maqueta, que tiene padre pero no está en sus hijos)
+func _es_hijo(p: Nodo, h: Nodo) -> Bool
+    for k in p.hijos
+        if k == h
+            return true
+        end
+    end
+    return false
+end
+
+# n está en un absoluto (o fixed) que va dentro de h (h no cuenta; si h es una caja anónima, tampoco lo de fuera de
+# ella: el corte de _sangrias; el texto de un flex absoluto, en su caja anónima, se descartaba: el "NUEVO" de Xataka)
+func _bajo_absoluto(n: Nodo, h: Nodo) -> Bool
+    c = n
+    while c != nil and c != h and (_sangria_corte == nil or c != _sangria_corte)
+        if c.tipo == DOM_ELEMENTO
+            pos = _val(c.estilo, "position", "static")
+            if pos == "absolute" or pos == "fixed"
+                return true
+            end
+        end
+        c = c.padre
+    end
+    return false
+end
+
 func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     e = h.estilo
     extra = _px(e, "margin-left", ancho) + _px(e, "margin-right", ancho)
@@ -2403,7 +2599,7 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     if e.has("width") and e["width"] != "auto"
         w = _px(e, "width", ancho)
         if w > 0
-            if e.has("box-sizing") and e["box-sizing"] == "border-box"
+            if (e.has("box-sizing") and e["box-sizing"] == "border-box") or e["display"] == "table" or e["display"] == "inline-table"
                 return w + extra
             end
             return w + caja + extra
@@ -2417,18 +2613,39 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     _bloque_de(m, h, 0, 0, ancho, ancho)
     _medido = medido
     _midiendo = _midiendo - 1
+    corte_antes = _sangria_corte
+    _sangria_corte = nil
+    if h.padre != nil and not _es_hijo(h.padre, h)
+        # (el primero de arriba que está de verdad en el árbol: una celda anónima va en una fila anónima)
+        c = h.padre
+        while c.padre != nil and not _es_hijo(c.padre, c)
+            c = c.padre
+        end
+        _sangria_corte = c
+    end
     derecha = 0
     izquierda = ancho
+    var ultimo_nodo: Nodo = nil
+    ultimo_fuera = false
     i = antes
     while i < m.pagina.dibujos.length
         d = m.pagina.dibujos[i]
         # el contenido cuenta siempre; las cajas (fondos, bordes) solo las de un elemento con width fijado (las
         # demás se estiran a lo que haya)
-        decoracion = d.tipo == D_RECT or d.tipo == D_LINEA or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE
+        decoracion = d.tipo == D_RECT or d.tipo == D_LINEA or d.tipo == D_FONDO or d.tipo == D_DEGRADADO or d.tipo == D_REDONDO or d.tipo == D_ELIPSE or (d.tipo == D_CONTROL and d.estilo == 1)
         cuenta = not decoracion
         if decoracion and d.nodo != nil and d.nodo != h
             w = _val(d.nodo.estilo, "width", "auto")
             cuenta = w != "auto" and not str_ends(w, "%")
+        end
+        if cuenta and d.nodo != nil and d.nodo != h
+            # lo de un absoluto de dentro no cuenta (CSS 2.1 10.3.7: está fuera del flujo); con right: 0 llegaba al
+            # borde y la caja medía todo el sitio (el menú de herramientas de Wikipedia, 697 en vez de 32; tarea 42a)
+            if d.nodo != ultimo_nodo
+                ultimo_nodo = d.nodo
+                ultimo_fuera = _bajo_absoluto(d.nodo, h)
+            end
+            cuenta = not ultimo_fuera
         end
         if cuenta
             # (lo recortado por un overflow, solo hasta su recorte: lo que desborda no ensancha)
@@ -2463,6 +2680,7 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
         end
         i = i + 1
     end
+    _sangria_corte = corte_antes
     while m.pagina.dibujos.length > antes
         m.pagina.dibujos.pop()
     end
@@ -2479,7 +2697,14 @@ struct Flotante
     ancho: Int
     alto: Int
     izquierda: Bool
+    real: Bool = true     # float de verdad (no un inline-block que va como uno de la izquierda)
+    desde: Int = 0        # sus dibujos en la página: de desde a hasta (sin él)
+    hasta: Int = 0
 end
+
+# Los flotantes de fuera que las líneas de un bloque que les pasa por debajo rodean (tarea 41a2): _contenido los
+# pone justo antes de maquetar ese bloque y el _contenido de él los toma (y lo deja a nil)
+var _flot_fuera: [Flotante] = nil
 
 # El contenido de un bloque: hijos de bloque uno debajo de otro y lo de en medio, en líneas. Cada
 # flotante va al primer sitio desde arriba donde cabe junto a los ya puestos (los de la izquierda
@@ -2492,7 +2717,10 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     cy = y
     var piezas: [Pieza] = []
     m.blanco = 0
+    # el margen que queda abajo de lo último (margen_previo: lo que suma; pend_*: los juntos, para juntar más)
     margen_previo = 0
+    pend_pos = 0
+    pend_neg = 0
     en_fila = false
     fila_y = 0
     fondo = 0
@@ -2500,15 +2728,51 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
     # (las líneas de lo de dentro no rodean los flotantes de aquí: cada _contenido pone los suyos)
     flot_antes = _flot_linea
     _flot_linea = nil
-    for h in _hijos(n)
+    # los de fuera, si este bloque les pasa por debajo
+    heredados = _flot_fuera
+    _flot_fuera = nil
+    # un elemento en línea con bloques dentro (<a><div>...</div></a>) se parte alrededor de ellos (CSS 2.1 9.2.1.1):
+    # sus hijos van aquí como si fueran de n, con el enlace del <a> y su estilo para el texto suelto
+    enlace_base = _enlace_bloque
+    lista = _hijos(n)
+    var enlaces: [String] = nil
+    var padres: [{String: String}] = nil
+    for h in lista
+        if _en_linea_con_bloques(h)
+            var l2: [Nodo] = []
+            var e2: [String] = []
+            var p2: [{String: String}] = []
+            _aplanar(n, n.estilo, enlace_base, l2, e2, p2)
+            lista = l2
+            enlaces = e2
+            padres = p2
+            break
+        end
+    end
+    ih = -1
+    for h in lista
+        ih = ih + 1
+        enl = enlace_base
+        ep = n.estilo
+        if enlaces != nil
+            enl = enlaces[ih]
+            ep = padres[ih]
+        end
         if _oculto(h) or _fuera_del_flujo(h)
             continue
         end
+        _enlace_bloque = enl
         lado = _flota(h)
         if lado != ""
             if piezas.length > 0
-                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
+                dy = _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+                cy = cy + dy
                 piezas.clear()
+                if dy > 0
+                    margen_previo = 0
+                    pend_pos = 0
+                    pend_neg = 0
+                end
                 if en_fila and cy > fila_y
                     fila_y = cy
                 end
@@ -2556,64 +2820,519 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             if lado != "left"
                 fx = der - w
             end
+            d0 = m.pagina.dibujos.length
+            # (un flotante se pinta entero en su paso, tras los fondos de los bloques y antes que las líneas)
+            cat_antes = _cat_atomica
+            if cat_antes < 0
+                _cat_atomica = 1
+            end
             alto = _bloque_de(m, h, fx, fy, w, ancho)
-            flotantes.push(Flotante(fx, fy, w, alto, lado == "left"))
+            _cat_atomica = cat_antes
+            fl = Flotante(fx, fy, w, alto, lado == "left")
+            fl.real = h.estilo.has("float") and (h.estilo["float"] == "left" or h.estilo["float"] == "right")
+            fl.desde = d0
+            fl.hasta = m.pagina.dibujos.length
+            flotantes.push(fl)
             fila_y = fy
             if fy + alto > fondo
                 fondo = fy + alto
             end
-            margen_previo = 0
             continue
         end
         # un vídeo (<video>, el <iframe> de YouTube) va como una pieza aunque su CSS diga display: block
         bloque = _es_bloque(h) and not dom_es_video(h)
-        # el texto que sigue a los flotantes los rodea (sus líneas, al lado; tarea 41a2); un bloque, aún debajo
+        # el texto que sigue a los flotantes los rodea (sus líneas, al lado; tarea 41a2); un bloque normal les pasa por
+        # debajo y son sus líneas las que los rodean (CSS 2.1 9.5); uno con clear, o que es un contexto aparte
+        # (overflow, flex, grid, tabla, una imagen...), o tras un inline-block que va como flotante, va debajo
         if bloque
             if piezas.length > 0
-                cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
+                dy = _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+                cy = cy + dy
                 piezas.clear()
-                margen_previo = 0
-            end
-            if en_fila
-                en_fila = false
-                if fondo > cy
-                    cy = fondo
+                if dy > 0
+                    margen_previo = 0
+                    pend_pos = 0
+                    pend_neg = 0
                 end
             end
-            # márgenes de hermanos seguidos: cuenta el mayor, no la suma
-            mt = _px(h.estilo, "margin-top", ancho)
-            solape = margen_previo
-            if mt < solape
-                solape = mt
+            por_debajo = _pasa_por_debajo(h) and _todos_reales(flotantes)
+            # con clear, su borde de arriba no queda más arriba que el fondo de los flotantes (el margen no se
+            # suma a eso: es la holgura de 9.5.2); lo que es un contexto aparte va debajo, con su margen
+            limpia = _val(h.estilo, "clear", "none") != "none"
+            tope = -1
+            if en_fila and not por_debajo
+                en_fila = false
+                if limpia
+                    tope = fondo
+                elif fondo > cy
+                    cy = fondo
+                    margen_previo = 0
+                    pend_pos = 0
+                    pend_neg = 0
+                end
             end
-            if solape < 0
-                solape = 0
+            if heredados != nil and limpia
+                for f in heredados
+                    if f.y + f.alto > tope
+                        tope = f.y + f.alto
+                    end
+                end
             end
-            cy = cy - solape + _bloque(m, h, x, cy - solape, ancho)
-            margen_previo = _px(h.estilo, "margin-bottom", ancho)
+            # márgenes que se juntan (8.3.1): el de arriba con lo que queda abajo del anterior; el bloque va donde
+            # acaba el anterior (base) más lo juntado. Si su padre ya lleva su margen, ninguno
+            base = cy - margen_previo
+            absorbido = _margen_absorbido(h)
+            mt = 0
+            # (_margen_arriba usa el acumulador: antes de poner en él lo pendiente; si no, un bloque que junta su margen
+            # con el de su hijo perdía el de abajo del anterior: 16 px de menos tras un <p>, Web Platform Tests
+            # block-formatting-contexts-005; tarea 41b)
+            if not absorbido
+                mt = _margen_arriba(h, ancho)
+            end
+            _acum_pos = pend_pos
+            _acum_neg = pend_neg
+            if not absorbido
+                _juntar_arriba(h, ancho)
+            end
+            yb = base + _acum_pos + _acum_neg - mt
+            holgura = false
+            if tope >= 0 and yb + mt < tope
+                yb = tope - mt
+                holgura = true
+            end
+            rodea = _flotantes_juntos(en_fila, flotantes, heredados)
+            if rodea != nil and _pasa_por_debajo(h)
+                _flot_fuera = rodea
+            end
+            b0 = m.pagina.dibujos.length
+            ocupa = _bloque(m, h, x, yb, ancho)
+            _flot_fuera = nil
+            if en_fila
+                # los flotantes se pintan encima del fondo del bloque que les pasa por debajo (CSS 2.1, apéndice E)
+                _flotantes_encima(m, flotantes, b0)
+            end
+            # (vacío solo si de verdad no ocupa: su caja, sin márgenes, de alto 0)
+            # (uno que baja por clear tampoco: el clearfix tras unos flotantes los abarca)
+            if not holgura and ocupa - mt - _margen_abajo(h, ancho) == 0 and _vacio(h)
+                # vacío: sus dos márgenes se juntan con lo de antes y lo de después (o van en el del padre)
+                if not absorbido
+                    _acum_pos = pend_pos
+                    _acum_neg = pend_neg
+                    _juntar_arriba(h, ancho)
+                    _juntar_abajo(h, ancho)
+                    pend_pos = _acum_pos
+                    pend_neg = _acum_neg
+                end
+            else
+                cy = yb + ocupa
+                _acum_pos = 0
+                _acum_neg = 0
+                _juntar_abajo(h, ancho)
+                pend_pos = _acum_pos
+                pend_neg = _acum_neg
+                base = cy - pend_pos - pend_neg
+            end
+            margen_previo = pend_pos + pend_neg
+            cy = base + margen_previo
         else
-            _piezas(m, h, n.estilo, piezas, "")
+            _piezas(m, h, ep, piezas, enl)
         end
     end
     if piezas.length > 0
-        cy = cy + _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes)
+        dy = _lineas_flot(m, piezas, x, cy, ancho, n.estilo, en_fila, flotantes, heredados)
+        cy = cy + dy
+        if dy > 0
+            margen_previo = 0
+        end
+    end
+    # el margen que queda abajo se junta con el de n (8.3.1) y va fuera de él
+    if margen_previo != 0 and _colapsa_abajo(n)
+        cy = cy - margen_previo
     end
     if en_fila and fondo > cy
         cy = fondo
     end
     _flot_linea = flot_antes
+    _enlace_bloque = enlace_base
     m.ancho_linea = ancho_previo
     return cy - y
 end
 
-# _lineas rodeando los flotantes de la fila, si hay
-func _lineas_flot(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}, en_fila: Bool, flotantes: [Flotante]) -> Int
-    if en_fila
-        _flot_linea = flotantes
+# El enlace en que va lo que se maqueta como bloque dentro de un <a> partido (_contenido)
+var _enlace_bloque: String = ""
+
+# h es un elemento en línea (no inline-block, ni una imagen o un control) con algún bloque de hijo
+func _en_linea_con_bloques(h: Nodo) -> Bool
+    if h.tipo != DOM_ELEMENTO or _val(h.estilo, "display", "inline") != "inline" or _reemplazado(h) or h.nombre == "br"
+        return false
     end
+    # (un flotante o un absoluto es un bloque aunque diga inline: no se parte)
+    if _flota(h) != "" or _fuera_del_flujo(h)
+        return false
+    end
+    for k in _hijos(h)
+        if k.tipo == DOM_ELEMENTO and _es_bloque(k) and not _oculto(k) and not _fuera_del_flujo(k) and _flota(k) == ""
+            return true
+        end
+        if _en_linea_con_bloques(k)
+            return true
+        end
+    end
+    return false
+end
+
+# Los hijos de p, con los de los elementos en línea que tienen bloques dentro en su lugar (y su enlace y el estilo
+# de su padre para el texto)
+func _aplanar(p: Nodo, e: {String: String}, enlace: String, lista: [Nodo], enlaces: [String], padres: [{String: String}])
+    for h in _hijos(p)
+        if _en_linea_con_bloques(h)
+            enl = enlace
+            if h.nombre == "a" and dom_tiene_atributo(h, "href")
+                enl = dom_atributo(h, "href")
+            end
+            _aplanar(h, h.estilo, enl, lista, enlaces, padres)
+        else
+            lista.push(h)
+            enlaces.push(enlace)
+            padres.push(e)
+        end
+    end
+end
+
+# _lineas rodeando los flotantes de la fila y los de fuera, si hay
+func _lineas_flot(m: Maquetador, piezas: [Pieza], x: Int, y: Int, ancho: Int, e: {String: String}, en_fila: Bool, flotantes: [Flotante], heredados: [Flotante]) -> Int
+    _flot_linea = _flotantes_juntos(en_fila, flotantes, heredados)
     r = _lineas(m, piezas, x, y, ancho, e)
     _flot_linea = nil
     return r
+end
+
+# Los flotantes de la fila (si la hay) y los de fuera juntos; nil si ninguno
+func _flotantes_juntos(en_fila: Bool, flotantes: [Flotante], heredados: [Flotante]) -> [Flotante]
+    if heredados == nil
+        if en_fila
+            return flotantes
+        end
+        var nada: [Flotante] = nil
+        return nada
+    end
+    if not en_fila
+        return heredados
+    end
+    var r: [Flotante] = []
+    for f in heredados
+        r.push(f)
+    end
+    for f in flotantes
+        r.push(f)
+    end
+    return r
+end
+
+func _todos_reales(flotantes: [Flotante]) -> Bool
+    for f in flotantes
+        if not f.real
+            return false
+        end
+    end
+    return true
+end
+
+# Un bloque que pasa por debajo de los flotantes (sus líneas los rodean): uno normal, sin clear, que no es un
+# contexto de formato aparte (CSS 2.1 9.4.1: overflow, flex, grid, tabla, flow-root; ni una imagen o un vídeo)
+func _pasa_por_debajo(h: Nodo) -> Bool
+    e = h.estilo
+    d = _val(e, "display", "block")
+    if d != "block" and d != "list-item"
+        return false
+    end
+    if _val(e, "clear", "none") != "none" or _reemplazado(h)
+        return false
+    end
+    for k in ["overflow", "overflow-x", "overflow-y"]
+        o = _val(e, k, "visible")
+        if o != "visible" and o != ""
+            return false
+        end
+    end
+    return true
+end
+
+# Márgenes que se juntan (CSS 2.1 8.3.1, tarea 41a2): el de arriba de un bloque con el de su primer hijo de bloque, el
+# de abajo con el de su último hijo (si no tiene alto fijo) y los dos de un bloque vacío entre sí y con los de al
+# lado. De los juntos queda el mayor de los positivos más el menor de los negativos (_acum_pos, _acum_neg al juntar).
+var _acum_pos: Int = 0
+var _acum_neg: Int = 0
+
+func _acumular(v: Int)
+    if v > _acum_pos
+        _acum_pos = v
+    end
+    if v < _acum_neg
+        _acum_neg = v
+    end
+end
+
+# n es un bloque normal cuyos márgenes pueden juntarse con los de sus hijos: no flota, no va fuera del flujo, overflow
+# visible, no es la raíz ni una caja de flex o grid (los que hacen un contexto aparte no juntan los suyos con los de
+# dentro)
+func _junta_hijos(n: Nodo) -> Bool
+    if n.tipo != DOM_ELEMENTO or n.padre == nil or n.nombre == "html" or n.padre.tipo != DOM_ELEMENTO
+        return false
+    end
+    e = n.estilo
+    d = _val(e, "display", "block")
+    if (d != "block" and d != "list-item") or _flota(n) != "" or _fuera_del_flujo(n) or _reemplazado(n) or dom_es_video(n)
+        return false
+    end
+    if n.nombre == "button" or n.nombre == "fieldset"
+        return false
+    end
+    dp = _val(n.padre.estilo, "display", "block")
+    if dp == "flex" or dp == "inline-flex" or dp == "grid" or dp == "inline-grid"
+        return false
+    end
+    for k in ["overflow", "overflow-x", "overflow-y"]
+        o = _val(e, k, "visible")
+        if o != "visible" and o != ""
+            return false
+        end
+    end
+    return true
+end
+
+# Un hijo que no cuenta para juntar márgenes (comentario, oculto, fuera del flujo, blancos); 1 si es un bloque, 2 si
+# es otra cosa (texto, algo en línea, un flotante) que los separa
+func _hijo_margen(n: Nodo, h: Nodo) -> Int
+    if h.tipo == DOM_COMENTARIO or _oculto(h) or _fuera_del_flujo(h)
+        return 0
+    end
+    if h.tipo == DOM_TEXTO
+        ws = _val(n.estilo, "white-space", "normal")
+        if str_trim(h.texto) == "" and ws != "pre" and ws != "pre-wrap"
+            return 0
+        end
+        return 2
+    end
+    if _flota(h) != "" or not _es_bloque(h) or dom_es_video(h)
+        return 2
+    end
+    return 1
+end
+
+# Un bloque vacío: sin borde ni relleno arriba o abajo, sin alto, y dentro solo bloques vacíos; sus márgenes se tocan
+func _vacio(n: Nodo) -> Bool
+    if not _junta_hijos(n)
+        return false
+    end
+    e = n.estilo
+    if _borde(e, "top") != 0 or _borde(e, "bottom") != 0 or _px(e, "padding-top", 10000) != 0 or _px(e, "padding-bottom", 10000) != 0
+        return false
+    end
+    # (un % se mira contra 10000: aquí no se sabe el contenedor y solo importa si es 0)
+    hh = _val(e, "height", "auto")
+    if hh != "auto" and not str_ends(hh, "%") and _px(e, "height", 10000) != 0
+        return false
+    end
+    mh = _val(e, "min-height", "0")
+    if mh != "auto" and _px(e, "min-height", 10000) != 0
+        return false
+    end
+    if _val(e, "aspect-ratio", "auto") != "auto"
+        return false
+    end
+    for h in _hijos(n)
+        t = _hijo_margen(n, h)
+        if t == 2 or (t == 1 and not _vacio(h))
+            return false
+        end
+    end
+    return true
+end
+
+# El margen de arriba de n se junta con los de sus primeros hijos: sin borde ni relleno arriba y el primero que
+# cuenta es un bloque
+func _colapsa_arriba(n: Nodo) -> Bool
+    if not _junta_hijos(n)
+        return false
+    end
+    if _borde(n.estilo, "top") != 0 or _px(n.estilo, "padding-top", 10000) != 0
+        return false
+    end
+    for h in _hijos(n)
+        t = _hijo_margen(n, h)
+        if t == 1 and _val(h.estilo, "clear", "none") == "none"
+            return true
+        end
+        if t != 0
+            return false
+        end
+    end
+    return false
+end
+
+# El de abajo, con los de sus últimos hijos: sin borde ni relleno abajo, alto auto y el último que cuenta, un bloque
+func _colapsa_abajo(n: Nodo) -> Bool
+    if not _junta_hijos(n)
+        return false
+    end
+    e = n.estilo
+    if _borde(e, "bottom") != 0 or _px(e, "padding-bottom", 10000) != 0
+        return false
+    end
+    hh = _val(e, "height", "auto")
+    if hh != "auto" and not str_ends(hh, "%")
+        return false
+    end
+    mh = _val(e, "min-height", "0")
+    if mh != "auto" and _px(e, "min-height", 10000) != 0
+        return false
+    end
+    if _val(e, "aspect-ratio", "auto") != "auto"
+        return false
+    end
+    hs = _hijos(n)
+    i = hs.length - 1
+    while i >= 0
+        t = _hijo_margen(n, hs[i])
+        if t == 1
+            return true
+        end
+        if t != 0
+            return false
+        end
+        i = i - 1
+    end
+    return false
+end
+
+# Junta en _acum_pos/_acum_neg el margen de arriba de n y los que se le juntan
+func _juntar_arriba(n: Nodo, contenedor: Int)
+    _acumular(_px(n.estilo, "margin-top", contenedor))
+    if not _colapsa_arriba(n)
+        return
+    end
+    for h in _hijos(n)
+        t = _hijo_margen(n, h)
+        if t == 2
+            return
+        end
+        if t == 1
+            _juntar_arriba(h, contenedor)
+            if not _vacio(h)
+                return
+            end
+            _juntar_abajo(h, contenedor)
+        end
+    end
+end
+
+# Lo mismo con el de abajo
+func _juntar_abajo(n: Nodo, contenedor: Int)
+    _acumular(_px(n.estilo, "margin-bottom", contenedor))
+    if not _colapsa_abajo(n)
+        return
+    end
+    hs = _hijos(n)
+    i = hs.length - 1
+    while i >= 0
+        h = hs[i]
+        t = _hijo_margen(n, h)
+        if t == 2
+            return
+        end
+        if t == 1
+            _juntar_abajo(h, contenedor)
+            if not _vacio(h)
+                return
+            end
+            _juntar_arriba(h, contenedor)
+        end
+        i = i - 1
+    end
+end
+
+# El margen de arriba de n con los que se le juntan
+func _margen_arriba(n: Nodo, contenedor: Int) -> Int
+    if not _colapsa_arriba(n)
+        return _px(n.estilo, "margin-top", contenedor)
+    end
+    _acum_pos = 0
+    _acum_neg = 0
+    _juntar_arriba(n, contenedor)
+    return _acum_pos + _acum_neg
+end
+
+# El de abajo
+func _margen_abajo(n: Nodo, contenedor: Int) -> Int
+    if not _colapsa_abajo(n)
+        return _px(n.estilo, "margin-bottom", contenedor)
+    end
+    _acum_pos = 0
+    _acum_neg = 0
+    _juntar_abajo(n, contenedor)
+    return _acum_pos + _acum_neg
+end
+
+# El margen de arriba de n ya lo pone su padre: n es su primer bloque (o va tras otros vacíos) y se juntan
+func _margen_absorbido(n: Nodo) -> Bool
+    p = n.padre
+    if p == nil or not _colapsa_arriba(p)
+        return false
+    end
+    for h in _hijos(p)
+        if h == n
+            return true
+        end
+        t = _hijo_margen(p, h)
+        if t == 2 or (t == 1 and not _vacio(h))
+            return false
+        end
+    end
+    return false
+end
+
+# Los dibujos de los flotantes, detrás de lo dibujado desde b0 (el bloque que les ha pasado por debajo): así se
+# pintan encima de su fondo
+func _flotantes_encima(m: Maquetador, flotantes: [Flotante], b0: Int)
+    if flotantes.length == 0 or m.pagina.dibujos.length == b0
+        return
+    end
+    var suyos: [Dibujo] = []
+    var resto: [Dibujo] = []
+    primero = flotantes[0].desde
+    i = primero
+    while i < m.pagina.dibujos.length
+        de_flotante = false
+        for f in flotantes
+            if i >= f.desde and i < f.hasta
+                de_flotante = true
+            end
+        end
+        if de_flotante
+            suyos.push(m.pagina.dibujos[i])
+        else
+            resto.push(m.pagina.dibujos[i])
+        end
+        i = i + 1
+    end
+    while m.pagina.dibujos.length > primero
+        m.pagina.dibujos.pop()
+    end
+    for d in resto
+        m.pagina.dibujos.push(d)
+    end
+    # sus nuevos sitios, todos al final y en el mismo orden
+    k = m.pagina.dibujos.length
+    for f in flotantes
+        n = f.hasta - f.desde
+        f.desde = k
+        f.hasta = k + n
+        k = k + n
+    end
+    for d in suyos
+        m.pagina.dibujos.push(d)
+    end
 end
 
 # Un texto de solo blancos (entre flotantes no corta la fila)
@@ -2635,12 +3354,54 @@ func _solo_blanco(n: Nodo) -> Bool
 end
 
 # Las piezas en línea de un nodo (texto, elementos en línea, br, img)
+# Los absolutos y fijos de n: sus hijos y los que van dentro de algo en línea suyo (no los de dentro de un bloque,
+# que los pone ese bloque)
+# Los absolutos de los que esta caja no es la suya, esperando al antepasado posicionado (con su sitio estático), y
+# cuántas maquetas de un momento hay abiertas (_flex_maquetar, _pieza_caja: allí, como antes)
+var _abs_pend: [Nodo] = []
+var _abs_px: [Int] = []
+var _abs_py: [Int] = []
+var _abs_temporal: Int = 0
+
+# ¿Es la caja de sus absolutos? Posicionada, con transform, o la raíz
+func _caja_de_absolutos(n: Nodo) -> Bool
+    if n.padre == nil or n.padre.tipo == DOM_DOCUMENTO or n.nombre == "html"
+        return true
+    end
+    e = n.estilo
+    if _val(e, "position", "static") != "static"
+        return true
+    end
+    t = _val(e, "transform", "none")
+    return t != "none" and t != ""
+end
+
+func _absolutos_de(n: Nodo) -> [Nodo]
+    var r: [Nodo] = []
+    _absolutos_en(n, r)
+    return r
+end
+
+func _absolutos_en(n: Nodo, r: [Nodo])
+    for h in _hijos(n)
+        if h.tipo != DOM_ELEMENTO or _oculto(h)
+            continue
+        end
+        if _fuera_del_flujo(h)
+            r.push(h)
+        elif _val(h.estilo, "display", "inline") == "inline" and _flota(h) == "" and not _reemplazado(h)
+            _absolutos_en(h, r)
+        end
+    end
+end
+
 func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza], enlace: String)
     if n.tipo == DOM_TEXTO
         _palabras_texto(m, n.texto, e_padre, piezas, enlace, n.padre, n)
         return
     end
-    if n.tipo != DOM_ELEMENTO or _oculto(n)
+    # (lo absoluto o fijo no va en la línea: lo pone el bloque, _absolutos_de)
+    if n.tipo != DOM_ELEMENTO or _oculto(n) or _fuera_del_flujo(n)
         return
     end
     e = n.estilo
@@ -2648,7 +3409,7 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         piezas.push(Pieza("", 0, 0, 0, 0, 0, 0, false, enlace, 0, true, false))
         return
     end
-    if n.nombre == "img"
+    if dom_es_imagen(n)
         w = Int(dom_atributo(n, "width"))
         h = Int(dom_atributo(n, "height"))
         if w <= 0
@@ -2660,6 +3421,12 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
         medida = _img_medida(m, e, w, h)
         w = medida[0]
         h = medida[1]
+        # (con relleno o borde, la pieza los lleva alrededor de la imagen: _img_marco)
+        mc = _img_marco(e, m.ancho_linea)
+        if mc != nil
+            w = w + mc[1] + mc[3] + mc[5] + mc[7]
+            h = h + mc[0] + mc[2] + mc[4] + mc[6]
+        end
         img = Pieza(dom_img_src(n), w, h, h, 0, 0, 0, false, enlace, m.blanco, false, true)
         img.nodo = n
         piezas.push(img)
@@ -2679,6 +3446,20 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
                     sh = sh * pw / sw
                 end
                 sw = pw
+            end
+        end
+        # sin ancho (ni CSS ni atributo) y con viewBox, como los navegadores (CSS 2.1 10.3.2): con alto, el ancho en
+        # proporción; sin él, el ancho de la línea (el icono de aplicaciones de Google, un <svg> sin tamaño en una caja
+        # de 24 px, salía a 300 y sus puntos, enormes). Al medir una caja que encoge, el de siempre
+        vb = css_partir(str_trim(str_replace(svg_viewbox(n), ",", " ")), 32)
+        sin_ancho = _val(e, "width", "auto") == "auto" and dom_atributo(n, "width") == ""
+        if sin_ancho and vb.length == 4 and Int(vb[2]) > 0 and Int(vb[3]) > 0
+            con_alto = (_val(e, "height", "auto") != "auto" and not str_ends(e["height"], "%")) or (dom_atributo(n, "height") != "" and not str_ends(dom_atributo(n, "height"), "%"))
+            if con_alto
+                sw = sh * Int(vb[2]) / Int(vb[3])
+            elif _midiendo == 0 and m.ancho_linea > 0
+                sw = m.ancho_linea
+                sh = sw * Int(vb[3]) / Int(vb[2])
             end
         end
         img = Pieza(dom_atributo(n, "data-dashweb-svg"), sw, sh, sh, 0, 0, 0, false, enlace, m.blanco, false, true)
@@ -2732,6 +3513,24 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
     end
     if n.nombre == "::icono"
         tam = estilo_px(e["font-size"], 0, 0)
+        # con la fuente de iconos de la página ya llegada, su dibujo de verdad (la "A" de una fuente hecha con ese
+        # carácter: fuente_web_icono); si no, el pintor dibuja los de Font Awesome que conoce o un cuadradito
+        fi = 0
+        if e.has("font-family")
+            fi = fuente_web_icono(e["font-family"], tam, _hex_entero(dom_atributo(n, "codigo")))
+        end
+        if fi != 0
+            font_use(fi)
+            color = css_color(e["color"])
+            if color < 0
+                color = 0
+            end
+            pz = Pieza("A", font_text_width("A"), font_height(), font_baseline(), fi, 0, color, false, enlace, m.blanco, false, false)
+            pz.nodo = n.padre
+            piezas.push(pz)
+            m.blanco = 0
+            return
+        end
         font_use(_fuente(m, "sans-serif", tam))
         color = css_color(e["color"])
         if color < 0
@@ -2774,7 +3573,9 @@ func _pieza_caja(m: Maquetador, n: Nodo, piezas: [Pieza], enlace: String)
         w = m.ancho_linea
     end
     antes = m.pagina.dibujos.length
+    _abs_temporal = _abs_temporal + 1
     h = _bloque_de(m, n, 0, 0, w, m.ancho_linea)
+    _abs_temporal = _abs_temporal - 1
     base = h
     i = m.pagina.dibujos.length - 1
     while i >= antes
@@ -2805,6 +3606,15 @@ func _con_mascara(e: {String: String}) -> Bool
         end
     end
     return false
+end
+
+# Un <input> de escribir texto (text, search, email, url, tel, password, number o sin type)
+func _campo_de_texto(n: Nodo) -> Bool
+    if n.nombre != "input"
+        return false
+    end
+    t = str_lower(dom_atributo(n, "type"))
+    return t == "" or t == "text" or t == "search" or t == "email" or t == "url" or t == "tel" or t == "password" or t == "number"
 end
 
 func _boton_propio(n: Nodo) -> Bool
@@ -2919,6 +3729,28 @@ end
 # El tamaño de una <img> en la línea: el suyo (w x h: sus atributos, o lo que mide la imagen ya cargada) con el
 # width y el height del CSS (en px, o width en % de la línea); el que sea auto sale de la proporción. Luego
 # max-width y max-height, también con la proporción
+# Los bordes y rellenos de una imagen en la línea (arriba, derecha, abajo, izquierda de cada uno), o nil si no tiene
+# ninguno ni fondo (lo normal: la pieza es la imagen tal cual). Acid2: el tercer <object> de los ojos lleva relleno,
+# borde derecho y un fondo fixed que casa con el de #eyes-b
+func _img_marco(e: {String: String}, contenedor: Int) -> [Int]
+    var nada: [Int] = nil
+    if not (e.has("padding-top") or e.has("padding-right") or e.has("padding-bottom") or e.has("padding-left") or e.has("border-top-style") or e.has("border-right-style") or e.has("border-bottom-style") or e.has("border-left-style") or e.has("background-color") or e.has("background-image"))
+        return nada
+    end
+    var r: [Int] = [_borde(e, "top"), _borde(e, "right"), _borde(e, "bottom"), _borde(e, "left"), _px(e, "padding-top", contenedor), _px(e, "padding-right", contenedor), _px(e, "padding-bottom", contenedor), _px(e, "padding-left", contenedor)]
+    hay = false
+    for v in r
+        if v != 0
+            hay = true
+        end
+    end
+    fondo = (e.has("background-color") and css_alfa(e["background-color"]) > 0) or (e.has("background-image") and str_starts(str_trim(e["background-image"]), "url("))
+    if not hay and not fondo
+        return nada
+    end
+    return r
+end
+
 func _img_medida(m: Maquetador, e: {String: String}, w0: Int, h0: Int) -> [Int]
     w = w0
     h = h0
@@ -3050,7 +3882,8 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
     var blancos: [Int] = nil
     var anchos: [Int] = nil
     blanco_final = false
-    if nodo_texto != nil and nodo_texto.pal_clave == clave and nodo_texto.pal_texto == texto_dom and nodo_texto.pal_anchos != nil
+    # (pal_anchos antes: sin ella pal_clave es nil, y comparar un texto nil lee la dirección 0, que AmigaOS 4 no deja)
+    if nodo_texto != nil and nodo_texto.pal_anchos != nil and nodo_texto.pal_clave == clave and nodo_texto.pal_texto == texto_dom
         palabras = nodo_texto.pal_palabras
         blancos = nodo_texto.pal_blancos
         anchos = nodo_texto.pal_anchos
@@ -3388,15 +4221,63 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             alto = 1
         end
     else
+        # una línea sin texto (solo imágenes, inline-block, controles): también lleva el strut de la letra del bloque
+        # (10.8.1), así que la imagen va sobre la línea base y debajo queda lo que baja la letra (Acid2:
+        # .image-height-test, letra de 240 px y alto 10px con overflow: hidden, no debe dejar ver su imagen roja)
+        abajo_s = 0
+        sin_texto = true
+        base_texto = 0
+        for p in linea
+            if not (p.imagen or p.caja != nil or p.control or p.video or p.icono or p.salto)
+                sin_texto = false
+                if p.base > base_texto
+                    base_texto = p.base
+                end
+            end
+        end
+        if sin_texto
+            tam_b = estilo_px(_val(e, "font-size", "16px"), 0, 0)
+            if tam_b > 0
+                sa = tam_b * 9 / 10
+                sd = tam_b / 4
+                if tam_b <= 64
+                    font_use(_fuente_ancha(m, _val(e, "font-family", ""), tam_b, _estiramiento(e)))
+                    sa = font_baseline()
+                    sd = font_height() - font_baseline()
+                end
+                if sa > base
+                    base = sa
+                end
+                abajo_s = sd
+                base_texto = sa
+            end
+        end
         for p in linea
             if base - p.base + p.alto > alto
                 alto = base - p.base + p.alto
             end
         end
-        alto = alto + 2
+        if base + abajo_s > alto
+            alto = base + abajo_s
+        end
+        # el px de aire de arriba es de la letra: si lo más alto es una imagen o un inline-block que pasa de ella, la
+        # línea empieza en su borde, como en los navegadores (la imagen de 100 px quedaba 1 px baja; Web Platform
+        # Tests block-replaced-height-002 y block-formatting-contexts-008; tarea 41b)
+        if base > base_texto + 1
+            uno = 0
+            alto = alto + 1
+        else
+            alto = alto + 2
+        end
     end
     desplaza = 0
     alinea = e["text-align"]
+    # al medir un ancho (lo que ocupa de izquierda a derecha), una línea alineada a la derecha va a la izquierda: con
+    # otra a la izquierda en otro hijo mediría el ancho entero (los ojos de Acid2). Las centradas, no (con ellas, la
+    # ficha de Wikipedia, una tabla flotante, salía del ancho entero)
+    if _midiendo > 0 and alinea == "right"
+        alinea = "left"
+    end
     if alinea == "center"
         desplaza = (ancho - total) / 2
     elif alinea == "right"
@@ -3412,13 +4293,24 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
     for p in linea
         cx = cx + p.espacio
         if p.caja != nil
+            # (un inline-block se pinta entero con lo de la línea)
+            cat_antes = _cat_atomica
+            if cat_antes < 0
+                _cat_atomica = 2
+            end
             _bloque_de(m, p.caja, cx, y + base - p.base + uno, p.ancho, ancho)
+            _cat_atomica = cat_antes
             actual = nil
         elif p.control
             ctl = _dibujo(D_CONTROL, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
             ctl.fuente = p.fuente
             ctl.nodo = p.nodo
             ctl.enlace = p.enlace
+            # (con opacity: 0 o visibility: hidden, velado: la casilla invisible que abre los menús de Wikipedia salía
+            # como un recuadro junto a sus iconos; tarea 42g)
+            if p.nodo != nil and p.nodo.tipo == DOM_ELEMENTO and _invisible(p.nodo)
+                ctl.velado = true
+            end
             m.pagina.dibujos.push(ctl)
             actual = nil
         elif p.video
@@ -3437,7 +4329,35 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
             m.pagina.dibujos.push(ic)
             actual = nil
         elif p.imagen
-            img = _dibujo(D_IMAGEN, cx, y + base - p.base + uno, p.ancho, p.alto, 0)
+            iy = y + base - p.base + uno
+            ix = cx
+            iw = p.ancho
+            ih = p.alto
+            var mc: [Int] = nil
+            if p.nodo != nil and p.nodo.tipo == DOM_ELEMENTO and dom_es_imagen(p.nodo)
+                mc = _img_marco(p.nodo.estilo, ancho)
+            end
+            if mc != nil
+                # su fondo, su imagen de fondo (en el relleno) y sus bordes; la imagen, dentro
+                ne = p.nodo.estilo
+                if ne.has("background-color") and css_alfa(ne["background-color"]) > 0
+                    fd = _dibujo(D_RECT, cx, iy, p.ancho, p.alto, css_color_opaco(ne["background-color"]))
+                    fd.nodo = p.nodo
+                    m.pagina.dibujos.push(fd)
+                end
+                if ne.has("background-image") and str_starts(str_trim(ne["background-image"]), "url(")
+                    ff = _dibujo(D_FONDO, cx + mc[3], iy + mc[0], p.ancho - mc[1] - mc[3], p.alto - mc[0] - mc[2], 0)
+                    ff.texto = css_url(ne["background-image"])
+                    ff.nodo = p.nodo
+                    m.pagina.dibujos.push(ff)
+                end
+                _bordes(m, ne, cx, iy, p.ancho, p.alto, mc[0], mc[1], mc[2], mc[3])
+                ix = cx + mc[3] + mc[7]
+                iy = iy + mc[0] + mc[4]
+                iw = p.ancho - mc[1] - mc[3] - mc[5] - mc[7]
+                ih = p.alto - mc[0] - mc[2] - mc[4] - mc[6]
+            end
+            img = _dibujo(D_IMAGEN, ix, iy, iw, ih, 0)
             img.texto = p.texto
             img.enlace = p.enlace
             img.nodo = p.nodo
@@ -3622,6 +4542,17 @@ func _borde_lado(m: Maquetador, e: {String: String}, lado: String, x: Int, y: In
         d.espaciado = alfa
     end
     m.pagina.dibujos.push(d)
+end
+
+# Los cuatro lados del borde transparentes (o sin borde)
+func _borde_invisible(e: {String: String}) -> Bool
+    for lado in ["top", "right", "bottom", "left"]
+        k = "border-" + lado + "-color"
+        if not e.has(k) or css_alfa(e[k]) != 0
+            return false
+        end
+    end
+    return true
 end
 
 func _color_borde(e: {String: String}, lado: String) -> Int
@@ -3894,7 +4825,10 @@ func _tabla(m: Maquetador, t: Nodo, x: Int, y: Int, ancho: Int) -> Int
         # el fondo de la fila, debajo de sus celdas
         fe = filas[r].estilo
         if fe.has("background-color") and css_alfa(fe["background-color"]) > 0
+            # (con los fondos de los bloques: los iconos flotantes de las celdas de amigaworld.net quedaban debajo)
+            _cat_fondo = true
             fondo = _dibujo(D_RECT, x + esp, py, px - x - esp * 2 + esp, altos[r], css_color_opaco(fe["background-color"]))
+            _cat_fondo = false
             fondo.nodo = filas[r]
             m.pagina.dibujos.push(fondo)
         end
@@ -4133,6 +5067,10 @@ func _anonima(n: Nodo) -> Nodo
         end
     end
     a.estilo["display"] = "block"
+    # (con padre pero fuera de sus hijos, como las anónimas de las tablas: al medirla, las sangrías de lo de dentro
+    # se cortan en n; sin padre subían hasta la raíz y el icono de cada pestaña de GitHub sumaba los rellenos de la
+    # pestaña y de la barra, 96 px de más; tarea 42i)
+    a.padre = n
     return a
 end
 
@@ -4210,7 +5148,9 @@ func _flex_maquetar(m: Maquetador, it: FlexHijo, ancho_ext: Int, contenedor: Int
     _forzado = it.nodo
     _forzado_w = w
     _forzado_h = h
+    _abs_temporal = _abs_temporal + 1
     alto = _bloque_de(m, it.nodo, 0, 0, ancho_ext, contenedor)
+    _abs_temporal = _abs_temporal - 1
     _forzado = forzado
     _forzado_w = forzado_w
     _forzado_h = forzado_h
@@ -4906,7 +5846,8 @@ end
 
 # Una línea de grid-column/row-start/end: [línea (0..), span] ; línea -1: auto
 func _grid_linea(v: String, lineas: Int, areas: {String: [Int]}, fin: Bool, fila: Bool) -> [Int]
-    x = str_lower(str_trim(v))
+    nombre = str_trim(v)
+    x = str_lower(nombre)
     if x == "" or x == "auto"
         return [-1, 1]
     end
@@ -4917,8 +5858,9 @@ func _grid_linea(v: String, lineas: Int, areas: {String: [Int]}, fin: Bool, fila
         end
         return [-1, n]
     end
-    if areas.has(x)
-        a = areas[x]
+    # los nombres de las áreas distinguen mayúsculas (Wikipedia: columnStart, pageContent; tarea 42a)
+    if areas.has(nombre)
+        a = areas[nombre]
         k = 0
         if fila
             k = 0
@@ -4953,7 +5895,7 @@ func _grid_sitio(e: {String: String}, eje: String, lineas: Int, areas: {String: 
         fin = "auto"
         if partes.length > 1
             fin = str_trim(partes[1])
-        elif areas.has(str_lower(ini))
+        elif areas.has(ini)
             fin = ini
         end
     end

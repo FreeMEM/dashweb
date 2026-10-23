@@ -1,0 +1,30 @@
+# Test: <object> con una imagen (tarea 41a2, los ojos de Acid2): uno con data:image/... o type image/... se ve como un
+# <img> de src su data, sin lo de dentro; los demás enseñan lo de dentro. La cadena de Acid2 (un tipo desconocido,
+# una página 404 en HTML y por fin un PNG en data:) da una imagen y ningún "ERROR".
+# memcheck
+# expect-out: acid2: imagen data:image/png | textos 0
+# expect-out: tipo: true | extensión: true | html: false | desconocido: false
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func obj(html: String) -> Nodo
+    doc = dom_desde_html5("<!DOCTYPE html><html><body>" + html + "</body></html>")
+    return dom_buscar(doc, "object")
+end
+
+Main
+    doc = dom_desde_html5("<!DOCTYPE html><html><body style='margin:0'><div><object data='data:application/x-unknown,ERROR'><object data='http://www.damowmow.com/404/' type='text/html'><object data='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4%2F58BAAT%2FAf9jgNErAAAAAElFTkSuQmCC' width=10 height=10>ERROR</object></object></object></div></body></html>")
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 400)
+    img = "ninguna"
+    textos = 0
+    for d in p.dibujos
+        if d.tipo == D_IMAGEN
+            img = "imagen " + d.texto[:14]
+        elif d.tipo == D_TEXTO and str_trim(d.texto) != ""
+            textos = textos + 1
+        end
+    end
+    Print "acid2: " + img + " | textos " + textos
+    Print "tipo: " + dom_objeto_imagen(obj("<object data='x' type='image/png'></object>")) + " | extensión: " + dom_objeto_imagen(obj("<object data='a/b.jpg?v=1'></object>")) + " | html: " + dom_objeto_imagen(obj("<object data='a.png' type='text/html'></object>")) + " | desconocido: " + dom_objeto_imagen(obj("<object data='data:application/x-unknown,E'></object>"))
+end

@@ -190,6 +190,21 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [x] D70. **Comparar textos con nil sin leer la dirección 0** (2026-10-23, tarea 43; propuesta a la sesión "dash").
+      `a == b` entre String es `strcmp(a, b) == 0`: con `a` nil (un campo `String = nil`) lee la dirección 0. En un 68k
+      clásico no se nota; AmigaOS 4 no lo deja y el programa se cae (un usuario con la v0.3.0). Propuesto: nil como
+      texto vacío (o distinto de todo texto no nil) en las comparaciones.
+      Hecha por la sesión dash (main 028c67d, PR #22): `_dash_str_cmp`, nil antes de todo texto y nil == nil.
+- [x] D69. **La red desde una tarea de task_start** (usuario, 2026-10-23, tarea 42e; propuesta a la sesión "dash").
+      net_* y tls_* usan la SocketBase y el AmiSSL de la tarea que arrancó el programa: una tarea de task_start (como
+      la que decodifica imágenes) no puede abrir ni leer sockets. Con eso dashweb movería toda su red (DNS, conexión,
+      TLS, envío y recepción) a una tarea aparte que avanza aunque el JavaScript o la maqueta tarden (hoy la red se
+      para: el aviso de cookies de xataka.com sale a los ~280 s). Mientras, dashweb lo hace cooperativo (una bomba en C
+      que se llama también desde dentro del JavaScript y de la maqueta).
+      (2026-10-23) La sesión dash la ve viable: cada tarea abre su bsdsocket (BSDSOCKET_BASE_NAME por tarea) y su
+      AmiSSL (InitAmiSSLA con su SocketBase y su errno); v1 con una sola dueña de la red (el programa o una tarea);
+      en la tarea solo las variantes C (búferes); task_wake() despierta al programa. Aceptada (semáforo propio en C y
+      task_wake); la hace en la rama dashweb. Tachyon espera a ella en vez de la bomba cooperativa.
 - [ ] D66. **Menos copias de textos prestados** (2026-10-21, tarea 37e6; propuesta a la sesión "dash", que decide si
       es viable). Una variable String que solo se lee y se toma de un diccionario se copia (_dash_str_set_copy) y
       se libera; devolver un préstamo hace _dash_str_tmpcopy. _val y _px de lib/maqueta.dash: 3 millones de llamadas
@@ -377,6 +392,25 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
+- [ ] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
+      una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
+      GitHub (api.github.com/repos/FreeMEM/tachyon/releases: también las pre-release, que /releases/latest no da) y
+      compararla con DASHWEB_VERSION. Si hay una nueva, un aviso en la barra (un botón "Actualizar", sin ventanas que
+      salten) y nada más: solo al pulsarlo se baja el ejecutable, se guarda como Tachyon.new junto al actual, se
+      renombra el actual a Tachyon.old y el nuevo a Tachyon (en AmigaOS el ejecutable no queda bloqueado tras
+      LoadSeg), y se ofrece reiniciar. Si algo falla, el actual se queda como estaba. Tachyon no sabe abrir .lha:
+      cada versión publica también el ejecutable solo comprimido con gzip (Tachyon.gz; lo inflate de lib/http.dash),
+      con su tamaño y su SHA-256 en las notas para comprobarlo antes de cambiar nada (tools/paquete.sh y la
+      publicación). Probar en el emulador con una versión de mentira servida en local.
+- [x] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
+      (Grim Reaper) al iniciar, en código 68k bajo Petunia; luego otra vez sí arrancó y navegó (Aminet). En sus
+      registros: ___main+0x300 (la vuelta de main al arranque), una llamada a FreeVec (LVO -690) y _strchr+0x10.
+      Sospecha: una lectura de un puntero nulo (o liberado) que en un 68k clásico pasa sin ruido y OS4 no deja (la
+      página cero no está). Buscarlo en FS-UAE con MMU (68040 con MMU) y MuForce/Enforcer: arrancar desde el icono y
+      desde el Shell, con y sin red, y arreglar cada acceso que salga. Pedir al usuario el registro entero (con la
+      pila) si vuelve a pasar.
+      Hecho (2026-10-23): strcmp con un texto nil en _palabras_texto (ver la bitácora); falta que lo pruebe él.
+
 - [ ] 39. **Cargas despertadas por la red, no por un tic (necesita D60; después de la 37).** El bucle de
       src/dashweb.dash espera con `mui_wait_event_signals(net_signal() | señal de las tareas)` y, al llegar una
       señal (ev == 0), avanza las cargas de las ventanas. `mui_timer` queda solo para lo que va por reloj
@@ -388,6 +422,62 @@ tarea, con el estilo de Dash.
       después en Amiberry (en FS-UAE no se puede). docs/ARQUITECTURA.md lo rehace la sesión dashweb-f7: no tocarlo,
       apuntar el cambio en la bitácora. Va delante de la 38 salvo que el usuario diga otra cosa: es
       pequeña y acelera todas las cargas.
+- [ ] 42. **Lo que el usuario vio en CoffinOS (2026-10-22, pantalla de unos 1650 px, con la compilación de las 00:50:
+      sin la 41a3).** Va antes que lo que queda de la 41. Probar con una pantalla igual de ancha (modo de uaegfx mayor
+      en una copia de sys32rtg38) y comparar con Chrome:
+      a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
+         Leer/Discusión/Editar pisadas. Mirar si con la v0.3.0-alfa (ya con la 41a3) sigue.
+      [x] b. google.com: el icono de las aplicaciones (nueve puntos) sale como nueve círculos enormes.
+      [x] c. Resultados de Google: el logo se parte ("Googl" y la "e" debajo); el título y la dirección de cada resultado
+         van en la misma línea (la dirección debe ir aparte).
+      d. meneame.net: la columna de las noticias sale vacía (solo la barra de la derecha).
+      e. xataka.com: "Aceptar y Cerrar" del aviso de cookies no hace nada; las imágenes de la portada no salen (cajas
+         vacías).
+         (2026-10-23, con el tope de 120 s) El aviso ya no sale antes de unos 280 s: el loader de Didomi
+         (sdk.privacy-center.org) se pide a los 5 s pero sale a los 103 s, su SDK (810 KB) llega a los 198 s y su
+         interfaz se pide a los 274 s. No es la cola de descargas: las peticiones salen a golpes (61, 100, 153, 273 s),
+         también las de conexiones ya abiertas, porque mientras corre el JavaScript de la página (y las maquetas de
+         ~9 s) nada avanza la red. Haría falta que la red (DNS, TLS, envío y recepción) avance aparte del bucle
+         principal (otra tarea, como las imágenes), o partir el trabajo largo para dar paso a tic.
+      [x] f. amigaworld.net (comparada con Chrome): letra más grande, enlaces subrayados, temas centrados. Causa probable: su
+         hoja va en `<style><!-- @import url(.../style.css); --></style>` y dashweb no salta `<!--`/`-->` (CDO/CDC de
+         CSS 2.1 4.1.1) y pierde el @import (body 12px, a sin subrayado). Ojo también con "color;#000000; font-size:
+         12px;" en esa hoja: una declaración rota no debe llevarse la siguiente.
+      g. (usuario, 2026-10-22, al comparar con Amelinium) Los iconos que salen como cuadrados vacíos: en Wikipedia
+         el ☰ del menú y el ⋮ de las herramientas (mask-image con SVG), en Xataka los del menú, el buscador, las redes
+         y la fila de webs del grupo. Amelinium los pinta. Mirar con qué los hace cada página (mask-image, fuente de
+         iconos, SVG en línea o en <use>) y pintarlos.
+         Hechos (2026-10-23): los de máscara (Wikipedia) y los de fuentes de iconos que no son Font Awesome (Xataka).
+         Hecho todo lo de Xataka (2026-10-23): la fila de favicons arriba, las redes y las secciones, la noticia
+         destacada con su foto grande (no salía) y el icono de "NUEVO" a su derecha.
+      h. (de la misma comparación) Wikipedia: el buscador sin su texto ("Buscar en Wikipedia") ni el botón "Buscar".
+         amigaworld.net: las » del menú de la izquierda salen como "?".
+         Hecho (2026-10-23): el texto del buscador (los campos con display block llevan su control). Las » de
+         amigaworld: igual que Chrome (la cabecera HTTP dice UTF-8 y los bytes son Latin-1: U+FFFD; no es fallo).
+         El botón "Buscar" ya sale (era la caja anónima del flex sin padre, 42i (2)) y con su texto centrado (flex
+         con min-height, 2026-10-23). Lo de antes: salía de 25 px (medido a
+         1 de ancho); en una copia local de la cabecera (tests, sin JS) sale de 41 (Chrome 71) y con letra de 13 px
+         (Chrome 14: font-size var(--font-size-small, 0.875rem), y --font-size-medium se nombra a sí misma). No es
+         rem (con html { font-size: 100% } rem ya vale 16).
+      l. (2026-10-23) Wikipedia: la flecha del índice sale a veces como un cuadrado negro (la máscara de relleno de 1x1
+         en vez del SVG), según la carga; con @supports ya bien en otras. Mirar el orden de las hojas que mete el
+         JavaScript (skins.vector.icons) frente al de Chrome.
+      [x] j. tools/traza.py (máquina objetivo, sys31) no acaba con una imagen data:image/svg+xml;utf8,... de fondo o de
+         máscara (el navegador, en 3.1 y en 3.2, sí: es la herramienta); así no se puede trazar Wikipedia en local.
+         Hecho (2026-10-23): compilaba traza_maqueta sin --fpu (nanosvg con floats mal); ya con --fpu.
+      k. meneame.net (2026-10-23): sale bien pero entera a los 208 s (10 maquetas de ~5 s por imágenes que llegan
+         poco a poco) y a cada título de noticia le falta la primera línea (en Chrome: "Susto en directo: una ola
+         engulle a un reportero de ETB2 mientras informaba en pleno temporal"; dashweb solo "pleno temporal").
+         Hecho (2026-10-23): los títulos enteros. Queda: entera a los 208 s. Probado (2026-10-23) espaciar las
+         maquetas por imágenes al doble de lo que tardó la última: 6 maquetas en vez de 10 pero entera a los 261 s (la
+         red varía mucho de una carga a otra); deshecho. Lo que pesa es lo de 42e: la red no avanza mientras se
+         maqueta o corre el JavaScript.
+         (2026-10-23) Con la red en tarea (D69): entera a los 168 s.
+      i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
+         columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
+         repositorios en una pastilla alta con el número dos veces.
+         Hecho (2026-10-23): el avatar y la columna (las --x con mayúsculas), las pestañas y su contador (la caja
+         anónima del flex). Queda: el gráfico de contribuciones (se queda cargando).
 - [ ] 41. **Baterías de estándares (usuario, 2026-10-20: antes de youtube.com).** Medir con pruebas de fuera qué falta
       de HTML, CSS y JavaScript, y añadirlo. Por orden:
       41a. Acid2 (CSS 2.1: la cara sonriente): copiarla a tests/pages, comparar la captura con la de referencia y
@@ -397,10 +487,15 @@ tarea, con el estilo de Dash.
            acortan para dejarle sitio (el texto rodea la imagen flotante; hoy todo lo que no flota va debajo). Con
            eso los ojos de Acid2 (#eyes-c sobre #eyes-b). Y el colapso del margen de arriba de un hijo con el de su
            padre (8.3.1; la sonrisa de Acid2 queda 3 px baja). Comprobar con páginas de verdad antes y después.
+           Hechos: el texto rodea (1), el bloque pasa por debajo (2), el margen de arriba (3). Falta: el de abajo;
+           y Acid2 en el navegador, que sale peor que en las piezas de test_acid2 (#top deja ver "Hello World!",
+           hueco entre la frente y la sonrisa, barra roja a lo ancho; captura del 2026-10-22).
       [x] 41a3. (2026-10-22) es.wikipedia.org/wiki/Amiga_1200: el texto del artículo sale aplastado (líneas de 2-3 px,
            unas encima de otras); ya pasaba antes de los cambios de hoy (comprobado con 286a218). Mirar qué CSS de
            Wikipedia lo da (font-size con clamp/var/calc, line-height...).
-      41b. Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
+      41b. (2026-10-23: el corredor ya está, tools/wpt.py y tools/wpt_reftest.dash; normal-flow 73/100 de las primeras,
+           en docs/wpt/; 76/100 con las tablas y las imágenes en línea)
+           Web Platform Tests (github.com/web-platform-tests/wpt), las pruebas de pintado (reftests: cada página con su
            referencia, que debe verse igual): un guion que las corra en el emulador y compare las dos capturas, sin
            Chrome. Empezar por trozos: css/CSS2 (normal-flow, box, margin-padding-clear), css-flexbox, css-grid; apuntar
            el porcentaje que pasa en cada uno y subirlo.
@@ -3511,3 +3606,434 @@ Formato:
 - es.wikipedia.org/wiki/Amiga_1200 en el emulador (RTG, MUI 3.8): el artículo se lee, con la ficha y su foto.
 - test_estilo_vars: "ciclo: 20px 3px"; tests/test_maqueta_mascara.dash.
 - Batería: 82/82 (1743 s).
+
+### 2026-10-22 — Tarea 41a2, segunda parte (un bloque pasa por debajo de los flotantes)
+- Un bloque normal detrás de un flotante ya no baja: va donde iría sin él (le pasa por debajo, CSS 2.1 9.5) y sus
+  líneas lo rodean, también las de los bloques de dentro (`_flot_fuera`: _contenido se los pasa al bloque y el
+  _contenido de este los toma; `_flotantes_juntos` junta los de fuera con los suyos). Su fondo se pinta debajo del
+  flotante (`_flotantes_encima` deja los dibujos del flotante detrás de los del bloque; apéndice E).
+- Van debajo, como antes: con clear (también de los flotantes de fuera), los que son un contexto aparte
+  (`_pasa_por_debajo`: overflow, flex, grid, tabla, flow-root, imagen o vídeo) y tras un inline-block que va como
+  flotante (Flotante.real).
+- test_maqueta_rodea: un <p> con fondo detrás del flotante empieza arriba, con líneas al lado y su fondo antes que
+  el flotante; con overflow: hidden o clear: both, debajo. Las 19 de maqueta pasan igual.
+- Batería: 82/82 (1750 s).
+- En el emulador (RTG, MUI 3.8): en es.wikipedia.org/wiki/Amiga_1200 el primer párrafo ya rodea la ficha (antes
+  bajaba entero debajo); la ficha sale cortada igual que antes (aparte). freemem.space igual, y su menú desplegado
+  con ARDUINO en su sitio. Capturas enviadas al usuario.
+
+### 2026-10-22 — Publicada la v0.3.0-alfa (la primera como Tachyon)
+- Usuario: "Sí sube". Versión 0.3.0-alfa en Acerca de y $VER (c509ccc), README con la descarga nueva. PR #4 de dev a
+  main fusionado (a0298f3), etiqueta v0.3.0-alfa sobre él y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.3.0-alfa con build/tachyon.lha (6,7 MB), hecho con
+  tools/paquete.sh en un worktree limpio de a0298f3 (sin la segunda parte de 41a2, aún sin guardar) y Dash d39d8d9.
+- Base: 82/82 (df361b3). Probado en la máquina rtg con MUI 3.8: freemem.space entera en 23,9 s, bien.
+- Avisada la sesión dash (iba a crear ella la release): ya está hecha.
+
+### 2026-10-22 — Tarea 41a2, tercera parte (márgenes de padre e hijo juntos)
+- El margen de arriba de un bloque se junta con el de su primer hijo de bloque (CSS 2.1 8.3.1): queda el mayor de los
+  positivos más el menor de los negativos, fuera del padre (su fondo empieza ahí), y el hijo ya no pone el suyo.
+  lib/maqueta.dash: `_primer_hijo_colapsa` (el padre es un bloque normal sin borde ni relleno arriba, overflow
+  visible, no flota, ni va fuera del flujo, ni es la raíz o una caja de flex o grid; delante del hijo solo blancos),
+  `_margen_colapsado`, `_margen_absorbido` (en `_bloque_en`) y `_margen_arriba` (frente al hermano de antes cuenta el
+  margen ya juntado). El de body se junta con el de su primer hijo, como en Chrome (body 8 + h1 21 daba 29; ahora 21).
+- Pendiente: el de abajo (el último hijo con su padre sin alto) y los bloques vacíos que se atraviesan.
+- tests/test_maqueta_margenes.dash (siete casos); test_maqueta: todo 4 px más arriba (body 4 con p 6 da 6).
+- Acid2 en el navegador (RTG): la sonrisa sube los 3 px. Ojo: en el navegador de verdad Acid2 sale bastante peor que en
+  las piezas de test_acid2 (con el código guardado, igual): "Hello World!" a la vista al ir a #top, un hueco grande
+  entre la frente y la sonrisa y una barra roja a lo ancho. Apuntado en la 41a2.
+- Batería: 82/83 (1775 s): test_jsdom_geometria esperaba el sticky con su <p> 16 px más abajo (sticky 10 26); su
+  margen ahora va fuera del sticky y Chrome da "sticky 10 10" (comprobado): expectativa corregida, pasa.
+- es.wikipedia.org/wiki/Amiga_1200 y freemem.space en el emulador (RTG, MUI 3.8): iguales que antes.
+
+### 2026-10-22 — Tarea 41a2, cuarta parte (Acid2 entera: márgenes vacíos, clear y el ancho de .eyes)
+- Medida Acid2 entera (tests/pages/acid2.html) contra Chrome a 944 px: lo que separaba la frente de la sonrisa eran
+  márgenes que se juntan y dashweb sumaba.
+- lib/maqueta.dash, márgenes (8.3.1) como conjuntos (`_acum_pos`/`_acum_neg`: el mayor positivo más el menor
+  negativo): el de abajo del último hijo se junta con el de su padre (`_colapsa_abajo`, alto auto) y va fuera de él;
+  un bloque vacío (`_vacio`: sin borde, relleno ni alto, solo vacíos dentro) junta sus dos márgenes con los de al lado
+  (.empty de Acid2: 48, 75, 75 y -72 dan 3); un flotante en medio ya no corta la unión. `_contenido` lleva el borde
+  de abajo del anterior (base) y lo que queda por juntar (pend_pos/pend_neg).
+- clear: el borde de arriba no queda por encima del fondo de los flotantes, sin sumarle el margen (la holgura de
+  9.5.2; la sonrisa en 204 como en Chrome, no en 264). Lo que no es clear y es un contexto aparte, como antes.
+- Al medir un ancho, una línea alineada a la derecha va a la izquierda: #eyes-a (text-align: right) ensanchaba .eyes
+  a 884 (Chrome 144). Con las centradas también, la ficha de Wikipedia (tabla flotante) salía del ancho entero: solo
+  las de la derecha.
+- Comprobado en páginas: freemem.space se quedaba en 253 px de alto. Su columna son dos flotantes y un clearfix
+  (::after vacío con clear): lo tomaba por vacío y no bajaba, y el padre no abarcaba los flotantes. Uno que baja por
+  clear ya no es vacío; y en `_vacio` los % (relleno, alto) se miran contra 10000, no contra 0 (un padding-bottom en
+  % no es vacío). Caso nuevo en test_maqueta_margenes. Wikipedia y freemem.space, como antes.
+- Batería: 84/84 (1860 s).
+- tests/test_acid2_pagina.dash: doce cajas de la cara iguales que en Chrome. Falta ul (276 de ancho, Chrome 48: la
+  celda anónima de .second-part sale de 240). test_maqueta: alto 276 (el margen de abajo del último p con el de body).
+- Usuario: capturas de CoffinOS (Wikipedia, Google, Menéame, Xataka) con la compilación de las 00:50; puesta en
+  Traspaso la v0.3.0-alfa publicada. Lo visto, a la tarea nueva 42.
+
+### 2026-10-22 — Tarea 42f (amigaworld.net: su hoja y las tablas en modo quirks)
+- La hoja va en `<style><!-- @import url(.../style.css); --></style>`: lib/css.dash no saltaba `<!--` ni `-->`
+  (CDO y CDC de CSS 2.1 4.1.1) y el @import se perdía (body 12px, enlaces sin subrayar). `_css_bloque` y
+  `css_importes` los saltan entre reglas. La declaración rota de esa hoja ("color;#000000; font-size: 12px;") ya no
+  se llevaba la de detrás (comprobado).
+- Los temas salían centrados: la columna es un `<td align=center>` y la tabla de los temas va dentro. En modo quirks
+  una tabla no hereda font-size, font-weight, font-style, line-height, white-space ni text-align (HTML 15.3.1, regla
+  del navegador `table { ...: initial }`): lib/estilo.dash `_estilo_propio` se las pone como del navegador a cada
+  <table> (las de la página mandan).
+- tests/test_css_cdo.dash y tests/test_estilo_quirks.dash. amigaworld.net en el emulador (RTG): letra de 12 px, temas
+  a la izquierda con su icono, como Chrome. Queda: la columna de la derecha (Aminet más ancha que las de arriba; en
+  Chrome todas igual de anchas).
+- Batería: 86/86 (1881 s).
+
+### 2026-10-22 — Tarea 42b (google.com: el icono de aplicaciones, nueve círculos enormes)
+- El icono es un `<svg viewBox="0 0 24 24">` sin width ni height dentro de un `a.gb_C` de 40 px con 8 de relleno.
+  Los navegadores le dan el ancho de su caja (24) y el alto en proporción (CSS 2.1 10.3.2); dashweb, 300x150 (los
+  puntos, 12 veces más grandes).
+- lib/maqueta.dash (`_piezas`, <svg>): sin ancho y con viewBox, con alto (CSS o atributo) el ancho en proporción y sin
+  él el ancho de la línea; al medir una caja que encoge, como antes (300).
+- tests/test_maqueta_svg_tam.dash (cinco casos). google.com en el emulador: los nueve puntos, pequeños. Queda: la
+  barra de arriba (Gmail, Imágenes, el icono) no va a la derecha junto a "Iniciar sesión" como en Chrome.
+- Batería: 87/87 (1886 s). freemem.space y Wikipedia en el emulador, como antes.
+
+### 2026-10-22 — Tarea 42c (resultados de Google: el título y la dirección en una línea; el logo partido)
+- Cada resultado es `<a><div relative><div padding-top:28px><h3>título</h3></div><div absolute top:0>dirección</div>
+  </div></a>`: bloques dentro de un elemento en línea. dashweb los aplanaba en piezas de la línea (sin saltos ni
+  absoluto): la dirección iba pegada tras el título. lib/maqueta.dash `_contenido`: un elemento en línea con bloques
+  dentro se parte alrededor de ellos (CSS 2.1 9.2.1.1; `_en_linea_con_bloques`, `_aplanar`): sus hijos van como si
+  fueran del bloque, con el enlace del <a> (`_enlace_bloque`, que pasa a los bloques de dentro) y su estilo para el
+  texto suelto.
+- El logo (seis inline-block en una caja absoluta que encoge) bajaba la "e": lleva position: relative; left: -1px y
+  al medir el ancho contaba lo movido (1 px menos). Al medir (`_midiendo`), ni relative ni transform (no mueven a
+  los demás).
+- tests/test_maqueta_partido.dash: tres líneas en <a>x<div>y</div>z</a>, dirección arriba y título debajo con su
+  enlace, el logo en una línea. Queda: "›" (U+203A) sale como "'" en las direcciones.
+- Un flotante o un absoluto con display: inline no se parte (es un bloque): la sonrisa de Acid2 (span flotante con
+  un strong de bloque dentro) se quedaba en 0x0.
+- Batería: 88/88 (1901 s). freemem.space y Wikipedia en el emulador, como antes.
+
+### 2026-10-22 — Tarea 42d y 42e, primer vistazo (Menéame y Xataka)
+- 42d meneame.net: en el emulador (1024) salen las noticias; con traza a 1620 px (el ancho de CoffinOS) #newswrap
+  tiene sus noticias de x 164 a 1144 y #sidebar flota a 1148: no se reproduce con el código de hoy (la captura del
+  usuario era de la compilación de las 00:50). Puesta en Traspaso la compilación de hoy (acc833c) para que lo mire.
+- 42e xataka.com: entera en 181 s en el emulador (un script se corta a los 30 s; ChunkLoadError del chunk 915). El
+  aviso de cookies es de Didomi (sdk.privacy-center.org) con el muro de Webedia "Elige cómo acceder": sale dentro de
+  la página, arriba, y no por encima como en Chrome. Las imágenes son <img> JPEG normales (i.blogs.es) y
+  <picture> con <source media>; a los 150 s faltaban 52. Pendiente: por qué no cierra "Aceptar y Cerrar" (clic con
+  --acciones tras la carga) y si las imágenes llegan.
+
+### 2026-10-22 — Tarea 42e (xataka.com: las hojas que mete el JavaScript)
+- En Chrome el aviso es de Didomi: `<style id=didomi-css>` de 91 KB que su JavaScript mete en el body tras la carga;
+  con él, #didomi-popup es fijo por encima de todo y `.didomi-buttons { display: none !important }` esconde su
+  "Aceptar y Cerrar" (se ven los botones del muro de Webedia). dashweb hacía las hojas una vez, tras los primeros
+  scripts: un <style> que llegaba después no se aplicaba nunca (el aviso salía sin estilo, dentro de la página).
+- lib/documento.dash `documento_al_dia`: si algún cambio toca un <style> o <link> (`_documento_toques_hojas`: entra,
+  sale, cambia su texto, o TOQUE_TODO), mira `estilo_firma` (lib/estilo.dash: el largo del texto de cada <style> y la
+  dirección de cada <link> de hoja); si cambió, las hojas otra vez (las de fuera ya traídas no se piden: `traidas`) y
+  el estilo entero. tests/test_documento_hojas_js.dash (entra, cambia, sale; un cambio que no toca hojas no las rehace).
+- xataka.com en el emulador (RTG): el aviso ya sale encima, con su fondo, dos columnas y los botones del muro (sus
+  letreros, diminutos: pendiente). El clic en el botón verde llega a Didomi (setUserAgreeToAll) pero da "Error: Cycle
+  detected" (Preact signals): probablemente porque antes un script suyo pasó de 30 s y se cortó (40c), y el corte de
+  QuickJS no ejecuta los finally y deja una señal a medias. Pendiente: el corte sin estado roto, o más plazo.
+- Batería: 89/89 (1984 s). Wikipedia rehace las hojas 5 veces (los estilos de MediaWiki que llegan por JavaScript; "18 idiomas" ya lleva su flecha), entera en 60 s como antes; freemem.space ninguna, 28,6 s.
+
+### 2026-10-22 — Tarea 42e, segunda parte (el corte de los 30 s sin dejar el JavaScript roto)
+- El "Cycle detected" de Didomi al pulsar: el corte de los 30 s (40c) había parado un script dentro del `get` de un
+  computed de Preact signals, y QuickJS lo marca como imposible de coger: se salta los finally y el computed se queda
+  marcado como "corriendo" para siempre. Cambio 5 de QuickJS (docs/quickjs_amiga.md): `JS_SetInterruptCatchable`;
+  lib/js.dash corta primero con un "interrupted" que se puede coger (corren catch y finally) y, si el script sigue 5 s
+  más, con uno que no. test_js_tope: el finally corre; uno que lo coge y sigue se corta del todo a los 7 s.
+- Por qué pasa de 30 s: el cargador de Didomi elige su SDK "legacy" (dashweb no tiene noModule: no ejecuta
+  type=module, así que es lo correcto) y ahí un computed junta los ~1044 socios con reduce y la extensión de objetos
+  de Babel (cada paso copia todo lo de antes con defineProperty): cientos de miles de copias, más de 30 s en el 68k
+  emulado (RTG). Con el tope en 300 s (de prueba, no guardado) xataka.com tarda 315 s en cargar y tras el clic el aviso
+  ya no está (sin comprobar si llegó a verse antes del clic).
+- Queda: que el clic cierre el aviso con el tope de 30 s (el cálculo se corta y Didomi se queda sin su lista); y si
+  merece la pena un tope mayor, o acelerar QuickJS en defineProperty, o mirarlo en CoffinOS (que puede ser más rápido).
+
+### 2026-10-22 — Tarea 42e, tercera parte (captura del usuario en CoffinOS: letra diminuta y el aviso corto)
+- Usuario: xataka.com en CoffinOS (compilación de las 13:56) con el aviso encima, pero títulos, enlaces y letreros
+  diminutos, y la página de abajo sin tapar desde la mitad.
+- Letra diminuta: Didomi pone `#didomi-host a, #didomi-host p, #didomi-host span { font-size: inherit }`. lib/estilo.dash
+  copiaba bien el del padre con inherit y luego, al calcular font-size, medía "inherit" como tamaño: 0 px. Ahora
+  inherit y unset dejan el del padre e initial da medium. tests/test_estilo_hereda.dash.
+- El aviso corto: su fondo es position: fixed con top: 0 y bottom: 0, del alto de la vista (estilo_vh), que dashweb
+  solo ponía al maquetar por un ancho nuevo; con la ventana más alta que cuando se maquetó, el fijo se quedaba corto.
+  src/dashweb.dash `pinta_en`: estilo_vh siempre el de la vista y, si el documento se maquetó con otro alto
+  (Documento.vh), otra maqueta.
+- Error mío: al parar una batería maté con `pkill -f fs-uae` emuladores de la sesión dash (sus test_meter_);
+  avisada. Apuntado en la memoria: matar solo por PID con padre propio.
+- Batería: 90/90 (2000 s). freemem.space y Wikipedia en el emulador, como antes. Compilación puesta en Traspaso.
+
+### 2026-10-22 — Tarea 42e, cuarta parte (las imágenes de las tarjetas de Xataka)
+- Las tarjetas: `.poster-figure a { position: relative; height: 0; padding-top: 75% }` y dentro `<picture>` con su
+  `<img>` absoluto (`width/height: 100%`, top/left/right/bottom 0, object-fit: cover). dashweb no veía el absoluto
+  (va dentro del <picture>, en línea): lo ponía como pieza de la línea, debajo de la caja de alto 0 y tapado por el
+  overflow; y el height: 100 % de una imagen absoluta no contaba.
+- lib/maqueta.dash: `_absolutos_de` (los absolutos de un bloque, también los de dentro de algo en línea suyo); `_piezas`
+  salta lo absoluto o fijo; `_absoluto_imagen`: height en % del alto de su caja de referencia (con el relleno) y, sin
+  height ni atributo, con top y bottom, lo de en medio. object-fit: cover ya lo hacía el pintor.
+- tests/test_maqueta_absoluto_img.dash (la tarjeta: 0,0 344x258 como en Chrome; un absoluto dentro de un span).
+- Batería: 91/91 (1983 s). xataka.com en el emulador: el aviso se lee entero (títulos, "Aceptar y leer GRATIS") y detrás asoman las fotos de las tarjetas; el euro sale "?" (Latin-1). freemem.space y Wikipedia, como antes.
+
+### 2026-10-22 — Tarea 42, los caracteres (el euro de Xataka, la "›" de Google) y la 42a
+- Lo que vuelve del JavaScript (lib/js.dash `_js_latin1`) cambiaba por "?" todo lo que no cabe en Latin-1, sin los
+  sustitutos de lib/texto.dash: el precio del aviso de xataka.com salía "2?". `_js_parecido`: los mismos que
+  `latin1_de` (euro "EUR", comillas rectas, "-", "...", "TM"...), nunca más largos que su UTF-8 (se escribe en el
+  sitio). test_js_utf8: "vuelta".
+- U+203A y U+2039 (› ‹, los separadores de las direcciones de los resultados de Google) pasan a » y « (antes "'"),
+  en las dos tablas. test_texto.
+- 42a (Wikipedia a 1650 px en CoffinOS, aplastada): era la compilación de las 00:50, sin la 41a3; a 1024 se ve bien
+  desde la v0.3.0-alfa. A 1620 px sin comprobar: tools/traza.py no acaba en 10 minutos con el JavaScript de
+  Wikipedia. Pendiente de que el usuario la mire en CoffinOS.
+- Pendiente de decisión del usuario: el tope de los 30 s (con él, el botón del aviso de Xataka no lo cierra).
+- Batería: 91/91 (1980 s).
+
+### 2026-10-22 — Tarea 41a2, quinta parte (el ul de Acid2: celdas anónimas que contaban los márgenes del ul)
+- El ul de Acid2 (display: table, margin 0 7em) medía 216 de ancho (Chrome 48): sus <li> que no son celdas van en una
+  fila anónima y en celdas anónimas (17.2.1), pero su padre sigue siendo el ul; al medir una celda anónima,
+  `_sangrias` subía desde el <li> buscando la celda (que no es su antepasado) y sumaba los márgenes del ul (84 + 84):
+  la columna medía 180 y lo sobrante se repartía.
+- lib/maqueta.dash `_ancho_flotante_medir`: si lo medido es una caja anónima (`_es_hijo`: no está entre los hijos de
+  su padre), `_sangria_corte` es el primero de arriba que está de verdad en el árbol y `_sangrias` para ahí.
+- test_acid2_pagina: ul 132,264 48x12, como Chrome; ya son trece cajas de la cara iguales.
+- Batería: 91/91 (1977 s). Acid2 en el navegador (RTG): ya es la cara entera, solo con rojo junto a los ojos (el <object> con la imagen) y una raya roja bajo la barbilla. freemem.space y Wikipedia, como antes (una carga de Wikipedia salió sin su JavaScript, 19 s y 2 MB: fallo de red; repetida, 56 s y bien).
+
+### 2026-10-22 — Tarea 41a2, sexta parte (los ojos de Acid2: <object> con imagen y el orden de pintado)
+- <object>: lib/dom.dash `dom_objeto_imagen` (data:image/..., type image/... o una dirección .png/.jpg/.gif/.webp) y
+  `dom_es_imagen`: se ve como un <img> de src su data (`dom_img_src`), sin lo de dentro; los demás enseñan lo de
+  dentro. lib/imagenes.dash y lib/maqueta.dash preguntan `dom_es_imagen` donde preguntaban por "img". Los ojos de
+  Acid2 son el tercer <object> de una cadena en la que los dos de fuera fallan (tipo desconocido, 404 en HTML).
+  tests/test_maqueta_objeto.dash.
+- La imagen salía tapada por el fondo rojo de #eyes-c (que va después en el árbol): CSS 2.1 apéndice E pinta primero
+  los fondos y bordes de los bloques, luego los flotantes y luego lo de las líneas. Dibujo.cat (0, 1, 2), puesto por
+  `_dibujo` según el contexto (`_cat_fondo` en los fondos y bordes de `_bloque_en`; `_cat_atomica` dentro de un
+  flotante, 1, o de un inline-block o una caja flex/grid, 2: se pintan enteros); un reemplazado de bloque va con los
+  fondos. `_por_capas` ordena por capa, pos y paso (sin z-index ni posicionados, en tres montones, O(n)).
+- Tests con el orden de los dibujos (test_maqueta, _cajas, _css, _transform): las mismas líneas, en el orden nuevo
+  (comprobado: mismo conjunto); test_maqueta_flex y _grid buscan el contenedor de cada caja por su padre.
+- Con el orden nuevo, amigaworld.net perdía los iconos de los temas (flotantes en las celdas): el fondo de la fila
+  (bgcolor del <tr>, que pinta `_tabla`) iba como contenido y los tapaba; ahora va con los fondos.
+  tests/test_maqueta_pintado.dash (solapa, fila, inline-block). test_animacion: el mismo cambio de orden.
+- Acid2 en el navegador: ya con los ojos (los círculos de la imagen) y la sonrisa curva. Queda: la trama del fondo de
+  los ojos (dos fondos fixed desplazados 1 px que juntos dan amarillo) y algo de rojo.
+- Batería: 93/93 (2009 s). freemem.space, Wikipedia, Xataka (ya "2EUR") y amigaworld.net (con sus iconos) en el emulador, bien.
+
+### 2026-10-22 — Tarea 41a2, séptima parte (fondos fixed y el marco de las imágenes en la línea)
+- El atajo background perdía "fixed" y los sitios en px ("fixed 1px 0" de los ojos de Acid2): lib/estilo.dash pone
+  background-attachment y una longitud cuenta como sitio. tests/test_estilo_fondo.dash.
+- lib/pintor.dash `_fondo_pintar`: con background-attachment: fixed los mosaicos van respecto a la esquina de la vista
+  (`_pintor_vx/_vy`), y el primero se adelanta hasta justo antes de lo visible (desde la esquina, con mosaicos de 2x2,
+  se llegaba al tope de 4000 antes de la caja). El cuadrado rojo fixed de la barbilla de Acid2 ya no se ve.
+- Una imagen en la línea (<img> u <object> de imagen) con relleno, borde o fondo (`_img_marco`): la pieza los lleva
+  alrededor; se pintan su fondo, su imagen de fondo (en el relleno) y sus bordes, y la imagen dentro. Sin nada de eso,
+  como antes.
+- Acid2 en el navegador: la fila de los ojos casi amarilla, con los ojos. Queda: un trozo con trama a la izquierda,
+  algo de rojo a la derecha de los ojos y una raya roja abajo a la izquierda.
+- Batería: 94/94 (2026 s). freemem.space y amigaworld.net, como antes; Wikipedia: la foto de la ficha ya con su borde gris de 1 px y fondo blanco (Chrome también: .mw-file-element).
+
+### 2026-10-22 — Tarea 41a2, octava parte (el strut en las líneas sin texto)
+- La raya roja bajo la cara de Acid2: .image-height-test (alto 10px, overflow: hidden, letra de 240 px) con una imagen
+  roja de 64x64 en una celda: con el strut de la letra la imagen va sobre la línea base, muy abajo, y no se ve.
+  dashweb solo ponía el strut con line-height; sin él, la imagen iba arriba de la línea.
+- lib/maqueta.dash `_poner_linea`: una línea sin texto (imágenes, inline-block, controles) lleva también el strut de
+  la letra del bloque (la medida de la fuente hasta 64 px; más grande, 0,9 del tamaño arriba y 0,25 abajo, sin abrir
+  la fuente). Bajo una imagen sola queda lo que baja la letra, como en los navegadores.
+- test_maqueta y test_maqueta_css: lo que va tras una línea solo con imagen, 2 px más abajo (lo que baja la topaz);
+  comprobado que solo cambian esos números.
+- Batería: 94/94 (2030 s). Acid2: ya sin la raya roja. freemem.space: las tarjetas 5 px más abajo (el hueco bajo una línea con solo una imagen, como en los navegadores); Wikipedia y amigaworld.net, como antes.
+
+### 2026-10-22 — Tarea 42a (Wikipedia a 1650 px) y el límite de los scripts
+- Con pantalla ancha (máquina nueva `rtgancha` de tools/medir_visor.py: uaegfx a 1680x1050, modo 0x50971100, que FS-UAE
+  ofrece con fullscreen_width/height; sistema ~/.cache/dash-emu/sys32rtg38ancha) Wikipedia salía sin artículo: el índice
+  a la derecha y la apariencia abajo. Dos causas: el atajo grid-template ("áreas" altos / columnas) no se partía
+  (lib/estilo.dash `_grid_atajo`, también grid sin auto-flow) y los nombres de área se buscaban en minúsculas
+  (columnStart, pageContent; lib/maqueta.dash `_grid_linea`). Ya en tres columnas como en Chrome.
+- La barra de pestañas: una franja gris era la sombra "0 1px" de .vector-page-toolbar-container pintada debajo de su
+  fondo transparente: lib/pintor.dash pinta las sombras de fuera solo alrededor de la caja (`_sombra_trozo`).
+  "Leer" sobre "Discusión": al medir el botón ⋮, su menú absoluto con right: 0 llegaba al borde y la caja medía 697 en vez
+  de 32: lib/maqueta.dash `_ancho_flotante_medir` no cuenta lo que va en un absoluto de dentro (`_bajo_absoluto`).
+- test_maqueta_grid: el atajo con un área con mayúsculas.
+- lib/js.dash: JS_SEGUNDOS de 30 a 120 (el usuario, para el aviso de cookies de Xataka).
+- Comparado con Amelinium 1.4.0 (Aminet, 040_JS) en la misma máquina: tareas 42g y 42h nuevas (iconos como cuadrados,
+  buscador de Wikipedia, » de amigaworld).
+- Batería: 94/94 (2054 s); la anterior falló 51 por TIMEOUT con la máquina cargada (test_hola solo: 3 s, bien).
+
+### 2026-10-22 — Página de inicio con el logo (usuario)
+- src/dashweb.dash `dw_inicio`: el logo (docs/logo/tachyon.svg en PNG de 366x65 y 32 colores, 1,8 KB, como data: en
+  LOGO_INICIO), el lema, un buscador (Google), seis accesos en tarjetas (marcadores, cookies, Aminet, AmigaWorld.net,
+  Wikipedia, el GitHub de Tachyon) y la versión. El aviso del script cortado dice 120 s.
+- Comprobada en el emulador ancho: bien. El campo del buscador no toma el width de la hoja (los controles van con su
+  tamaño).
+
+### 2026-10-23 — Tarea 42g, primera parte (iconos de máscara y fuentes de iconos)
+- mask-image con url: antes solo se dejaba de pintar el fondo (el icono no salía). Ahora la imagen de la máscara se pide
+  como un fondo con la clave "mascara:color:dirección" (lib/colores.dash `mascara_clave`, lib/imagenes.dash
+  `_imagenes_pedir_mascara`), se tiñe del background-color al decodificarla (lib/imagen_dec.dash `_imgdec_tenir`,
+  también en la otra tarea) y se pinta como un D_FONDO de estilo 1 en la caja del borde, con mask-size,
+  mask-position y mask-repeat (lib/pintor.dash `_fondo_valor`). Wikipedia: ☰, ⋮ y el de idiomas.
+- El recuadro que los rodeaba: el borde "transparent" de los botones quiet de Codex con border-radius se pintaba con el
+  color del texto (el borde redondo no miraba la transparencia): lib/maqueta.dash `_borde_invisible`. Un control con
+  opacity: 0 en la línea, velado.
+- Xataka: sus fuentes de iconos ponen primero el EOT (format('embedded-opentype')) y se elegía ese; ya el TrueType
+  (lib/css.dash `css_fuente_src`). Los iconos siguen como cuadraditos: el pintor solo dibuja los de Font Awesome que
+  conoce (segunda parte).
+- tests: test_maqueta_mascara (la máscara teñida y el borde redondo transparente), test_fuente_web (el EOT).
+- Batería: 94/94 (2036 s); test_fuente_web y test_css otra vez después (el cambio de css.dash entró a mitad).
+
+### 2026-10-23 — Tarea 42g, segunda parte (los iconos de las fuentes de iconos)
+- Las fuentes de iconos no se bajaban y el pintor solo dibuja a mano unos iconos de Font Awesome (el resto, un
+  cuadradito). Ahora se bajan todas menos Font Awesome (700 KB; sigue a mano), hasta 4 aparte de las 8 de letras
+  (lib/imagenes.dash `imagenes_pedir_fuentes`), y un icono de una de ellas se pinta con su dibujo: una fuente de Amiga
+  con solo la "A", que lleva ese carácter (lib/fuente_web.dash `fuente_web_icono`, `_fw_icono`; las demás letras
+  vacías, sin rasterizar), y en la línea va como texto "A" con ella (lib/maqueta.dash, "::icono"). La búsqueda del
+  fichero por familia, aparte (`_fuente_web_fichero`).
+- Xataka: el menú, la lupa y la fila de webs del grupo con sus iconos. Queda: esa fila sale sobre la barra de
+  patrocinadores, faltan las redes y las secciones, y un icono sobre la U de "NUEVO" (en 42g).
+- test_fuente_web: el icono (la W de Vera Mono como "A"; la "B" vacía).
+- Batería: 94/94 (2038 s). freemem.space (Font Awesome, a mano) y amigaworld.net, como antes.
+
+### 2026-10-23 — Tarea 42h (el buscador de Wikipedia)
+- Un <input> de texto con display block (o inline-block, o hijo de un flex) se maquetaba como una caja más, con el
+  fondo y el borde de la página y sin control: no enseñaba su texto, ni su placeholder, ni lo que se escribía (el
+  buscador de Wikipedia, y los de muchas webs). lib/maqueta.dash: lleva un D_CONTROL de estilo 1 en su caja de
+  contenido (`_campo_de_texto`), que no cuenta al medir anchos (como un fondo); lib/pintor.dash
+  `_campo_propio_pintar`: sin marco, el texto (o el placeholder en gris) centrado en su alto, del color del texto, y el
+  cursor. El control de siempre (en la línea) también pinta el placeholder y empieza tras el padding-left.
+- Las » de amigaworld.net: igual que Chrome (no es fallo). El botón "Buscar" de Wikipedia sigue vacío (lo averiguado,
+  en 42h) y tools/traza.py no acaba con imágenes data: SVG en utf8 (42j).
+- tests/test_maqueta_campo.dash (nuevo): el control de un campo de bloque, uno en la línea y que no ensancha al medir.
+- Batería: 95/95 (2138 s). Wikipedia: "Buscar en Wikipedia" en gris tras la lupa. Google y amigaworld.net, como antes.
+
+### 2026-10-23 — Tarea 42i (GitHub) y el icono del índice de Wikipedia
+- GitHub: el avatar enorme y la columna izquierda de la mitad de la pantalla. --Layout-sidebar-width (con mayúsculas):
+  lib/css.dash pasaba a minúsculas también los nombres de las propiedades propias, y var(--Layout-sidebar-width) no
+  la encontraba (los nombres de --x distinguen mayúsculas). Ya como en Chrome: la columna de 296, el avatar, el
+  nombre, Follow, la biografía, los logros y los fijados en dos columnas.
+- Wikipedia: la flecha de "Información Técnica" del índice salía como un cuadrado negro desde 42g (1): todos sus iconos
+  llevan una máscara de relleno (un PNG de 1x1 opaco) y la buena, el SVG, va en @supports (mask-image: none), que
+  dashweb decía que no. Las propiedades de máscara, ya conocidas para @supports (CSS_CONOCIDAS).
+- tests: test_estilo_vars (--x con mayúsculas), test_estilo_capas (@supports de máscaras).
+- Batería: 95/95 (2139 s; también 95/95 solo con el primer cambio). GitHub, Wikipedia y freemem.space en el emulador.
+
+### 2026-10-23 — Tarea 42i, segunda parte (las pestañas de GitHub)
+- Cada pestaña (a.UnderlineNav-item, flex con un <svg>, su texto y un contador) medía unos 80 px de más y el contador
+  "33" se partía en dos líneas. Buscado por mitades en una copia de la barra con sus reglas (en tests/pages, solo
+  mientras tanto): la caja anónima que envuelve un reemplazado en un flex (`_anonima`) no tenía padre, y al medirla
+  `_sangrias` subía desde el <svg> hasta la raíz sumando los rellenos de la pestaña y de la barra (p-responsive, 40 px
+  por lado). Ya tiene padre (como las anónimas de las tablas): se corta en el contenedor.
+- test_maqueta_flex: una imagen en un elemento flex dentro de un contenedor con relleno (48 de ancho; antes 144).
+- Batería: 95/95 (2147 s). GitHub: las pestañas juntas, "Repositories 33" y "Stars 31", como en Chrome. freemem.space
+  y Xataka, como antes.
+
+### 2026-10-23 — Un flex con min-height centra en ese alto
+- El texto del botón "Buscar" de Wikipedia (inline-flex, align-items: center, min-height: 32px) salía arriba: _flex
+  solo repartía en el alto con height. lib/maqueta.dash: sin alto fijo y con un min-height mayor que lo que ocupa
+  (en px, con box-sizing), el flex se rehace con ese alto (fuera lo dibujado la primera vez).
+- test_maqueta_flex: una caja centrada en un flex con min-height de 40 (y=15).
+- Batería: 95/95 (2136 s). Wikipedia: "Buscar" centrado; GitHub y freemem.space, como antes.
+
+### 2026-10-23 — Tarea 42j (la traza con imágenes SVG)
+- tools/traza.py compilaba tools/traza_maqueta.dash sin --fpu: nanosvg (floats) rasterizaba mal y una imagen
+  data:image/svg+xml dejaba la traza colgada (no el navegador, que va con --fpu). Ya con --fpu: la página mínima
+  con la lupa de Wikipedia, en 21 ms.
+- Menéame mirada: bien de aspecto, entera a los 208 s y sin la primera línea de los títulos (42k).
+
+### 2026-10-23 — Tarea 42k (los títulos de Menéame) y DIBUJOS=
+- A cada título de noticia de meneame.net le faltaba la primera línea: va en una caja con overflow: hidden que empieza
+  1 px por debajo de la línea (la letra, de 25 px, es más alta que la línea de 22) y el pintor solo pinta una línea de
+  texto entera dentro de su recorte. lib/pintor.dash: una que se sale del recorte de un overflow hasta un cuarto de su
+  alto se pinta igual (nunca fuera de la zona de la página).
+- Encontrado con DIBUJOS=y0-y1, argumento nuevo de dashweb (tools/medir_visor.py --dibujos Y0-Y1): al acabar la
+  página, sus dibujos entre esas alturas por la salida (tipo, caja, color, capa, velado, recorte, texto y elemento).
+- El flex con min-height (178fe1c) dejaba sin pintar las opciones de "Apariencia" de Wikipedia (flex en columna):
+  ahora solo se rehace en fila (el botón "Buscar", en fila, sigue centrado).
+- Batería: 95/95 (2196 s). Menéame: los títulos enteros; Wikipedia: "Apariencia" entera y "Buscar" centrado; Xataka:
+  ya con sus secciones (ANÁLISIS, CIENCIA...) y los iconos de las redes.
+
+### 2026-10-23 — Los absolutos respecto al antepasado posicionado (42g)
+- Un position: absolute se ponía siempre respecto a la caja de su padre, posicionado o no; en CSS (10.1) va respecto
+  al antepasado posicionado más cercano (o con transform; si no hay, la raíz). xataka.com: la fila de favicons
+  (aside absolute, top: 0, en un div estático dentro de .head-content-favs relative) salía bajo la cabecera.
+- lib/maqueta.dash: si el bloque no es la caja de sus absolutos (`_caja_de_absolutos`), los apunta con su sitio
+  estático (`_abs_pend`, x/y) y los pone el primer antepasado que lo sea, al acabar su maqueta (con pl/pt de su sitio
+  estático para left/top auto). Al medir y en las maquetas de un momento que luego se mueven (_flex_maquetar: flex,
+  grid y celdas; _pieza_caja), como antes (`_abs_temporal`). maquetar vacía lo apuntado al empezar.
+- tests/test_maqueta_absoluto_caja.dash (nuevo): padre posicionado, abuelo posicionado, sitio estático y la raíz.
+- Batería: 96/96 (2244 s). Xataka: la fila de favicons arriba y la noticia destacada con su foto, como en Chrome;
+  freemem.space, GitHub y Wikipedia, como antes (la columna "Apariencia" salió vacía en una captura a los 150 s y
+  entera en otras dos a los 150 y 290 s: un momento de la carga).
+
+### 2026-10-23 — El texto de un flex absoluto cuenta al medirlo (42g)
+- El "NUEVO" de xataka.com (a flex, absolute, right: 0, con un ::after de icono): su icono caía encima del texto. Al
+  medir la caja anónima del texto, `_bajo_absoluto` subía desde el nodo del texto (el <a>, fuera de la caja anónima)
+  y encontraba el <a> absoluto: el texto no contaba y el <a> medía solo lo demás. Se para también en el corte de
+  `_sangrias` (el primer antepasado de verdad de una caja anónima), como la suma de sangrías.
+- tests/test_maqueta_flex_absoluto.dash (nuevo): un flex absoluto a la derecha y a la izquierda.
+- Batería: 97/97 (2298 s). Xataka: "NUEVO" y su icono a la derecha; la barra de Wikipedia, como antes.
+
+### 2026-10-23 — Tarea 41b (el corredor de Web Platform Tests) y dos fallos que encontró
+- tools/wpt.py: sirve un clon parcial de WPT (~/.cache/dashweb/wpt, fuera de git; cómo bajarlo, en su cabecera),
+  apunta las pruebas con <link rel="match"> (sin reftest-wait) y lanza tools/wpt_reftest.dash en la máquina rtg:
+  pinta la prueba en una ventana de 600x400, guarda sus píxeles con rtg_read_pixel, pinta la referencia y compara
+  ("WPT PASS/FAIL ruta píxeles"). --guardar escribe docs/wpt/<carpeta>.txt. Sin JavaScript ni fuentes de la página.
+- Las referencias en .xht llevan su CSS en <![CDATA[ ... ]]> (el analizador XML lo quita; dashweb lee XHTML como
+  HTML) y perdían su primera regla: lib/css.dash salta <![CDATA[ y ]]> como <!-- y -->.
+- Los márgenes que se juntan (41a2): un bloque que junta su margen de arriba con el de su hijo perdía el de abajo del
+  anterior (16 px de menos tras un <p>): `_margen_arriba` usa el acumulador y se llamaba después de cargar en él lo
+  pendiente; ya antes. test_maqueta_margenes: el caso i.
+- normal-flow: de 0/10 a 12/30 (las 30 primeras de 492).
+- Batería: 97/97 (2363 s). freemem.space, Wikipedia, amigaworld.net y GitHub, como antes (Wikipedia con la flecha del
+  índice en cuadrado negro en esta captura: 42l).
+
+### 2026-10-23 — Tarea 41b: XHTML en el corredor y el onload de <body>
+- tools/wpt_reftest.dash: con el JavaScript de la página (scripts, DOMContentLoaded, load y los temporizadores de
+  hasta medio segundo) y los .xht como los deja el analizador XML (dentro de <style> y <script>, sin CDATA y con
+  &lt; &gt; &amp; &quot; &apos; puestos: los selectores con &gt; no valían).
+- lib/jsdom_preludio.js: el atributo onload de <body> es el de window (HTML): <body onload="boom()"> no se llamaba en
+  ninguna página. (Regenerado lib/jsdom_preludio.dash.)
+- normal-flow: 29/100 -> 73/100 (docs/wpt/css_CSS2_normal-flow.txt). De las que fallan, block-replaced-height-002
+  (30 px) es la altura de la letra del Amiga sobre la línea base (las imágenes en línea 2 px más abajo), no maqueta.
+- Batería: 97/97 (2484 s).
+
+### 2026-10-23 — Tarea 41b: el ancho de las tablas y las imágenes en línea
+- El width de una tabla es el de su caja con los bordes y el relleno, como en los navegadores (una de 100 % con borde de
+  1 px salía 2 px más ancha): lib/maqueta.dash, al poner el ancho y al medir (WPT block-formatting-contexts-001).
+- El px de aire de arriba de una línea sin line-height es de la letra: si lo más alto es una imagen o un inline-block
+  que pasa de ella, la línea empieza en su borde (`base_texto`; la imagen de 100 px quedaba 1 px baja: WPT
+  block-replaced-height-002 y block-formatting-contexts-008).
+- Tests: un px menos en test_imagenes (las filas que lee, también), test_maqueta, test_maqueta_css, test_maqueta_flex
+  (z7) y test_maqueta_menu (los inline-block del menú en y 0, como en Chrome); comprobado que solo cambian esos números.
+- normal-flow: 73 -> 76/100.
+- Batería: 92/97 con los cinco de arriba; luego los 28 de maqueta y los de imágenes, bien.
+- D69 (la red desde una tarea) hecha por la sesión dash en main (a133133, PR #21).
+
+### 2026-10-23 — Tarea 42e: la red en una tarea aparte (D69)
+- lib/red.dash: toda la red (buscar el nombre, conectar, TLS, enviar y recibir) va en una tarea de task_start que
+  avanza aunque la maqueta o el JavaScript tarden segundos. El programa pide y lee por una tabla en C (`_rt`, 48
+  sitios) detrás de un semáforo; la tarea despierta al programa con task_wake (src/dashweb.dash espera con
+  `mui_wait_event_signals(task_signal())`). red_terminar() al salir; la tarea acaba sola tras red_ociosa_ms sin
+  tráfico (60 s en el navegador), aunque guarde conexiones para reusar (si no, el programa no acababa: espera a sus
+  tareas).
+- Tres atascos encontrados por el camino: SSL_read con el socket listo se quedaba esperando (tras el saludo llegan
+  los billetes de sesión de TLS 1.3 y luego espera la respuesta a una petición que aún no salió) y paraba todas las
+  conexiones: lee con el socket sin bloqueo. Dash abre como mucho 16 a la vez: las demás esperan turno en vez de
+  fallar. Y la conexión abierta enseguida puede esperar a su petición 10-35 s (el programa maquetaba) y el servidor
+  la cierra: la tarea abre otra si no se mandó nada; si ya salió la petición, lib/http.dash reintenta un GET una vez.
+- Medido en la RTG: cuatro descargas a la vez en 1,8 s; Menéame entera en 168 s (antes 208); Xataka 290 s con todos
+  sus scripts (antes 272: ahí manda la maqueta, ~7 s por vuelta, no la red).
+- Sigue sin arreglar (también con la red de antes): player.twitch.tv da "no se pudo descomprimir" y en Xataka falla
+  un chunk de webpack (999 o 915) a los ~8 s de pedirlo.
+- Batería: 97/97 (2345 s); luego las de red, recursos, imágenes y documento otra vez tras el reintento del GET.
+
+### 2026-10-23 — Tarea 43: el cuelgue al arrancar en AmigaOS 4
+- Un usuario de OS4 (Sam460ex, v0.3.0-alfa) mandó el registro de GrimReaper y la salida serie: DSI leyendo la
+  dirección 0 en código de Petunia (el JIT de 68k). Las instrucciones PPC del fallo (li r3,0; lbz r10,0(r7);
+  rlwimi r3,r10,...) son `clrl d0; moveb a1@+,d0` de strcmp con a1 = 0.
+- En FS-UAE con la MMU del 68040 y MuForce (máquina rtgmmu de tools/medir_visor.py, sistema
+  ~/.cache/dash-emu/sys32rtg38mmu con SegTracker de Enforcer y MuForce de NDK3.2 MuTools): 150 lecturas de la
+  dirección 0 al arrancar, en strcmp desde `_palabras_texto` (lib/maqueta.dash): `nodo_texto.pal_clave == clave` con
+  pal_clave nil (la primera vez que se mide ese texto). En un 68k clásico se lee la memoria baja y no pasa nada.
+- Arreglado en los dos sitios: lib/maqueta.dash mira pal_anchos antes de comparar, y Dash D70 (la sesión dash, main
+  028c67d) compara textos con `_dash_str_cmp`, que nunca lee la dirección 0 (nil va antes que todo texto).
+- Con los dos, MuForce no da ninguna lectura prohibida del programa al arrancar ni con es.wikipedia.org/wiki/Amiga
+  entera (con su JavaScript). Queda una de muigfx.library (BYTE READ de 0x2B) desde Dtpic.mui al abrir la ventana:
+  es del MUI 5 de 68k (en OS4 se usa el MUI de OS4); sin mirar si se lo provoca Tachyon.
+

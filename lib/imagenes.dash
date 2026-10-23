@@ -67,6 +67,7 @@ struct Pedida
     fuente: String = ""         # una fuente de @font-face ("familia|peso|estilo"), no una imagen
     perezosa: Bool = false      # <img loading=lazy>: espera a estar cerca de lo que se ve
     de_fondo: Bool = false      # un background-image: espera a que algo lo pinte
+    tinte: Int = -1             # una máscara (mask-image, mascara_clave): teñida de este color al decodificarla
 end
 
 # Una imagen grande no se decodifica entera si el HTML ya dice a qué tamaño se ve (width y height)
@@ -144,6 +145,46 @@ func _imagenes_pedir_fondo(im: Imagenes, n: Nodo, base: Url)
     end
 end
 
+# La máscara de un elemento (mask-image: url(...), mascara_clave): con la dirección completa en su estilo, se pide
+# como un fondo y se tiñe al decodificarla
+func _imagenes_pedir_mascara(im: Imagenes, n: Nodo, base: Url)
+    if n.tipo != DOM_ELEMENTO or n.estilo == nil
+        return
+    end
+    e = n.estilo
+    u = mascara_url(e)
+    if u == ""
+        return
+    end
+    completa = u
+    if not url_es_data(u)
+        completa = url_text(url_resolve(base, u))
+    end
+    for k in ["mask-image", "-webkit-mask-image", "mask", "-webkit-mask"]
+        if e.has(k) and str_find(e[k], "url(") >= 0
+            e[k] = str_replace(e[k], u, completa)
+        end
+    end
+    clave = mascara_clave(e)
+    if clave == "" or im.por_src.has(clave)
+        return
+    end
+    pu = url_parse(completa)
+    if pu.esquema == "http" or pu.esquema == "https" or url_es_data(completa)
+        im.por_src[clave] = 0
+        fichero = "T:dashweb_img" + im.ficheros.length
+        im.ficheros.push(fichero)
+        var sin: Carga = nil
+        pedida = Pedida(clave, completa, fichero, sin)
+        pedida.de_fondo = true
+        pedida.tinte = css_color_opaco(e["background-color"])
+        if url_es_data(completa) and not _imagenes_data(im, pedida)
+            return
+        end
+        im.cola.push(pedida)
+    end
+end
+
 # El cartel de un vídeo (dom_video_poster), como dirección completa en su atributo poster (el pintor lo
 # busca ahí); "" si no tiene
 func imagenes_cartel(n: Nodo, base: Url) -> String
@@ -185,12 +226,13 @@ end
 
 func _imagenes_pedir_en(im: Imagenes, n: Nodo, base: Url)
     _imagenes_pedir_fondo(im, n, base)
+    _imagenes_pedir_mascara(im, n, base)
     _imagenes_pedir_cartel(im, n, base)
     if n.tipo == DOM_ELEMENTO and n.nombre == "svg"
         _imagenes_svg(im, n)
         return
     end
-    if n.tipo == DOM_ELEMENTO and n.nombre == "img"
+    if dom_es_imagen(n)
         src = dom_img_src(n)
         if src != "" and im.por_src.has(src)
             if im.por_src[src] != 0
@@ -249,8 +291,8 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
         if p.dec != nil
             if imagen_lista(p.dec)
                 img = imagen_acabar(p.dec)
-                if img == 0
-                    img = image_load(p.fichero)      # otro formato: los datatypes
+                if img == 0 and p.tinte < 0
+                    img = image_load(p.fichero)      # otro formato: los datatypes (una máscara no: no se tiñe)
                 end
                 if traza_activa
                     traza("decodificada " + p.src)
@@ -273,9 +315,18 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
             if decodificando < IMAGENES_DECODIFICANDO
                 _imagen_tamano_final(im, p)
                 p.dec = imagen_empezar(p.fichero, p.maxw, p.maxh)
+                if p.dec != nil
+                    p.dec.tinte = p.tinte
+                end
                 if p.dec == nil
                     # sin otro proceso: aquí mismo
-                    if _imagen_llegada(im, doc, p, imagen_cargar_a(p.fichero, p.maxw, p.maxh))
+                    img = 0
+                    if p.tinte >= 0
+                        img = imagen_decodificar_tinte(p.fichero, p.maxw, p.maxh, p.tinte)
+                    else
+                        img = imagen_cargar_a(p.fichero, p.maxw, p.maxh)
+                    end
+                    if _imagen_llegada(im, doc, p, img)
                         llegadas = llegadas + 1
                     end
                     im.cola.remove(i)
@@ -402,9 +453,15 @@ end
 # Las fuentes de los @font-face (las que se saben leer: TTF, OTF y WOFF), a la cola como las imágenes; hasta 8
 func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
     n = 0
+    iconos = 0
     for c in caras
         src = css_fuente_src(c.src)
-        if src == "" or im.por_src.has(src) or n >= 8 or imagenes_fuente_de_iconos(c.familia)
+        if src == "" or im.por_src.has(src) or str_find(str_lower(c.familia), "awesome") >= 0
+            continue
+        end
+        # (las de iconos van aparte, hasta 4: en Xataka las 8 de letras dejaban fuera la de los favicons)
+        de_iconos = imagenes_fuente_de_iconos(c.familia)
+        if (de_iconos and iconos >= 4) or (not de_iconos and n >= 8)
             continue
         end
         u = url_parse(src)
@@ -421,12 +478,17 @@ func imagenes_pedir_fuentes(im: Imagenes, caras: [CaraFuente])
             continue
         end
         im.cola.push(pedida)
-        n = n + 1
+        if de_iconos
+            iconos = iconos + 1
+        else
+            n = n + 1
+        end
     end
 end
 
-# Las fuentes de iconos no se bajan: sus letras están fuera de Latin-1 (lib/fuente_web.dash solo lee de la 32 a la
-# 255) y dashweb dibuja él los iconos más comunes (lib/pintor.dash, D_ICONO). Font Awesome son 700 KB.
+# Las fuentes de iconos: sus letras están fuera de Latin-1 (lib/fuente_web.dash lee de la 32 a la 255) y cada icono
+# se hace aparte (fuente_web_icono). Font Awesome no se baja (700 KB): sus iconos más comunes los dibuja dashweb
+# (lib/pintor.dash, D_ICONO). Las demás sí (las de Xataka, 36 KB; tarea 42g).
 func imagenes_fuente_de_iconos(familia: String) -> Bool
     f = str_lower(familia)
     for nombre in ["awesome", "icon", "dashicons", "genericons", "glyph", "fontello", "icomoon", "material symbols", "remixicon", "themify", "feather", "eicons"]
@@ -483,7 +545,7 @@ func _imagenes_tamano_de(im: Imagenes, n: Nodo, src: String, img: Int)
     if n == nil
         return
     end
-    if n.tipo == DOM_ELEMENTO and n.nombre == "img" and dom_img_src(n) == src
+    if dom_es_imagen(n) and dom_img_src(n) == src
         if _imagen_tamano(n, img)
             im.cambiados = im.cambiados + 1
         end
@@ -510,7 +572,7 @@ func _imagenes_recorrer(im: Imagenes, n: Nodo, base: Url)
     if cartel != "" and not im.por_src.has(cartel)
         im.por_src[cartel] = _imagen_traer(im, base, cartel)
     end
-    if n.tipo == DOM_ELEMENTO and n.nombre == "img"
+    if dom_es_imagen(n)
         src = dom_img_src(n)
         if src != ""
             if not im.por_src.has(src)

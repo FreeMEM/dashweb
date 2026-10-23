@@ -1,6 +1,10 @@
 # Test: una caja con mask-image (url) no pinta su fondo (sin máscaras sería un cuadrado lleno: los iconos de
-# Wikipedia, un fondo del color del texto recortado por un SVG); sin mask-image, sí (41a3)
+# Wikipedia, un fondo del color del texto recortado por un SVG); sin mask-image, sí (41a3). En su lugar va la
+# máscara teñida de ese color (un D_FONDO con la clave "mascara:color:dirección", estilo 1) en la caja del borde
+# (42g); un borde redondo transparente no se pinta (el de los botones de Wikipedia enmarcaba los iconos)
 # memcheck
+# expect-out: mascara:0:data:image/svg+xml,x 1 0,0 20x20
+# expect-out: borde transparente: 0 | negro: 1
 # expect-out: con mascara: 0 | sin: 1
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 import "../lib/documento.dash"
@@ -18,6 +22,33 @@ func rects(css: String) -> Int
     return k
 end
 
+func mascara(css: String) -> String
+    d = dom_desde_html5("<!DOCTYPE html><html><head><style>body { margin: 0 } .i { width: 20px; height: 20px; background-color: black; " + css + " }</style></head><body><div class=i></div></body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    p = maquetar(d, 300)
+    for x in p.dibujos
+        if x.tipo == D_FONDO
+            return x.texto + " " + x.estilo + " " + x.x + "," + x.y + " " + x.ancho + "x" + x.alto
+        end
+    end
+    return "sin máscara"
+end
+
+func bordes(color: String) -> Int
+    d = dom_desde_html5("<!DOCTYPE html><html><head><style>body { margin: 0 } .i { width: 20px; height: 20px; border: 1px solid " + color + "; border-radius: 2px }</style></head><body><div class=i></div></body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    p = maquetar(d, 300)
+    k = 0
+    for x in p.dibujos
+        if x.tipo == D_REDONDO or x.tipo == D_RECT
+            k = k + 1
+        end
+    end
+    return k
+end
+
 Main
+    Print mascara("mask-image: url(data:image/svg+xml,x); mask-size: 20px auto")
+    Print "borde transparente: " + bordes("transparent") + " | negro: " + bordes("black")
     Print "con mascara: " + rects("-webkit-mask-image: url(data:image/svg+xml,x); mask-image: url(data:image/svg+xml,x)") + " | sin: " + rects("")
 end

@@ -1,0 +1,25 @@
+# Test: un absoluto va respecto al antepasado posicionado más cercano (CSS 2.1 10.1), no a su padre si este no lo
+# está (la fila de favicons de xataka.com, top: 0 en un padre sin posicionar; tarea 42g); sin top/left, en su sitio
+# estático; sin ningún antepasado posicionado, respecto a la raíz. Comprobado a mano como en Chrome.
+# memcheck
+# expect-out: padre posicionado 27,55 10x10
+# expect-out: abuelo posicionado 30,0 600x10
+# expect-out: estatico 30,65 10x10
+# expect-out: raiz 4,3 10x10
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func prueba(nombre: String, html: String)
+    d = dom_desde_html5("<!DOCTYPE html><html><body style='margin:0'>" + html + "</body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    p = maquetar(d, 600)
+    n = dom_por_id(d, "a")
+    Print nombre + " " + n.caja_x + "," + n.caja_y + " " + n.caja_w + "x" + n.caja_h
+end
+
+Main
+    prueba("padre posicionado", "<div style='height:50px'></div><div style='position:relative;margin-left:20px;height:100px'><div id=a style='position:absolute;top:5px;left:7px;width:10px;height:10px'></div></div>")
+    prueba("abuelo posicionado", "<div style='position:relative;height:200px'><div style='height:60px'></div><div style='margin-left:30px'><div id=a style='position:absolute;top:0;width:100%;height:10px'></div></div></div>")
+    prueba("estatico", "<div style='position:relative'><div style='height:60px'></div><div style='margin-left:30px;padding-top:5px'><div id=a style='position:absolute;width:10px;height:10px'></div>x</div></div>")
+    prueba("raiz", "<div style='height:60px'></div><div><div id=a style='position:absolute;top:3px;left:4px;width:10px;height:10px'></div></div>")
+end

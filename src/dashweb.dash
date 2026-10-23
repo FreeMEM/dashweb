@@ -83,15 +83,39 @@ struct Ventana
 end
 
 var dw_ventanas: [Ventana] = []
+# DIBUJOS=y0-y1 (argumento): los dibujos de la página entre esas alturas, por la salida al acabar (-1: no)
+var dw_dibujos_y0: Int = -1
+var dw_dibujos_y1: Int = -1
+
+# El logo de la página de inicio: docs/logo/tachyon.svg a 540 de ancho sobre blanco (rsvg-convert), recortado y en
+# 32 colores (PIL), en PNG de 366x65 (1,8 KB)
+const LOGO_INICIO = "data:image/png;base64,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"
 
 func dw_inicio() -> String
-    h = "<html><head><title>Tachyon</title><style>body { font-family: sans-serif; margin: 12px }"
-    h = h + " h1 { color: #036 } .nota { color: #555 }</style></head><body>"
-    h = h + "<h1>Tachyon</h1><p>Un navegador para <b>AmigaOS</b> escrito en <i>Dash</i>.</p>"
-    h = h + "<p>Escribe una dirección arriba (http o https) y pulsa Return.</p>"
-    h = h + "<ul><li>HTML y CSS<li>Imágenes por datatypes<li>JavaScript con QuickJS<li>HTTPS con AmiSSL</ul>"
-    h = h + "<p><a href=\"tachyon:marcadores\">Marcadores</a> · <a href=\"tachyon:cookies\">Cookies</a></p>"
-    h = h + "<p class=nota>Fase B: ventanas con MUI 5.</p></body></html>"
+    h = "<html><head><title>Tachyon</title><style>"
+    h = h + "body { margin: 0; font-family: sans-serif; background: #eef2fb; color: #0b1736 }"
+    h = h + ".cab { background: #fff; border-bottom: 1px solid #d5ddef; padding: 40px 16px 28px; text-align: center }"
+    h = h + ".lema { color: #4a5878; margin: 10px 0 0 }"
+    h = h + "form { display: flex; max-width: 520px; margin: 24px auto 0 }"
+    h = h + "form input { flex: 1; width: 400px; padding: 8px 10px; border: 2px solid #2e5bff; border-radius: 6px 0 0 6px; font-size: 16px }"
+    h = h + "form button { padding: 8px 18px; background: #2e5bff; color: #fff; border: 0; border-radius: 0 6px 6px 0; font-weight: bold }"
+    h = h + ".rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-width: 720px; margin: 28px auto; padding: 0 16px }"
+    h = h + ".rejilla a { display: block; background: #fff; border: 1px solid #d5ddef; border-radius: 8px; padding: 12px; text-decoration: none; color: #4a5878; font-size: 12px; box-shadow: 0 2px 4px rgba(11, 23, 54, 0.12) }"
+    h = h + ".rejilla b { display: block; color: #2e5bff; font-size: 15px; margin-bottom: 4px }"
+    h = h + ".pie { text-align: center; font-size: 12px; color: #6b7898; margin: 8px 0 20px }"
+    h = h + "</style></head><body><div class=cab>"
+    h = h + "<img src=\"" + LOGO_INICIO + "\" width=366 height=65 alt=Tachyon>"
+    h = h + "<p class=lema>Un navegador web para <b>AmigaOS</b>, escrito en <i>Dash</i></p>"
+    h = h + "<form action=\"https://www.google.com/search\" method=get><input type=text name=q placeholder=\"Busca en la web o escribe una dirección arriba\">"
+    h = h + "<button type=submit>Buscar</button></form></div>"
+    h = h + "<div class=rejilla>"
+    h = h + "<a href=\"tachyon:marcadores\"><b>Marcadores</b>Tus páginas guardadas</a>"
+    h = h + "<a href=\"tachyon:cookies\"><b>Cookies</b>Qué guarda cada web</a>"
+    h = h + "<a href=\"https://aminet.net/\"><b>Aminet</b>Programas para Amiga</a>"
+    h = h + "<a href=\"https://amigaworld.net/\"><b>AmigaWorld.net</b>Noticias y foros</a>"
+    h = h + "<a href=\"https://es.wikipedia.org/\"><b>Wikipedia</b>La enciclopedia libre</a>"
+    h = h + "<a href=\"https://github.com/FreeMEM/tachyon\"><b>Tachyon</b>El código y las novedades</a>"
+    h = h + "</div><p class=pie>Tachyon " + DASHWEB_VERSION + " · HTML, CSS, JavaScript (QuickJS) y HTTPS (AmiSSL)</p></body></html>"
     return h
 end
 
@@ -257,8 +281,11 @@ func pinta_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
         gfx_rect(x, y, x + ancho - 1, y + alto - 1)
         return
     end
-    if w.actual.pagina == nil or w.actual.ancho != ancho
-        estilo_vh = alto           # (vh: el alto de donde se ve la página)
+    # (vh: el alto de donde se ve la página; con otro alto, otra maqueta: un fijo con top: 0 y bottom: 0, como el aviso
+    # de cookies de xataka.com, se quedaba del alto de antes y no tapaba la página de abajo)
+    estilo_vh = alto
+    if w.actual.pagina == nil or w.actual.ancho != ancho or w.actual.vh != alto
+        w.actual.vh = alto
         documento_maquetar(w.actual, ancho)
         mui_timer(1, ID_RANGO)
     end
@@ -720,7 +747,7 @@ func tic(w: Ventana)
     # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
     if js_cortado()
         dw_estado(w, "Un script de la página tardaba demasiado: cortado")
-        Print "tachyon: un script de la página pasaba de 30 s y se cortó"
+        Print "tachyon: un script de la página pasaba de 120 s y se cortó"
     end
     if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
         ajustar_barra(w)
@@ -734,6 +761,25 @@ func tic(w: Ventana)
         kb_js = 0
         if w.actual.js != 0
             kb_js = js_memoria(w.actual.js) / 1024
+        end
+        if dw_dibujos_y0 >= 0 and w.actual.pagina != nil
+            for d in w.actual.pagina.dibujos
+                if d.y + d.alto >= dw_dibujos_y0 and d.y <= dw_dibujos_y1
+                    nodo = ""
+                    if d.nodo != nil
+                        nodo = d.nodo.nombre + "." + dom_atributo(d.nodo, "class")
+                    end
+                    t = d.texto
+                    if t.length > 40
+                        t = t[:40]
+                    end
+                    rec = ""
+                    if d.recorte
+                        rec = " recorte " + d.rx0 + "," + d.ry0 + "-" + d.rx1 + "," + d.ry1
+                    end
+                    Print "dibujo " + d.tipo + " [" + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + "] " + d.color + " capa " + d.capa + " velado " + d.velado + rec + " " + t + " <" + nodo + ">"
+                end
+            end
         end
         Print "tachyon: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB, " + imagenes_kb(w.actual.im) + ")"
     end
@@ -944,11 +990,11 @@ end
 
 # La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló; y para el comando Version del Amiga,
 # la cadena $VER del ejecutable (con la fecha del día en que se cambia la versión: van juntas)
-const DASHWEB_VERSION = "0.3.0-alfa"
+const DASHWEB_VERSION = "0.4.0-alfa"
 
 @native(borrow) func texto_version(v: String) -> String
 """
-    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.3.0-alfa (22.10.2026)";
+    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.4.0-alfa (23.10.2026)";
     static char b[160];
     sprintf(b, "\033c\033bTachyon %s\033n\n\033ccompilado el %s a las %s", (char *)v, __DATE__, __TIME__);
     return (STRPTR)b;
@@ -1063,6 +1109,8 @@ Main
     ficheros_de_antes()
     # las conexiones siguen abiertas para los recursos del mismo servidor (sin volver a negociar TLS)
     http_seguir = true
+    # la tarea de la red (lib/red.dash) sigue 30 s sin conexiones: guarda las sesiones TLS y los nombres entre páginas
+    red_ociosa_ms = 60000
     cookies_cargar(FICHERO_COOKIES)
     # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)
     dos_requesters(false)
@@ -1081,6 +1129,13 @@ Main
                 traza("memoria libre al empezar " + mem_total() / 1024 + " KB")
             elif arg(i) == "GCSIEMPRE"
                 js_gc_siempre(true)
+            elif str_starts(arg(i), "DIBUJOS=")
+                # DIBUJOS=y0-y1: al acabar la página, sus dibujos de entre esas alturas por la salida (para depurar)
+                trozos = css_partir(arg(i)[8:], 45)
+                if trozos.length == 2
+                    dw_dibujos_y0 = Int(trozos[0])
+                    dw_dibujos_y1 = Int(trozos[1])
+                end
             else
                 paginas = paginas + 1
             end
@@ -1089,15 +1144,20 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE"
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=")
                 nueva_ventana(arg(i))
             end
         end
         acerca_abierta = false
         while abiertas() > 0
-            ev = mui_wait_event()
+            # también despierta con la señal de las tareas: la de la red (lib/red.dash) avisa al recibir algo, y las
+            # que decodifican imágenes al acabar (0: una de ellas)
+            ev = mui_wait_event_signals(task_signal())
             if ev == -1 or ev == ID_SALIR
                 break
+            end
+            if ev == 0
+                ev = ID_TIC
             end
             if ev == ID_TIC or ev == ID_RANGO
                 # mui_timer es uno solo: sirve a todas las ventanas
@@ -1268,6 +1328,8 @@ Main
             end
         end
         http_cerrar_libres()
+        # la tarea de la red, parada (el programa espera a sus tareas al acabar)
+        red_terminar()
         cookies_guardar(FICHERO_COOKIES)
         mui_app_end()
     end

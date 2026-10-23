@@ -3,34 +3,34 @@
 # negrita/enlace en la misma línea, br, listas, tabla, fondo, borde, pre, imagen, sin
 # corte entre piezas pegadas.
 # memcheck
-# expect-out: T 4,11 [uno dos tres cuatro] c=0 e=0
-# expect-out: T 4,21 [cinco seis siete] c=0 e=0
-# expect-out: T 60,37 [medio] c=0 e=0
-# expect-out: T 4,53 [a ] c=0 e=0
-# expect-out: T 20,53 [bb ] c=0 e=2
-# expect-out: T 44,53 [enlace] c=ee e=1 ->x.html
-# expect-out: T 4,63 [fin] c=0 e=0
-# expect-out: T 44,89 [x] c=0 e=0
-# expect-out: R 33,95 5x5 c=0
-# expect-out: T 44,99 [y] c=0 e=0
-# expect-out: R 33,105 5x5 c=0
-# expect-out: T 44,125 [p] c=0 e=0
-# expect-out: T 24,125 [1.] c=0 e=0
-# expect-out: T 7,154 [c1] c=0 e=0
-# expect-out: T 27,154 [c2] c=0 e=0
-# expect-out: R 4,166 152x16 c=ffff00
-# expect-out: T 7,170 [k] c=0 e=0
-# expect-out: R 4,166 152x1 c=ff
-# expect-out: R 4,181 152x1 c=ff
-# expect-out: R 4,166 1x16 c=ff
-# expect-out: R 155,166 1x16 c=ff
-# expect-out: T 4,199 [a  b] c=0 e=0
-# expect-out: T 4,209 [c] c=0 e=0
-# expect-out: I 4,235 10x12 f.png
-# expect-out: T 4,255 [aaaa bbbb cccc ] c=0 e=0
-# expect-out: T 4,265 [dddd] c=ee e=1 ->y.html
-# expect-out: T 36,265 [.] c=0 e=0
-# expect-out: alto 284 fondo ffffff
+# expect-out: R 4,162 152x16 c=ffff00
+# expect-out: R 4,162 152x1 c=ff
+# expect-out: R 4,177 152x1 c=ff
+# expect-out: R 4,162 1x16 c=ff
+# expect-out: R 155,162 1x16 c=ff
+# expect-out: T 4,7 [uno dos tres cuatro] c=0 e=0
+# expect-out: T 4,17 [cinco seis siete] c=0 e=0
+# expect-out: T 60,33 [medio] c=0 e=0
+# expect-out: T 4,49 [a ] c=0 e=0
+# expect-out: T 20,49 [bb ] c=0 e=2
+# expect-out: T 44,49 [enlace] c=ee e=1 ->x.html
+# expect-out: T 4,59 [fin] c=0 e=0
+# expect-out: T 44,85 [x] c=0 e=0
+# expect-out: R 33,91 5x5 c=0
+# expect-out: T 44,95 [y] c=0 e=0
+# expect-out: R 33,101 5x5 c=0
+# expect-out: T 44,121 [p] c=0 e=0
+# expect-out: T 24,121 [1.] c=0 e=0
+# expect-out: T 7,150 [c1] c=0 e=0
+# expect-out: T 27,150 [c2] c=0 e=0
+# expect-out: T 7,166 [k] c=0 e=0
+# expect-out: T 4,195 [a  b] c=0 e=0
+# expect-out: T 4,205 [c] c=0 e=0
+# expect-out: I 4,230 10x12 f.png
+# expect-out: T 4,252 [aaaa bbbb cccc ] c=0 e=0
+# expect-out: T 4,262 [dddd] c=ee e=1 ->y.html
+# expect-out: T 36,262 [.] c=0 e=0
+# expect-out: alto 277 fondo ffffff
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"

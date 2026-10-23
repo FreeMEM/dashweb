@@ -516,3 +516,28 @@ func _color_nombre(v: String) -> Int
     end
     return -1
 end
+
+# === mask-image ===
+# Un icono hecho de un fondo de color recortado por una imagen (mask-image: url(...); los de Wikipedia, tarea 42g): se
+# pinta la imagen teñida de ese color con su transparencia. La clave con que se pide y se pinta: "mascara:color:" y la
+# dirección (completa, ya puesta por lib/imagenes.dash), con el color en decimal; "" si no tiene máscara con url o su fondo no tiene color.
+func mascara_url(e: {String: String}) -> String
+    for k in ["mask-image", "-webkit-mask-image", "mask", "-webkit-mask"]
+        if e.has(k) and str_find(e[k], "url(") >= 0
+            return css_url(e[k])
+        end
+    end
+    return ""
+end
+
+func mascara_clave(e: {String: String}) -> String
+    u = mascara_url(e)
+    if u == "" or not e.has("background-color")
+        return ""
+    end
+    c = css_color_opaco(e["background-color"])
+    if c < 0 or css_alfa(e["background-color"]) == 0
+        return ""
+    end
+    return "mascara:" + c + ":" + u
+end

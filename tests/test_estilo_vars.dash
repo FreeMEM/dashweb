@@ -19,6 +19,7 @@
 # expect-out: en orden: ana, serif
 # expect-out: px: 32 12 0 5
 # expect-out: ciclo: 20px 3px
+# expect-out: mayúsculas: 296px 7px
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/estilo.dash"
@@ -80,4 +81,10 @@ Main
     estilo_aplicar(doc4, estilo_hojas(doc4, "http://x/"))
     p4 = dom_por_id(doc4, "p")
     Print "ciclo: " + p4.estilo["font-size"] + " " + p4.estilo["padding-left"]
+    # los nombres de las --x distinguen mayúsculas (--Layout-sidebar-width de GitHub; --abc y --ABC son dos)
+    h = "<style>html { --Ancho-Lado: 296px; --abc: 7px; --ABC: 1px } p { width: var(--Ancho-Lado); padding-left: var(--abc) }</style><p id=p>x</p>"
+    doc5 = dom_desde_html(h)
+    estilo_aplicar(doc5, estilo_hojas(doc5, "http://x/"))
+    p5 = dom_por_id(doc5, "p")
+    Print "mayúsculas: " + p5.estilo["width"] + " " + p5.estilo["padding-left"]
 end

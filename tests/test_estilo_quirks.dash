@@ -1,0 +1,35 @@
+# Test: en modo quirks (sin doctype) una tabla no hereda font-size, text-align ni white-space (HTML 15.3.1): la tabla
+# de dentro de un <td align=center> va a la izquierda y a 16 px aunque body diga 12px (como Chrome en amigaworld.net,
+# tarea 42f); una regla de la página para table o td sí manda. Con doctype, hereda como siempre.
+# memcheck
+# expect-out: quirks: left 16px | con regla: 12px
+# expect-out: estándar: center 12px
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func td_de_dentro(n: Nodo) -> Nodo
+    var nada: Nodo = nil
+    if n.tipo == DOM_ELEMENTO and n.nombre == "td" and dom_atributo(n, "id") == "x"
+        return n
+    end
+    for h in n.hijos
+        r = td_de_dentro(h)
+        if r != nil
+            return r
+        end
+    end
+    return nada
+end
+
+func mira(html: String) -> String
+    doc = dom_desde_html5(html)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    t = td_de_dentro(doc)
+    return t.estilo["text-align"] + " " + t.estilo["font-size"]
+end
+
+Main
+    cuerpo = "<body style='font-size:12px'><table><tr><td align=center><table><tr><td id=x>t</td></tr></table></td></tr></table></body>"
+    Print "quirks: " + mira("<html>" + cuerpo + "</html>") + " | con regla: " + str_split(mira("<html><style>td { font-size: 12px }</style>" + cuerpo + "</html>"), " ")[1]
+    Print "estándar: " + mira("<!DOCTYPE html><html>" + cuerpo + "</html>")
+end

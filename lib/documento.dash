@@ -32,6 +32,8 @@ struct Documento
     error: String
     ms: Int              # lo que tardó en abrirse y maquetarse
     recursos: Recursos = nil   # documento_empezar: las hojas y scripts que están llegando
+    hojas_firma: String = ""   # estilo_firma de cuando se hicieron las hojas: si cambia, el JS metió o tocó un <style>
+    vh: Int = 0                # el alto de la vista con que se maquetó (vh, position: fixed con top y bottom)
     videos: Videos = nil       # los reproductores de sus <video> (lib/videos.dash)
     sin_maquetar: Int = 0      # imágenes llegadas que cambian la maqueta (su <img> no tenía tamaño)
     sin_pintar: Int = 0        # imágenes llegadas que aún no se han pintado
@@ -285,6 +287,7 @@ func documento_avanzar(d: Documento) -> Bool
         d.titulo = d.direccion
     end
     d.hojas = estilo_hojas_con(d.doc, d.direccion, traidos)
+    d.hojas_firma = estilo_firma(d.doc)
     estilo_aplicar(d.doc, d.hojas)
     traza("estilo hecho")
     imagenes_pedir_fuentes(d.im, estilo_caras(d.hojas))
@@ -293,6 +296,38 @@ func documento_avanzar(d: Documento) -> Bool
     d.recursos = nada
     d.ms = d.ms + time_ms() - t0
     return true
+end
+
+# Algún cambio puede tocar las hojas: un <style> o <link> que entra, sale o cambia (o demasiados cambios para saberlo)
+func _documento_toques_hojas(toques: [Toque]) -> Bool
+    for t in toques
+        n = t.nodo
+        if t.tipo == TOQUE_TODO or n == nil
+            return true
+        end
+        if n.nombre == "style" or n.nombre == "link" or (n.padre != nil and n.padre.nombre == "style")
+            return true
+        end
+        if t.tipo == TOQUE_ENTRA and _documento_con_hoja(n)
+            return true
+        end
+        if t.tipo == TOQUE_SALE and t.quitado != nil and _documento_con_hoja(t.quitado)
+            return true
+        end
+    end
+    return false
+end
+
+func _documento_con_hoja(n: Nodo) -> Bool
+    if n.tipo == DOM_ELEMENTO and (n.nombre == "style" or n.nombre == "link")
+        return true
+    end
+    for h in n.hijos
+        if _documento_con_hoja(h)
+            return true
+        end
+    end
+    return false
 end
 
 # Lo mismo con el HTML ya en la mano (una página de inicio, una de error)
@@ -319,6 +354,7 @@ func documento_desde_html(d: Documento, texto: String, t0: Int) -> Documento
         d.titulo = d.direccion
     end
     d.hojas = estilo_hojas(d.doc, d.direccion)
+    d.hojas_firma = estilo_firma(d.doc)
     estilo_aplicar(d.doc, d.hojas)
     imagenes_pedir_fuentes(d.im, estilo_caras(d.hojas))
     imagenes_pedir(d.im, d.doc, d.direccion)
@@ -595,8 +631,26 @@ func documento_al_dia(d: Documento) -> Bool
     if toques == nil or toques.length == 0
         return false
     end
+    # el JavaScript metió, quitó o cambió un <style> o un <link> de hoja (el CSS de Didomi en xataka.com, que llega
+    # tras la carga): las hojas otra vez (las de fuera ya traídas no se piden) y el estilo entero
+    hojas_nuevas = false
+    if d.hojas != nil and _documento_toques_hojas(toques)
+        firma = estilo_firma(d.doc)
+        if firma != d.hojas_firma
+            traidas = d.hojas.traidas
+            if traidas == nil
+                var vacias: {String: String} = {}
+                traidas = vacias
+            end
+            d.hojas = estilo_hojas_con(d.doc, d.direccion, traidas)
+            d.hojas_firma = firma
+            imagenes_pedir_fuentes(d.im, estilo_caras(d.hojas))
+            hojas_nuevas = true
+            traza("hojas otra vez: el JavaScript cambió un <style> o <link>")
+        end
+    end
     # lo que cambia en el estilo, por si no mueve nada (tarea 37d)
-    ligero = _documento_puede_ligero(d, toques)
+    ligero = not hojas_nuevas and _documento_puede_ligero(d, toques)
     if ligero
         var cambios: [EstiloCambio] = []
         estilo_cambios = cambios
@@ -609,7 +663,7 @@ func documento_al_dia(d: Documento) -> Bool
         end
     end
     estilo_marcar = true
-    parte = toques != nil and estilo_aplicar_partes(d.doc, d.hojas, toques)
+    parte = toques != nil and not hojas_nuevas and estilo_aplicar_partes(d.doc, d.hojas, toques)
     estilo_marcar = false
     estilo_apuntar = false
     if not parte

@@ -49,8 +49,9 @@ static int _js_gc_siempre = 0;
 /* A script, call or job that runs longer than this is cut (a loop without end in a page left the whole browser
    hanging; tarea 40c): QuickJS asks _js_interrumpir every few thousand operations and, past the limit, the script
    gets "interrupted". Wall clock from DateStamp (in 1/50 s): a real A1200 runs the JavaScript ~50 times slower
-   than the emulated RTG machine, so the limit is generous. */
-#define JS_SEGUNDOS 30
+   than the emulated RTG machine, so the limit is generous: 120 s (it was 30 and the cookie notice of xataka.com, whose
+   button runs a slow reduce, was cut before closing; the user asked for more on 2026-10-22). */
+#define JS_SEGUNDOS 120
 static LONG _js_tope = JS_SEGUNDOS;
 static ULONG _js_desde = 0;
 static int _js_cortado = 0;
@@ -60,10 +61,26 @@ static ULONG _js_ms(void) {
     return ((ULONG)ds.ds_Days * 1440UL * 60UL + (ULONG)ds.ds_Minute * 60UL) * 1000UL + (ULONG)ds.ds_Tick * 20UL;
 }
 /* (each way into the JavaScript calls it: from then on the limit counts) */
-static void _js_empieza(void) { _js_desde = _js_ms(); }
+static int _js_avisado = 0;
+static void _js_empieza(void) { _js_desde = _js_ms(); _js_avisado = 0; }
+/* Past the limit, first an "interrupted" that the script can catch (its catch and finally run: Preact's signals in
+   xataka.com, cut inside a try/finally, kept a computed marked as running and every click after gave "Cycle
+   detected"; tarea 42e); if it goes on 5 s more, one that it cannot. */
 static int _js_interrumpir(JSRuntime *rt, void *o) {
-    if (_js_tope > 0 && _js_ms() - _js_desde > (ULONG)_js_tope * 1000UL) {
-        _js_cortado = 1;
+    ULONG t;
+    if (_js_tope <= 0)
+        return 0;
+    t = _js_ms() - _js_desde;
+    if (t <= (ULONG)_js_tope * 1000UL)
+        return 0;
+    _js_cortado = 1;
+    if (!_js_avisado) {
+        _js_avisado = 1;
+        JS_SetInterruptCatchable(rt, 1);
+        return 1;
+    }
+    if (t > (ULONG)_js_tope * 1000UL + 5000UL) {
+        JS_SetInterruptCatchable(rt, 0);
         return 1;
     }
     return 0;
@@ -212,7 +229,38 @@ static char *_js_utf8(const char *s) {
     return r;
 }
 
-/* UTF-8 -> Latin-1 in place (it only gets shorter); what does not fit is "?" */
+/* What lib/texto.dash latin1_de puts for a code point outside Latin-1 (never longer than its UTF-8: it is written
+   in place): "EUR" for the euro, straight quotes, "-", "..."; "?" for the rest */
+static const char *_js_parecido(unsigned long c) {
+    switch (c) {
+    case 8216: case 8217: case 8218: case 8242: return "'";
+    case 8249: return "\xAB";
+    case 8250: return "\xBB";
+    case 8220: case 8221: case 8222: case 8243: return "\"";
+    case 8211: case 8212: case 8722: case 8208: case 8209: return "-";
+    case 8230: return "...";
+    case 8364: return "EUR";
+    case 8482: return "TM";
+    case 8226: return "\xB7";
+    case 8194: case 8195: case 8201: case 8239: case 8287: return " ";
+    case 8203: case 8204: case 8205: case 8206: case 8207: case 65279: return "";
+    case 338: return "OE";
+    case 339: return "oe";
+    case 352: return "S";
+    case 353: return "s";
+    case 376: return "Y";
+    case 381: return "Z";
+    case 382: return "z";
+    case 402: return "f";
+    case 710: return "^";
+    case 732: return "~";
+    case 8224: case 8225: return "+";
+    }
+    return "?";
+}
+
+/* UTF-8 -> Latin-1 in place (it only gets shorter); what does not fit, like latin1_de (tarea 42e: el precio en euros
+   del aviso de xataka.com salía "2?") */
 static void _js_latin1(char *s) {
     unsigned char *p = (unsigned char *)s, *q = (unsigned char *)s;
     while (*p) {
@@ -221,7 +269,13 @@ static void _js_latin1(char *s) {
         if (c >= 0x80 && c < 0xC0) { *q++ = '?'; continue; }
         if (more) c &= 0x3F >> more;
         while (more-- > 0 && (*p & 0xC0) == 0x80) c = (c << 6) | (*p++ & 0x3F);
-        *q++ = c < 0x100 ? (unsigned char)c : '?';
+        if (c < 0x100) {
+            *q++ = (unsigned char)c;
+        } else {
+            const char *r = _js_parecido(c);
+            /* (the replacement is never longer than what was read, so q never overtakes p) */
+            while (*r && q < p) *q++ = (unsigned char)*r++;
+        }
     }
     *q = 0;
 }

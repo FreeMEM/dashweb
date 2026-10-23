@@ -1,0 +1,21 @@
+# Test: <!-- y --> entre reglas no cuentan (CSS 2.1 4.1.1): amigaworld.net pone su hoja en
+# <style><!-- @import url(...); --></style> y el @import se perdía (tarea 42f). Y una declaración rota
+# ("color;#000000;") no se lleva la de detrás (font-size: 12px, en la misma hoja).
+# memcheck
+# expect-out: importes: s.css | reglas: 1
+# expect-out: importes sin leer: s.css
+# expect-out: body: font-size=12px margin=0px
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/css.dash"
+
+Main
+    h = css_leer("\n<!-- @import url(s.css); -->\n p { color: red }", 0)
+    Print "importes: " + h.importes[0] + " | reglas: " + h.reglas.length
+    Print "importes sin leer: " + css_importes("<!--\n@import url(s.css);\n-->")[0]
+    h2 = css_leer("body {\n\tcolor;#000000; font-size: 12px;\n\tmargin: 0px; }", 0)
+    s = "body:"
+    for d in h2.reglas[0].declaraciones
+        s = s + " " + d.propiedad + "=" + d.valor
+    end
+    Print s
+end

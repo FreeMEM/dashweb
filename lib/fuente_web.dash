@@ -375,6 +375,8 @@ static void _fw_olvidar_todas(void) {
 
 #define _FW_LO 32
 #define _FW_HI 255
+/* fuente_web_icono: la "A" de la fuente hecha lleva este carácter (un icono de la zona privada de Unicode) */
+static LONG _fw_icono = 0;
 #define _FW_N (_FW_HI - _FW_LO + 2)      /* y uno más: el que sale con los que no tiene */
 
 /* Si el píxel (x, y) del glifo en grises va con tinta en el plano de 1 bit: con gris de 112 o más, o si es el más
@@ -415,7 +417,12 @@ static struct TextFont *_fw_crear(UBYTE *datos, LONG largo, LONG tam, LONG ancho
     if (alto < 1) return NULL;
     for (i = 0; i < _FW_N; i++) {
         c = i < _FW_N - 1 ? _FW_LO + i : '?';
-        gl[i] = stbtt_FindGlyphIndex(&fi, c);
+        if (_fw_icono && c != 'A') {
+            /* (una fuente para un icono: solo su "A"; las demás letras, vacías) */
+            gl[i] = 0; ads[i] = 0; ws[i] = 0; xs[i] = 0;
+            continue;
+        }
+        gl[i] = stbtt_FindGlyphIndex(&fi, _fw_icono ? _fw_icono : c);
         stbtt_GetGlyphHMetrics(&fi, gl[i], &adv, &lsb);
         ads[i] = (int)(adv * escx + 0.5f);
         stbtt_GetGlyphBitmapBox(&fi, gl[i], escx, esc, &x0, &y0, &x1, &y1);
@@ -523,6 +530,32 @@ end
 """
 end
 
+@native func _fw_poner_icono(codigo: Int)
+"""
+    _fw_icono = codigo;
+"""
+end
+
+# Un icono de una fuente de la página (el carácter codigo, de la zona privada de Unicode: los de Xataka, tarea 42g)
+# como la "A" de una fuente de Amiga a tam px: 0 si ninguna familia de la lista tiene fuente o no la tiene
+func fuente_web_icono(familias: String, tam: Int, codigo: Int) -> Int
+    fichero = _fuente_web_fichero(familias, 400, "normal")
+    if fichero == "" or codigo <= 0
+        return 0
+    end
+    if _fuentes_web_hechas == nil
+        var h: {String: Int} = {}
+        _fuentes_web_hechas = h
+    end
+    clave = fichero + "|" + tam + "|i" + codigo
+    if not _fuentes_web_hechas.has(clave)
+        _fw_poner_icono(codigo)
+        _fuentes_web_hechas[clave] = fuente_web_ancha(fichero, tam, 100)
+        _fw_poner_icono(0)
+    end
+    return _fuentes_web_hechas[clave]
+end
+
 # Olvida la fuente guardada de ese fichero (se registra otra con el mismo nombre: otra página)
 @native(borrow) func fuente_web_olvidar(fichero: String)
 """
@@ -582,8 +615,26 @@ end
 
 # Lo mismo con font-stretch: ancho en % (100: normal)
 func fuente_web_para_ancha(familias: String, peso: Int, estilo: String, tam: Int, ancho: Int) -> Int
-    if fuentes_web == nil or fuentes_web.length == 0
+    fichero = _fuente_web_fichero(familias, peso, estilo)
+    if fichero == ""
         return 0
+    end
+    if _fuentes_web_hechas == nil
+        var h: {String: Int} = {}
+        _fuentes_web_hechas = h
+    end
+    clave = fichero + "|" + tam + "|" + ancho
+    if not _fuentes_web_hechas.has(clave)
+        _fuentes_web_hechas[clave] = fuente_web_ancha(fichero, tam, ancho)
+    end
+    return _fuentes_web_hechas[clave]
+end
+
+# El fichero de la fuente de la web para un font-family (la primera familia de la lista que tenga alguna, con el peso
+# más cercano y, si hay, del mismo estilo); "" si ninguna
+func _fuente_web_fichero(familias: String, peso: Int, estilo: String) -> String
+    if fuentes_web == nil or fuentes_web.length == 0
+        return ""
     end
     for parte in css_partir(familias, 44)
         familia = str_lower(str_trim(str_replace(str_replace(parte, "\"", ""), "'", "")))
@@ -606,17 +657,8 @@ func fuente_web_para_ancha(familias: String, peso: Int, estilo: String, tam: Int
             end
         end
         if mejor != ""
-            fichero = fuentes_web[mejor]
-            if _fuentes_web_hechas == nil
-                var h: {String: Int} = {}
-                _fuentes_web_hechas = h
-            end
-            clave = fichero + "|" + tam + "|" + ancho
-            if not _fuentes_web_hechas.has(clave)
-                _fuentes_web_hechas[clave] = fuente_web_ancha(fichero, tam, ancho)
-            end
-            return _fuentes_web_hechas[clave]
+            return fuentes_web[mejor]
         end
     end
-    return 0
+    return ""
 end

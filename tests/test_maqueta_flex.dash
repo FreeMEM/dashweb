@@ -33,6 +33,8 @@
 # expect-out: z4 450,0 50x10
 # expect-out: z5 0,0 100x10
 # expect-out: z6 100,0 500x10
+# expect-out: z8 0,15 10x10
+# expect-out: z7 40,0 48x19
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -60,21 +62,33 @@ Main
     h = h + contenedor("", caja("z1", "red", "width:50px;height:10px;order:2") + caja("z2", "blue", "width:100px;height:10px;order:1"))
     h = h + contenedor("flex-direction:row-reverse", caja("z3", "red", "width:100px;height:10px") + caja("z4", "blue", "width:50px;height:10px"))
     h = h + contenedor("", caja("z5", "red", "flex:1;max-width:100px;height:10px") + caja("z6", "blue", "flex:1;height:10px"))
+    # una imagen en un elemento flex va en una caja anónima: al medirla no cuentan los rellenos de fuera (las
+    # pestañas de GitHub medían 96 px de más; tarea 42i): 8 + 16 + 16 ("ab") + 8
+    # align-items: center con min-height (sin height): se centra en ese alto (el botón Buscar de Wikipedia; 42h)
+    h = h + contenedor("align-items:center;min-height:40px", caja("z8", "red", "width:10px;height:10px"))
+    h = h + contenedor("padding:0 40px", "<div id=z7 style='background:red;display:flex;padding:0 8px'><img width=16 height=16 src=x.png>ab</div>")
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
     p = maquetar(doc, 600)
-    # cada caja respecto al último contenedor visto (el rectángulo gris de antes)
-    cx = 0
-    cy = 0
+    # cada caja respecto a su contenedor (su padre; los fondos de los bloques se pintan antes que las cajas flex/grid)
+    var conts: [Dibujo] = []
     for d in p.dibujos
-        if d.tipo == D_RECT and d.nodo != nil
-            if dom_atributo(d.nodo, "class") == "f"
-                cx = d.x
-                cy = d.y
-            elif dom_atributo(d.nodo, "id") != ""
-                Print dom_atributo(d.nodo, "id") + " " + (d.x - cx) + "," + (d.y - cy) + " " + d.ancho + "x" + d.alto
+        if d.tipo == D_RECT and d.nodo != nil and dom_atributo(d.nodo, "class") == "f"
+            conts.push(d)
+        end
+    end
+    for d in p.dibujos
+        if d.tipo == D_RECT and d.nodo != nil and dom_atributo(d.nodo, "id") != ""
+            cx = 0
+            cy = 0
+            for c in conts
+                if c.nodo == d.nodo.padre
+                    cx = c.x
+                    cy = c.y
+                end
             end
+            Print dom_atributo(d.nodo, "id") + " " + (d.x - cx) + "," + (d.y - cy) + " " + d.ancho + "x" + d.alto
         end
     end
 end

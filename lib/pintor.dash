@@ -43,10 +43,16 @@ func _menor(a: Int, b: Int) -> Int
     return b
 end
 
+# La esquina de la vista en la pantalla (los fondos fixed se ponen respecto a ella)
+var _pintor_vx: Int = 0
+var _pintor_vy: Int = 0
+
 func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, alto: Int)
     if ancho <= 0 or alto <= 0
         return
     end
+    _pintor_vx = x0
+    _pintor_vy = y0
     derecha = x0 + ancho - 1
     abajo = y0 + alto - 1
     zx0 = x0
@@ -120,7 +126,17 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
             end
         end
         if d.tipo == D_TEXTO
-            if y >= vy0 and y + d.alto - 1 <= vy1 and x <= vx1 and x + d.ancho > vx0
+            # una línea que se sale poco (hasta un cuarto de su alto) del recorte de un overflow se pinta igual: la
+            # letra es algo más alta que su línea y Chrome solo recorta esos píxeles (el título de cada noticia de
+            # meneame.net, 1 px por encima de su caja con overflow: hidden, no salía; tarea 42k). Nunca fuera de la zona
+            ty0 = vy0
+            ty1 = vy1
+            if d.recorte
+                holgura = d.alto / 4
+                ty0 = _mayor(vy0 - holgura, y0)
+                ty1 = _menor(vy1 + holgura, abajo)
+            end
+            if y >= ty0 and y + d.alto - 1 <= ty1 and x <= vx1 and x + d.ancho > vx0
                 font_use(d.fuente)
                 font_style(d.estilo)
                 gfx_pen(_lapiz(d.color))
@@ -134,6 +150,34 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
                     end
                 else
                     gfx_text_at(x, y + font_baseline(), d.texto)
+                end
+            end
+        elif d.sombra and (d.tipo == D_RECT or d.tipo == D_REDONDO)
+            # una sombra de fuera (box-shadow sin inset) solo se ve fuera de la caja, no debajo de su fondo
+            # transparente (CSS Backgrounds 3, 7.1.1; la barra de pestañas de Wikipedia, "0 1px" gris, salía como una
+            # franja): se pinta en las cuatro bandas de alrededor
+            bx = x + d.cx - d.x
+            by = y + d.cy - d.y
+            for k in (0..3)
+                a0 = cx0
+                b0 = cy0
+                a1 = cx1
+                b1 = cy1
+                if k == 0
+                    b1 = _menor(cy1, by - 1)
+                elif k == 1
+                    b0 = _mayor(cy0, by + d.ch)
+                else
+                    b0 = _mayor(cy0, by)
+                    b1 = _menor(cy1, by + d.ch - 1)
+                    if k == 2
+                        a1 = _menor(cx1, bx - 1)
+                    else
+                        a0 = _mayor(cx0, bx + d.cw)
+                    end
+                end
+                if a0 <= a1 and b0 <= b1
+                    _sombra_trozo(d, x, y, a0, b0, a1, b1)
                 end
             end
         elif d.tipo == D_REDONDO
@@ -198,6 +242,19 @@ func pintar(p: Pagina, im: Imagenes, desde: Int, x0: Int, y0: Int, ancho: Int, a
         end
     end
     font_style(0)
+end
+
+# Lo que cae de una sombra en x0..x1, y0..y1
+func _sombra_trozo(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
+    if d.tipo == D_REDONDO
+        _redondo_pintar(d, x, y, x0, y0, x1, y1)
+    elif d.difuso > 0
+        _sombra_difusa(d, x, y, x0, y0, x1, y1)
+    elif d.espaciado > 0
+        _mezcla_recortada(x, y, d.ancho, d.alto, x0, y0, x1, y1, d.color, d.espaciado)
+    else
+        _rect_recortado(x, y, d.ancho, d.alto, x0, y0, x1, y1, _lapiz(d.color))
+    end
 end
 
 # Una sombra difuminada: capas translúcidas de la caja ampliada a la reducida en medio difuminado (el borde sale en
@@ -282,6 +339,10 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
     claro = _lapiz(16777215)
     oscuro = _lapiz(6316128)
     texto_visible = y >= y0 and y + h - 1 <= y1
+    if d.estilo == 1
+        _campo_propio_pintar(d, n, tipo, x, y, w, h, y0, y1)
+        return
+    end
     if n.nombre == "button" or tipo == "submit" or tipo == "reset" or tipo == "button"
         _rect_recortado(x, y, w, h, x0, y0, x1, y1, _lapiz(13684944))
         _rect_recortado(x, y, w, 1, x0, y0, x1, y1, claro)
@@ -318,6 +379,14 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
     font_use(d.fuente)
     font_style(0)
     hueco = w - 6
+    # el texto empieza tras el padding-left de la página, si tiene (el buscador de Wikipedia deja 36 px a su lupa)
+    izq = 3
+    if n.nombre != "select" and n.estilo != nil and n.estilo.has("padding-left")
+        pl = estilo_px(n.estilo["padding-left"], 16, w)
+        if pl > izq and pl < w / 2
+            izq = pl
+        end
+    end
     texto = ""
     if n.nombre == "textarea"
         _textarea_pintar(n, x, y, w, h)
@@ -344,18 +413,69 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
             texto = oculto
         end
         # lo que no cabe se corta por delante: se ve lo último que se escribió
-        while texto != "" and font_text_width(texto) > hueco - 2
+        while texto != "" and font_text_width(texto) > hueco - 2 - (izq - 3)
             texto = texto[1:]
         end
     end
     gfx_pen(_lapiz(0))
     if texto != ""
-        gfx_text_at(x + 3, y + 3 + font_baseline(), texto)
+        gfx_text_at(x + izq, y + 3 + font_baseline(), texto)
+    elif n.nombre == "input" and dom_atributo(n, "placeholder") != ""
+        # vacío: su placeholder en gris, cortado por detrás si no cabe (tarea 42h)
+        ayuda = dom_atributo(n, "placeholder")
+        while ayuda != "" and font_text_width(ayuda) > w - izq - 3
+            ayuda = ayuda[:ayuda.length - 1]
+        end
+        gfx_pen(_lapiz(7697781))
+        gfx_text_at(x + izq, y + 3 + font_baseline(), ayuda)
+        gfx_pen(_lapiz(0))
     end
     if pintor_foco == n and n.nombre != "select"
-        cx = x + 3 + font_text_width(texto)
+        cx = x + izq + font_text_width(texto)
         gfx_pen(_lapiz(204))
         gfx_rect(cx, y + 2, cx, y + h - 3)
+    end
+end
+
+# Un campo de texto que dibuja la página (display block...; d.estilo 1): sin marco, su texto (o su placeholder en
+# gris) y el cursor, centrados en el alto de su caja de contenido, del color de su texto
+func _campo_propio_pintar(d: Dibujo, n: Nodo, tipo: String, x: Int, y: Int, w: Int, h: Int, y0: Int, y1: Int)
+    font_use(d.fuente)
+    font_style(0)
+    ty = y + (h - font_height()) / 2
+    if ty < y0 or ty + font_height() - 1 > y1
+        return
+    end
+    texto = dom_atributo(n, "value")
+    if tipo == "password"
+        oculto = ""
+        for i in (1..texto.length)
+            oculto = oculto + "*"
+        end
+        texto = oculto
+    end
+    while texto != "" and font_text_width(texto) > w - 2
+        texto = texto[1:]
+    end
+    color = 0
+    if n.estilo != nil and n.estilo.has("color") and css_color(n.estilo["color"]) >= 0
+        color = css_color(n.estilo["color"])
+    end
+    if texto != ""
+        gfx_pen(_lapiz(color))
+        gfx_text_at(x, ty + font_baseline(), texto)
+    elif dom_atributo(n, "placeholder") != ""
+        ayuda = dom_atributo(n, "placeholder")
+        while ayuda != "" and font_text_width(ayuda) > w
+            ayuda = ayuda[:ayuda.length - 1]
+        end
+        gfx_pen(_lapiz(7697781))
+        gfx_text_at(x, ty + font_baseline(), ayuda)
+    end
+    if pintor_foco == n
+        cx = x + font_text_width(texto)
+        gfx_pen(_lapiz(204))
+        gfx_rect(cx, ty, cx, ty + font_height() - 1)
     end
 end
 
@@ -407,6 +527,21 @@ end
 # La imagen de fondo de una caja (x, y, d.ancho, d.alto) recortada a ella y a la zona visible:
 # background-size (auto, cover, contain, px, %), background-position (palabras, %, px) y
 # background-repeat (repeat, no-repeat, repeat-x, repeat-y)
+# background-<nombre> del elemento; en una máscara (d.estilo 1, mask-image teñida) mask-<nombre> o
+# -webkit-mask-<nombre>; si no tiene, lo de siempre
+func _fondo_valor(e: {String: String}, d: Dibujo, nombre: String, siempre: String) -> String
+    var ks: [String] = ["background-" + nombre]
+    if d.estilo == 1
+        ks = ["mask-" + nombre, "-webkit-mask-" + nombre]
+    end
+    for k in ks
+        if e.has(k) and str_trim(e[k]) != ""
+            return str_lower(str_trim(e[k]))
+        end
+    end
+    return siempre
+end
+
 func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: Int)
     img = imagenes_cargada(im, d.texto)
     if img == 0 or d.ancho <= 0 or d.alto <= 0
@@ -421,10 +556,7 @@ func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1
     bw = d.ancho
     bh = d.alto
     # el tamaño
-    tam = "auto"
-    if e.has("background-size")
-        tam = str_lower(str_trim(e["background-size"]))
-    end
+    tam = _fondo_valor(e, d, "size", "auto")
     sw = iw
     sh = ih
     if tam == "cover" or tam == "contain"
@@ -453,10 +585,7 @@ func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1
         return
     end
     # el sitio
-    pos = "0% 0%"
-    if e.has("background-position")
-        pos = str_lower(str_trim(e["background-position"]))
-    end
+    pos = _fondo_valor(e, d, "position", "0% 0%")
     px = 0
     py = 0
     partes = css_partir(pos, 32)
@@ -502,21 +631,30 @@ func _fondo_pintar(im: Imagenes, d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1
     if escalada == 0
         return
     end
-    rep = "repeat"
-    if e.has("background-repeat")
-        rep = str_lower(str_trim(e["background-repeat"]))
-    end
-    # los mosaicos: desde el sitio hacia atrás y hacia delante (como mucho 4000)
+    rep = _fondo_valor(e, d, "repeat", "repeat")
+    # los mosaicos: desde el sitio hacia atrás y hacia delante (como mucho 4000); con background-attachment: fixed, el
+    # sitio es respecto a la vista, no a la caja (los dos fondos de los ojos de Acid2, desplazados 1 px, solo casan así)
     ax = x + px
     ay = y + py
+    if d.estilo != 1 and e.has("background-attachment") and e["background-attachment"] == "fixed"
+        ax = _pintor_vx + px
+        ay = _pintor_vy + py
+    end
     if rep == "repeat" or rep == "repeat-x"
         while ax > cx0
             ax = ax - sw
+        end
+        # (y hacia delante, hasta justo antes de lo visible: un fondo fixed empieza en la esquina de la vista, lejos)
+        if ax + sw <= cx0
+            ax = ax + (cx0 - ax) / sw * sw
         end
     end
     if rep == "repeat" or rep == "repeat-y"
         while ay > cy0
             ay = ay - sh
+        end
+        if ay + sh <= cy0
+            ay = ay + (cy0 - ay) / sh * sh
         end
     end
     cuantos = 0
