@@ -431,7 +431,10 @@ tarea, con el estilo de Dash.
       k. meneame.net (2026-10-23): sale bien pero entera a los 208 s (10 maquetas de ~5 s por imágenes que llegan
          poco a poco) y a cada título de noticia le falta la primera línea (en Chrome: "Susto en directo: una ola
          engulle a un reportero de ETB2 mientras informaba en pleno temporal"; dashweb solo "pleno temporal").
-         Hecho (2026-10-23): los títulos enteros. Queda: entera a los 208 s.
+         Hecho (2026-10-23): los títulos enteros. Queda: entera a los 208 s. Probado (2026-10-23) espaciar las
+         maquetas por imágenes al doble de lo que tardó la última: 6 maquetas en vez de 10 pero entera a los 261 s (la
+         red varía mucho de una carga a otra); deshecho. Lo que pesa es lo de 42e: la red no avanza mientras se
+         maqueta o corre el JavaScript.
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
          columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
          repositorios en una pastilla alta con el número dos veces.
