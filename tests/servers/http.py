@@ -116,6 +116,27 @@ class Handler(socketserver.StreamRequestHandler):
                 time.sleep(float(os.environ.get("GOTEO_S", "3")))
                 self.wfile.write(data[65536:])
                 return
+        if path.startswith("/act/"):       # a pretend GitHub for the updater (lib/actualizar.dash): the releases
+            import gzip, os                    # (v9.9.0-alfa first) and its Tachyon.gz, a tiny hunk file with a $VER;
+            exe = b"\x00\x00\x03\xf3" + b"\x00" * 60 + b"$VER: Tachyon 9.9.0-alfa (1.1.2030)\x00" + b"x" * 200
+            if os.environ.get("ACT_EXE"):          # (or a real one, to try Reiniciar)
+                exe = open(os.environ["ACT_EXE"], "rb").read()
+            if path in ("/act/releases", "/act/roto/releases"):     # roto: its Tachyon.gz comes with a bad CRC
+                base = f"http://127.0.0.1:{PORT}" + ("/act/roto" if "roto" in path else "/act")
+                data = ('[{"url":"x","tag_name":"v9.9.0-alfa","draft":false,"prerelease":true,"assets":['
+                        '{"name":"tachyon.lha","browser_download_url":"' + base + '/tachyon.lha"},'
+                        '{"name":"Tachyon.gz","browser_download_url":"' + base + '/Tachyon.gz"}],"body":"a"},'
+                        '{"url":"y","tag_name":"v0.4.0-alfa","assets":[]}]').encode()
+                kind = "application/json; charset=utf-8"
+            elif path in ("/act/Tachyon.gz", "/act/roto/Tachyon.gz"):
+                data = bytearray(gzip.compress(exe, mtime=0))
+                if "roto" in path:
+                    data[-6] ^= 0x55
+                data, kind = bytes(data), "application/octet-stream"
+            else:
+                data, kind = b"", "text/plain"
+            self.wfile.write(reply("200 OK", [("Content-Type", kind), ("Content-Length", str(len(data)))], data))
+            return
         if path.startswith("/pages/"):     # files of tests/pages
             import os
             f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pages", os.path.basename(path))

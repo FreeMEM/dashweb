@@ -1,7 +1,9 @@
 #!/bin/sh
 # El paquete de Tachyon (antes dashweb) para el Amiga: build/tachyon.lha con el navegador (MUI) y sus iconos, el visor, los
 # iconos de Workbench (tools/iconos_wb.py), el guion del Installer (paquete/Instalar),
-# paquete/LEEME y las licencias de Tachyon y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py). Necesita el toolchain y Dash (DASH, por
+# paquete/LEEME y las licencias de Tachyon y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py); y
+# build/Tachyon.gz, el ejecutable solo con gzip, que va también en cada versión publicada: con él se actualiza Tachyon
+# desde sí mismo (lib/actualizar.dash, tarea 44; no sabe abrir .lha). Necesita el toolchain y Dash (DASH, por
 # defecto ~/Projects/FreeMEMLang/.worktrees/dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
 #
 #   tools/paquete.sh
@@ -42,3 +44,5 @@ rm -f "$R/build/tachyon.lha"
 python3 "$R/tools/lha_lh0.py" "$R/build/tachyon.lha" Tachyon Tachyon.info   # Lhasa only extracts
 ls -l "$R/build/tachyon.lha"
 lha -l "$R/build/tachyon.lha" | tail -12
+gzip -9 -n -c "$B/Tachyon/Tachyon" > "$R/build/Tachyon.gz"
+ls -l "$R/build/Tachyon.gz"

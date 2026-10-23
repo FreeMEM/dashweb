@@ -67,7 +67,18 @@ Usar
   casillas, desplegables, botones; GET y POST).
   Menú Proyecto: Nueva ventana (Amiga-N), Cerrar ventana (Amiga-K), Página de inicio
   (Amiga-H), Marcadores (Amiga-B), Añadir marcador (Amiga-D), Usar como página de
-  inicio, Acerca de, Salir (Amiga-Q).
+  inicio, Buscar actualizaciones, No avisar de versiones nuevas, Acerca de, Salir
+  (Amiga-Q).
+
+Versiones nuevas
+----------------
+  Al abrirlo sin argumentos, una vez al día como mucho, Tachyon mira en GitHub si hay
+  una versión más nueva (también con Buscar actualizaciones del menú). Si la hay, sale
+  el botón Actualizar arriba a la derecha y no hace nada más. Al pulsarlo baja la
+  nueva, comprueba que llegó entera y la pone en lugar de la de ahora, que queda como
+  Tachyon.old en el mismo cajón (para volver a ella, renombrarla). Luego el botón dice
+  Reiniciar: cierra Tachyon y abre el nuevo. Para que no mire, No avisar de versiones
+  nuevas en el menú (o avisar_versiones=no en Tachyon.prefs).
 
 Lo que aún no hace
 ------------------

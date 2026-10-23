@@ -45,6 +45,17 @@
               "separator": true
             },
             {
+              "label": "Buscar actualizaciones",
+              "event": 22
+            },
+            {
+              "label": "No avisar de versiones nuevas",
+              "event": 23
+            },
+            {
+              "separator": true
+            },
+            {
               "label": "Acerca de...",
               "key": "?",
               "event": 8
@@ -124,6 +135,15 @@
                 "file": "PROGDIR:iconos/historial.iff",
                 "event": 20,
                 "help": "Historial (mostrar u ocultar)"
+              },
+              {
+                "type": "button",
+                "name": "actualizar",
+                "label": "Actualizar",
+                "event": 21,
+                "weight": 0,
+                "help": "Hay una versión nueva de Tachyon: pulsa para instalarla",
+                "hidden": true
               }
             ]
           },

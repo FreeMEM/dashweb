@@ -392,7 +392,26 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
-- [ ] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
+- [ ] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
+      y probar cada uno en el emulador con capturas (rtg, MUI 3.8, y alguna en 4 colores) hasta que encaje.
+      a. Menús ordenados (dashui admite varios): Proyecto (Nueva ventana N, Cerrar ventana K, Ir a la dirección L
+         —el cursor al campo, MUIA_Window_ActiveObject—, Acerca de ?, Salir Q); Navegar (Atrás, Adelante, Recargar R,
+         Parar, Página de inicio H, Historial Y); Marcadores (Ver marcadores B, Añadir o quitar esta página D, Usar
+         como página de inicio); Herramientas (Cookies, Buscar actualizaciones, No avisar de versiones nuevas).
+      b. Iconos: Actualizar como icono (no un botón de texto), con su ayuda "Actualizar a la 0.5.0-alfa" (mui_help)
+         y otro para Reiniciar. Los iconos nuevos con 8 colores (los 4 del Workbench más verde, verde oscuro, rojo y
+         amarillo; MUI los ajusta a la pantalla).
+      c. La actividad: fuera el punto de arriba; un led en la barra de estado, a la izquierda: verde que parpadea
+         mientras algo llega, rojo un rato si la página falló, apagado parado (un lienzo de 12x12: barato).
+      d. El historial: fuera el panel lateral (no se leían las direcciones). Una página tachyon:historial como la de
+         Chrome: lo visto (todas las ventanas), lo último arriba, con la hora, el título y la dirección entera, y un
+         enlace para borrarlo; se guarda en Tachyon.historial (las últimas 300). El botón y el menú la abren. Atrás y
+         adelante, con una lista propia de cada ventana.
+      e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
+         una estrella para el marcador (llena si la página está en marcadores; un clic la añade o la quita); en
+         tachyon:marcadores, quitar cada uno; los atajos en el menú.
+
+- [x] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
       una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
       GitHub (api.github.com/repos/FreeMEM/tachyon/releases: también las pre-release, que /releases/latest no da) y
       compararla con DASHWEB_VERSION. Si hay una nueva, un aviso en la barra (un botón "Actualizar", sin ventanas que
@@ -402,6 +421,8 @@ tarea, con el estilo de Dash.
       cada versión publica también el ejecutable solo comprimido con gzip (Tachyon.gz; lo inflate de lib/http.dash),
       con su tamaño y su SHA-256 en las notas para comprobarlo antes de cambiar nada (tools/paquete.sh y la
       publicación). Probar en el emulador con una versión de mentira servida en local.
+      Hecho (2026-10-23; ver la bitácora). AL PUBLICAR UNA VERSIÓN: subir también build/Tachyon.gz (lo deja
+      tools/paquete.sh junto a build/tachyon.lha), o las versiones de antes no la ven como actualización.
 - [x] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
       (Grim Reaper) al iniciar, en código 68k bajo Petunia; luego otra vez sí arrancó y navegó (Aminet). En sus
       registros: ___main+0x300 (la vuelta de main al arranque), una llamada a FreeVec (LVO -690) y _strchr+0x10.
@@ -4045,3 +4066,26 @@ Formato:
   tools/paquete.sh en un worktree limpio de 1236181 y Dash 028c67d (con D69 y D70).
 - Base: 97/97 (2210 s, con la D70). Probado en la máquina rtg: freemem.space entera en 26,7 s, bien. Copiado a
   CoffinOS el Tachyon del paquete.
+
+### 2026-10-23 — Tarea 44: Tachyon se actualiza desde sí mismo
+- lib/actualizar.dash: la lista de versiones de GitHub (api.github.com/repos/FreeMEM/tachyon/releases?per_page=3,
+  también las pre-release), la primera comparada por sus números con DASHWEB_VERSION; su Tachyon.gz se baja a T: y
+  antes de cambiar nada se comprueba (CRC-32 y tamaño del gzip, con tabla; cabecera 0x3F3 y "$VER: Tachyon "); luego
+  Tachyon.new, el de ahora a Tachyon.old y el nuevo en su sitio (si el segundo paso falla, vuelve el de antes).
+  Dónde está el programa: GetProgramDir + el nombre (GetProgramName desde el Shell, el de la tarea desde el WB).
+- src/dashweb.dash: al arrancar sin argumentos, como mucho una vez al día (versiones_visto en Tachyon.prefs;
+  avisar_versiones=no lo apaga), y con "Buscar actualizaciones" del menú (y "No avisar de versiones nuevas"). Con una
+  nueva, el botón Actualizar (src/navegador.dashui, escondido hasta entonces) en cada ventana y el aviso en la barra
+  de estado; al pulsarlo se baja e instala, el botón pasa a Reiniciar, y al pulsarlo otra vez Tachyon se cierra
+  (guarda las cookies) y abre el nuevo (SystemTags asíncrono, pila de 64 KB). VERSIONES=dirección (argumento) mira
+  ahí y no en GitHub; tools/medir_visor.py --versiones lo pone con /act/releases de tests/servers/http.py.
+- tools/paquete.sh deja también build/Tachyon.gz (gzip -9 -n del ejecutable); paquete/LEEME lo explica. El
+  User-Agent pasa a Tachyon/0.4.
+- Probado: test_actualizar (comparar versiones, la lista, bajar e instalar sobre otro en T:, y uno con el CRC mal
+  que no cambia nada; memcheck limpio). En el emulador con --versiones: el botón sale con "Hay una versión nueva:
+  9.9.0-alfa"; con un clic (tools/amiga/clicar) baja e instala (p0 nuevo, p0.old el de antes, "Instalada la
+  9.9.0-alfa: pulsa Reiniciar"); con un Tachyon de verdad de 3,5 MB servido (ACT_EXE), instalado idéntico en ~30 s;
+  y Reiniciar abre el nuevo (uno de mentira que deja una marca en el disco) tras salir el viejo con rc 0. Contra
+  GitHub de verdad: la lista llega (200, 16 KB en 1,1 s) y la descarga de un fichero de una versión sigue la
+  redirección y llega entera (tachyon.lha, 6.887.714 bytes). La v0.4.0 no lleva Tachyon.gz (no tiene esto).
+

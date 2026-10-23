@@ -15,6 +15,7 @@ import "navegador.dashui"
 import "../lib/documento.dash"
 import "../lib/formularios.dash"
 import "../lib/marcadores.dash"
+import "../lib/actualizar.dash"
 
 # desde el icono del Workbench, lo que escribe (console.log de las páginas, «entera en») no abre una consola
 @workbench_output "NIL:"
@@ -37,6 +38,9 @@ const ID_INICIO = 17
 const ID_NUEVA = 18
 const ID_CERRAR = 19
 const ID_VER_HISTORIAL = 20
+const ID_ACTUALIZAR = 21
+const ID_BUSCAR_VERSIONES = 22
+const ID_NO_AVISAR = 23
 # y los del programa
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
@@ -86,6 +90,101 @@ var dw_ventanas: [Ventana] = []
 # DIBUJOS=y0-y1 (argumento): los dibujos de la página entre esas alturas, por la salida al acabar (-1: no)
 var dw_dibujos_y0: Int = -1
 var dw_dibujos_y1: Int = -1
+
+# === Versiones nuevas (tarea 44, lib/actualizar.dash) ===
+# Al arrancar sin argumentos, como mucho una vez al día ("avisar_versiones=no" en las preferencias lo apaga), y con
+# "Buscar actualizaciones" del menú. Una versión nueva enseña el botón Actualizar de cada ventana, como Chrome: solo al
+# pulsarlo se baja y se instala; después el botón dice Reiniciar y abre la nueva al cerrar esta.
+var dw_act_carga: Carga = nil       # la lista de versiones que está llegando
+var dw_act_manual: Bool = false     # la pidió el usuario: decir también si no hay nada o si falló
+var dw_act_nueva: Novedad = nil
+var dw_act_bajada: Carga = nil
+var dw_act_lista: Bool = false      # ya instalada: el botón reinicia
+var dw_reiniciar: Bool = false
+
+func versiones_mirar(manual: Bool)
+    if dw_act_carga != nil or dw_act_bajada != nil or dw_act_lista
+        return
+    end
+    dw_act_manual = manual
+    dw_act_carga = actualizar_empezar()
+end
+
+func versiones_estado(texto: String)
+    for t in dw_ventanas
+        if t.abierta
+            dw_estado(t, texto)
+        end
+    end
+end
+
+# El botón de una ventana como toca: escondido sin versión nueva, Actualizar o (ya instalada) Reiniciar
+func versiones_boton(t: Ventana)
+    mui_set_visible(t.v.actualizar, dw_act_nueva != nil)
+    if dw_act_lista
+        mui_set_text(t.v.actualizar, "Reiniciar")
+    end
+end
+
+# En cada tic: la lista de versiones o el ejecutable nuevo, si ya llegaron
+func versiones_avanzar()
+    var nada: Carga = nil
+    if dw_act_carga != nil and http_avanzar(dw_act_carga)
+        r = dw_act_carga.respuesta
+        dw_act_carga = nada
+        if r.error != "" or r.estado != 200
+            if dw_act_manual
+                versiones_estado("No se pudo mirar si hay versiones nuevas")
+            end
+            return
+        end
+        preferencia_poner(FICHERO_PREFERENCIAS, "versiones_visto", "" + actualizar_hoy())
+        dw_act_nueva = actualizar_leer(http_texto(r), DASHWEB_VERSION)
+        if dw_act_nueva != nil
+            for t in dw_ventanas
+                if t.abierta
+                    versiones_boton(t)
+                end
+            end
+            versiones_estado("Hay una versión nueva: " + dw_act_nueva.version)
+        elif dw_act_manual
+            versiones_estado("Tachyon está al día (" + DASHWEB_VERSION + ")")
+        end
+    end
+    if dw_act_bajada != nil and http_avanzar(dw_act_bajada)
+        r = dw_act_bajada.respuesta
+        dw_act_bajada = nada
+        if r.error != "" or r.estado != 200
+            versiones_estado("No se pudo bajar la versión nueva")
+            return
+        end
+        error = actualizar_instalar(actualizar_programa())
+        if error != ""
+            versiones_estado("No se instaló: " + error)
+            return
+        end
+        dw_act_lista = true
+        for t in dw_ventanas
+            if t.abierta
+                versiones_boton(t)
+            end
+        end
+        versiones_estado("Instalada la " + dw_act_nueva.version + ": pulsa Reiniciar")
+    end
+end
+
+# El botón: bajar e instalar, o (ya instalada) reiniciar
+func versiones_clic()
+    if dw_act_lista
+        dw_reiniciar = true
+        return
+    end
+    if dw_act_nueva == nil or dw_act_bajada != nil
+        return
+    end
+    dw_act_bajada = actualizar_bajar(dw_act_nueva)
+    versiones_estado("Bajando Tachyon " + dw_act_nueva.version + "...")
+end
 
 # El logo de la página de inicio: docs/logo/tachyon.svg a 540 de ancho sobre blanco (rsvg-convert), recortado y en
 # 32 colores (PIL), en PNG de 366x65 (1,8 KB)
@@ -1042,6 +1141,7 @@ func nueva_ventana(direccion: String) -> Ventana
     if k > 0
         mover_ventana(v.window, k * 24, k * 16)
     end
+    versiones_boton(w)
     if direccion != ""
         navegar(w, direccion)
     else
@@ -1129,6 +1229,9 @@ Main
                 traza("memoria libre al empezar " + mem_total() / 1024 + " KB")
             elif arg(i) == "GCSIEMPRE"
                 js_gc_siempre(true)
+            elif str_starts(arg(i), "VERSIONES=")
+                # VERSIONES=dirección: la lista de versiones de ahí y no de GitHub, mirada ya (para probarlo)
+                actualizar_api = arg(i)[10:]
             elif str_starts(arg(i), "DIBUJOS=")
                 # DIBUJOS=y0-y1: al acabar la página, sus dibujos de entre esas alturas por la salida (para depurar)
                 trozos = css_partir(arg(i)[8:], 45)
@@ -1144,9 +1247,15 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=")
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=")
                 nueva_ventana(arg(i))
             end
+        end
+        # (con argumentos no: así lo abren las pruebas y las medidas, que no deben preguntar a GitHub cada vez)
+        if str_starts(actualizar_api, "http://")
+            versiones_mirar(true)
+        elif arg_count() == 0 and preferencia(FICHERO_PREFERENCIAS, "avisar_versiones") != "no" and preferencia(FICHERO_PREFERENCIAS, "versiones_visto") != "" + actualizar_hoy()
+            versiones_mirar(false)
         end
         acerca_abierta = false
         while abiertas() > 0
@@ -1170,6 +1279,7 @@ Main
                         end
                     end
                 end
+                versiones_avanzar()
                 programar()
                 continue
             end
@@ -1312,6 +1422,21 @@ Main
             if ev == ID_CERRAR
                 cerrar_ventana(w)
             end
+            if ev == ID_ACTUALIZAR
+                versiones_clic()
+                if dw_reiniciar
+                    break
+                end
+            end
+            if ev == ID_BUSCAR_VERSIONES
+                preferencia_poner(FICHERO_PREFERENCIAS, "avisar_versiones", "si")
+                dw_estado(w, "Mirando si hay una versión nueva...")
+                versiones_mirar(true)
+            end
+            if ev == ID_NO_AVISAR
+                preferencia_poner(FICHERO_PREFERENCIAS, "avisar_versiones", "no")
+                dw_estado(w, "No avisará de versiones nuevas")
+            end
             if ev == ID_ACERCA
                 if acerca_abierta
                     mui_window_close(a.window)
@@ -1332,5 +1457,8 @@ Main
         red_terminar()
         cookies_guardar(FICHERO_COOKIES)
         mui_app_end()
+        if dw_reiniciar and not actualizar_lanzar(actualizar_programa())
+            Print "Tachyon: no se pudo abrir la versión nueva; ábrela a mano"
+        end
     end
 end

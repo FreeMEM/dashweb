@@ -1,0 +1,244 @@
+# Versiones nuevas de Tachyon (tarea 44): mirar la última publicada en GitHub, y bajarla e instalarla cuando el
+# usuario lo pida, como Chrome. Cada versión publica, junto al .lha, el ejecutable solo comprimido con gzip
+# (Tachyon.gz, de tools/paquete.sh): Tachyon no sabe abrir .lha. Antes de cambiar nada se comprueba entero (el CRC
+# y el tamaño del gzip, la cabecera de ejecutable y su $VER); el de antes queda como Tachyon.old.
+#
+#   c = actualizar_empezar()                    # sin esperar: http_avanzar(c) hasta true
+#   n = actualizar_leer(http_texto(c.respuesta), "0.4.0-alfa")   # nil si no hay una más nueva
+#   d = actualizar_bajar(n)                     # http_avanzar(d) hasta true
+#   error = actualizar_instalar(actualizar_programa())           # "" si quedó instalada
+
+import "http.dash"
+
+@header "#include <dos/dostags.h>"
+
+# (las pruebas la cambian por la de un servidor local)
+var actualizar_api: String = "https://api.github.com/repos/FreeMEM/tachyon/releases?per_page=3"
+const ACTUALIZAR_GZ = "T:Tachyon.gz"
+
+struct Novedad
+    version: String   # "0.5.0-alfa"
+    url: String       # la de su Tachyon.gz
+end
+
+# Las versiones publicadas (también las pre-release, que /releases/latest no da), sin esperar
+func actualizar_empezar() -> Carga
+    return http_empezar_metodo(actualizar_api, "GET", "", "", "Accept: application/vnd.github+json", 20000)
+end
+
+# Los números de una versión ("v0.4.0-alfa": 0, 4, 0)
+func _version_numeros(v: String) -> [Int]
+    var r: [Int] = []
+    n = -1
+    for i in (0..v.length - 1)
+        c = str_code(v, i)
+        if c >= 48 and c <= 57
+            if n < 0
+                n = 0
+            end
+            n = n * 10 + c - 48
+        else
+            if n >= 0
+                r.push(n)
+            end
+            n = -1
+            if c == 45
+                # (lo de detrás del guion, "-alfa", no cuenta)
+                break
+            end
+        end
+    end
+    if n >= 0
+        r.push(n)
+    end
+    return r
+end
+
+# true si la versión nueva pasa a la actual (por sus números; con los mismos, no)
+func actualizar_mas_nueva(nueva: String, actual: String) -> Bool
+    a = _version_numeros(nueva)
+    b = _version_numeros(actual)
+    i = 0
+    while i < a.length or i < b.length
+        x = 0
+        y = 0
+        if i < a.length
+            x = a[i]
+        end
+        if i < b.length
+            y = b[i]
+        end
+        if x != y
+            return x > y
+        end
+        i = i + 1
+    end
+    return false
+end
+
+# El texto de una clave de JSON ("clave":"valor") desde la posición desde, sin pasar de hasta; "" si no está
+func _json_texto(json: String, clave: String, desde: Int, hasta: Int) -> String
+    p = str_find_from(json, "\"" + clave + "\"", desde)
+    if p < 0 or (hasta >= 0 and p >= hasta)
+        return ""
+    end
+    p = str_find_from(json, "\"", p + clave.length + 2)
+    if p < 0
+        return ""
+    end
+    f = str_find_from(json, "\"", p + 1)
+    if f < 0
+        return ""
+    end
+    return json[p + 1:f]
+end
+
+# La versión más nueva que la actual, de la respuesta de GitHub (la primera es la última publicada); nil si no hay
+# o no trae Tachyon.gz
+func actualizar_leer(json: String, actual: String) -> Novedad
+    var nada: Novedad = nil
+    p = str_find(json, "\"tag_name\"")
+    if p < 0
+        return nada
+    end
+    etiqueta = _json_texto(json, "tag_name", p, -1)
+    if not actualizar_mas_nueva(etiqueta, actual)
+        return nada
+    end
+    # los ficheros de esa versión van entre su tag_name y el de la siguiente
+    fin = str_find_from(json, "\"tag_name\"", p + 10)
+    q = p
+    while true
+        url = _json_texto(json, "browser_download_url", q, fin)
+        if url == ""
+            return nada
+        end
+        if str_ends(url, "/Tachyon.gz")
+            version = etiqueta
+            if str_starts(version, "v")
+                version = version[1:]
+            end
+            return Novedad(version, url)
+        end
+        q = str_find_from(json, "\"browser_download_url\"", q) + 22
+    end
+    return nada
+end
+
+# Baja su Tachyon.gz a T: sin esperar
+func actualizar_bajar(n: Novedad) -> Carga
+    file_delete(ACTUALIZAR_GZ)
+    return http_volcar(http_empezar_a_fichero(n.url, ACTUALIZAR_GZ, 30000))
+end
+
+# Dónde está el ejecutable que corre (su cajón y su nombre: "Work:Tachyon/Tachyon")
+@native func actualizar_programa() -> String
+"""
+    char dir[300], nombre[108];
+    struct Process *p = (struct Process *)FindTask(NULL);
+    dir[0] = 0;
+    nombre[0] = 0;
+    if (!GetProgramDir() || !NameFromLock(GetProgramDir(), (STRPTR)dir, 200)) return _dash_str_dup((STRPTR)"", TRUE);
+    if (p->pr_CLI) GetProgramName((STRPTR)nombre, sizeof(nombre));
+    else if (p->pr_Task.tc_Node.ln_Name) strncpy(nombre, p->pr_Task.tc_Node.ln_Name, sizeof(nombre) - 1);
+    nombre[sizeof(nombre) - 1] = 0;
+    if (!nombre[0]) strcpy(nombre, "Tachyon");
+    AddPart((STRPTR)dir, FilePart((STRPTR)nombre), sizeof(dir));
+    return _dash_str_dup((STRPTR)dir, TRUE);
+"""
+end
+
+# El día de hoy (días desde 1978): para mirar como mucho una vez al día
+@native func actualizar_hoy() -> Int
+"""
+    struct DateStamp d;
+    DateStamp(&d);
+    return d.ds_Days;
+"""
+end
+
+# Descomprime T:Tachyon.gz, lo comprueba y lo pone en lugar de programa (el de antes, como programa.old); "" si
+# quedó instalado o por qué no (y el de antes sigue como estaba)
+@native(borrow) func actualizar_instalar(programa: String) -> String
+"""
+    static char err[120];
+    char nuevo[320], viejo[320];
+    UBYTE *gz = NULL, *ex = NULL;
+    LONG n = 0, i, ok = FALSE;
+    int largo = 0;
+    ULONG crc, c, k, isize, crc_gz;
+    BPTR f;
+    struct FileInfoBlock *fib;
+    err[0] = 0;
+    if (!programa || !programa[0] || strlen((char *)programa) > 300) { strcpy(err, "no se sabe dónde está Tachyon"); goto fin; }
+    /* el gzip entero en memoria */
+    f = Open((STRPTR)"T:Tachyon.gz", MODE_OLDFILE);
+    if (!f) { strcpy(err, "no se encuentra lo bajado"); goto fin; }
+    fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, NULL);
+    if (fib && ExamineFH(f, fib)) n = fib->fib_Size;
+    if (fib) FreeDosObject(DOS_FIB, fib);
+    if (n > 18 && (gz = (UBYTE *)AllocVec(n, MEMF_ANY))) ok = Read(f, gz, n) == n;
+    Close(f);
+    if (!ok) { strcpy(err, "no se puede leer lo bajado"); goto fin; }
+    if (gz[0] != 0x1f || gz[1] != 0x8b || gz[2] != 8) { strcpy(err, "lo bajado no es un gzip"); goto fin; }
+    i = 10;
+    if (gz[3] & 4) i += 2 + (gz[10] | (gz[11] << 8));
+    if (gz[3] & 8) { while (i < n && gz[i]) i++; i++; }
+    if (gz[3] & 16) { while (i < n && gz[i]) i++; i++; }
+    if (gz[3] & 2) i += 2;
+    if (i >= n - 8) { strcpy(err, "lo bajado no es un gzip"); goto fin; }
+    crc_gz = gz[n - 8] | (gz[n - 7] << 8) | (gz[n - 6] << 16) | ((ULONG)gz[n - 5] << 24);
+    isize = gz[n - 4] | (gz[n - 3] << 8) | (gz[n - 2] << 16) | ((ULONG)gz[n - 1] << 24);
+    ex = (UBYTE *)stbi_zlib_decode_malloc_guesssize_headerflag((const char *)gz + i, n - i - 8, isize + 64, &largo, 0);
+    if (!ex) { strcpy(err, "no se puede descomprimir"); goto fin; }
+    /* entero: su tamaño y su CRC-32 (el del gzip), un ejecutable y de Tachyon */
+    {
+        static ULONG tabla[256];
+        for (k = 0; k < 256; k++) {
+            crc = k;
+            for (c = 0; c < 8; c++) crc = (crc >> 1) ^ (0xEDB88320 & (0 - (crc & 1)));
+            tabla[k] = crc;
+        }
+        crc = 0xFFFFFFFF;
+        for (k = 0; k < (ULONG)largo; k++) crc = tabla[(crc ^ ex[k]) & 0xFF] ^ (crc >> 8);
+        crc = ~crc;
+    }
+    if ((ULONG)largo != isize || crc != crc_gz) { strcpy(err, "lo bajado llegó mal (CRC)"); goto fin; }
+    if (largo < 64 || ex[0] != 0 || ex[1] != 0 || ex[2] != 3 || ex[3] != 0xF3) { strcpy(err, "lo bajado no es un ejecutable"); goto fin; }
+    ok = FALSE;
+    for (k = 0; k + 14 < (ULONG)largo && !ok; k++) ok = !memcmp(ex + k, "$VER: Tachyon ", 14);
+    if (!ok) { strcpy(err, "lo bajado no es Tachyon"); goto fin; }
+    /* programa.new, y luego el cambio: programa -> programa.old, programa.new -> programa */
+    sprintf(nuevo, "%s.new", (char *)programa);
+    sprintf(viejo, "%s.old", (char *)programa);
+    f = Open((STRPTR)nuevo, MODE_NEWFILE);
+    if (!f) { strcpy(err, "no se puede escribir en el cajón de Tachyon"); goto fin; }
+    ok = Write(f, ex, largo) == largo;
+    Close(f);
+    if (!ok) { DeleteFile((STRPTR)nuevo); strcpy(err, "no cabe en el disco"); goto fin; }
+    DeleteFile((STRPTR)viejo);
+    if (!Rename(programa, (STRPTR)viejo)) { DeleteFile((STRPTR)nuevo); strcpy(err, "no se puede apartar el Tachyon de ahora"); goto fin; }
+    if (!Rename((STRPTR)nuevo, programa)) { Rename((STRPTR)viejo, programa); DeleteFile((STRPTR)nuevo); strcpy(err, "no se puede poner el nuevo"); goto fin; }
+    DeleteFile((STRPTR)"T:Tachyon.gz");
+fin:
+    if (gz) FreeVec(gz);
+    if (ex) free(ex);
+    return _dash_str_dup((STRPTR)err, TRUE);
+"""
+end
+
+# Abre otra vez Tachyon (el nuevo) y sigue sin esperar; false si no se pudo
+@native(borrow) func actualizar_lanzar(programa: String) -> Bool
+"""
+    char orden[330];
+    BPTR nada;
+    LONG r;
+    if (!programa || strlen((char *)programa) > 300) return FALSE;
+    sprintf(orden, "\"%s\"", (char *)programa);
+    nada = Open((STRPTR)"NIL:", MODE_NEWFILE);
+    if (!nada) return FALSE;
+    r = SystemTags((STRPTR)orden, SYS_Input, nada, SYS_Output, NULL, SYS_Asynch, TRUE, NP_StackSize, 65536, TAG_DONE);
+    if (r == -1) { Close(nada); return FALSE; }
+    return TRUE;
+"""
+end
