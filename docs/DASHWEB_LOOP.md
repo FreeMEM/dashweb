@@ -414,8 +414,8 @@ tarea, con el estilo de Dash.
          y la fila de webs del grupo. Amelinium los pinta. Mirar con qué los hace cada página (mask-image, fuente de
          iconos, SVG en línea o en <use>) y pintarlos.
          Hechos (2026-10-23): los de máscara (Wikipedia) y los de fuentes de iconos que no son Font Awesome (Xataka).
-         Queda en Xataka: en "NUEVO" se pinta un icono encima de la U. (Hechos: la fila de favicons arriba, las
-         redes y las secciones; y la noticia destacada con su foto grande, que no salía.)
+         Hecho todo lo de Xataka (2026-10-23): la fila de favicons arriba, las redes y las secciones, la noticia
+         destacada con su foto grande (no salía) y el icono de "NUEVO" a su derecha.
       h. (de la misma comparación) Wikipedia: el buscador sin su texto ("Buscar en Wikipedia") ni el botón "Buscar".
          amigaworld.net: las » del menú de la izquierda salen como "?".
          Hecho (2026-10-23): el texto del buscador (los campos con display block llevan su control). Las » de
@@ -3917,3 +3917,11 @@ Formato:
 - Batería: 96/96 (2244 s). Xataka: la fila de favicons arriba y la noticia destacada con su foto, como en Chrome;
   freemem.space, GitHub y Wikipedia, como antes (la columna "Apariencia" salió vacía en una captura a los 150 s y
   entera en otras dos a los 150 y 290 s: un momento de la carga).
+
+### 2026-10-23 — El texto de un flex absoluto cuenta al medirlo (42g)
+- El "NUEVO" de xataka.com (a flex, absolute, right: 0, con un ::after de icono): su icono caía encima del texto. Al
+  medir la caja anónima del texto, `_bajo_absoluto` subía desde el nodo del texto (el <a>, fuera de la caja anónima)
+  y encontraba el <a> absoluto: el texto no contaba y el <a> medía solo lo demás. Se para también en el corte de
+  `_sangrias` (el primer antepasado de verdad de una caja anónima), como la suma de sangrías.
+- tests/test_maqueta_flex_absoluto.dash (nuevo): un flex absoluto a la derecha y a la izquierda.
+- Batería: 97/97 (2298 s). Xataka: "NUEVO" y su icono a la derecha; la barra de Wikipedia, como antes.

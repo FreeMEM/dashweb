@@ -2574,10 +2574,11 @@ func _es_hijo(p: Nodo, h: Nodo) -> Bool
     return false
 end
 
-# n está en un absoluto (o fixed) que va dentro de h (h no cuenta)
+# n está en un absoluto (o fixed) que va dentro de h (h no cuenta; si h es una caja anónima, tampoco lo de fuera de
+# ella: el corte de _sangrias; el texto de un flex absoluto, en su caja anónima, se descartaba: el "NUEVO" de Xataka)
 func _bajo_absoluto(n: Nodo, h: Nodo) -> Bool
     c = n
-    while c != nil and c != h
+    while c != nil and c != h and (_sangria_corte == nil or c != _sangria_corte)
         if c.tipo == DOM_ELEMENTO
             pos = _val(c.estilo, "position", "static")
             if pos == "absolute" or pos == "fixed"
