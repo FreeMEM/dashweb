@@ -1,7 +1,9 @@
 #!/bin/sh
 # El paquete de Tachyon (antes dashweb) para el Amiga: build/tachyon.lha con el navegador (MUI) y sus iconos, el visor, los
 # iconos de Workbench (tools/iconos_wb.py), el guion del Installer (paquete/Instalar),
-# paquete/LEEME y las licencias de Tachyon y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py). Necesita el toolchain y Dash (DASH, por
+# paquete/LEEME y las licencias de Tachyon y de lo que lleva dentro (LHA sin comprimir: tools/lha_lh0.py); y
+# build/Tachyon.gz, el ejecutable solo con gzip, que va también en cada versión publicada: con él se actualiza Tachyon
+# desde sí mismo (lib/actualizar.dash, tarea 44; no sabe abrir .lha). Necesita el toolchain y Dash (DASH, por
 # defecto ~/Projects/FreeMEMLang/.worktrees/dashweb) y el SDK de MUI de Dash; `lha` (Lhasa) para comprobarlo.
 #
 #   tools/paquete.sh
@@ -34,6 +36,7 @@ cp "$R/third_party/libwebp/COPYING" "$B/Tachyon/Licencias/libwebp"
 cp "$R/third_party/nanosvg/LICENSE.txt" "$B/Tachyon/Licencias/nanosvg"
 cp "$R/third_party/mintvid/LICENSE" "$B/Tachyon/Licencias/MintVID"
 cp "$R/third_party/brotli/LICENSE" "$B/Tachyon/Licencias/Brotli"
+cp "$R/third_party/lucide/LICENSE" "$B/Tachyon/Licencias/Lucide"   # los iconos de la barra
 head -25 "$R/third_party/tjpgd/tjpgd.c" > "$B/Tachyon/Licencias/TJpgDec"
 printf '%s\n' "stb_image y stb_truetype (https://github.com/nothings/stb), de Sean Barrett: dominio público" \
     "(o MIT, a elegir; ver la cabecera de third_party/stb/*.h en el código de Tachyon)." > "$B/Tachyon/Licencias/stb"
@@ -42,3 +45,5 @@ rm -f "$R/build/tachyon.lha"
 python3 "$R/tools/lha_lh0.py" "$R/build/tachyon.lha" Tachyon Tachyon.info   # Lhasa only extracts
 ls -l "$R/build/tachyon.lha"
 lha -l "$R/build/tachyon.lha" | tail -12
+gzip -9 -n -c "$B/Tachyon/Tachyon" > "$R/build/Tachyon.gz"
+ls -l "$R/build/Tachyon.gz"

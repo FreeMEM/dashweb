@@ -37,7 +37,7 @@ static LONG _http_inflado = 0;
 end
 
 const HTTP_MAX_REDIRECCIONES = 5
-const HTTP_AGENTE = "Tachyon/0.3 (AmigaOS)"
+const HTTP_AGENTE = "Tachyon/0.5 (AmigaOS)"
 
 # Conexiones que siguen abiertas tras una respuesta (keep-alive), para la siguiente petición al mismo servidor
 # sin volver a conectar ni negociar TLS. Solo las cargas sin espera (http_empezar...) y solo si el programa lo

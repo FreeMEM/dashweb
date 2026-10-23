@@ -447,7 +447,18 @@ func _campo_propio_pintar(d: Dibujo, n: Nodo, tipo: String, x: Int, y: Int, w: I
         return
     end
     texto = dom_atributo(n, "value")
-    if tipo == "password"
+    if n.nombre == "select"
+        # un desplegable que dibuja la página (DuckDuckGo): la opción elegida, cortada por detrás; la flecha es de la
+        # página (appearance: none)
+        texto = ""
+        o = formulario_opcion(n)
+        if o != nil
+            texto = str_trim(dom_texto(o))
+        end
+        while texto != "" and font_text_width(texto) > w - 2
+            texto = texto[:texto.length - 1]
+        end
+    elif tipo == "password"
         oculto = ""
         for i in (1..texto.length)
             oculto = oculto + "*"
@@ -472,7 +483,7 @@ func _campo_propio_pintar(d: Dibujo, n: Nodo, tipo: String, x: Int, y: Int, w: I
         gfx_pen(_lapiz(7697781))
         gfx_text_at(x, ty + font_baseline(), ayuda)
     end
-    if pintor_foco == n
+    if pintor_foco == n and n.nombre != "select"
         cx = x + font_text_width(texto)
         gfx_pen(_lapiz(204))
         gfx_rect(cx, ty, cx, ty + font_height() - 1)

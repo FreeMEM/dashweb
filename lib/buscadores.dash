@@ -1,0 +1,82 @@
+# Los buscadores (tarea 45h): el que se use busca lo escrito en la barra de la dirección (unas palabras, no una
+# dirección) y en el buscador de la página de inicio. DuckDuckGo en HTML por defecto: no necesita JavaScript y sus
+# resultados son ligeros, lo mejor para un Amiga. La página tachyon:buscadores los enseña para elegir uno.
+#
+#   buscar_url("ddg", "amiga 1200")   # https://html.duckduckgo.com/html/?q=amiga+1200
+#   es_busqueda("amiga 1200")         # true: palabras; "aminet.net" o "localhost:8080" no
+
+import "url.dash"
+
+const BUSCADOR_POR_DEFECTO = "ddg"
+
+struct Buscador
+    id: String
+    nombre: String
+    plantilla: String   # la dirección con %s donde va lo buscado (codificado)
+    nota: String
+end
+
+# (Startpage, Mojeek y Ecosia piden demostrar que no se es un robot y no dan resultados: fuera; 2026-10-23)
+func buscadores() -> [Buscador]
+    var r: [Buscador] = []
+    r.push(Buscador("ddg", "DuckDuckGo", "https://html.duckduckgo.com/html/?q=%s", "Su versión sin JavaScript: ligera, la que mejor va en un Amiga. Privado."))
+    r.push(Buscador("google", "Google", "https://www.google.com/search?q=%s", "El de siempre."))
+    r.push(Buscador("bing", "Bing", "https://www.bing.com/search?q=%s", "El de Microsoft."))
+    r.push(Buscador("brave", "Brave Search", "https://search.brave.com/search?q=%s", "Privado, con su propio índice."))
+    r.push(Buscador("wikipedia", "Wikipedia", "https://es.wikipedia.org/w/index.php?search=%s", "Busca en la enciclopedia."))
+    r.push(Buscador("aminet", "Aminet", "https://aminet.net/search?query=%s", "Busca programas para Amiga."))
+    return r
+end
+
+# El de ese nombre (el de por defecto si no hay ninguno así)
+func buscador_de(id: String) -> Buscador
+    todos = buscadores()
+    for b in todos
+        if b.id == id
+            return b
+        end
+    end
+    return todos[0]
+end
+
+func buscar_url(id: String, texto: String) -> String
+    return str_replace(buscador_de(id).plantilla, "%s", url_codificar(str_trim(texto)))
+end
+
+# Si lo escrito en la barra es una búsqueda y no una dirección: con espacios, o sin punto, dos puntos ni barra
+# ("amiga", "amiga 1200"; no "aminet.net", "localhost:8080", "file:///a")
+func es_busqueda(t: String) -> Bool
+    t = str_trim(t)
+    if t == "" or str_starts(t, "tachyon:")
+        return false
+    end
+    if str_find(t, " ") >= 0
+        return true
+    end
+    return str_find(t, ".") < 0 and str_find(t, ":") < 0 and str_find(t, "/") < 0
+end
+
+func _escapar(t: String) -> String
+    return str_replace(str_replace(str_replace(t, "&", "&amp;"), "<", "&lt;"), "\"", "&quot;")
+end
+
+# La página para elegir el buscador (tachyon:buscadores?usar=id lo cambia)
+func buscadores_html(elegido: String) -> String
+    h = "<html><head><title>Buscador</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
+    h = h + "h1 { color: #1d3557 } .e { margin: 8px 0; padding: 8px 12px; background: #f3f5f9; border-radius: 6px; "
+    h = h + "border: 2px solid #f3f5f9 } .uso { border-color: #2e9e48; background: #eef8f0 } .n { font-weight: bold; "
+    h = h + "color: #1d3557 } .nota { color: #555; font-size: 13px } .usar { float: right; font-size: 13px } "
+    h = h + ".ya { float: right; font-size: 13px; color: #2e7a3e; font-weight: bold }</style></head><body>"
+    h = h + "<h1>Buscador</h1><p>Busca lo que escribes en la barra de la dirección (unas palabras, no una dirección) "
+    h = h + "y en la página de inicio.</p>"
+    actual = buscador_de(elegido).id
+    for b in buscadores()
+        if b.id == actual
+            h = h + "<div class=\"e uso\"><span class=ya>En uso</span>"
+        else
+            h = h + "<div class=e><a class=usar href=\"tachyon:buscadores?usar=" + b.id + "\">Usar este</a>"
+        end
+        h = h + "<span class=n>" + _escapar(b.nombre) + "</span><div class=nota>" + _escapar(b.nota) + "</div></div>"
+    end
+    return h + "</body></html>"
+end

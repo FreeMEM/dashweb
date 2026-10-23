@@ -392,7 +392,49 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
-- [ ] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
+- [ ] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
+      y probar cada uno en el emulador con capturas (rtg, MUI 3.8, y alguna en 4 colores) hasta que encaje.
+      a. Menús ordenados (dashui admite varios): Proyecto (Nueva ventana N, Cerrar ventana K, Ir a la dirección L
+         —el cursor al campo, MUIA_Window_ActiveObject—, Acerca de ?, Salir Q); Navegar (Atrás, Adelante, Recargar R,
+         Parar, Página de inicio H, Historial Y); Marcadores (Ver marcadores B, Añadir o quitar esta página D, Usar
+         como página de inicio); Herramientas (Cookies, Buscar actualizaciones, No avisar de versiones nuevas).
+      b. Iconos: Actualizar como icono (no un botón de texto), con su ayuda "Actualizar a la 0.5.0-alfa" (mui_help)
+         y otro para Reiniciar. Los iconos nuevos con 8 colores (los 4 del Workbench más verde, verde oscuro, rojo y
+         amarillo; MUI los ajusta a la pantalla).
+      c. La actividad: fuera el punto de arriba; un led en la barra de estado, a la izquierda: verde que parpadea
+         mientras algo llega, rojo un rato si la página falló, apagado parado (un lienzo de 12x12: barato).
+      d. El historial: fuera el panel lateral (no se leían las direcciones). Una página tachyon:historial como la de
+         Chrome: lo visto (todas las ventanas), lo último arriba, con la hora, el título y la dirección entera, y un
+         enlace para borrarlo; se guarda en Tachyon.historial (las últimas 300). El botón y el menú la abren. Atrás y
+         adelante, con una lista propia de cada ventana.
+      e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
+         una estrella para el marcador (llena si la página está en marcadores; un clic la añade o la quita); en
+         tachyon:marcadores, quitar cada uno; los atajos en el menú.
+      f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
+         al lado) salía con el campo de ~200 px y el botón cortado ("Busc"); en Chrome, 520 px entre los dos. Puesto
+         sin flex mientras; arreglar el flex en lib/maqueta.dash y volver a ponerlo. El logo, también en Acerca de.
+      [x] h. Buscador por defecto (usuario, 2026-10-23): elegir uno de una lista (DuckDuckGo HTML, Google, Bing,
+         Brave, Startpage, Mojeek, Ecosia, y Wikipedia y Aminet como búsquedas especiales), guardado en
+         Tachyon.prefs; lo usan el buscador de la página de inicio y la barra de la dirección (unas palabras sin
+         punto ni esquema se buscan, como en Chrome). Antes, ver en el emulador qué páginas de resultados salen bien.
+         Hecho (2026-10-23): DuckDuckGo (HTML) por defecto, Google, Bing, Brave, Wikipedia y Aminet; Startpage,
+         Mojeek y Ecosia fuera (piden demostrar que no se es un robot). Google enseña antes su aviso de cookies.
+      [ ] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
+         (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
+- [ ] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
+      lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
+      la ventana; la página tachyon:descargas con cada una (nombre, dónde se guarda, KB de cuántos, velocidad, lo que
+      falta), con parar, reintentar, quitar de la lista y "abrir el cajón" (el Workbench, OpenWorkbenchObject en 3.2);
+      las acabadas se guardan en Tachyon.descargas. Un icono de descarga en la barra mientras alguna va (con la ayuda
+      "2 descargas: 45 %"), que abre la página; menú Herramientas, Descargas (Amiga-J). Preguntar dónde guardar o usar
+      un cajón por defecto (preferencia; por defecto, preguntar como hoy).
+- [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
+      de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
+      sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
+      su JavaScript parado; con poca memoria libre, las de detrás se "descartan" como en Chrome (solo dirección,
+      título y desplazamiento; se cargan al volver). Medir cuánto ocupa cada una antes y después.
+
+- [x] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
       una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
       GitHub (api.github.com/repos/FreeMEM/tachyon/releases: también las pre-release, que /releases/latest no da) y
       compararla con DASHWEB_VERSION. Si hay una nueva, un aviso en la barra (un botón "Actualizar", sin ventanas que
@@ -402,6 +444,8 @@ tarea, con el estilo de Dash.
       cada versión publica también el ejecutable solo comprimido con gzip (Tachyon.gz; lo inflate de lib/http.dash),
       con su tamaño y su SHA-256 en las notas para comprobarlo antes de cambiar nada (tools/paquete.sh y la
       publicación). Probar en el emulador con una versión de mentira servida en local.
+      Hecho (2026-10-23; ver la bitácora). AL PUBLICAR UNA VERSIÓN: subir también build/Tachyon.gz (lo deja
+      tools/paquete.sh junto a build/tachyon.lha), o las versiones de antes no la ven como actualización.
 - [x] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
       (Grim Reaper) al iniciar, en código 68k bajo Petunia; luego otra vez sí arrancó y navegó (Aminet). En sus
       registros: ___main+0x300 (la vuelta de main al arranque), una llamada a FreeVec (LVO -690) y _strchr+0x10.
@@ -4036,4 +4080,73 @@ Formato:
 - Con los dos, MuForce no da ninguna lectura prohibida del programa al arrancar ni con es.wikipedia.org/wiki/Amiga
   entera (con su JavaScript). Queda una de muigfx.library (BYTE READ de 0x2B) desde Dtpic.mui al abrir la ventana:
   es del MUI 5 de 68k (en OS4 se usa el MUI de OS4); sin mirar si se lo provoca Tachyon.
+
+
+### 2026-10-23 — Publicada la v0.4.0-alfa
+- Usuario: "Haz nuevo release". Versión 0.4.0-alfa en Acerca de y $VER (59d869b), README con la descarga nueva. PR #5
+  de dev a main fusionado (1236181), etiqueta v0.4.0-alfa sobre él y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.4.0-alfa con build/tachyon.lha (6,6 MB), hecho con
+  tools/paquete.sh en un worktree limpio de 1236181 y Dash 028c67d (con D69 y D70).
+- Base: 97/97 (2210 s, con la D70). Probado en la máquina rtg: freemem.space entera en 26,7 s, bien. Copiado a
+  CoffinOS el Tachyon del paquete.
+
+### 2026-10-23 — Tarea 44: Tachyon se actualiza desde sí mismo
+- lib/actualizar.dash: la lista de versiones de GitHub (api.github.com/repos/FreeMEM/tachyon/releases?per_page=3,
+  también las pre-release), la primera comparada por sus números con DASHWEB_VERSION; su Tachyon.gz se baja a T: y
+  antes de cambiar nada se comprueba (CRC-32 y tamaño del gzip, con tabla; cabecera 0x3F3 y "$VER: Tachyon "); luego
+  Tachyon.new, el de ahora a Tachyon.old y el nuevo en su sitio (si el segundo paso falla, vuelve el de antes).
+  Dónde está el programa: GetProgramDir + el nombre (GetProgramName desde el Shell, el de la tarea desde el WB).
+- src/dashweb.dash: al arrancar sin argumentos, como mucho una vez al día (versiones_visto en Tachyon.prefs;
+  avisar_versiones=no lo apaga), y con "Buscar actualizaciones" del menú (y "No avisar de versiones nuevas"). Con una
+  nueva, el botón Actualizar (src/navegador.dashui, escondido hasta entonces) en cada ventana y el aviso en la barra
+  de estado; al pulsarlo se baja e instala, el botón pasa a Reiniciar, y al pulsarlo otra vez Tachyon se cierra
+  (guarda las cookies) y abre el nuevo (SystemTags asíncrono, pila de 64 KB). VERSIONES=dirección (argumento) mira
+  ahí y no en GitHub; tools/medir_visor.py --versiones lo pone con /act/releases de tests/servers/http.py.
+- tools/paquete.sh deja también build/Tachyon.gz (gzip -9 -n del ejecutable); paquete/LEEME lo explica. El
+  User-Agent pasa a Tachyon/0.4.
+- Probado: test_actualizar (comparar versiones, la lista, bajar e instalar sobre otro en T:, y uno con el CRC mal
+  que no cambia nada; memcheck limpio). En el emulador con --versiones: el botón sale con "Hay una versión nueva:
+  9.9.0-alfa"; con un clic (tools/amiga/clicar) baja e instala (p0 nuevo, p0.old el de antes, "Instalada la
+  9.9.0-alfa: pulsa Reiniciar"); con un Tachyon de verdad de 3,5 MB servido (ACT_EXE), instalado idéntico en ~30 s;
+  y Reiniciar abre el nuevo (uno de mentira que deja una marca en el disco) tras salir el viejo con rc 0. Contra
+  GitHub de verdad: la lista llega (200, 16 KB en 1,1 s) y la descarga de un fichero de una versión sigue la
+  redirección y llega entera (tachyon.lha, 6.887.714 bytes). La v0.4.0 no lleva Tachyon.gz (no tiene esto).
+
+### 2026-10-23 — Tarea 45: la interfaz (menús, iconos, led, historial, candado y estrella)
+- Iconos nuevos: los de 16x14 en 4 colores (el usuario: "parece que los ha dibujado un niño") pasan a los SVG de
+  Lucide (third_party/lucide, ISC; su licencia al paquete) pintados a 20x20 con rsvg-convert, suavizados sobre el gris
+  de los botones y en hasta 32 colores, uno por función (azul navegar, rojo parar, verde actualizar, dorado el
+  candado): tools/iconos.py. También iconos/logo.iff (docs/logo/tachyon.svg a 260x57) arriba en Acerca de.
+- MUI 3.8 no cambia la imagen de un botón ya hecho (MUIA_Dtpic_Name solo al crearlo): por eso las flechas de atrás y
+  adelante nunca se encendían. Ahora un botón por estado (atrás y atrás apagado, candado cerrado y abierto, estrella
+  vacía y llena, actualizar y reiniciar) y se enseña uno u otro.
+- src/navegador.dashui: cuatro menús (Proyecto, Navegar, Marcadores, Herramientas; con Ir a la dirección, Amiga-L:
+  MUIA_Window_ActiveObject, y Cookies); fuera el punto de actividad de arriba y el panel del historial; en la barra de
+  la dirección, el candado (HTTPS u HTTP; nada en tachyon:) y la estrella (un clic añade o quita el marcador); abajo,
+  un led: verde que parpadea mientras algo llega (cada 300 ms), rojo si la página falló, gris parado.
+- lib/marcadores.dash: el historial en Tachyon.historial (minuto, dirección y título; 300 como mucho; la misma página
+  seguida, una vez) y la página tachyon:historial por días (Hoy, Ayer, la fecha) con la hora, el título y la dirección
+  entera, y "Borrar el historial"; marcadores_tiene y marcadores_quitar, y en tachyon:marcadores un "quitar" en cada
+  uno. Atrás y adelante, con una lista de cada ventana (pasos).
+- La página de inicio: el buscador con flex salía estrecho y cortaba "Buscar" (45f, sin arreglar en la maqueta: puesto
+  sin flex); el título de la ventana, "Tachyon" y no "Tachyon - Tachyon".
+- Probado en el emulador (rtg, MUI 3.8) con capturas y clics (tools/amiga/clicar): freemem.space con el candado
+  dorado; la estrella guarda el marcador y se llena; Navegar > Historial y Marcadores > Ver marcadores desde el menú;
+  atrás encendido tras navegar; Acerca de con el logo; el icono verde con --versiones. En un A1200 de 640x256 (sys31,
+  pocos colores) MUI ajusta los iconos a la paleta y se entienden. test_marcadores ampliado (quitar, el historial por
+  días y la fecha). tools/medir_visor.py deja pasar --pagina tachyon:... tal cual.
+
+### 2026-10-23 — Tarea 45h: el buscador por defecto (y los desplegables con display block)
+- lib/buscadores.dash: DuckDuckGo en HTML (por defecto: sin JavaScript, sus resultados salen en ~6 s), Google, Bing,
+  Brave, Wikipedia y Aminet; tachyon:buscadores para elegir (Herramientas > Buscador..., y una tarjeta en la página
+  de inicio), guardado en Tachyon.prefs (buscador=). La barra de la dirección busca lo que no es una dirección (con
+  espacios, o sin punto, dos puntos ni barra: es_busqueda); la página de inicio manda a tachyon:buscar?q=..., que va
+  a los resultados del elegido (y cambia ese paso de atrás por ellos). test_buscadores.
+- Mirados en el emulador (rtg): DuckDuckGo bien; Bing bien; Brave con resultados y la maqueta algo revuelta; Google
+  enseña antes su aviso de cookies; Startpage, Mojeek y Ecosia piden demostrar que no se es un robot (fuera).
+- Los desplegables de DuckDuckGo (.frm__select select { display: block; appearance: none }) salían como una lista
+  con todas sus opciones: un <select> con display block se maquetaba como un bloque con sus <option> de texto. Ahora,
+  como los campos de texto de 42h: una línea con la opción elegida en un control sin marco (lib/maqueta.dash,
+  lib/pintor.dash _campo_propio_pintar).
+- Batería de la 44 (31d49ae): 98/98 (2204 s).
 

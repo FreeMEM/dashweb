@@ -62,6 +62,8 @@ def main():
     ap.add_argument("--memcheck", action="store_true", help="build with ./dash --memcheck (memory errors to the output)")
     ap.add_argument("--gc-siempre", action="store_true", help="dashweb GCSIEMPRE: QuickJS's cycle collector after every script and call")
     ap.add_argument("--dibujos", metavar="Y0-Y1", help="dashweb DIBUJOS=Y0-Y1: when the page is whole, its drawings between those heights")
+    ap.add_argument("--versiones", action="store_true", help="dashweb VERSIONES=: the list of versions from tests/servers/http.py "
+                    "(/act/releases: a 9.9.0-alfa with a pretend Tachyon.gz) instead of GitHub (task 44)")
     ap.add_argument("--traza", action="store_true", help="dashweb TRAZA: the timeline of the load (lib/traza.dash)")
     ap.add_argument("--perfil", action="store_true", help="build with ./dash --profile (the table goes to the output)")
     ap.add_argument("--guardar", metavar="DIR", help="keep the emulated disk there (outputs: out0.txt, bg0.txt)")
@@ -119,7 +121,7 @@ def main():
                 shot = [(float(tiempos[min(i, len(tiempos) - 1)]), f) for i, f in enumerate(ficheros)]
             esquema = "https" if modo else "http"
             programs = [str(exe)]
-            prog_args = [" ".join(p if "://" in p else f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")
+            prog_args = [" ".join(p if "://" in p or p.startswith("tachyon:") else f"{esquema}://{args.host}:{PORT}{p}" if p.startswith("/")
                                   else f"{esquema}://{args.host}:{PORT}/pages/{p}" for p in args.pagina.split(","))]
             if args.traza:
                 prog_args[0] += " TRAZA"
@@ -127,6 +129,8 @@ def main():
                 prog_args[0] += " DIBUJOS=" + args.dibujos
             if args.gc_siempre:
                 prog_args[0] += " GCSIEMPRE"
+            if args.versiones:
+                prog_args[0] += f" VERSIONES=http://{args.host}:{PORT}/act/releases"
             red = "bsdsocket_library = 1\n"
             if args.local:
                 # the page goes to the disk as a second "program" (DH0:p1; running it just fails)

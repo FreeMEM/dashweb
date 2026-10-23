@@ -4,8 +4,8 @@
 #   dashweb                       # página de inicio
 #   dashweb http://ejemplo.org/   # esa página (con varias direcciones, una ventana para cada una)
 #
-# Barra de URL (Return para ir), atrás, adelante, recargar, historial (oculto hasta que se despliega
-# con su botón), barra de estado y de progreso. La rueda, la barra y las teclas (arriba, abajo,
+# Barra de URL (Return para ir) con el candado y la estrella de marcadores, atrás, adelante, recargar, el historial
+# (la página tachyon:historial), el icono de versión nueva; barra de estado con el led de actividad y el progreso. La rueda, la barra y las teclas (arriba, abajo,
 # espacio, retroceso) desplazan; un clic llega al JavaScript de la página y, si no lo para, sigue el
 # enlace (#ancla: dentro de la página).
 # Hasta 4 ventanas (menú Proyecto: Nueva ventana, Cerrar ventana), cada una con su página.
@@ -15,6 +15,8 @@ import "navegador.dashui"
 import "../lib/documento.dash"
 import "../lib/formularios.dash"
 import "../lib/marcadores.dash"
+import "../lib/actualizar.dash"
+import "../lib/buscadores.dash"
 
 # desde el icono del Workbench, lo que escribe (console.log de las páginas, «entera en») no abre una consola
 @workbench_output "NIL:"
@@ -25,7 +27,6 @@ const ID_ADELANTE = 2
 const ID_RECARGAR = 3
 const ID_IR = 4
 const ID_SCROLL = 5
-const ID_HISTORIAL = 6
 const ID_ACERCA = 8
 const ID_SALIR = 9
 const ID_PAGINA = 10
@@ -37,6 +38,14 @@ const ID_INICIO = 17
 const ID_NUEVA = 18
 const ID_CERRAR = 19
 const ID_VER_HISTORIAL = 20
+const ID_ACTUALIZAR = 21
+const ID_BUSCAR_VERSIONES = 22
+const ID_NO_AVISAR = 23
+const ID_IR_DIRECCION = 24
+const ID_COOKIES = 25
+const ID_ESTRELLA = 26
+const ID_CANDADO = 27
+const ID_BUSCADORES = 28
 # y los del programa
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
@@ -50,6 +59,8 @@ const FICHERO_MARCADORES = "PROGDIR:Tachyon.marcadores"
 const FICHERO_PREFERENCIAS = "PROGDIR:Tachyon.prefs"
 # Las cookies que duran más que la sesión (lib/cookies.dash), de una vez para otra
 const FICHERO_COOKIES = "PROGDIR:Tachyon.cookies"
+# Lo visto (lib/marcadores.dash, tachyon:historial)
+const FICHERO_HISTORIAL = "PROGDIR:Tachyon.historial"
 
 # Una ventana del navegador y lo que tiene
 struct Ventana
@@ -58,7 +69,8 @@ struct Ventana
     abierta: Bool = true
     actual: Documento = nil
     desde: Int = 0
-    visto: Int = -1          # la línea del historial que se ve
+    pasos: [String] = nil    # las direcciones de esta ventana, para atrás y adelante
+    visto: Int = -1          # la de pasos que se ve
     carga: Carga = nil       # la página que está llegando (sin congelar la ventana)
     carga_dir: String = ""
     preparando: Documento = nil   # la página ya llegó; sus hojas y scripts están llegando
@@ -66,8 +78,9 @@ struct Ventana
     zona: Bool = false       # el repintado pedido es solo de la zona que cambió el JavaScript (tarea 37e7)
     estado_video: Int = 0    # time_ms de la última vez que la barra de estado dijo cómo va el vídeo
     foco: Nodo = nil         # el campo de formulario donde se escribe
-    con_historial: Bool = false   # la lista del historial desplegada (empieza oculta)
-    giro: Int = -1           # el indicador de actividad: 0 mientras algo llega, -1 parado
+    giro: Int = -1           # el led de la barra de estado: -1 apagado, 0 y 1 parpadeando (algo llega), 2 rojo (error)
+    candado: Int = -1        # el candado junto a la dirección: 0 sin él (tachyon:), 1 HTTPS, 2 HTTP
+    estrella: Int = -1       # la estrella: 1 la página está en marcadores, 0 no
     cargando: Bool = false   # la barra en modo carga: "parar" en vez de "recargar" y el progreso a la vista
     barra_imagenes: Bool = false   # la barra de progreso a la vista por las imágenes que faltan (la página ya está)
     valor_barra: Int = -1
@@ -87,6 +100,104 @@ var dw_ventanas: [Ventana] = []
 var dw_dibujos_y0: Int = -1
 var dw_dibujos_y1: Int = -1
 
+# === Versiones nuevas (tarea 44, lib/actualizar.dash) ===
+# Al arrancar sin argumentos, como mucho una vez al día ("avisar_versiones=no" en las preferencias lo apaga), y con
+# "Buscar actualizaciones" del menú. Una versión nueva enseña el icono verde de actualizar en cada ventana, como Chrome:
+# solo al pulsarlo se baja y se instala; después el icono pasa a reiniciar y abre la nueva al cerrar esta.
+var dw_act_carga: Carga = nil       # la lista de versiones que está llegando
+var dw_act_manual: Bool = false     # la pidió el usuario: decir también si no hay nada o si falló
+var dw_act_nueva: Novedad = nil
+var dw_act_bajada: Carga = nil
+var dw_act_lista: Bool = false      # ya instalada: el botón reinicia
+var dw_reiniciar: Bool = false
+
+func versiones_mirar(manual: Bool)
+    if dw_act_carga != nil or dw_act_bajada != nil or dw_act_lista
+        return
+    end
+    dw_act_manual = manual
+    dw_act_carga = actualizar_empezar()
+end
+
+func versiones_estado(texto: String)
+    for t in dw_ventanas
+        if t.abierta
+            dw_estado(t, texto)
+        end
+    end
+end
+
+# El icono de una ventana como toca: escondido sin versión nueva, actualizar o (ya instalada) reiniciar, con su ayuda
+func versiones_boton(t: Ventana)
+    if dw_act_nueva == nil
+        return
+    end
+    mui_help(t.v.actualizar, "Hay una versión nueva, la " + dw_act_nueva.version + ": pulsa para instalarla")
+    mui_help(t.v.reiniciar, "Instalada la " + dw_act_nueva.version + ": pulsa para reiniciar Tachyon con ella")
+    mui_set_visible(t.v.actualizar, not dw_act_lista)
+    mui_set_visible(t.v.reiniciar, dw_act_lista)
+end
+
+# En cada tic: la lista de versiones o el ejecutable nuevo, si ya llegaron
+func versiones_avanzar()
+    var nada: Carga = nil
+    if dw_act_carga != nil and http_avanzar(dw_act_carga)
+        r = dw_act_carga.respuesta
+        dw_act_carga = nada
+        if r.error != "" or r.estado != 200
+            if dw_act_manual
+                versiones_estado("No se pudo mirar si hay versiones nuevas")
+            end
+            return
+        end
+        preferencia_poner(FICHERO_PREFERENCIAS, "versiones_visto", "" + actualizar_hoy())
+        dw_act_nueva = actualizar_leer(http_texto(r), DASHWEB_VERSION)
+        if dw_act_nueva != nil
+            for t in dw_ventanas
+                if t.abierta
+                    versiones_boton(t)
+                end
+            end
+            versiones_estado("Hay una versión nueva: " + dw_act_nueva.version)
+        elif dw_act_manual
+            versiones_estado("Tachyon está al día (" + DASHWEB_VERSION + ")")
+        end
+    end
+    if dw_act_bajada != nil and http_avanzar(dw_act_bajada)
+        r = dw_act_bajada.respuesta
+        dw_act_bajada = nada
+        if r.error != "" or r.estado != 200
+            versiones_estado("No se pudo bajar la versión nueva")
+            return
+        end
+        error = actualizar_instalar(actualizar_programa())
+        if error != ""
+            versiones_estado("No se instaló: " + error)
+            return
+        end
+        dw_act_lista = true
+        for t in dw_ventanas
+            if t.abierta
+                versiones_boton(t)
+            end
+        end
+        versiones_estado("Instalada la " + dw_act_nueva.version + ": pulsa el icono verde")
+    end
+end
+
+# El botón: bajar e instalar, o (ya instalada) reiniciar
+func versiones_clic()
+    if dw_act_lista
+        dw_reiniciar = true
+        return
+    end
+    if dw_act_nueva == nil or dw_act_bajada != nil
+        return
+    end
+    dw_act_bajada = actualizar_bajar(dw_act_nueva)
+    versiones_estado("Bajando Tachyon " + dw_act_nueva.version + "...")
+end
+
 # El logo de la página de inicio: docs/logo/tachyon.svg a 540 de ancho sobre blanco (rsvg-convert), recortado y en
 # 32 colores (PIL), en PNG de 366x65 (1,8 KB)
 const LOGO_INICIO = "data:image/png;base64,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"
@@ -96,9 +207,10 @@ func dw_inicio() -> String
     h = h + "body { margin: 0; font-family: sans-serif; background: #eef2fb; color: #0b1736 }"
     h = h + ".cab { background: #fff; border-bottom: 1px solid #d5ddef; padding: 40px 16px 28px; text-align: center }"
     h = h + ".lema { color: #4a5878; margin: 10px 0 0 }"
-    h = h + "form { display: flex; max-width: 520px; margin: 24px auto 0 }"
-    h = h + "form input { flex: 1; width: 400px; padding: 8px 10px; border: 2px solid #2e5bff; border-radius: 6px 0 0 6px; font-size: 16px }"
-    h = h + "form button { padding: 8px 18px; background: #2e5bff; color: #fff; border: 0; border-radius: 0 6px 6px 0; font-weight: bold }"
+    # (sin flex: el campo con flex: 1 y su width salía estrecho y cortaba el botón; tarea 45f)
+    h = h + "form { width: 520px; margin: 24px auto 0; white-space: nowrap }"
+    h = h + "form input { width: 400px; padding: 8px 10px; border: 2px solid #2e5bff; border-radius: 6px 0 0 6px; font-size: 16px; vertical-align: top }"
+    h = h + "form button { padding: 10px 18px; background: #2e5bff; color: #fff; border: 0; border-radius: 0 6px 6px 0; font-weight: bold; font-size: 16px; vertical-align: top }"
     h = h + ".rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-width: 720px; margin: 28px auto; padding: 0 16px }"
     h = h + ".rejilla a { display: block; background: #fff; border: 1px solid #d5ddef; border-radius: 8px; padding: 12px; text-decoration: none; color: #4a5878; font-size: 12px; box-shadow: 0 2px 4px rgba(11, 23, 54, 0.12) }"
     h = h + ".rejilla b { display: block; color: #2e5bff; font-size: 15px; margin-bottom: 4px }"
@@ -106,11 +218,13 @@ func dw_inicio() -> String
     h = h + "</style></head><body><div class=cab>"
     h = h + "<img src=\"" + LOGO_INICIO + "\" width=366 height=65 alt=Tachyon>"
     h = h + "<p class=lema>Un navegador web para <b>AmigaOS</b>, escrito en <i>Dash</i></p>"
-    h = h + "<form action=\"https://www.google.com/search\" method=get><input type=text name=q placeholder=\"Busca en la web o escribe una dirección arriba\">"
+    h = h + "<form action=\"tachyon:buscar\" method=get><input type=text name=q placeholder=\"Busca con " + buscador_de(buscador_elegido()).nombre + "\">"
     h = h + "<button type=submit>Buscar</button></form></div>"
     h = h + "<div class=rejilla>"
     h = h + "<a href=\"tachyon:marcadores\"><b>Marcadores</b>Tus páginas guardadas</a>"
     h = h + "<a href=\"tachyon:cookies\"><b>Cookies</b>Qué guarda cada web</a>"
+    h = h + "<a href=\"tachyon:historial\"><b>Historial</b>Lo que has visto</a>"
+    h = h + "<a href=\"tachyon:buscadores\"><b>Buscador</b>Con cuál buscar</a>"
     h = h + "<a href=\"https://aminet.net/\"><b>Aminet</b>Programas para Amiga</a>"
     h = h + "<a href=\"https://amigaworld.net/\"><b>AmigaWorld.net</b>Noticias y foros</a>"
     h = h + "<a href=\"https://es.wikipedia.org/\"><b>Wikipedia</b>La enciclopedia libre</a>"
@@ -130,6 +244,62 @@ func modo_carga(w: Ventana, cargando: Bool)
     mui_set_visible(w.v.recargar, not cargando)
     mui_set_visible(w.v.parar, cargando)
     mui_set_visible(w.v.progreso, cargando)
+end
+
+# El candado (cerrado con HTTPS, abierto con HTTP, sin él en las páginas tachyon:) y la estrella (llena si la página
+# está en marcadores) de la barra de la dirección; solo se tocan si cambian
+func indicadores(w: Ventana)
+    dir = ""
+    if w.actual != nil
+        dir = w.actual.direccion
+    end
+    candado = 0
+    if str_starts(dir, "https:")
+        candado = 1
+    elif str_starts(dir, "http:")
+        candado = 2
+    end
+    # (un botón por estado: MUI 3.8 no cambia la imagen de un botón ya hecho)
+    if candado != w.candado
+        w.candado = candado
+        mui_set_visible(w.v.candado, candado == 1)
+        mui_set_visible(w.v.candado_abierto, candado == 2)
+    end
+    estrella = 0
+    if dir != "" and not str_starts(dir, "tachyon:") and marcadores_tiene(FICHERO_MARCADORES, dir)
+        estrella = 1
+    end
+    if estrella != w.estrella
+        w.estrella = estrella
+        mui_set_visible(w.v.estrella_llena, estrella == 1)
+        mui_set_visible(w.v.estrella, estrella != 1)
+    end
+end
+
+# La estrella o el menú: la página a marcadores, o fuera si ya estaba
+func marcador_alternar(w: Ventana)
+    dir = w.actual.direccion
+    if dir == "" or str_starts(dir, "tachyon:")
+        dw_estado(w, "Esta página no se guarda en marcadores")
+        return
+    end
+    if marcadores_tiene(FICHERO_MARCADORES, dir)
+        if marcadores_quitar(FICHERO_MARCADORES, dir)
+            dw_estado(w, "Quitada de marcadores")
+        end
+    elif marcadores_agregar(FICHERO_MARCADORES, dir, w.actual.titulo)
+        dw_estado(w, "En marcadores: " + w.actual.titulo)
+    else
+        dw_estado(w, "No se pudo guardar el marcador")
+    end
+    indicadores(w)
+end
+
+# El cursor al campo de la dirección (Amiga-L)
+@native func activar(ventana: Int, objeto: Int)
+"""
+    if (ventana && objeto) SetAttrs((Object *)ventana, MUIA_Window_ActiveObject, (IPTR)objeto, TAG_DONE);
+"""
 end
 
 # La barra de estado: un texto largo ensancharía la ventana entera (MUI le da el ancho de su texto)
@@ -206,44 +376,68 @@ func pinta3(x: Int, y: Int, ancho: Int, alto: Int)
     pinta_en(3, x, y, ancho, alto)
 end
 
-# El indicador de actividad de cada ventana (como la página: una función por ventana)
-func giro0(x: Int, y: Int, ancho: Int, alto: Int)
-    giro_en(0, x, y, ancho, alto)
+# El led de actividad de cada ventana, en la barra de estado (como la página: una función por ventana)
+func led0(x: Int, y: Int, ancho: Int, alto: Int)
+    led_en(0, x, y, ancho, alto)
 end
 
-func giro1(x: Int, y: Int, ancho: Int, alto: Int)
-    giro_en(1, x, y, ancho, alto)
+func led1(x: Int, y: Int, ancho: Int, alto: Int)
+    led_en(1, x, y, ancho, alto)
 end
 
-func giro2(x: Int, y: Int, ancho: Int, alto: Int)
-    giro_en(2, x, y, ancho, alto)
+func led2(x: Int, y: Int, ancho: Int, alto: Int)
+    led_en(2, x, y, ancho, alto)
 end
 
-func giro3(x: Int, y: Int, ancho: Int, alto: Int)
-    giro_en(3, x, y, ancho, alto)
+func led3(x: Int, y: Int, ancho: Int, alto: Int)
+    led_en(3, x, y, ancho, alto)
 end
 
-# Mientras algo llega, un punto quieto (el lápiz 3 de la pantalla); parado, nada. Antes eran ocho puntos que
-# giraban: diez repintados por segundo de MUI mientras cargaba, caros en un Amiga (lo vio el usuario)
-func giro_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
+# Un led redondo con su brillo: verde que parpadea mientras algo llega, rojo si la página falló, apagado si no. Un
+# lienzo de 14x12: repintarlo tres veces por segundo no cuesta (antes, un punto arriba que se veía poco y mal)
+func led_en(k: Int, x: Int, y: Int, ancho: Int, alto: Int)
     gfx_pen(0)
     gfx_rect(x, y, x + ancho - 1, y + alto - 1)
-    if k >= dw_ventanas.length or dw_ventanas[k].giro < 0
-        return
+    estado = -1
+    if k < dw_ventanas.length
+        estado = dw_ventanas[k].giro
     end
-    gfx_pen(3)
-    gfx_circle_fill(x + ancho / 2, y + alto / 2, 4)
+    cx = x + ancho / 2
+    cy = y + alto / 2
+    gfx_pen(color_pen(50, 50, 50))
+    gfx_circle_fill(cx, cy, 5)
+    if estado == 1
+        gfx_pen(color_pen(70, 225, 90))
+    elif estado == 0
+        gfx_pen(color_pen(30, 100, 40))
+    elif estado == 2
+        gfx_pen(color_pen(225, 50, 40))
+    else
+        gfx_pen(color_pen(105, 105, 105))
+    end
+    gfx_circle_fill(cx, cy, 4)
+    if estado == 1
+        gfx_pen(color_pen(215, 255, 215))
+    elif estado == 2
+        gfx_pen(color_pen(255, 200, 190))
+    else
+        gfx_pen(color_pen(150, 150, 150))
+    end
+    gfx_circle_fill(cx - 1, cy - 2, 1)
 end
 
 # Mueve el indicador si algo está llegando (página, hojas, scripts, imágenes); si no, lo para
 func actualizar_giro(w: Ventana)
     nuevo = -1
     if w.carga != nil or w.preparando != nil or w.descarga != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
-        nuevo = 0
+        # (el tic va cada 50 ms mientras algo llega: el led cambia cada 300)
+        nuevo = (time_ms() / 300) % 2
+    elif w.actual != nil and w.actual.error != ""
+        nuevo = 2
     end
     if nuevo != w.giro
         w.giro = nuevo
-        mui_canvas_redraw(w.v.actividad)
+        mui_canvas_redraw(w.v.led)
     end
     # con la página ya puesta, la barra de progreso sigue a la vista mientras faltan imágenes: las llegadas
     # de todas las pedidas
@@ -352,6 +546,26 @@ func abrir(w: Ventana, direccion: String)
     if str_starts(str_lower(direccion), "dashweb:")
         direccion = "tachyon:" + direccion[8:]
     end
+    # tachyon:buscar?q=...: el buscador de la página de inicio, con el buscador elegido (la barra y atrás ya llevan a
+    # la de sus resultados)
+    if str_starts(direccion, "tachyon:buscar?")
+        q = ""
+        p = str_find(direccion, "q=")
+        if p >= 0
+            q = direccion[p + 2:]
+            f = str_find(q, "&")
+            if f >= 0
+                q = q[:f]
+            end
+            q = url_deshacer(str_replace(q, "+", " "))
+        end
+        resultados = buscar_url(buscador_elegido(), q)
+        if w.visto >= 0 and w.visto < w.pasos.length and w.pasos[w.visto] == direccion
+            w.pasos[w.visto] = resultados
+        end
+        direccion = resultados
+        mui_set_text(w.v.url, direccion)
+    end
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
         dw_estado(w, "Conectando con " + direccion + "...")
         mui_set_value(w.v.progreso, 5)
@@ -368,8 +582,24 @@ func abrir(w: Ventana, direccion: String)
     var d: Documento = nil
     if direccion == "" or direccion == "tachyon:inicio"
         d = documento_html("tachyon:inicio", dw_inicio())
-    elif direccion == "tachyon:marcadores"
+    elif str_starts(direccion, "tachyon:marcadores")
+        # tachyon:marcadores?quitar=dirección: el enlace "quitar" de cada uno
+        p = str_find(direccion, "?quitar=")
+        if p >= 0
+            marcadores_quitar(FICHERO_MARCADORES, direccion[p + 8:])
+        end
         d = documento_html("tachyon:marcadores", marcadores_html(FICHERO_MARCADORES))
+    elif str_starts(direccion, "tachyon:buscadores")
+        p = str_find(direccion, "?usar=")
+        if p >= 0
+            preferencia_poner(FICHERO_PREFERENCIAS, "buscador", direccion[p + 6:])
+        end
+        d = documento_html("tachyon:buscadores", buscadores_html(buscador_elegido()))
+    elif str_starts(direccion, "tachyon:historial")
+        if str_starts(direccion, "tachyon:historial?borrar")
+            historial_borrar(FICHERO_HISTORIAL)
+        end
+        d = documento_html("tachyon:historial", historial_html(FICHERO_HISTORIAL, historial_ahora()))
     elif str_starts(direccion, "tachyon:cookies")
         # dashweb:cookies?borrar (todas) o ?borrar=dominio
         if str_starts(direccion, "tachyon:cookies?borrar")
@@ -549,7 +779,7 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     end
     var nadie: Nodo = nil
     w.foco = nadie
-    if w.actual.titulo != ""
+    if w.actual.titulo != "" and w.actual.titulo != "Tachyon"
         mui_set_text(w.v.window, w.actual.titulo + " - Tachyon")
     else
         mui_set_text(w.v.window, "Tachyon")
@@ -565,6 +795,11 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     mui_canvas_redraw(w.v.pagina)
     temporizadores(w)
     actualizar_giro(w)
+    indicadores(w)
+    # al historial (tachyon:historial) lo que llegó bien, no las páginas propias
+    if w.actual.error == "" and (str_starts(w.actual.direccion, "http:") or str_starts(w.actual.direccion, "https:"))
+        historial_agregar(FICHERO_HISTORIAL, w.actual.direccion, w.actual.titulo, historial_ahora())
+    end
 end
 
 # El único mui_timer, para todas las ventanas: cada 50 ms mientras algo llega, si no al siguiente
@@ -953,34 +1188,30 @@ end
 
 # Una entrada nueva en el historial (lo que había delante se descarta)
 func apuntar(w: Ventana, destino: String)
-    while mui_list_count(w.v.historial) > w.visto + 1
-        mui_list_remove(w.v.historial, mui_list_count(w.v.historial) - 1)
+    while w.pasos.length > w.visto + 1
+        w.pasos.remove(w.pasos.length - 1)
     end
-    mui_list_add(w.v.historial, destino)      # la pedida: la página aún está llegando
-    w.visto = mui_list_count(w.v.historial) - 1
+    w.pasos.push(destino)      # la pedida: la página aún está llegando
+    w.visto = w.pasos.length - 1
     botones(w)
 end
 
-# Atrás y adelante: con su flecha azul si llevan a algún sitio y solo el contorno si no (un botón
+# Atrás y adelante: con su flecha azul si llevan a algún sitio y en gris si no (un botón
 # desactivado de MUI sale tapado por una trama); pulsar uno apagado no hace nada
 func botones(w: Ventana)
     atras = w.visto > 0
-    adelante = w.visto < mui_list_count(w.v.historial) - 1
+    adelante = w.visto < w.pasos.length - 1
+    # (un botón encendido y otro apagado de cada uno: MUI 3.8 no cambia la imagen de un botón ya hecho)
     if atras != w.con_atras
         w.con_atras = atras
-        mui_set_text(w.v.atras, icono("atras", atras))
+        mui_set_visible(w.v.atras, atras)
+        mui_set_visible(w.v.atras_no, not atras)
     end
     if adelante != w.con_adelante
         w.con_adelante = adelante
-        mui_set_text(w.v.adelante, icono("adelante", adelante))
+        mui_set_visible(w.v.adelante, adelante)
+        mui_set_visible(w.v.adelante_no, not adelante)
     end
-end
-
-func icono(nombre: String, encendido: Bool) -> String
-    if encendido
-        return "PROGDIR:iconos/" + nombre + ".iff"
-    end
-    return "PROGDIR:iconos/" + nombre + "_apagado.iff"
 end
 
 # Desplaza la página n píxeles (la barra avisa con ID_SCROLL y se repinta)
@@ -990,11 +1221,11 @@ end
 
 # La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló; y para el comando Version del Amiga,
 # la cadena $VER del ejecutable (con la fecha del día en que se cambia la versión: van juntas)
-const DASHWEB_VERSION = "0.4.0-alfa"
+const DASHWEB_VERSION = "0.5.0-alfa"
 
 @native(borrow) func texto_version(v: String) -> String
 """
-    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.4.0-alfa (23.10.2026)";
+    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.5.0-alfa (23.10.2026)";
     static char b[160];
     sprintf(b, "\033c\033bTachyon %s\033n\n\033ccompilado el %s a las %s", (char *)v, __DATE__, __TIME__);
     return (STRPTR)b;
@@ -1019,19 +1250,21 @@ func nueva_ventana(direccion: String) -> Ventana
     end
     v = Navegador_create()
     w = Ventana(v, k)
+    var sin_pasos: [String] = []
+    w.pasos = sin_pasos
     dw_ventanas.push(w)
     if k == 0
         mui_canvas_on_draw(v.pagina, pinta0)
-        mui_canvas_on_draw(v.actividad, giro0)
+        mui_canvas_on_draw(v.led, led0)
     elif k == 1
         mui_canvas_on_draw(v.pagina, pinta1)
-        mui_canvas_on_draw(v.actividad, giro1)
+        mui_canvas_on_draw(v.led, led1)
     elif k == 2
         mui_canvas_on_draw(v.pagina, pinta2)
-        mui_canvas_on_draw(v.actividad, giro2)
+        mui_canvas_on_draw(v.led, led2)
     else
         mui_canvas_on_draw(v.pagina, pinta3)
-        mui_canvas_on_draw(v.actividad, giro3)
+        mui_canvas_on_draw(v.led, led3)
     end
     mui_canvas_on_input(v.pagina, ID_PAGINA)
     mui_canvas_on_move(v.pagina, ID_RATON + k)
@@ -1042,6 +1275,7 @@ func nueva_ventana(direccion: String) -> Ventana
     if k > 0
         mover_ventana(v.window, k * 24, k * 16)
     end
+    versiones_boton(w)
     if direccion != ""
         navegar(w, direccion)
     else
@@ -1087,6 +1321,15 @@ func activa() -> Ventana
     return primera
 end
 
+# El buscador elegido (tachyon:buscadores; DuckDuckGo si no se eligió ninguno)
+func buscador_elegido() -> String
+    b = preferencia(FICHERO_PREFERENCIAS, "buscador")
+    if b == ""
+        return BUSCADOR_POR_DEFECTO
+    end
+    return b
+end
+
 func pagina_inicio() -> String
     inicio = preferencia(FICHERO_PREFERENCIAS, "inicio")
     if inicio == ""
@@ -1129,6 +1372,9 @@ Main
                 traza("memoria libre al empezar " + mem_total() / 1024 + " KB")
             elif arg(i) == "GCSIEMPRE"
                 js_gc_siempre(true)
+            elif str_starts(arg(i), "VERSIONES=")
+                # VERSIONES=dirección: la lista de versiones de ahí y no de GitHub, mirada ya (para probarlo)
+                actualizar_api = arg(i)[10:]
             elif str_starts(arg(i), "DIBUJOS=")
                 # DIBUJOS=y0-y1: al acabar la página, sus dibujos de entre esas alturas por la salida (para depurar)
                 trozos = css_partir(arg(i)[8:], 45)
@@ -1144,9 +1390,15 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=")
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=")
                 nueva_ventana(arg(i))
             end
+        end
+        # (con argumentos no: así lo abren las pruebas y las medidas, que no deben preguntar a GitHub cada vez)
+        if str_starts(actualizar_api, "http://")
+            versiones_mirar(true)
+        elif arg_count() == 0 and preferencia(FICHERO_PREFERENCIAS, "avisar_versiones") != "no" and preferencia(FICHERO_PREFERENCIAS, "versiones_visto") != "" + actualizar_hoy()
+            versiones_mirar(false)
         end
         acerca_abierta = false
         while abiertas() > 0
@@ -1170,6 +1422,7 @@ Main
                         end
                     end
                 end
+                versiones_avanzar()
                 programar()
                 continue
             end
@@ -1203,7 +1456,10 @@ Main
             end
             if ev == ID_IR
                 direccion = str_trim(mui_get_text(w.v.url))
-                if direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
+                if es_busqueda(direccion)
+                    # unas palabras: se buscan con el buscador elegido, como en Chrome
+                    direccion = buscar_url(buscador_elegido(), direccion)
+                elif direccion != "" and not str_starts(direccion, "http") and str_find(direccion, ":") < 0
                     direccion = "http://" + direccion
                 end
                 if direccion == ""
@@ -1214,33 +1470,42 @@ Main
             end
             if ev == ID_RECARGAR and w.actual != nil
                 if w.visto >= 0
-                    abrir(w, mui_list_get(w.v.historial, w.visto))
+                    abrir(w, w.pasos[w.visto])
                 else
                     abrir(w, "")
                 end
             end
-            if ev == ID_ATRAS or ev == ID_ADELANTE or ev == ID_HISTORIAL
-                if ev == ID_ATRAS and w.visto > 0
+            if (ev == ID_ATRAS and w.visto > 0) or (ev == ID_ADELANTE and w.visto < w.pasos.length - 1)
+                if ev == ID_ATRAS
                     w.visto = w.visto - 1
-                end
-                if ev == ID_ADELANTE and w.visto < mui_list_count(w.v.historial) - 1
+                else
                     w.visto = w.visto + 1
                 end
-                if ev == ID_HISTORIAL and mui_get_value(w.v.historial) >= 0
-                    w.visto = mui_get_value(w.v.historial)
-                end
                 if w.visto >= 0
-                    direccion = mui_list_get(w.v.historial, w.visto)
+                    direccion = w.pasos[w.visto]
                     mui_set_text(w.v.url, direccion)
                     abrir(w, direccion)
                 end
                 botones(w)
             end
             if ev == ID_VER_HISTORIAL
-                # desplegar o esconder la lista del historial (la página se maqueta al ancho nuevo)
-                w.con_historial = not w.con_historial
-                mui_set_visible(w.v.historial, w.con_historial)
-                mui_set_visible(w.v.separador, w.con_historial)
+                navegar(w, "tachyon:historial")
+            end
+            if ev == ID_COOKIES
+                navegar(w, "tachyon:cookies")
+            end
+            if ev == ID_BUSCADORES
+                navegar(w, "tachyon:buscadores")
+            end
+            if ev == ID_IR_DIRECCION
+                activar(w.v.window, w.v.url)
+            end
+            if ev == ID_CANDADO and w.actual != nil
+                if w.candado == 1
+                    dw_estado(w, "Conexión cifrada (HTTPS) con " + url_parse(w.actual.direccion).host)
+                else
+                    dw_estado(w, "Esta página llega sin cifrar (HTTP)")
+                end
             end
             if ev == ID_SCROLL
                 if w.desde != mui_get_value(w.v.barra)
@@ -1289,12 +1554,8 @@ Main
             if ev == ID_MARCADORES
                 navegar(w, "tachyon:marcadores")
             end
-            if ev == ID_ANADIR and w.actual != nil
-                if marcadores_agregar(FICHERO_MARCADORES, w.actual.direccion, w.actual.titulo)
-                    dw_estado(w, "Marcador: " + w.actual.titulo)
-                else
-                    dw_estado(w, "No se pudo guardar el marcador")
-                end
+            if (ev == ID_ANADIR or ev == ID_ESTRELLA) and w.actual != nil
+                marcador_alternar(w)
             end
             if ev == ID_USAR_INICIO and w.actual != nil
                 if preferencia_poner(FICHERO_PREFERENCIAS, "inicio", w.actual.direccion)
@@ -1311,6 +1572,21 @@ Main
             end
             if ev == ID_CERRAR
                 cerrar_ventana(w)
+            end
+            if ev == ID_ACTUALIZAR
+                versiones_clic()
+                if dw_reiniciar
+                    break
+                end
+            end
+            if ev == ID_BUSCAR_VERSIONES
+                preferencia_poner(FICHERO_PREFERENCIAS, "avisar_versiones", "si")
+                dw_estado(w, "Mirando si hay una versión nueva...")
+                versiones_mirar(true)
+            end
+            if ev == ID_NO_AVISAR
+                preferencia_poner(FICHERO_PREFERENCIAS, "avisar_versiones", "no")
+                dw_estado(w, "No avisará de versiones nuevas")
             end
             if ev == ID_ACERCA
                 if acerca_abierta
@@ -1332,5 +1608,8 @@ Main
         red_terminar()
         cookies_guardar(FICHERO_COOKIES)
         mui_app_end()
+        if dw_reiniciar and not actualizar_lanzar(actualizar_programa())
+            Print "Tachyon: no se pudo abrir la versión nueva; ábrela a mano"
+        end
     end
 end

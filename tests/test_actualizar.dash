@@ -1,0 +1,47 @@
+# Test: lib/actualizar.dash (tarea 44) contra un GitHub de mentira (tests/servers/http.py, /act/): qué versión es
+# más nueva, la de la lista con su Tachyon.gz, bajarlo e instalarlo en lugar de otro (el de antes como .old), y uno
+# que llega mal (CRC) no cambia nada.
+# emu-server: http.py 40892
+# memcheck
+# expect-out: versiones: true false false true false
+# expect-out: novedad: 9.9.0-alfa http://127.0.0.1:40892/act/Tachyon.gz
+# expect-out: sin novedad: true
+# expect-out: instalada: [] true true
+# expect-out: rota: [lo bajado llegó mal (CRC)] true false
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/actualizar.dash"
+
+func esperar(c: Carga)
+    while not http_avanzar(c)
+        time_delay(1)
+    end
+end
+
+Main
+    Print "versiones: " + actualizar_mas_nueva("v0.5.0-alfa", "0.4.0-alfa") + " " + actualizar_mas_nueva("0.4.0", "0.4.0-alfa") + " " + actualizar_mas_nueva("v0.3.9", "0.4.0-alfa") + " " + actualizar_mas_nueva("1.0", "0.10.2") + " " + actualizar_mas_nueva("0.9", "0.10")
+    actualizar_api = "http://127.0.0.1:40892/act/releases"
+    c = actualizar_empezar()
+    esperar(c)
+    lista = http_texto(c.respuesta)
+    n = actualizar_leer(lista, "0.4.0-alfa")
+    Print "novedad: " + n.version + " " + n.url
+    Print "sin novedad: " + (actualizar_leer(lista, "9.9.0-alfa") == nil)
+    # uno de antes en T:, cambiado por el bajado
+    file_write_text("T:prueba_tachyon", "el de antes")
+    d = actualizar_bajar(n)
+    esperar(d)
+    error = actualizar_instalar("T:prueba_tachyon")
+    Print "instalada: [" + error + "] " + str_contains(file_read_text("T:prueba_tachyon"), "$VER: Tachyon 9.9.0-alfa") + " " + (file_read_text("T:prueba_tachyon.old") == "el de antes")
+    # el que llega roto: todo como estaba
+    actualizar_api = "http://127.0.0.1:40892/act/roto/releases"
+    c2 = actualizar_empezar()
+    esperar(c2)
+    n2 = actualizar_leer(http_texto(c2.respuesta), "0.4.0-alfa")
+    d2 = actualizar_bajar(n2)
+    esperar(d2)
+    file_write_text("T:prueba_tachyon2", "el de antes")
+    error = actualizar_instalar("T:prueba_tachyon2")
+    Print "rota: [" + error + "] " + (file_read_text("T:prueba_tachyon2") == "el de antes") + " " + file_exists("T:prueba_tachyon2.old")
+    red_terminar()
+end
