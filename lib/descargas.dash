@@ -1,0 +1,324 @@
+# El gestor de descargas (tarea 47): lo que no es una página se baja a un fichero según llega (http_volcar), varias a
+# la vez y aunque se cambie de página o se cierre la ventana. La página tachyon:descargas las enseña con lo que va
+# llegando, su velocidad y lo que falta, y deja pararlas, reintentarlas, quitarlas de la lista y abrir su cajón en el
+# Workbench. Las acabadas (o fallidas) se guardan en un fichero de una vez para otra.
+#
+#   d = descargas_empezar("https://aminet.net/x.lha", "Work:x.lha", "x.lha")
+#   descargas_avanzar()            # en cada tic: true si alguna cambió de estado
+#   html = descargas_html()        # la página
+#   descargas_accion("parar", 3)   # parar, reintentar, quitar, abrir (por su número)
+
+import "http.dash"
+
+@header "#include <proto/wb.h>"
+
+const DESCARGA_BAJANDO = 0
+const DESCARGA_HECHA = 1
+const DESCARGA_ERROR = 2
+const DESCARGA_PARADA = 3
+const DESCARGAS_MAX = 50       # las que se recuerdan
+
+struct Descarga
+    id: Int
+    nombre: String
+    direccion: String
+    ruta: String
+    estado: Int = 0
+    carga: Carga = nil
+    empezada: Int = 0          # time_ms
+    bytes: Int = 0             # los que llegaron (con la acabada: su tamaño)
+    total: Int = -1            # los que serán (-1: no se sabe)
+    error: String = ""
+end
+
+var descargas: [Descarga] = []
+var _descargas_siguiente: Int = 1
+var descargas_fichero: String = ""
+
+func descargas_empezar(direccion: String, ruta: String, nombre: String) -> Descarga
+    d = Descarga(_descargas_siguiente, nombre, direccion, ruta)
+    _descargas_siguiente = _descargas_siguiente + 1
+    d.empezada = time_ms()
+    # (según llega, sin juntarla en memoria: un fichero grande no cabría; tarea 40b)
+    d.carga = http_volcar(http_empezar_a_fichero(direccion, ruta, 30000))
+    descargas.insert(0, d)
+    return d
+end
+
+# Cuántas están bajando
+func descargas_activas() -> Int
+    n = 0
+    for d in descargas
+        if d.estado == DESCARGA_BAJANDO
+            n = n + 1
+        end
+    end
+    return n
+end
+
+# Lo que va de todas las que bajan, en %: -1 si de alguna no se sabe el total
+func descargas_porcentaje() -> Int
+    llegado = 0
+    total = 0
+    for d in descargas
+        if d.estado == DESCARGA_BAJANDO
+            if d.total <= 0
+                return -1
+            end
+            llegado = llegado + d.bytes
+            total = total + d.total
+        end
+    end
+    if total <= 0
+        return -1
+    end
+    return llegado * 100 / total
+end
+
+# En cada tic: lo que llega de cada una; true si alguna acabó o falló
+func descargas_avanzar() -> Bool
+    cambio = false
+    for d in descargas
+        if d.estado != DESCARGA_BAJANDO
+            continue
+        end
+        hecha = http_avanzar(d.carga)
+        d.bytes = http_recibidos(d.carga)
+        if http_total(d.carga) > 0
+            d.total = http_total(d.carga)
+        end
+        if hecha
+            r = d.carga.respuesta
+            if r.error == "" and r.estado >= 200 and r.estado < 300
+                d.estado = DESCARGA_HECHA
+                if file_size(d.ruta) > 0
+                    d.bytes = file_size(d.ruta)
+                end
+                d.total = d.bytes
+            else
+                d.estado = DESCARGA_ERROR
+                d.error = r.error
+                if d.error == ""
+                    d.error = "el servidor respondió " + r.estado
+                end
+            end
+            var nada: Carga = nil
+            d.carga = nada
+            cambio = true
+        end
+    end
+    if cambio
+        descargas_guardar()
+    end
+    return cambio
+end
+
+func _descarga_de(id: Int) -> Descarga
+    for d in descargas
+        if d.id == id
+            return d
+        end
+    end
+    var nada: Descarga = nil
+    return nada
+end
+
+# parar, reintentar, quitar (de la lista; el fichero se queda), abrir (su cajón en el Workbench); "" o qué pasó
+func descargas_accion(accion: String, id: Int) -> String
+    d = _descarga_de(id)
+    if d == nil
+        return ""
+    end
+    if accion == "parar" and d.estado == DESCARGA_BAJANDO
+        http_cancelar(d.carga)
+        var nada: Carga = nil
+        d.carga = nada
+        d.estado = DESCARGA_PARADA
+        descargas_guardar()
+        return "Parada: " + d.nombre
+    end
+    if accion == "reintentar" and d.estado != DESCARGA_BAJANDO
+        d.estado = DESCARGA_BAJANDO
+        d.error = ""
+        d.bytes = 0
+        d.total = -1
+        d.empezada = time_ms()
+        file_delete(d.ruta)
+        d.carga = http_volcar(http_empezar_a_fichero(d.direccion, d.ruta, 30000))
+        return "Otra vez: " + d.nombre
+    end
+    if accion == "quitar"
+        if d.estado == DESCARGA_BAJANDO
+            http_cancelar(d.carga)
+        end
+        i = 0
+        while i < descargas.length
+            if descargas[i].id == id
+                descargas.remove(i)
+            else
+                i = i + 1
+            end
+        end
+        descargas_guardar()
+        return "Quitada de la lista: " + d.nombre
+    end
+    if accion == "abrir"
+        if _abrir_cajon(d.ruta)
+            return "Abierto el cajón de " + d.nombre
+        end
+        return "El Workbench no puede abrir el cajón (necesita AmigaOS 3.5 o más)"
+    end
+    return ""
+end
+
+# El cajón del fichero en el Workbench (workbench.library 44: AmigaOS 3.5 o más)
+@native(borrow) func _abrir_cajon(ruta: String) -> Bool
+"""
+    struct Library *wb;
+    char cajon[300];
+    STRPTR fin;
+    BOOL ok = FALSE;
+    if (!ruta || strlen((char *)ruta) >= sizeof(cajon)) return FALSE;
+    strcpy(cajon, (char *)ruta);
+    fin = PathPart((STRPTR)cajon);
+    *fin = 0;
+    if (!(wb = OpenLibrary((STRPTR)"workbench.library", 44))) return FALSE;
+    {
+        struct Library *WorkbenchBase = wb;
+        ok = OpenWorkbenchObjectA((STRPTR)cajon, NULL);
+    }
+    CloseLibrary(wb);
+    return ok;
+"""
+end
+
+# Dónde guardar: el selector de ficheros de ASL con el nombre ya puesto y en el cajón de la última vez (Return y
+# listo, como en los navegadores; el dialog_file de Dash no deja dar un nombre); "" si se cancela
+@native(borrow) func descargas_pedir_ruta(titulo: String, cajon: String, nombre: String) -> String
+"""
+    struct FileRequester *fr;
+    static char r[512];
+    r[0] = 0;
+    if (!_dash_asl_open()) return _dash_str_dup((STRPTR)"", TRUE);
+    fr = (struct FileRequester *)AllocAslRequestTags(ASL_FileRequest, TAG_DONE);
+    if (!fr) return _dash_str_dup((STRPTR)"", TRUE);
+    if (AslRequestTags(fr, ASLFR_TitleText, (ULONG)titulo, ASLFR_DoSaveMode, TRUE, ASLFR_RejectIcons, TRUE,
+                       ASLFR_InitialDrawer, (ULONG)cajon, ASLFR_InitialFile, (ULONG)nombre, TAG_DONE)) {
+        strncpy(r, (char *)fr->fr_Drawer, sizeof(r) - 1);
+        r[sizeof(r) - 1] = 0;
+        if (fr->fr_File && fr->fr_File[0]) AddPart((STRPTR)r, fr->fr_File, sizeof(r));
+        else r[0] = 0;
+    }
+    FreeAslRequest(fr);
+    return _dash_str_dup((STRPTR)r, TRUE);
+"""
+end
+
+# "1,5 MB", "640 KB", "512 bytes"
+func _tamano(n: Int) -> String
+    if n >= 1048576
+        return "" + n / 1048576 + "," + (n % 1048576) * 10 / 1048576 + " MB"
+    end
+    if n >= 1024
+        return "" + n / 1024 + " KB"
+    end
+    return "" + n + " bytes"
+end
+
+func _escapar(t: String) -> String
+    return str_replace(str_replace(str_replace(t, "&", "&amp;"), "<", "&lt;"), "\"", "&quot;")
+end
+
+# La página tachyon:descargas: cada una con su estado y sus acciones (tachyon:descargas?parar=3...)
+func descargas_html() -> String
+    h = "<html><head><title>Descargas</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
+    h = h + "h1 { color: #1d3557 } .e { margin: 8px 0; padding: 8px 12px; background: #f3f5f9; border-radius: 6px } "
+    h = h + ".n { font-weight: bold; color: #1d3557 } .r { color: #555; font-size: 12px } .estado { font-size: 13px; "
+    h = h + "margin-top: 4px } .ok { color: #2e7a3e } .mal { color: #b3261e } .barra { height: 8px; background: #d8dde8; "
+    h = h + "border-radius: 4px; margin-top: 6px } .lleno { height: 8px; background: #2e9e48; border-radius: 4px } "
+    h = h + ".acc { float: right; font-size: 13px; color: #888 }</style></head><body><h1>Descargas</h1>"
+    if descargas.length == 0
+        return h + "<p>Aún no has bajado nada. Lo que no es una página (un .lha, un .zip...) se baja aquí.</p></body></html>"
+    end
+    for d in descargas
+        q = "tachyon:descargas?"
+        h = h + "<div class=e><span class=acc>"
+        if d.estado == DESCARGA_BAJANDO
+            h = h + "<a href=\"" + q + "parar=" + d.id + "\">parar</a>"
+        else
+            if d.estado != DESCARGA_HECHA
+                h = h + "<a href=\"" + q + "reintentar=" + d.id + "\">reintentar</a>"
+            else
+                h = h + "<a href=\"" + q + "abrir=" + d.id + "\">abrir el cajón</a>"
+            end
+            h = h + " · <a href=\"" + q + "quitar=" + d.id + "\">quitar</a>"
+        end
+        h = h + "</span><span class=n>" + _escapar(d.nombre) + "</span><div class=r>" + _escapar(d.ruta) + " · "
+        h = h + _escapar(d.direccion) + "</div><div class=estado>"
+        if d.estado == DESCARGA_BAJANDO
+            seg = (time_ms() - d.empezada) / 1000
+            vel = 0
+            if seg > 0
+                vel = d.bytes / seg
+            end
+            t = _tamano(d.bytes)
+            if d.total > 0
+                t = t + " de " + _tamano(d.total) + " (" + d.bytes * 100 / d.total + " %)"
+            end
+            if vel > 0
+                t = t + " · " + _tamano(vel) + "/s"
+                if d.total > d.bytes
+                    t = t + " · faltan " + (d.total - d.bytes) / vel + " s"
+                end
+            end
+            h = h + t + "</div>"
+            if d.total > 0
+                h = h + "<div class=barra><div class=lleno style=\"width:" + d.bytes * 100 / d.total + "%\"></div></div>"
+            end
+        elif d.estado == DESCARGA_HECHA
+            h = h + "<span class=ok>Hecha: " + _tamano(d.bytes) + "</span></div>"
+        elif d.estado == DESCARGA_PARADA
+            h = h + "Parada</div>"
+        else
+            h = h + "<span class=mal>No se pudo: " + _escapar(d.error) + "</span></div>"
+        end
+        h = h + "</div>"
+    end
+    return h + "</body></html>"
+end
+
+# Las acabadas, paradas o fallidas, a su fichero (las que bajan no: al volver, no siguen); como mucho DESCARGAS_MAX
+func descargas_guardar()
+    if descargas_fichero == ""
+        return
+    end
+    t = ""
+    n = 0
+    for d in descargas
+        if d.estado != DESCARGA_BAJANDO and n < DESCARGAS_MAX
+            t = t + d.estado + "\t" + d.bytes + "\t" + d.ruta + "\t" + d.direccion + "\t" + str_replace(d.nombre, "\t", " ") + "\t" + str_replace(d.error, "\t", " ") + "\n"
+            n = n + 1
+        end
+    end
+    file_write_text(descargas_fichero, t)
+end
+
+func descargas_cargar(fichero: String)
+    descargas_fichero = fichero
+    t = file_read_text(fichero)
+    if t == nil
+        return
+    end
+    for l in str_split(t, "\n")
+        p = str_split(l, "\t")
+        if p.length >= 6
+            d = Descarga(_descargas_siguiente, p[4], p[3], p[2])
+            _descargas_siguiente = _descargas_siguiente + 1
+            d.estado = str_to_int(p[0], 10)
+            d.bytes = str_to_int(p[1], 10)
+            d.total = d.bytes
+            d.error = p[5]
+            descargas.push(d)
+        end
+    end
+end

@@ -422,13 +422,26 @@ tarea, con el estilo de Dash.
          Mojeek y Ecosia fuera (piden demostrar que no se es un robot). Google enseña antes su aviso de cookies.
       [ ] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
-- [ ] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
+         (2026-10-23) Dash no los tiene: propuesto a la sesión dash como D71 (@catalog, tr(id, texto), ids en el
+         .dashui y una herramienta .cd/.ct -> .catalog). Espera a ella.
+         (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
+- [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
       la ventana; la página tachyon:descargas con cada una (nombre, dónde se guarda, KB de cuántos, velocidad, lo que
       falta), con parar, reintentar, quitar de la lista y "abrir el cajón" (el Workbench, OpenWorkbenchObject en 3.2);
       las acabadas se guardan en Tachyon.descargas. Un icono de descarga en la barra mientras alguna va (con la ayuda
       "2 descargas: 45 %"), que abre la página; menú Herramientas, Descargas (Amiga-J). Preguntar dónde guardar o usar
       un cajón por defecto (preferencia; por defecto, preguntar como hoy).
+- [ ] 48. **Las webs de FreeMEM (usuario, 2026-10-23): tachyon.freemem.space, dash.freemem.space y
+      trasfondo.freemem.space, que se vean decentes; y la animación de estrellas de tachyon.freemem.space "sería la
+      rehostia".** Las tres son Next.js (turbopack). Las estrellas y la bola Boing de dash son un <canvas> 2D:
+      a. Canvas 2D (lo que usan): getContext("2d"), fillStyle/strokeStyle con rgba, fillRect, clearRect, lineWidth,
+         beginPath, moveTo, lineTo, stroke, setTransform; luego arc, fill y lo que pida la Boing. Un búfer de píxeles
+         por lienzo (lo dibuja el JavaScript, en C), el pintor lo vuelca a su caja como un vídeo y cada
+         requestAnimationFrame repinta solo esa zona. Las estrellas: 700 líneas por fotograma con estela (un fillRect
+         translúcido): medir cuántos fotogramas da.
+      b. Cada web: comparar con Chrome y arreglar lo que salga.
+
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
@@ -4176,4 +4189,25 @@ Formato:
 - La página de inicio vuelve a su buscador con flex (el campo a lo ancho, el botón entero), como en Chrome.
 - test_maqueta_flex: z9 y z10 (un campo con flex: 1 y width: 400px y un botón propio llenan los 600: 516 + 84).
 - Batería: 99/99 (2243 s).
+
+### 2026-10-23 — Tarea 47: el gestor de descargas
+- lib/descargas.dash: una lista para todo el navegador (antes, una por ventana y solo en la barra de estado): varias a
+  la vez, según llegan al fichero (http_volcar), que siguen aunque se cambie de página o se cierre la ventana. La
+  página tachyon:descargas con cada una (nombre, ruta, dirección; KB de cuántos, %, velocidad y lo que falta, una
+  barra; hecha o por qué falló) y sus acciones (parar, reintentar, quitar de la lista, abrir el cajón en el Workbench:
+  OpenWorkbenchObjectA de workbench.library 44). Las acabadas, paradas o fallidas, en Tachyon.descargas (50).
+- src/dashweb.dash: el icono de descargas en la barra (Lucide "download") mientras alguna baja, con su ayuda ("2
+  descargas: 45 %"), que abre la página; Herramientas > Descargas (Amiga-J); la página, al día cada segundo mientras
+  bajan; "Descarga hecha: x" en la barra de estado; si la ventana no tenía página, abre tachyon:descargas. Dónde
+  guardar: el selector de ASL con el nombre ya puesto y en el cajón de la última vez (RAM: la primera; preferencia
+  cajon_descargas): Return y listo (el dialog_file de Dash no deja dar un nombre y Return sin él cancelaba). Se guarda
+  la dirección pedida, no la de después de las redirecciones (la de GitHub caduca).
+- Un cuelgue al arrancar por un nombre: el botón del .dashui se llamaba "descargas", como la lista global de
+  lib/descargas.dash, y el programa leía el objeto MUI como la lista (MuForce: lecturas de 0x0F000000 y de campos
+  nulos desde abrir). Renombrado a ver_descargas; contado a la sesión dash (debería avisar el compilador).
+- Probado: test_descargas (dos a la vez, un 404, parar a medias y reintentar, quitar, la página, guardar y cargar).
+  En el emulador, tachyon.lha de la v0.5.0 desde GitHub (con su redirección): el selector con el nombre, Return, y
+  bajado entero (6.929.268 bytes) con la página de descargas abierta ("Hecha: 6,6 MB"). Sin ver: la barra de
+  progreso en pantalla (bajó en menos de 15 s) y "abrir el cajón" (sin Workbench en el emulador).
+- Batería: 100/100 (2221 s, Dash 9c1c1f6 con la D71).
 

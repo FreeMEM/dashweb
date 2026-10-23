@@ -17,6 +17,7 @@ import "../lib/formularios.dash"
 import "../lib/marcadores.dash"
 import "../lib/actualizar.dash"
 import "../lib/buscadores.dash"
+import "../lib/descargas.dash"
 
 # desde el icono del Workbench, lo que escribe (console.log de las páginas, «entera en») no abre una consola
 @workbench_output "NIL:"
@@ -46,6 +47,7 @@ const ID_COOKIES = 25
 const ID_ESTRELLA = 26
 const ID_CANDADO = 27
 const ID_BUSCADORES = 28
+const ID_DESCARGAS = 29
 # y los del programa
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
@@ -61,6 +63,8 @@ const FICHERO_PREFERENCIAS = "PROGDIR:Tachyon.prefs"
 const FICHERO_COOKIES = "PROGDIR:Tachyon.cookies"
 # Lo visto (lib/marcadores.dash, tachyon:historial)
 const FICHERO_HISTORIAL = "PROGDIR:Tachyon.historial"
+# Las descargas acabadas (lib/descargas.dash, tachyon:descargas)
+const FICHERO_DESCARGAS = "PROGDIR:Tachyon.descargas"
 
 # Una ventana del navegador y lo que tiene
 struct Ventana
@@ -87,8 +91,6 @@ struct Ventana
     con_atras: Bool = false     # los iconos de atrás y adelante, encendidos o apagados
     con_adelante: Bool = false
     empezada: Int = 0        # time_ms de cuando se pidió la página (para medir la carga entera)
-    descarga: Carga = nil    # algo que se está guardando en un fichero (un .lha, un .zip...)
-    descarga_ruta: String = ""
     aviso_scroll: Bool = false   # la vista se movió: el evento scroll del JavaScript, en el siguiente tic
     animando: Bool = false       # alguna animación de CSS viva: un fotograma en cada tic (unos 15 por segundo)
     fotograma: Int = 0           # time_ms del último fotograma pintado
@@ -428,7 +430,7 @@ end
 # Mueve el indicador si algo está llegando (página, hojas, scripts, imágenes); si no, lo para
 func actualizar_giro(w: Ventana)
     nuevo = -1
-    if w.carga != nil or w.preparando != nil or w.descarga != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
+    if w.carga != nil or w.preparando != nil or descargas_activas() > 0 or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
         # (el tic va cada 50 ms mientras algo llega: el led cambia cada 300)
         nuevo = (time_ms() / 300) % 2
     elif w.actual != nil and w.actual.error != ""
@@ -588,6 +590,19 @@ func abrir(w: Ventana, direccion: String)
             marcadores_quitar(FICHERO_MARCADORES, direccion[p + 8:])
         end
         d = documento_html("tachyon:marcadores", marcadores_html(FICHERO_MARCADORES))
+    elif str_starts(direccion, "tachyon:descargas")
+        # tachyon:descargas?parar=3 (y reintentar, quitar, abrir): los enlaces de cada una
+        p = str_find(direccion, "?")
+        if p >= 0
+            q = str_find(direccion, "=")
+            if q > p
+                aviso = descargas_accion(direccion[p + 1:q], str_to_int(direccion[q + 1:], 10))
+                if aviso != ""
+                    dw_estado(w, aviso)
+                end
+            end
+        end
+        d = documento_html("tachyon:descargas", descargas_html())
     elif str_starts(direccion, "tachyon:buscadores")
         p = str_find(direccion, "?usar=")
         if p >= 0
@@ -690,55 +705,118 @@ func avanzar_carga(w: Ventana)
 end
 
 # Lo que no es una página se guarda: el selector de ficheros y luego se baja tal cual a ese fichero (la primera
-# respuesta llegó como texto, que cambia los bytes 0: se pide otra vez); la página de antes se queda
+# respuesta llegó como texto, que cambia los bytes 0: se pide otra vez); la página de antes se queda. La bajada va al
+# gestor de descargas (lib/descargas.dash): sigue aunque se cambie de página, con otras a la vez
 func empezar_descarga(w: Ventana, r: Respuesta)
     modo_carga(w, false)
     mui_set_value(w.v.progreso, 0)
     nombre = documento_nombre_descarga(r)
-    direccion = r.url
+    # (la pedida, no la de después de las redirecciones: la de GitHub caduca y reintentar fallaría)
+    direccion = w.carga_dir
     if direccion == ""
-        direccion = w.carga_dir
+        direccion = r.url
     end
     if w.actual != nil
         mui_set_text(w.v.url, w.actual.direccion)
     end
-    ruta = dialog_file("Guardar " + nombre + " (escribe el nombre)", "#?", true)
+    # (con su nombre ya puesto, en el cajón de la última vez: RAM: la primera)
+    cajon = preferencia(FICHERO_PREFERENCIAS, "cajon_descargas")
+    if cajon == ""
+        cajon = "RAM:"
+    end
+    ruta = descargas_pedir_ruta("Guardar " + nombre, cajon, nombre)
     if ruta == ""
         dw_estado(w, "Descarga cancelada: " + nombre)
         actualizar_giro(w)
         return
     end
-    if str_ends(ruta, ":") or str_ends(ruta, "/")
-        ruta = ruta + nombre
+    if dialog_cajon(ruta) != cajon
+        preferencia_poner(FICHERO_PREFERENCIAS, "cajon_descargas", dialog_cajon(ruta))
     end
-    if w.descarga != nil
-        http_cancelar(w.descarga)
+    descargas_empezar(direccion, ruta, nombre)
+    # (si la ventana no tenía página, ésta: no se queda en blanco y se ve cómo va)
+    if w.actual == nil
+        mui_set_text(w.v.url, "tachyon:descargas")
+        abrir(w, "tachyon:descargas")
     end
-    # (según llega, sin juntarla en memoria: un fichero grande no cabría; tarea 40b)
-    w.descarga = http_volcar(http_empezar_a_fichero(direccion, ruta, 30000))
-    w.descarga_ruta = ruta
-    dw_estado(w, "Bajando " + nombre + " a " + ruta + "...")
+    dw_estado(w, "Bajando " + nombre + " (Amiga-J: las descargas)")
+    descargas_tic()
     actualizar_giro(w)
     programar()
 end
 
-func avanzar_descarga(w: Ventana)
-    if w.descarga == nil
-        return
+# El cajón de una ruta ("Work:a/b.lha" -> "Work:a")
+func dialog_cajon(ruta: String) -> String
+    i = ruta.length - 1
+    while i >= 0
+        c = str_code(ruta, i)
+        if c == 47
+            return ruta[:i]
+        end
+        if c == 58
+            return ruta[:i + 1]
+        end
+        i = i - 1
     end
-    if not http_avanzar(w.descarga)
-        dw_estado(w, "Bajando a " + w.descarga_ruta + ": " + http_recibidos(w.descarga) / 1024 + " KB")
-        return
+    return ""
+end
+
+# === Las descargas (tarea 47, lib/descargas.dash) ===
+var dw_desc_activas: Int = -1        # las que había en el último tic (para tocar el icono solo si cambia)
+var dw_desc_ayuda: String = ""
+var dw_desc_pagina: Int = 0          # time_ms de la última vez que se rehízo tachyon:descargas
+
+# En cada tic: lo que llega de cada una, el icono de la barra (con su ayuda: cuántas y cuánto va) y la página
+# tachyon:descargas al día (cada segundo, o en cuanto una acaba)
+func descargas_tic()
+    cambio = descargas_avanzar()
+    activas = descargas_activas()
+    if activas != dw_desc_activas
+        dw_desc_activas = activas
+        for t in dw_ventanas
+            if t.abierta
+                mui_set_visible(t.v.ver_descargas, activas > 0)
+            end
+        end
     end
-    r = w.descarga.respuesta
-    if r.error == "" and r.estado >= 200 and r.estado < 300
-        dw_estado(w, "Guardado en " + w.descarga_ruta + " (" + r.bytes / 1024 + " KB)")
-    else
-        dw_estado(w, "No se pudo guardar " + w.descarga_ruta + ": " + r.error + " " + r.estado)
+    if activas > 0
+        ayuda = "" + activas + " descarga"
+        if activas > 1
+            ayuda = ayuda + "s"
+        end
+        pc = descargas_porcentaje()
+        if pc >= 0
+            ayuda = ayuda + ": " + pc + " %"
+        end
+        if ayuda != dw_desc_ayuda
+            dw_desc_ayuda = ayuda
+            for t in dw_ventanas
+                if t.abierta
+                    mui_help(t.v.ver_descargas, ayuda + " (pulsa para verlas)")
+                end
+            end
+        end
     end
-    var nada: Carga = nil
-    w.descarga = nada
-    actualizar_giro(w)
+    if cambio
+        for d in descargas
+            if d.carga == nil and d.estado == DESCARGA_HECHA and d.bytes > 0 and time_ms() - d.empezada < 600000
+                versiones_estado("Descarga hecha: " + d.nombre)
+                break
+            end
+        end
+    end
+    if cambio or (activas > 0 and time_ms() - dw_desc_pagina > 1000)
+        dw_desc_pagina = time_ms()
+        for t in dw_ventanas
+            if t.abierta and t.carga == nil and t.actual != nil and t.actual.direccion == "tachyon:descargas"
+                desde = t.desde
+                mostrar(t, documento_html("tachyon:descargas", descargas_html()), "")
+                t.desde = desde
+                ajustar_barra(t)
+                mui_canvas_redraw(t.v.pagina)
+            end
+        end
+    end
 end
 
 # Para lo que esté llegando (la página o sus recursos)
@@ -816,7 +894,7 @@ func programar()
                     espera = e
                 end
             end
-            trayendo = w.carga != nil or w.preparando != nil or w.descarga != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
+            trayendo = w.carga != nil or w.preparando != nil or (w.actual != nil and imagenes_pendientes(w.actual.im) > 0)
             if trayendo and (espera < 0 or espera > 50)
                 espera = 50
             end
@@ -844,6 +922,10 @@ func programar()
                 end
             end
         end
+    end
+    # (las descargas, de todas las ventanas: lo que llega y la página tachyon:descargas al día)
+    if descargas_activas() > 0 and (espera < 0 or espera > 250)
+        espera = 250
     end
     if espera > 0
         mui_timer(espera, ID_TIC)
@@ -977,7 +1059,6 @@ end
 
 func tic(w: Ventana)
     avanzar_carga(w)
-    avanzar_descarga(w)
     # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
     if js_cortado()
         dw_estado(w, "Un script de la página tardaba demasiado: cortado")
@@ -1354,6 +1435,7 @@ Main
     # la tarea de la red (lib/red.dash) sigue 30 s sin conexiones: guarda las sesiones TLS y los nombres entre páginas
     red_ociosa_ms = 60000
     cookies_cargar(FICHERO_COOKIES)
+    descargas_cargar(FICHERO_DESCARGAS)
     # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)
     dos_requesters(false)
     if mui_app_begin("Tachyon", "TACHYON") == 0
@@ -1422,6 +1504,7 @@ Main
                     end
                 end
                 versiones_avanzar()
+                descargas_tic()
                 programar()
                 continue
             end
@@ -1495,6 +1578,9 @@ Main
             end
             if ev == ID_BUSCADORES
                 navegar(w, "tachyon:buscadores")
+            end
+            if ev == ID_DESCARGAS
+                navegar(w, "tachyon:descargas")
             end
             if ev == ID_IR_DIRECCION
                 activar(w.v.window, w.v.url)
