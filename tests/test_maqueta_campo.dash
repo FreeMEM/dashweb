@@ -1,0 +1,32 @@
+# Test: un campo de texto que maqueta su CSS (display block o inline-block: el buscador de Wikipedia) lleva un control
+# sin marco (D_CONTROL de estilo 1) en su caja de contenido, para su texto, su placeholder y su cursor; uno en la línea,
+# el control de siempre (estilo 0); y el control sin marco no ensancha lo que se mide (un inline-block sin width).
+# Comprobado a mano (tarea 42h).
+# memcheck
+# expect-out: bloque 1 31,11 300x20
+# expect-out: linea 0
+# expect-out: inline-block 1 ancho 100
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+import "../lib/documento.dash"
+
+func control(html: String) -> Dibujo
+    var nada: Dibujo = nil
+    d = dom_desde_html5("<!DOCTYPE html><html><body style='margin:0'>" + html + "</body></html>")
+    estilo_aplicar(d, estilo_hojas(d, "http://x/"))
+    p = maquetar(d, 600)
+    for x in p.dibujos
+        if x.tipo == D_CONTROL
+            return x
+        end
+    end
+    return nada
+end
+
+Main
+    c = control("<input placeholder=Buscar style='display:block;box-sizing:border-box;width:332px;height:42px;padding:10px 0 10px 30px;border:1px solid gray;margin:0'>")
+    Print "bloque " + c.estilo + " " + c.x + "," + c.y + " " + c.ancho + "x" + c.alto
+    c = control("<input placeholder=Buscar>")
+    Print "linea " + c.estilo
+    c = control("<div style='display:inline-block'><input style='display:inline-block;width:100px;border:0;padding:0'></div>")
+    Print "inline-block " + c.estilo + " ancho " + c.ancho
+end

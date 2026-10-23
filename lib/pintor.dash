@@ -329,6 +329,10 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
     claro = _lapiz(16777215)
     oscuro = _lapiz(6316128)
     texto_visible = y >= y0 and y + h - 1 <= y1
+    if d.estilo == 1
+        _campo_propio_pintar(d, n, tipo, x, y, w, h, y0, y1)
+        return
+    end
     if n.nombre == "button" or tipo == "submit" or tipo == "reset" or tipo == "button"
         _rect_recortado(x, y, w, h, x0, y0, x1, y1, _lapiz(13684944))
         _rect_recortado(x, y, w, 1, x0, y0, x1, y1, claro)
@@ -365,6 +369,14 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
     font_use(d.fuente)
     font_style(0)
     hueco = w - 6
+    # el texto empieza tras el padding-left de la página, si tiene (el buscador de Wikipedia deja 36 px a su lupa)
+    izq = 3
+    if n.nombre != "select" and n.estilo != nil and n.estilo.has("padding-left")
+        pl = estilo_px(n.estilo["padding-left"], 16, w)
+        if pl > izq and pl < w / 2
+            izq = pl
+        end
+    end
     texto = ""
     if n.nombre == "textarea"
         _textarea_pintar(n, x, y, w, h)
@@ -391,18 +403,69 @@ func _control_pintar(d: Dibujo, x: Int, y: Int, x0: Int, y0: Int, x1: Int, y1: I
             texto = oculto
         end
         # lo que no cabe se corta por delante: se ve lo último que se escribió
-        while texto != "" and font_text_width(texto) > hueco - 2
+        while texto != "" and font_text_width(texto) > hueco - 2 - (izq - 3)
             texto = texto[1:]
         end
     end
     gfx_pen(_lapiz(0))
     if texto != ""
-        gfx_text_at(x + 3, y + 3 + font_baseline(), texto)
+        gfx_text_at(x + izq, y + 3 + font_baseline(), texto)
+    elif n.nombre == "input" and dom_atributo(n, "placeholder") != ""
+        # vacío: su placeholder en gris, cortado por detrás si no cabe (tarea 42h)
+        ayuda = dom_atributo(n, "placeholder")
+        while ayuda != "" and font_text_width(ayuda) > w - izq - 3
+            ayuda = ayuda[:ayuda.length - 1]
+        end
+        gfx_pen(_lapiz(7697781))
+        gfx_text_at(x + izq, y + 3 + font_baseline(), ayuda)
+        gfx_pen(_lapiz(0))
     end
     if pintor_foco == n and n.nombre != "select"
-        cx = x + 3 + font_text_width(texto)
+        cx = x + izq + font_text_width(texto)
         gfx_pen(_lapiz(204))
         gfx_rect(cx, y + 2, cx, y + h - 3)
+    end
+end
+
+# Un campo de texto que dibuja la página (display block...; d.estilo 1): sin marco, su texto (o su placeholder en
+# gris) y el cursor, centrados en el alto de su caja de contenido, del color de su texto
+func _campo_propio_pintar(d: Dibujo, n: Nodo, tipo: String, x: Int, y: Int, w: Int, h: Int, y0: Int, y1: Int)
+    font_use(d.fuente)
+    font_style(0)
+    ty = y + (h - font_height()) / 2
+    if ty < y0 or ty + font_height() - 1 > y1
+        return
+    end
+    texto = dom_atributo(n, "value")
+    if tipo == "password"
+        oculto = ""
+        for i in (1..texto.length)
+            oculto = oculto + "*"
+        end
+        texto = oculto
+    end
+    while texto != "" and font_text_width(texto) > w - 2
+        texto = texto[1:]
+    end
+    color = 0
+    if n.estilo != nil and n.estilo.has("color") and css_color(n.estilo["color"]) >= 0
+        color = css_color(n.estilo["color"])
+    end
+    if texto != ""
+        gfx_pen(_lapiz(color))
+        gfx_text_at(x, ty + font_baseline(), texto)
+    elif dom_atributo(n, "placeholder") != ""
+        ayuda = dom_atributo(n, "placeholder")
+        while ayuda != "" and font_text_width(ayuda) > w
+            ayuda = ayuda[:ayuda.length - 1]
+        end
+        gfx_pen(_lapiz(7697781))
+        gfx_text_at(x, ty + font_baseline(), ayuda)
+    end
+    if pintor_foco == n
+        cx = x + font_text_width(texto)
+        gfx_pen(_lapiz(204))
+        gfx_rect(cx, ty, cx, ty + font_height() - 1)
     end
 end
 

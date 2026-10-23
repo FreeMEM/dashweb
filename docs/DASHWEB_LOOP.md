@@ -413,6 +413,14 @@ tarea, con el estilo de Dash.
          icono encima de la U.
       h. (de la misma comparación) Wikipedia: el buscador sin su texto ("Buscar en Wikipedia") ni el botón "Buscar".
          amigaworld.net: las » del menú de la izquierda salen como "?".
+         Hecho (2026-10-23): el texto del buscador (los campos con display block llevan su control). Las » de
+         amigaworld: igual que Chrome (la cabecera HTTP dice UTF-8 y los bytes son Latin-1: U+FFFD; no es fallo).
+         Queda el botón "Buscar": en el navegador sale de 25 px con su texto fuera, a la izquierda (traza: medido a
+         1 de ancho); en una copia local de la cabecera (tests, sin JS) sale de 41 (Chrome 71) y con letra de 13 px
+         (Chrome 14: font-size var(--font-size-small, 0.875rem), y --font-size-medium se nombra a sí misma). No es
+         rem (con html { font-size: 100% } rem ya vale 16).
+      j. tools/traza.py (máquina objetivo, sys31) no acaba con una imagen data:image/svg+xml;utf8,... de fondo o de
+         máscara (el navegador, en 3.1 y en 3.2, sí: es la herramienta); así no se puede trazar Wikipedia en local.
       i. (usuario, 2026-10-22, captura de CoffinOS) github.com/freemem: el avatar enorme (sin su tamaño, tapa la
          columna izquierda), "Skip o c ntent" (le faltan letras), las pestañas muy separadas y el contador de
          repositorios en una pastilla alta con el número dos veces.
@@ -3825,3 +3833,15 @@ Formato:
   patrocinadores, faltan las redes y las secciones, y un icono sobre la U de "NUEVO" (en 42g).
 - test_fuente_web: el icono (la W de Vera Mono como "A"; la "B" vacía).
 - Batería: 94/94 (2038 s). freemem.space (Font Awesome, a mano) y amigaworld.net, como antes.
+
+### 2026-10-23 — Tarea 42h (el buscador de Wikipedia)
+- Un <input> de texto con display block (o inline-block, o hijo de un flex) se maquetaba como una caja más, con el
+  fondo y el borde de la página y sin control: no enseñaba su texto, ni su placeholder, ni lo que se escribía (el
+  buscador de Wikipedia, y los de muchas webs). lib/maqueta.dash: lleva un D_CONTROL de estilo 1 en su caja de
+  contenido (`_campo_de_texto`), que no cuenta al medir anchos (como un fondo); lib/pintor.dash
+  `_campo_propio_pintar`: sin marco, el texto (o el placeholder en gris) centrado en su alto, del color del texto, y el
+  cursor. El control de siempre (en la línea) también pinta el placeholder y empieza tras el padding-left.
+- Las » de amigaworld.net: igual que Chrome (no es fallo). El botón "Buscar" de Wikipedia sigue vacío (lo averiguado,
+  en 42h) y tools/traza.py no acaba con imágenes data: SVG en utf8 (42j).
+- tests/test_maqueta_campo.dash (nuevo): el control de un campo de bloque, uno en la línea y que no ensancha al medir.
+- Batería: 95/95 (2138 s). Wikipedia: "Buscar en Wikipedia" en gris tras la lupa. Google y amigaworld.net, como antes.
