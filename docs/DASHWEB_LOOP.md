@@ -190,6 +190,11 @@ tarea, con el estilo de Dash.
       (lo encontró la tarea 11 con `--memcheck`).
 - [x] D16. **`for` sobre una lista prestada.** La liberaba al acabar (lo encontró la tarea 9).
 - [x] D15. **Carácter contra literal con escape.** `c == "\r"` comparaba punteros (lo pidió la tarea 5).
+- [x] D70. **Comparar textos con nil sin leer la dirección 0** (2026-10-23, tarea 43; propuesta a la sesión "dash").
+      `a == b` entre String es `strcmp(a, b) == 0`: con `a` nil (un campo `String = nil`) lee la dirección 0. En un 68k
+      clásico no se nota; AmigaOS 4 no lo deja y el programa se cae (un usuario con la v0.3.0). Propuesto: nil como
+      texto vacío (o distinto de todo texto no nil) en las comparaciones.
+      Hecha por la sesión dash (main 028c67d, PR #22): `_dash_str_cmp`, nil antes de todo texto y nil == nil.
 - [x] D69. **La red desde una tarea de task_start** (usuario, 2026-10-23, tarea 42e; propuesta a la sesión "dash").
       net_* y tls_* usan la SocketBase y el AmiSSL de la tarea que arrancó el programa: una tarea de task_start (como
       la que decodifica imágenes) no puede abrir ni leer sockets. Con eso dashweb movería toda su red (DNS, conexión,
@@ -387,13 +392,24 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
-- [ ] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
+- [ ] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
+      una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
+      GitHub (api.github.com/repos/FreeMEM/tachyon/releases: también las pre-release, que /releases/latest no da) y
+      compararla con DASHWEB_VERSION. Si hay una nueva, un aviso en la barra (un botón "Actualizar", sin ventanas que
+      salten) y nada más: solo al pulsarlo se baja el ejecutable, se guarda como Tachyon.new junto al actual, se
+      renombra el actual a Tachyon.old y el nuevo a Tachyon (en AmigaOS el ejecutable no queda bloqueado tras
+      LoadSeg), y se ofrece reiniciar. Si algo falla, el actual se queda como estaba. Tachyon no sabe abrir .lha:
+      cada versión publica también el ejecutable solo comprimido con gzip (Tachyon.gz; lo inflate de lib/http.dash),
+      con su tamaño y su SHA-256 en las notas para comprobarlo antes de cambiar nada (tools/paquete.sh y la
+      publicación). Probar en el emulador con una versión de mentira servida en local.
+- [x] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
       (Grim Reaper) al iniciar, en código 68k bajo Petunia; luego otra vez sí arrancó y navegó (Aminet). En sus
       registros: ___main+0x300 (la vuelta de main al arranque), una llamada a FreeVec (LVO -690) y _strchr+0x10.
       Sospecha: una lectura de un puntero nulo (o liberado) que en un 68k clásico pasa sin ruido y OS4 no deja (la
       página cero no está). Buscarlo en FS-UAE con MMU (68040 con MMU) y MuForce/Enforcer: arrancar desde el icono y
       desde el Shell, con y sin red, y arreglar cada acceso que salga. Pedir al usuario el registro entero (con la
       pila) si vuelve a pasar.
+      Hecho (2026-10-23): strcmp con un texto nil en _palabras_texto (ver la bitácora); falta que lo pruebe él.
 
 - [ ] 39. **Cargas despertadas por la red, no por un tic (necesita D60; después de la 37).** El bucle de
       src/dashweb.dash espera con `mui_wait_event_signals(net_signal() | señal de las tareas)` y, al llegar una
@@ -4006,4 +4022,18 @@ Formato:
 - Sigue sin arreglar (también con la red de antes): player.twitch.tv da "no se pudo descomprimir" y en Xataka falla
   un chunk de webpack (999 o 915) a los ~8 s de pedirlo.
 - Batería: 97/97 (2345 s); luego las de red, recursos, imágenes y documento otra vez tras el reintento del GET.
+
+### 2026-10-23 — Tarea 43: el cuelgue al arrancar en AmigaOS 4
+- Un usuario de OS4 (Sam460ex, v0.3.0-alfa) mandó el registro de GrimReaper y la salida serie: DSI leyendo la
+  dirección 0 en código de Petunia (el JIT de 68k). Las instrucciones PPC del fallo (li r3,0; lbz r10,0(r7);
+  rlwimi r3,r10,...) son `clrl d0; moveb a1@+,d0` de strcmp con a1 = 0.
+- En FS-UAE con la MMU del 68040 y MuForce (máquina rtgmmu de tools/medir_visor.py, sistema
+  ~/.cache/dash-emu/sys32rtg38mmu con SegTracker de Enforcer y MuForce de NDK3.2 MuTools): 150 lecturas de la
+  dirección 0 al arrancar, en strcmp desde `_palabras_texto` (lib/maqueta.dash): `nodo_texto.pal_clave == clave` con
+  pal_clave nil (la primera vez que se mide ese texto). En un 68k clásico se lee la memoria baja y no pasa nada.
+- Arreglado en los dos sitios: lib/maqueta.dash mira pal_anchos antes de comparar, y Dash D70 (la sesión dash, main
+  028c67d) compara textos con `_dash_str_cmp`, que nunca lee la dirección 0 (nil va antes que todo texto).
+- Con los dos, MuForce no da ninguna lectura prohibida del programa al arrancar ni con es.wikipedia.org/wiki/Amiga
+  entera (con su JavaScript). Queda una de muigfx.library (BYTE READ de 0x2B) desde Dtpic.mui al abrir la ventana:
+  es del MUI 5 de 68k (en OS4 se usa el MUI de OS4); sin mirar si se lo provoca Tachyon.
 

@@ -29,6 +29,12 @@ MAQUINAS = {
     # ($DASH_KICKSTART_32; sistema ~/.cache/dash-emu/sys32rtg, ver tools/emu_sys_rtg.sh)
     "rtg": "cpu = 68040\nfpu = 68040\njit_compiler = 1\nuae_cpu_speed = max\nzorro_iii_memory = 131072\n"
            "graphics_card = uaegfx\n",
+    # la misma con la MMU del 68040 (sin JIT: FS-UAE no la emula con él), para MuForce: avisa de cada lectura o
+    # escritura fuera de la memoria (la dirección 0: un 68k clásico la lee sin ruido y AmigaOS 4 se cuelga; tarea
+    # 43). Sistema: ~/.cache/dash-emu/sys32rtg38mmu (sys32rtg38 con C/MuForce, Libs/disassembler.library de MuTools
+    # y "Run >NIL: C:MuForce FILE=DH0:muforce.txt" en S/Startup-Extra); los avisos, en muforce.txt con --guardar
+    "rtgmmu": "cpu = 68040\nfpu = 68040\nuae_mmu_model = 68040\nzorro_iii_memory = 131072\n"
+              "graphics_card = uaegfx\n",
     # la misma con la pantalla ancha de 1680x1050 (FS-UAE añade a uaegfx la resolución de pantalla completa);
     # sistema: una copia de sys32rtg38 con el modo 0x50971100 (1680x1050 de 16 bits) en
     # Prefs/Env-Archive/Sys/ScreenMode.prefs, como hace tools/emu_sys_rtg.sh con el de 1024x768

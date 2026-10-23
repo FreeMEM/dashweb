@@ -3882,7 +3882,8 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
     var blancos: [Int] = nil
     var anchos: [Int] = nil
     blanco_final = false
-    if nodo_texto != nil and nodo_texto.pal_clave == clave and nodo_texto.pal_texto == texto_dom and nodo_texto.pal_anchos != nil
+    # (pal_anchos antes: sin ella pal_clave es nil, y comparar un texto nil lee la dirección 0, que AmigaOS 4 no deja)
+    if nodo_texto != nil and nodo_texto.pal_anchos != nil and nodo_texto.pal_clave == clave and nodo_texto.pal_texto == texto_dom
         palabras = nodo_texto.pal_palabras
         blancos = nodo_texto.pal_blancos
         anchos = nodo_texto.pal_anchos
