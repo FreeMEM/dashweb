@@ -415,7 +415,8 @@ tarea, con el estilo de Dash.
          amigaworld.net: las » del menú de la izquierda salen como "?".
          Hecho (2026-10-23): el texto del buscador (los campos con display block llevan su control). Las » de
          amigaworld: igual que Chrome (la cabecera HTTP dice UTF-8 y los bytes son Latin-1: U+FFFD; no es fallo).
-         Queda el botón "Buscar": en el navegador sale de 25 px con su texto fuera, a la izquierda (traza: medido a
+         El botón "Buscar" ya sale (era la caja anónima del flex sin padre, 42i (2)); queda su texto arriba en vez
+         de centrado en el alto (align-items: center en un inline-flex). Lo de antes: salía de 25 px (medido a
          1 de ancho); en una copia local de la cabecera (tests, sin JS) sale de 41 (Chrome 71) y con letra de 13 px
          (Chrome 14: font-size var(--font-size-small, 0.875rem), y --font-size-medium se nombra a sí misma). No es
          rem (con html { font-size: 100% } rem ya vale 16).
