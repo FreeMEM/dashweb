@@ -1507,9 +1507,23 @@ func _fuente(g: {String: Candidata}, v: String, imp: Bool, autor: Bool, esp: Int
             _proponer(g, "font-weight", Candidata(x, imp, autor, esp, orden))
         elif _es_longitud(x) or str_find(x, "/") > 0 or x == "small" or x == "medium" or x == "large" or str_ends(x, "-small") or str_ends(x, "-large")
             barra = str_find(x, "/")
-            if barra > 0
+            if barra > 0 and barra < x.length - 1
                 _proponer(g, "line-height", Candidata(x[barra + 1:], imp, autor, esp, orden))
                 x = x[:barra]
+            elif barra > 0
+                # "1rem/ 1.5"
+                x = x[:barra]
+                if i + 1 < t.length
+                    _proponer(g, "line-height", Candidata(t[i + 1], imp, autor, esp, orden))
+                    i = i + 1
+                end
+            elif i + 1 < t.length and t[i + 1] == "/" and i + 2 < t.length
+                # "1rem / 1.5" (así lo da el valor de una --x de Primer, la de GitHub)
+                _proponer(g, "line-height", Candidata(t[i + 2], imp, autor, esp, orden))
+                i = i + 2
+            elif i + 1 < t.length and str_starts(t[i + 1], "/")
+                _proponer(g, "line-height", Candidata(t[i + 1][1:], imp, autor, esp, orden))
+                i = i + 1
             end
             _proponer(g, "font-size", Candidata(x, imp, autor, esp, orden))
             familia = ""
@@ -1608,12 +1622,52 @@ func _vars_nombradas(v: String, usadas: {String: Int})
     end
 end
 
+# Las --x que nombran los atributos style del árbol, a usadas
+func _vars_inline(n: Nodo, usadas: {String: Int})
+    if n.tipo == DOM_ELEMENTO and dom_tiene_atributo(n, "style")
+        _vars_nombradas(dom_atributo(n, "style"), usadas)
+    end
+    for h in n.hijos
+        _vars_inline(h, usadas)
+    end
+end
+
+# true si el texto nombra una --x que no está en usadas
+func _vars_nuevas(v: String, usadas: {String: Int}) -> Bool
+    if str_find(v, "var(") < 0
+        return false
+    end
+    var vistas: {String: Int} = {}
+    _vars_nombradas(v, vistas)
+    for k in vistas.keys()
+        if not usadas.has(k)
+            return true
+        end
+    end
+    return false
+end
+
+func _vars_inline_nuevas(n: Nodo, usadas: {String: Int}) -> Bool
+    if n.tipo == DOM_ELEMENTO and dom_tiene_atributo(n, "style") and _vars_nuevas(dom_atributo(n, "style"), usadas)
+        return true
+    end
+    for h in n.hijos
+        if _vars_inline_nuevas(h, usadas)
+            return true
+        end
+    end
+    return false
+end
+
 # Calcula el estilo de todo el árbol
 func estilo_aplicar(doc: Nodo, hojas: Hojas)
     estilo_raro = dom_atributo(doc, "modo") == "quirks"
     if hojas.indice == nil or hojas.indice_ancho != css_vista_ancho()
         _estilo_indexar(hojas)
     end
+    # (también las --x que nombra solo un atributo style: el de GitHub pone --pane-width-size:var(--pane-width-large)
+    # y la hoja da --pane-width-large a un antepasado)
+    _vars_inline(doc, hojas.vars_usadas)
     var limpios: {String: Int} = {}
     _antepasados = limpios
     _vars_usadas = hojas.vars_usadas
@@ -1660,6 +1714,19 @@ func estilo_aplicar_partes(doc: Nodo, hojas: Hojas, toques: [Toque]) -> Bool
         end
         if arriba != doc
             continue
+        end
+        # un style (o lo que entra) que nombra una --x que las hojas no: sus antepasados no la guardaron, entero
+        nueva = false
+        if t.tipo == TOQUE_ATRIBUTO and t.nombre == "style"
+            nueva = _vars_nuevas(t.despues, hojas.vars_usadas)
+        elif t.tipo == TOQUE_ENTRA or t.tipo == TOQUE_CONTENIDO
+            nueva = _vars_inline_nuevas(n, hojas.vars_usadas)
+        end
+        if nueva
+            if traza_activa
+                traza("estilo entero: una --x nueva en un style")
+            end
+            return false
         end
         if not _estilo_toque(t, hojas)
             if traza_activa
@@ -2238,13 +2305,21 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
     # los atajos con var(): se sustituye y se parte; cada parte compite en la cascada con la propiedad suelta (el
     # padding: 0 de un * no le gana al padding-inline: var(...) de una clase)
     var de_atajo: {String: Candidata} = {}
+    # (el font-size de un font: var(...) va abajo con el suelto, si le gana: los títulos de GitHub son h2 { font-size:
+    # var(--h2-size, 24px) } en una capa y :where(.Heading):where([data-variant=small]) { font: var(...) } en otra
+    # de después)
+    tam_atajo = ""
     for p in ganadoras.keys()
         if _es_atajo(p)
             ca = ganadoras[p]
             var partes: {String: Candidata} = {}
             _declarar(partes, Declaracion(p, _resolver_var(ca.valor, vars, 0), false), true, 0, 0)
             for k in partes.keys()
-                if k != "font-size" and (not de_atajo.has(k) or _gana(ca, de_atajo[k]))
+                if k == "font-size"
+                    if not ganadoras.has("font-size") or _gana(ca, ganadoras["font-size"])
+                        tam_atajo = partes[k].valor
+                    end
+                elif not de_atajo.has(k) or _gana(ca, de_atajo[k])
                     e[k] = partes[k].valor
                     de_atajo[k] = ca
                 end
@@ -2273,8 +2348,11 @@ func _calcular(ganadoras: {String: Candidata}, padre: {String: String}, padre_va
             e[p] = v
         end
     end
-    if ganadoras.has("font-size")
-        tam = _resolver_var(ganadoras["font-size"].valor, vars, 0)
+    if ganadoras.has("font-size") or tam_atajo != ""
+        tam = tam_atajo
+        if tam == ""
+            tam = _resolver_var(ganadoras["font-size"].valor, vars, 0)
+        end
         tl = str_lower(str_trim(tam))
         # (inherit y unset: el del padre, ya puesto arriba; antes se medía "inherit" y daba 0 px: el texto de los
         # enlaces y títulos del aviso de Didomi en xataka.com salía diminuto; initial: medium)

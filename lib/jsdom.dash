@@ -620,6 +620,28 @@ func jsdom_raiz(doc: Nodo) -> Nodo
     return dom_buscar(doc, "html")
 end
 
+# location.assign, replace, href = ... (y window.location = ...) del JavaScript de la página (tarea 51; la página de
+# salto de DuckDuckGo hace window.parent.location.replace(destino)): la dirección y si sustituye a la de la página en
+# el historial, en el documento (sus atributos "ir" e "ir_sustituir"); dashweb la abre en el siguiente tic
+func jsdom_navegar(doc: Nodo, u: String, sustituir: Bool)
+    _jsdom_doc_atributo(doc, "ir", u)
+    s = ""
+    if sustituir
+        s = "1"
+    end
+    _jsdom_doc_atributo(doc, "ir_sustituir", s)
+end
+
+func _jsdom_doc_atributo(doc: Nodo, nombre: String, valor: String)
+    for a in doc.atributos
+        if a.nombre == nombre
+            a.valor = valor
+            return
+        end
+    end
+    doc.atributos.push(Atributo(nombre, valor))
+end
+
 func jsdom_titulo(doc: Nodo) -> String
     t = dom_buscar(doc, "title")
     if t == nil
@@ -1381,6 +1403,14 @@ static JSValue _jsdom_galleta(JSContext *ctx, JSValueConst this_val, int argc, J
     return JS_UNDEFINED;
 }
 
+/* __dashweb_navegar(url, sustituir): location.assign/replace/href = (jsdom_navegar) */
+static JSValue _jsdom_navegar(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    char *u = _jsdom_arg(ctx, argc, argv, 0);
+    if (u) jsdom_navegar(_jsdom_de(ctx)->doc, (STRPTR)u, argc > 1 && JS_ToBool(ctx, argv[1]));
+    _jsdom_soltar(u);
+    return JS_UNDEFINED;
+}
+
 /* milliseconds since the program started (Dash's time_ms) */
 static JSValue _jsdom_reloj(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     return JS_NewInt32(ctx, _dash_time_ms());
@@ -1671,6 +1701,7 @@ end
     JS_SetPropertyStr(m->ctx, global, "__dashweb_vista", JS_NewCFunction(m->ctx, _jsdom_vista, "__dashweb_vista", 0));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_pedir", JS_NewCFunction(m->ctx, _jsdom_pedir, "__dashweb_pedir", 5));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_galleta", JS_NewCFunction(m->ctx, _jsdom_galleta, "__dashweb_galleta", 2));
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_navegar", JS_NewCFunction(m->ctx, _jsdom_navegar, "__dashweb_navegar", 2));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_calculado", JS_NewCFunction(m->ctx, _jsdom_calculado, "__dashweb_calculado", 2));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_media", JS_NewCFunction(m->ctx, _jsdom_media, "__dashweb_media", 1));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_documento_nuevo", JS_NewCFunction(m->ctx, _jsdom_documento_nuevo, "__dashweb_documento_nuevo", 1));

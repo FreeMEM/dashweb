@@ -1,0 +1,27 @@
+# Test: el atajo font con var() da también el tamaño si gana en la cascada (tarea 50; los títulos de la columna de
+# un repositorio de GitHub salían a 24 px y no a 16): h2 { font-size: var(--h2-size, 24px) } en una capa y
+# :where(.t):where([data-v=small]) { font: var(--corto, ...) } en otra de después; la --x de Primer trae la barra
+# con espacios ("600 1rem / 1.5 ...") y no debe ir a la familia. Y si gana la suelta, la suelta.
+# expect-out: título: 16px 1.5 600 | familia: "Mona Sans", sans-serif
+# expect-out: con respaldo: 16px | sin capa gana el suelto: 24px
+# expect-out: barra pegada: 20px 1.25
+
+import "../lib/estilo.dash"
+
+func ver(doc: Nodo, id: String) -> {String: String}
+    return dom_por_id(doc, id).estilo
+end
+
+Main
+    h = "<html><head><style>@layer base, react; :root { --corto: 600 1rem / 1.5 \"Mona Sans\", sans-serif }"
+    h = h + "@layer base { h2 { font-size: var(--h2-size, 24px); font-weight: 600 } }"
+    h = h + "@layer react { :where(.t):where([data-v=small]) { font: var(--corto, 600 1rem/1.5 sans-serif) } :where(.r):where([data-v=small]) { font: var(--nada, 600 1rem/1.5 serif) } }"
+    h = h + "h2.u { font-size: 24px } :where(.u) { font: var(--corto) } .b { font: 20px/1.25 serif }</style></head>"
+    h = h + "<body><h2 id=a class=t data-v=small>About</h2><h2 id=r class=r data-v=small>R</h2><h2 id=u class=u>U</h2><p id=b class=b>b</p></body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    e = ver(doc, "a")
+    Print "título: " + e["font-size"] + " " + e["line-height"] + " " + e["font-weight"] + " | familia: " + e["font-family"]
+    Print "con respaldo: " + ver(doc, "r")["font-size"] + " | sin capa gana el suelto: " + ver(doc, "u")["font-size"]
+    Print "barra pegada: " + ver(doc, "b")["font-size"] + " " + ver(doc, "b")["line-height"]
+end

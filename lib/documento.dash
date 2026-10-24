@@ -1452,6 +1452,68 @@ func _documento_por_nombre(n: Nodo, nombre: String) -> Nodo
 end
 
 # "http://x/a.html#b" -> "http://x/a.html" y "b"
+# <meta http-equiv="refresh" content="5; url=...">: "5 dirección" (resuelta; sin ella, la misma página si espera un
+# segundo o más), o "" si no hay (tarea 51; la de dentro de un <noscript> no cuenta: hay JavaScript)
+func documento_refresco(d: Documento) -> String
+    m = _refresco_meta(d.doc)
+    if m == nil
+        return ""
+    end
+    c = str_trim(dom_atributo(m, "content"))
+    i = 0
+    while i < c.length and str_code(c, i) >= 48 and str_code(c, i) <= 57
+        i = i + 1
+    end
+    if i == 0
+        return ""
+    end
+    segundos = Int(c[:i])
+    resto = c[i:]
+    while resto != "" and (str_code(resto, 0) == 46 or (str_code(resto, 0) >= 48 and str_code(resto, 0) <= 57))
+        resto = resto[1:]
+    end
+    resto = str_trim(resto)
+    if str_starts(resto, ";") or str_starts(resto, ",")
+        resto = str_trim(resto[1:])
+    end
+    if str_starts(str_lower(resto), "url")
+        r = str_trim(resto[3:])
+        if str_starts(r, "=")
+            resto = str_trim(r[1:])
+        end
+    end
+    if resto.length >= 2 and (str_starts(resto, "'") or str_starts(resto, "\""))
+        resto = resto[1:]
+        if str_ends(resto, "'") or str_ends(resto, "\"")
+            resto = resto[:resto.length - 1]
+        end
+    end
+    if resto == ""
+        if segundos < 1
+            return ""
+        end
+        return "" + segundos + " " + d.direccion
+    end
+    return "" + segundos + " " + url_text(url_resolve(url_parse(d.direccion), resto))
+end
+
+func _refresco_meta(n: Nodo) -> Nodo
+    var nada: Nodo = nil
+    if n.tipo == DOM_ELEMENTO and n.nombre == "noscript"
+        return nada
+    end
+    if n.tipo == DOM_ELEMENTO and n.nombre == "meta" and str_lower(str_trim(dom_atributo(n, "http-equiv"))) == "refresh"
+        return n
+    end
+    for h in n.hijos
+        r = _refresco_meta(h)
+        if r != nil
+            return r
+        end
+    end
+    return nada
+end
+
 func documento_sin_fragmento(direccion: String) -> String
     p = str_find(direccion, "#")
     if p < 0

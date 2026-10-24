@@ -1,0 +1,23 @@
+# Test: una --x que solo nombra un atributo style (tarea 50; la columna de la derecha de un repositorio de GitHub,
+# style="--pane-width-size:var(--pane-width-large)", salía sin ancho): la hoja da --w a un antepasado (con @media)
+# y --otra que ninguna hoja nombra; el style del hijo las toma, y también cuando el JavaScript le cambia el style.
+# memcheck
+# expect-out: página: 336 (320 y 8 de relleno a cada lado)
+# expect-out: con el JavaScript: 111 (sin relleno)
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+Main
+    h = "<html><head><style>.r { --w: 100%; --otra: 111px; --hueco: 8px } @media (min-width: 100px) { .r { --w: 320px } }"
+    h = h + ".p { width: var(--s); padding: var(--sp) }</style></head><body style='margin:0'><div class=r><div class=p id=p style='--s:var(--w);--sp:var(--hueco)'>x</div></div>"
+    h = h + "<script>var p = document.getElementById('p');</script></body></html>"
+    d = documento_html("http://x/", h)
+    documento_maquetar(d, 600)
+    p = dom_por_id(d.doc, "p")
+    Print "página: " + p.caja_w + " (320 y 8 de relleno a cada lado)"
+    js_evaluar(d.js, "p.setAttribute('style', '--s:var(--otra)')", "t.js")
+    documento_al_dia(d)
+    Print "con el JavaScript: " + dom_por_id(d.doc, "p").caja_w + " (sin relleno)"
+    documento_liberar(d)
+end
