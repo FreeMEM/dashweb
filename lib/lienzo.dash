@@ -284,17 +284,35 @@ static void _lz_linea(_Lienzo *l, double x0, double y0, double x1, double y1, UL
 }
 
 /* Un polígono relleno (par-impar): sus vértices en px/py[0..n-1]; nuevo[i] (o NULL: uno solo) marca dónde empieza
-   cada subcamino, que se cierra solo */
+   cada subcamino, que se cierra solo. Cada fila mira solo los subcaminos que la cruzan: la bola Boing de
+   dash.freemem.space rellena sus 64 cuadros de un color en un solo camino (256 lados) */
 static void _lz_poligono(_Lienzo *l, double *px, double *py, UBYTE *nuevo, LONG n, ULONG c, LONG a) {
     static double xs[256];
     double miny = 1e9, maxy = -1e9, minx = 1e9, maxx = -1e9, y, x;
-    LONG i, j, k, nx, y0, y1, ini, fin;
+    LONG i, j, k, s, ns = 0, nx, y0, y1, ini, fin;
+    LONG uno[3];
+    LONG *sub = uno;           /* de cada subcamino: su principio, su fin y su fila más baja (alta, en sy) */
+    double suno[2], *sy = suno;
     if (n < 3 || a <= 0) return;
-    for (i = 0; i < n; i++) {
-        if (py[i] < miny) miny = py[i];
-        if (py[i] > maxy) maxy = py[i];
-        if (px[i] < minx) minx = px[i];
-        if (px[i] > maxx) maxx = px[i];
+    if (nuevo) for (i = 1; i < n; i++) if (nuevo[i]) ns++;
+    ns++;
+    if (ns > 1) {
+        sub = (LONG *)malloc(ns * 2 * sizeof(LONG));
+        sy = (double *)malloc(ns * 2 * sizeof(double));
+        if (!sub || !sy) { free(sub); free(sy); return; }
+    }
+    for (ini = 0, s = 0; ini < n; ini = fin, s++) {
+        for (fin = ini + 1; fin < n && !(nuevo && nuevo[fin]); fin++) ;
+        sub[2 * s] = ini; sub[2 * s + 1] = fin;
+        sy[2 * s] = 1e9; sy[2 * s + 1] = -1e9;
+        for (i = ini; i < fin; i++) {
+            if (py[i] < sy[2 * s]) sy[2 * s] = py[i];
+            if (py[i] > sy[2 * s + 1]) sy[2 * s + 1] = py[i];
+            if (px[i] < minx) minx = px[i];
+            if (px[i] > maxx) maxx = px[i];
+        }
+        if (sy[2 * s] < miny) miny = sy[2 * s];
+        if (sy[2 * s + 1] > maxy) maxy = sy[2 * s + 1];
     }
     y0 = (LONG)floor(miny); y1 = (LONG)ceil(maxy);
     if (y0 < 0) y0 = 0;
@@ -302,9 +320,10 @@ static void _lz_poligono(_Lienzo *l, double *px, double *py, UBYTE *nuevo, LONG 
     for (k = y0; k <= y1; k++) {
         y = k + 0.5;
         nx = 0;
-        for (ini = 0; ini < n; ini = fin) {
+        for (s = 0; s < ns; s++) {
+            if (y < sy[2 * s] || y >= sy[2 * s + 1]) continue;
             /* el subcamino ini..fin-1 y su lado de vuelta */
-            for (fin = ini + 1; fin < n && !(nuevo && nuevo[fin]); fin++) ;
+            ini = sub[2 * s]; fin = sub[2 * s + 1];
             for (i = ini; i < fin && nx < 256; i++) {
                 j = i + 1 < fin ? i + 1 : ini;
                 if ((py[i] <= y && py[j] > y) || (py[j] <= y && py[i] > y))
@@ -315,6 +334,7 @@ static void _lz_poligono(_Lienzo *l, double *px, double *py, UBYTE *nuevo, LONG 
         for (i = 1; i < nx; i++) { x = xs[i]; for (j = i - 1; j >= 0 && xs[j] > x; j--) xs[j + 1] = xs[j]; xs[j + 1] = x; }
         for (i = 0; i + 1 < nx; i += 2) _lz_tramo(l, k, (LONG)(xs[i] + 0.5), (LONG)(xs[i + 1] - 0.5), c, a);
     }
+    if (ns > 1) { free(sub); free(sy); }
     _lz_marcar(l, (LONG)minx - 1, y0, (LONG)maxx + 1, y1);
 }
 

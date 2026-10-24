@@ -2,12 +2,15 @@
 # valores); un absoluto con inset: 0 en un elemento flex-1 de una columna llena su hueco; aspect-ratio con
 # box-sizing: border-box es de la caja con relleno (280 de ancho y 9/19: 591 de alto) y su alto vale para un
 # height: 100% de dentro. place-items: center en un grid: el hijo, a su ancho y en medio (como el móvil). Lo que
-# desborda un overflow: hidden no ensancha al medir (una caja de 100 con algo de 500 dentro mide 100).
+# desborda un overflow: hidden no ensancha al medir (una caja de 100 con algo de 500 dentro mide 100). Un <canvas> con
+# display: block, width: 100% y aspect-ratio: 4/3 (la bola Boing de dash.freemem.space; tarea 48e) es una pieza de
+# 300x225 aunque sus atributos digan 100x16 (no son CSS: su tamaño natural, el del otro, sin estilo).
 # memcheck
 # expect-out: inset: 0 0 0 0 | 1px 2px 1px 2px
 # expect-out: uno 0,30 200x270 | abs 0,30 200x270
 # expect-out: movil 280x591 | dentro 262x573
 # expect-out: recortado 100
+# expect-out: lienzos 300x225 100x16
 # expect-out: centrado 150 100 | align-items center justify-items center
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
@@ -28,7 +31,8 @@ Main
     h = h + "<div id=dos style='position:absolute;inset:1px 2px'></div>"
     h = h + "<div style='width:280px'><div id=movil style='box-sizing:border-box;padding:9px;aspect-ratio:9/19;background:#000'><div id=dentro style='height:100%;background:#fff'></div></div></div>"
     h = h + "<div id=g style='display:grid;place-items:center;width:400px'><div id=hijo><div style='width:100px;height:20px;background:blue'></div></div></div>"
-    h = h + "<div style='display:grid;place-items:center;width:400px'><div id=rec><div style='width:100px;overflow:hidden'><div style='width:500px;height:10px;background:red'>x</div></div></div></div></body></html>"
+    h = h + "<div style='display:grid;place-items:center;width:400px'><div id=rec><div style='width:100px;overflow:hidden'><div style='width:500px;height:10px;background:red'>x</div></div></div></div>"
+    h = h + "<div style='width:300px;border:2px solid #000'><canvas width=100 height=16 style='display:block;width:100%;aspect-ratio:4/3'></canvas></div><canvas width=100 height=16></canvas></body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
     p = maquetar(doc, 400)
@@ -40,5 +44,12 @@ Main
     hijo = dom_por_id(doc, "hijo")
     g = dom_por_id(doc, "g")
     Print "recortado " + dom_por_id(doc, "rec").caja_w
+    l = "lienzos"
+    for dib in p.dibujos
+        if dib.tipo == D_LIENZO
+            l = l + " " + dib.ancho + "x" + dib.alto
+        end
+    end
+    Print l
     Print "centrado " + (hijo.caja_x - g.caja_x) + " " + hijo.caja_w + " | align-items " + g.estilo["align-items"] + " justify-items " + g.estilo["justify-items"]
 end

@@ -453,6 +453,14 @@ tarea, con el estilo de Dash.
       d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
          página (~83 ms en pasar a texto los decimales del color, dtoa.c de QuickJS con enteros largos: uno más
          rápido ayudaría a todas las webs; ~90 ms en las 3500 llamadas; ~46 en sus cuentas).
+      [x] e. La bola Boing de dash.freemem.space: la caja negra salía vacía (16 px de alto).
+         Hecho (2026-10-24; ver la bitácora): un <canvas> con display: block y aspect-ratio.
+      f. dpms.freemem.space (usuario, 2026-10-24): un Django con un fondo de Three.js (three-background.js:
+         partículas, líneas y un plasma, con ShaderMaterial). Es WebGL con shaders: en Tachyon no (getContext
+         "webgl" da null y WebGLRenderer lanza un error). Mirar que el resto de la página salga bien sin él; el
+         fondo, solo si la web tiene uno en 2D cuando no hay WebGL (se le puede pedir a la sesión de las webs).
+         Mirado (2026-10-24, rtg): entera en 37 s, el cartel, los textos y los botones bien; solo falta el fondo
+         (el error de WebGL no para lo demás). "Qué es" e "Info del Evento" del menú parten en dos líneas.
       b. Cada web: comparar con Chrome y arreglar lo que salga.
 
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
@@ -4289,3 +4297,20 @@ Formato:
   dash.freemem.space entera en 24,7 s con sus iconos. (La bola Boing de dash, más abajo: sin mirar aún.)
 - Ojo para otras webs de React: lo mismo con cualquier lista que el DOM da viva (childNodes, children,
   getElementsBy*): si alguna se da como copia, el mismo bucle sin fin.
+
+### 2026-10-24 — Tarea 48e: la bola Boing de dash.freemem.space
+- La bola usa lo que ya hay del lienzo (fillRect, stroke, arc, fill, caminos de 4 lados), pero su caja salía de
+  16 px de alto y vacía. Con su código tal cual en tests/pages/boing.html, dos fallos:
+  - un <canvas> con display: block iba como un bloque vacío y no como pieza (lib/maqueta.dash: como un vídeo);
+  - sus atributos width y height pasaban a CSS (lib/estilo.dash, _pistas_html). En HTML son el tamaño del lienzo,
+    no el de su caja. La bola se mide (getBoundingClientRect, 16 de alto antes de la primera maqueta), lo pone en
+    height y se quedaba así.
+- Y el aspect-ratio de un canvas en línea sin alto (4/3 de su ancho): lib/maqueta.dash.
+- Visto en el emulador (rtg): la bola rebota y gira sobre su rejilla morada, a 895x671, con su sombra translúcida.
+  tests/test_maqueta_inset.dash: el canvas 4/3 y el que no lleva estilo.
+- La sesión de las webs aligeró las dos animaciones (un camino y un stroke por color: de ~3500 llamadas a ~1400 en las
+  estrellas, de 256 rellenos y trazos a 4 en la bola; las estrellas bajan de 700 a 120 si un fotograma pasa de
+  25 ms). Con un camino de 64 cuadros, el relleno miraba los 256 lados en cada fila: ahora solo los subcaminos que
+  cruzan la fila (lib/lienzo.dash). tests/pages/estrellas.html y boing.html, con su código nuevo. En el emulador
+  (rtg, con JIT): estrellas ~20 fotogramas/s (antes ~4), bola ~11/s. Con 120 estrellas el cielo se ve casi vacío:
+  se le propuso a la web un mínimo de 300 y un umbral de 40 ms.

@@ -2936,10 +2936,12 @@ func _pistas_html(n: Nodo) -> [Declaracion]
         return r
     end
     nombre = n.nombre
-    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "col" or nombre == "colgroup" or nombre == "hr" or nombre == "iframe" or nombre == "embed" or nombre == "object" or nombre == "canvas"
+    # (los de un <canvas> no: son el tamaño de su lienzo, el natural; la página lo cambia al medirlo y la bola Boing de
+    # dash.freemem.space, 4/3 de su ancho, se quedaba en el alto que le dio la primera vez; HTML 15.4.3)
+    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "col" or nombre == "colgroup" or nombre == "hr" or nombre == "iframe" or nombre == "embed" or nombre == "object"
         _pista(r, "width", _html_largo(dom_atributo(n, "width")))
     end
-    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "tr" or nombre == "iframe" or nombre == "embed" or nombre == "object" or nombre == "canvas"
+    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "tr" or nombre == "iframe" or nombre == "embed" or nombre == "object"
         _pista(r, "height", _html_largo(dom_atributo(n, "height")))
     end
     if nombre == "body" or nombre == "table" or nombre == "tr" or nombre == "td" or nombre == "th" or nombre == "thead" or nombre == "tbody" or nombre == "tfoot"

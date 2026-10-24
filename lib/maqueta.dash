@@ -2898,8 +2898,8 @@ func _contenido(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int) -> Int
             end
             continue
         end
-        # un vídeo (<video>, el <iframe> de YouTube) va como una pieza aunque su CSS diga display: block
-        bloque = _es_bloque(h) and not dom_es_video(h)
+        # un vídeo (<video>, el <iframe> de YouTube) o un <canvas> va como una pieza aunque su CSS diga display: block
+        bloque = _es_bloque(h) and not dom_es_video(h) and h.nombre != "canvas"
         # el texto que sigue a los flotantes los rodea (sus líneas, al lado; tarea 41a2); un bloque normal les pasa por
         # debajo y son sus líneas las que los rodean (CSS 2.1 9.5); uno con clear, o que es un contexto aparte
         # (overflow, flex, grid, tabla, una imagen...), o tras un inline-block que va como flotante, va debajo
@@ -3173,7 +3173,7 @@ func _hijo_margen(n: Nodo, h: Nodo) -> Int
         end
         return 2
     end
-    if _flota(h) != "" or not _es_bloque(h) or dom_es_video(h)
+    if _flota(h) != "" or not _es_bloque(h) or dom_es_video(h) or h.nombre == "canvas"
         return 2
     end
     return 1
@@ -3549,6 +3549,13 @@ func _piezas(m: Maquetador, n: Nodo, e_padre: {String: String}, piezas: [Pieza],
             ch = _px(e, "height", 0)
             if ch > 0
                 h = ch
+            end
+        elif _val(e, "aspect-ratio", "auto") != "auto" and not str_starts(e["aspect-ratio"], "auto")
+            # aspect-ratio sin alto: el que da con el ancho (la bola Boing de dash.freemem.space, 4/3; "auto 4/3" se
+            # queda con la de sus atributos)
+            pr = _proporcion(e["aspect-ratio"])
+            if pr > 0
+                h = w * 1000 / pr
             end
         end
         # max-width (WordPress: 100 %) y nunca más ancho que la línea, con la misma proporción
