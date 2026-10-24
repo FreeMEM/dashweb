@@ -284,6 +284,28 @@ func actualizar_catalogo_url(version: String, idioma: String) -> String
     return actualizar_descargas + "v" + version + "/Tachyon-" + actualizar_ascii(idioma) + ".catalog"
 end
 
+# El idioma de Locale como lo dicen las webs ("español": "es-ES"); "en-US" si no se conoce
+func actualizar_idioma_web(idioma: String) -> String
+    nombres = ["espanol", "catala", "euskara", "galego", "deutsch", "francais", "italiano", "portugues", "nederlands", "svenska", "dansk", "norsk", "suomi", "polski", "magyar", "turkce", "english", "american", "british"]
+    codigos = ["es-ES", "ca-ES", "eu-ES", "gl-ES", "de-DE", "fr-FR", "it-IT", "pt-PT", "nl-NL", "sv-SE", "da-DK", "nb-NO", "fi-FI", "pl-PL", "hu-HU", "tr-TR", "en-GB", "en-US", "en-GB"]
+    a = str_lower(actualizar_ascii(idioma))
+    for i in (0..nombres.length - 1)
+        if a == nombres[i]
+            return codigos[i]
+        end
+    end
+    return "en-US"
+end
+
+# Su Accept-Language, como Chrome ("es-ES": "es-ES,es;q=0.9,en;q=0.8")
+func actualizar_idioma_cabecera(web: String) -> String
+    base = str_split(web, "-")[0]
+    if base == "en"
+        return web + ",en;q=0.9"
+    end
+    return web + "," + base + ";q=0.9,en;q=0.8"
+end
+
 # Baja su Tachyon.gz a T: sin esperar
 func actualizar_bajar(n: Novedad) -> Carga
     file_delete(ACTUALIZAR_GZ)
@@ -316,11 +338,11 @@ end
 """
 end
 
-# Descomprime T:Tachyon.gz, lo comprueba y lo pone en lugar de programa (el de antes, como programa.old); "" si
-# quedó instalado o por qué no (y el de antes sigue como estaba)
-@native(borrow) func actualizar_instalar(programa: String) -> String
+# Descomprime T:Tachyon.gz, lo comprueba y lo pone en lugar de programa (el de antes, como programa.old); 0 si
+# quedó instalado o el número de por qué no (y el de antes sigue como estaba): actualizar_instalar
+@native(borrow) func _actualizar_instalar(programa: String) -> Int
 """
-    static char err[120];
+    LONG err = 0;
     char nuevo[320], viejo[320];
     UBYTE *gz = NULL, *ex = NULL;
     LONG n = 0, i, ok = FALSE;
@@ -328,28 +350,27 @@ end
     ULONG crc, c, k, isize, crc_gz;
     BPTR f;
     struct FileInfoBlock *fib;
-    err[0] = 0;
-    if (!programa || !programa[0] || strlen((char *)programa) > 300) { strcpy(err, "no se sabe dónde está Tachyon"); goto fin; }
+    if (!programa || !programa[0] || strlen((char *)programa) > 300) { err = 1; goto fin; }
     /* el gzip entero en memoria */
     f = Open((STRPTR)"T:Tachyon.gz", MODE_OLDFILE);
-    if (!f) { strcpy(err, "no se encuentra lo bajado"); goto fin; }
+    if (!f) { err = 2; goto fin; }
     fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, NULL);
     if (fib && ExamineFH(f, fib)) n = fib->fib_Size;
     if (fib) FreeDosObject(DOS_FIB, fib);
     if (n > 18 && (gz = (UBYTE *)AllocVec(n, MEMF_ANY))) ok = Read(f, gz, n) == n;
     Close(f);
-    if (!ok) { strcpy(err, "no se puede leer lo bajado"); goto fin; }
-    if (gz[0] != 0x1f || gz[1] != 0x8b || gz[2] != 8) { strcpy(err, "lo bajado no es un gzip"); goto fin; }
+    if (!ok) { err = 3; goto fin; }
+    if (gz[0] != 0x1f || gz[1] != 0x8b || gz[2] != 8) { err = 4; goto fin; }
     i = 10;
     if (gz[3] & 4) i += 2 + (gz[10] | (gz[11] << 8));
     if (gz[3] & 8) { while (i < n && gz[i]) i++; i++; }
     if (gz[3] & 16) { while (i < n && gz[i]) i++; i++; }
     if (gz[3] & 2) i += 2;
-    if (i >= n - 8) { strcpy(err, "lo bajado no es un gzip"); goto fin; }
+    if (i >= n - 8) { err = 4; goto fin; }
     crc_gz = gz[n - 8] | (gz[n - 7] << 8) | (gz[n - 6] << 16) | ((ULONG)gz[n - 5] << 24);
     isize = gz[n - 4] | (gz[n - 3] << 8) | (gz[n - 2] << 16) | ((ULONG)gz[n - 1] << 24);
     ex = (UBYTE *)stbi_zlib_decode_malloc_guesssize_headerflag((const char *)gz + i, n - i - 8, isize + 64, &largo, 0);
-    if (!ex) { strcpy(err, "no se puede descomprimir"); goto fin; }
+    if (!ex) { err = 5; goto fin; }
     /* entero: su tamaño y su CRC-32 (el del gzip), un ejecutable y de Tachyon */
     {
         static ULONG tabla[256];
@@ -362,28 +383,38 @@ end
         for (k = 0; k < (ULONG)largo; k++) crc = tabla[(crc ^ ex[k]) & 0xFF] ^ (crc >> 8);
         crc = ~crc;
     }
-    if ((ULONG)largo != isize || crc != crc_gz) { strcpy(err, "lo bajado llegó mal (CRC)"); goto fin; }
-    if (largo < 64 || ex[0] != 0 || ex[1] != 0 || ex[2] != 3 || ex[3] != 0xF3) { strcpy(err, "lo bajado no es un ejecutable"); goto fin; }
+    if ((ULONG)largo != isize || crc != crc_gz) { err = 6; goto fin; }
+    if (largo < 64 || ex[0] != 0 || ex[1] != 0 || ex[2] != 3 || ex[3] != 0xF3) { err = 7; goto fin; }
     ok = FALSE;
     for (k = 0; k + 14 < (ULONG)largo && !ok; k++) ok = !memcmp(ex + k, "$VER: Tachyon ", 14);
-    if (!ok) { strcpy(err, "lo bajado no es Tachyon"); goto fin; }
+    if (!ok) { err = 8; goto fin; }
     /* programa.new, y luego el cambio: programa -> programa.old, programa.new -> programa */
     sprintf(nuevo, "%s.new", (char *)programa);
     sprintf(viejo, "%s.old", (char *)programa);
     f = Open((STRPTR)nuevo, MODE_NEWFILE);
-    if (!f) { strcpy(err, "no se puede escribir en el cajón de Tachyon"); goto fin; }
+    if (!f) { err = 9; goto fin; }
     ok = Write(f, ex, largo) == largo;
     Close(f);
-    if (!ok) { DeleteFile((STRPTR)nuevo); strcpy(err, "no cabe en el disco"); goto fin; }
+    if (!ok) { DeleteFile((STRPTR)nuevo); err = 10; goto fin; }
     DeleteFile((STRPTR)viejo);
-    if (!Rename(programa, (STRPTR)viejo)) { DeleteFile((STRPTR)nuevo); strcpy(err, "no se puede apartar el Tachyon de ahora"); goto fin; }
-    if (!Rename((STRPTR)nuevo, programa)) { Rename((STRPTR)viejo, programa); DeleteFile((STRPTR)nuevo); strcpy(err, "no se puede poner el nuevo"); goto fin; }
+    if (!Rename(programa, (STRPTR)viejo)) { DeleteFile((STRPTR)nuevo); err = 11; goto fin; }
+    if (!Rename((STRPTR)nuevo, programa)) { Rename((STRPTR)viejo, programa); DeleteFile((STRPTR)nuevo); err = 12; goto fin; }
     DeleteFile((STRPTR)"T:Tachyon.gz");
 fin:
     if (gz) FreeVec(gz);
     if (ex) free(ex);
-    return _dash_str_dup((STRPTR)err, TRUE);
+    return err;
 """
+end
+
+# Lo mismo con el porqué en texto ("" si quedó instalado)
+func actualizar_instalar(programa: String) -> String
+    porque = [tr(450, "can't tell where Tachyon is"), tr(451, "the download is missing"), tr(452, "can't read the download"), tr(453, "the download isn't a gzip"), tr(454, "can't decompress the download"), tr(455, "the download arrived damaged (CRC)"), tr(456, "the download isn't a program"), tr(457, "the download isn't Tachyon"), tr(458, "can't write in Tachyon's drawer"), tr(459, "the disk is full"), tr(460, "can't move the current Tachyon aside"), tr(461, "can't put the new one in place")]
+    e = _actualizar_instalar(programa)
+    if e == 0
+        return ""
+    end
+    return porque[e - 1]
 end
 
 # Abre otra vez Tachyon (el nuevo) y sigue sin esperar; false si no se pudo

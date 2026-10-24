@@ -11,7 +11,7 @@
 # expect-out: lento: 200 2000 bytes, a medias: true
 # expect-out: cabeceras pronto: 200 text/plain antes de acabar: true
 # expect-out: cancelada: [cancelled]
-# expect-out: rechazada: [conexión rechazada]
+# expect-out: rechazada: [connection refused]
 # expect-out: fase: buscando
 # expect-out: 200 [hola] fase: []
 # expect-out: cancelada buscando: [cancelled]

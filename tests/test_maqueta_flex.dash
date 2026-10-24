@@ -37,6 +37,11 @@
 # expect-out: z7 40,0 48x19
 # expect-out: z9 0,0 516x14
 # expect-out: z10 516,0 84x15
+# expect-out: zb1 0,0 220x10
+# expect-out: zb2 220,0 380x10
+# expect-out: za1 4,0 80x10
+# expect-out: za2 92,0 128x10
+# expect-out: za3 228,0 56x10
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -72,6 +77,11 @@ Main
     # un campo con flex: 1 y width crece hasta su botón (de estilo propio: él es el elemento, con su relleno); los dos
     # llenan los 600 (el buscador de la página de inicio; tarea 45f)
     h = h + contenedor("", "<input id=z9 style='flex:1;width:400px'><button id=z10 style='background:blue;border:0;padding:0 18px'>Buscar</button>")
+    # la cabecera de Wikipedia (tarea 42a): al medir el max-content de la parte derecha, su buscador con flex-grow no
+    # crece (antes medía todo el sitio y bajaba de línea); y en una lista flex dentro de otra, con márgenes, ninguno
+    # encoge (el mínimo medido de "Donaciones" pasaba de su ancho y "Crear una cuenta" se partía)
+    h = h + contenedor("flex-wrap:wrap", "<div id=zb1 style='background:red;width:220px;height:10px'></div><div id=zb2 style='background:blue;display:flex;flex-grow:1;height:10px'><div style='flex-grow:1'>busca</div><div>enlaces</div></div>")
+    h = h + contenedor("", "<div style='display:flex'><div id=za1 style='background:red;margin:0 4px'>Donaciones</div><div id=za2 style='background:blue;margin:0 4px'>Crear una cuenta</div><div id=za3 style='background:green;margin:0 4px'>Acceder</div></div>")
     h = h + "</body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))

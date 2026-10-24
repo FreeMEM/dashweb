@@ -1,56 +1,56 @@
 [
- {
-  "prueba": "Acid2",
-  "mide": "CSS 2.1: la cara sonriente",
-  "total": 11,
-  "pasan": 4,
-  "unidad": "piezas",
-  "estado": "en curso",
-  "nota": "Piezas de la cara arregladas de las 11 encontradas (41a)"
- },
- {
-  "prueba": "WPT reftests (CSS2, flexbox, grid)",
-  "mide": "Dibujo comparado con su referencia",
-  "total": 0,
-  "pasan": 0,
-  "unidad": "pruebas",
-  "estado": "pendiente",
-  "nota": "41b; decenas de miles de reftests en WPT"
- },
- {
-  "prueba": "css3test.com",
-  "mide": "Qué CSS se entiende",
-  "total": 0,
-  "pasan": 0,
-  "unidad": "comprobaciones",
-  "estado": "pendiente",
-  "nota": "41c; del orden de mil comprobaciones"
- },
- {
-  "prueba": "html5test.com",
-  "mide": "Qué funciones dice tener",
-  "total": 555,
-  "pasan": 0,
-  "unidad": "puntos",
-  "estado": "pendiente",
-  "nota": "41c"
- },
- {
-  "prueba": "Acid3",
-  "mide": "DOM y JavaScript",
-  "total": 100,
-  "pasan": 0,
-  "unidad": "subpruebas",
-  "estado": "pendiente",
-  "nota": "41c"
- },
- {
-  "prueba": "WPT entero (wpt.fyi)",
-  "mide": "Todo, por carpetas",
-  "total": 0,
-  "pasan": 0,
-  "unidad": "subpruebas",
-  "estado": "pendiente",
-  "nota": "41d; unos 2 millones de subpruebas"
- }
+{
+"prueba": "Acid2",
+"mide": "CSS 2.1: la cara sonriente",
+"total": 11,
+"pasan": 10,
+"unidad": "piezas",
+"estado": "en curso",
+"nota": "Piezas iguales a Chrome de las 11 (41a, 41a2); queda un trozo junto a los ojos"
+},
+{
+"prueba": "WPT reftests (CSS2, flexbox, grid)",
+"mide": "Dibujo comparado con su referencia",
+"total": 100,
+"pasan": 76,
+"unidad": "pruebas",
+"estado": "en curso",
+"nota": "41b: las 100 primeras de css/CSS2/normal-flow, por píxeles en el Amiga"
+},
+{
+"prueba": "css3test.com",
+"mide": "Qué CSS se entiende",
+"total": 0,
+"pasan": 0,
+"unidad": "comprobaciones",
+"estado": "pendiente",
+"nota": "41c; del orden de mil comprobaciones"
+},
+{
+"prueba": "html5test.com",
+"mide": "Qué funciones dice tener",
+"total": 555,
+"pasan": 0,
+"unidad": "puntos",
+"estado": "pendiente",
+"nota": "41c"
+},
+{
+"prueba": "Acid3",
+"mide": "DOM y JavaScript",
+"total": 100,
+"pasan": 0,
+"unidad": "subpruebas",
+"estado": "pendiente",
+"nota": "41c"
+},
+{
+"prueba": "WPT entero (wpt.fyi)",
+"mide": "Todo, por carpetas",
+"total": 0,
+"pasan": 0,
+"unidad": "subpruebas",
+"estado": "pendiente",
+"nota": "41d; unos 2 millones de subpruebas"
+}
 ]

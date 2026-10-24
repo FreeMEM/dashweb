@@ -35,6 +35,9 @@
 #include "cutils.h"
 #include "dtoa.h"
 
+/* dashweb (tarea 48d): third_party/ryu/d2d.c */
+void ryu_d2d(double d, uint64_t *mant, int32_t *exp);
+
 /* 
    TODO:
    - test n_digits=101 instead of 100
@@ -1184,6 +1187,19 @@ int js_dtoa(char *buf, double d, int radix, int n_digits, int flags,
     if (fmt == JS_DTOA_FORMAT_FREE) {
         int P_max, E0, e1, E_found, P_found;
         uint64_t m1, mant_found, mant, mant_max1;
+        /* dashweb (tarea 48d): in radix 10, the shortest digits from Ryu
+           (third_party/ryu), without the big number tries below */
+        if (radix == 10) {
+            uint64_t rm, t;
+            int32_t rexp;
+            ryu_d2d(d, &rm, &rexp);
+            P_found = 0;
+            for (t = rm; t != 0; t /= 10)
+                P_found++;
+            E_found = rexp + P_found;
+            mant_found = rm;
+            goto free_found;
+        }
         /* P_max is guarranteed to work by construction */
         P_max = dtoa_max_digits_table[radix - 2];
         E0 = E;
@@ -1231,6 +1247,7 @@ int js_dtoa(char *buf, double d, int radix, int n_digits, int flags,
                 break;
             }
         }
+    free_found:
         P = P_found;
         E = E_found;
         mpb_set_u64(tmp1, mant_found);

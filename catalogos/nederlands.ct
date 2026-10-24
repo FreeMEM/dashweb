@@ -129,8 +129,8 @@ MSG_42
 _Sluiten
 ; _Close
 MSG_43
-\ec© 2026 Francisco Antonio Tapias Bravo\n\ecMIT-licentie · github.com/FreeMEM/tachyon\n\n\ecEen browser voor de Amiga, gemaakt in Dash, met MUI en AmiSSL.\n\ecBevat, aangepast voor AmigaOS:\n\ecQuickJS (Fabrice Bellard en Charlie Gordon)\n\ecHubbub en LibParserUtils (NetSurf)\n\ecen ook stb, NanoSVG, Brotli, libwebp,\n\ecTJpgDec, fdlibm en MintVID.\n\ecHun licenties staan in de lade Licencias.
-; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+\ec© 2026 Francisco Antonio Tapias Bravo\n\ecMIT-licentie · github.com/FreeMEM/tachyon\n\n\ecEen browser voor de Amiga, gemaakt in Dash, met MUI en AmiSSL.\n\ecBevat, aangepast voor AmigaOS:\n\ecQuickJS (Fabrice Bellard en Charlie Gordon)\n\ecHubbub en LibParserUtils (NetSurf)\n\ecen ook stb, NanoSVG, Brotli, libwebp,\n\ecTJpgDec, fdlibm, Ryu en MintVID.\n\ecHun licenties staan in de lade Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu and MintVID.\n\033cTheir licences are in the Licencias drawer.
 MSG_44
 Nieuw tabblad (Amiga-T)
 ; New tab (Amiga-T)
@@ -491,3 +491,108 @@ kan %1 niet schrijven
 MSG_411
 kan %1 niet lezen
 ; can't read %1
+MSG_412
+Kan de pagina niet laden
+; Couldn't load the page
+MSG_420
+te veel verbindingen
+; too many connections
+MSG_421
+verbinding gesloten
+; connection closed
+MSG_422
+geen geheugen vrij
+; out of memory
+MSG_423
+verzenden lukt niet
+; can't send
+MSG_424
+netwerk gesloten
+; network closed
+MSG_425
+verbinding geweigerd
+; connection refused
+MSG_426
+te veel verbindingen tegelijk
+; too many connections at once
+MSG_427
+te veel TLS-verbindingen
+; too many TLS connections
+MSG_428
+fout bij verzenden
+; error sending
+MSG_429
+fout bij ontvangen
+; error receiving
+MSG_430
+netwerkfout
+; network error
+MSG_431
+TLS-fout
+; TLS error
+MSG_432
+het netwerk is van een andere taak
+; the network belongs to another task
+MSG_433
+AmiSSL ontbreekt (amisslmaster.library)
+; AmiSSL is missing (amisslmaster.library)
+MSG_434
+geen bsdsocket.library (er ontbreekt een TCP/IP-stack)
+; no bsdsocket.library (a TCP/IP stack is missing)
+MSG_435
+server niet gevonden
+; server not found
+MSG_436
+AmiSSL kan niet geopend worden (AmiSSL 5.1 of nieuwer nodig)
+; can't open AmiSSL (5.1 or later is needed)
+MSG_437
+kan geen socket openen
+; can't open a socket
+MSG_438
+kan de server niet opzoeken
+; can't look up the server
+MSG_439
+time-out bij verbinden
+; timed out connecting
+MSG_440
+time-out bij TLS-onderhandeling
+; timed out negotiating TLS
+MSG_441
+time-out bij het zoeken van de server
+; timed out looking up the server
+MSG_450
+onbekend waar Tachyon staat
+; can't tell where Tachyon is
+MSG_451
+de download ontbreekt
+; the download is missing
+MSG_452
+kan de download niet lezen
+; can't read the download
+MSG_453
+de download is geen gzip
+; the download isn't a gzip
+MSG_454
+kan de download niet uitpakken
+; can't decompress the download
+MSG_455
+de download is beschadigd aangekomen (CRC)
+; the download arrived damaged (CRC)
+MSG_456
+de download is geen programma
+; the download isn't a program
+MSG_457
+de download is geen Tachyon
+; the download isn't Tachyon
+MSG_458
+kan niet schrijven in de lade van Tachyon
+; can't write in Tachyon's drawer
+MSG_459
+de schijf is vol
+; the disk is full
+MSG_460
+kan de huidige Tachyon niet opzijzetten
+; can't move the current Tachyon aside
+MSG_461
+kan de nieuwe niet op zijn plaats zetten
+; can't put the new one in place

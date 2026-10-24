@@ -1,10 +1,50 @@
 [
- {"area": "Red: HTTP, HTTPS, cookies, descargas", "peso": 10, "avance": 0.85, "falta": "Cargas despertadas por la red (39), HTTP/2 no"},
- {"area": "HTML y DOM", "peso": 10, "avance": 0.75, "falta": "Lo que digan WPT html/ y dom/"},
- {"area": "CSS: maqueta y dibujo", "peso": 20, "avance": 0.55, "falta": "Acid2 entera, floats como CSS 2.1, tablas anónimas, WPT css/"},
- {"area": "JavaScript y APIs web", "peso": 15, "avance": 0.5, "falta": "Muchas APIs (Canvas, Workers, WebSocket...), WPT, YouTube (38)"},
- {"area": "Imágenes, vídeo y fuentes", "peso": 10, "avance": 0.7, "falta": "Fuentes variables, menos memoria al decodificar"},
- {"area": "Interfaz: ventanas, marcadores, preferencias", "peso": 10, "avance": 0.55, "falta": "Preferencias, pestañas, descargas con lista"},
- {"area": "Rendimiento en un Amiga real", "peso": 15, "avance": 0.3, "falta": "Medir y acelerar en 030/040; hoy se mide en la RTG emulada"},
- {"area": "Memoria: caber en un Amiga normal", "peso": 10, "avance": 0.3, "falta": "Webs modernas en 16-32 MB; pico al decodificar imágenes"}
+{
+"area": "Red: HTTP, HTTPS, cookies, descargas",
+"peso": 10,
+"avance": 0.9,
+"falta": "HTTP/2; cargas despertadas por la red (39). Ya: la red en su propia tarea y el gestor de descargas"
+},
+{
+"area": "HTML y DOM",
+"peso": 10,
+"avance": 0.8,
+"falta": "Lo que digan WPT html/ y dom/. Ya: attributes vivo y nodos de atributo (React hidrata)"
+},
+{
+"area": "CSS: maqueta y dibujo",
+"peso": 20,
+"avance": 0.7,
+"falta": "WPT css/ más allá de normal-flow (76/100), flexbox y grid. Ya: Acid2 casi entera, flotantes y márgenes como CSS 2.1, tablas anónimas"
+},
+{
+"area": "JavaScript y APIs web",
+"peso": 15,
+"avance": 0.6,
+"falta": "Workers, WebSocket, YouTube (38). Ya: Canvas 2D, ResizeObserver, webs con React"
+},
+{
+"area": "Imágenes, vídeo y fuentes",
+"peso": 10,
+"avance": 0.75,
+"falta": "Vídeo, fuentes variables, menos memoria al decodificar. Ya: WebP, fuentes de iconos"
+},
+{
+"area": "Interfaz: ventanas, marcadores, preferencias",
+"peso": 10,
+"avance": 0.85,
+"falta": "Pulir preferencias. Ya: pestañas, descargas, menús e iconos, historial, buscador, inicio, 10 idiomas, se actualiza sola"
+},
+{
+"area": "Rendimiento en un Amiga real",
+"peso": 15,
+"avance": 0.35,
+"falta": "Medir y acelerar en 030/040 de verdad; hoy se mide en la RTG emulada. Ya: Menéame 208 -> 168 s"
+},
+{
+"area": "Memoria: caber en un Amiga normal",
+"peso": 10,
+"avance": 0.4,
+"falta": "Webs modernas en 16-32 MB; pico al decodificar. Ya: las pestañas de detrás sueltan imágenes y se descartan con poca memoria"
+}
 ]

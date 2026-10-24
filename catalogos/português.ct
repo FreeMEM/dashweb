@@ -129,8 +129,8 @@ MSG_42
 _Fechar
 ; _Close
 MSG_43
-\033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicença MIT · github.com/FreeMEM/tachyon\n\n\033cUm navegador para Amiga feito em Dash, com MUI e AmiSSL.\n\033cInclui, adaptados para o AmigaOS:\n\033cQuickJS (Fabrice Bellard e Charlie Gordon)\n\033cHubbub e LibParserUtils (NetSurf)\n\033ce também stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm e MintVID.\n\033cAs suas licenças estão na gaveta Licencias.
-; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicença MIT · github.com/FreeMEM/tachyon\n\n\033cUm navegador para Amiga feito em Dash, com MUI e AmiSSL.\n\033cInclui, adaptados para o AmigaOS:\n\033cQuickJS (Fabrice Bellard e Charlie Gordon)\n\033cHubbub e LibParserUtils (NetSurf)\n\033ce também stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu e MintVID.\n\033cAs suas licenças estão na gaveta Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu and MintVID.\n\033cTheir licences are in the Licencias drawer.
 MSG_44
 Novo separador (Amiga-T)
 ; New tab (Amiga-T)
@@ -491,3 +491,108 @@ não é possível escrever %1
 MSG_411
 não é possível ler %1
 ; can't read %1
+MSG_412
+Não foi possível carregar a página
+; Couldn't load the page
+MSG_420
+demasiadas ligações
+; too many connections
+MSG_421
+ligação fechada
+; connection closed
+MSG_422
+sem memória
+; out of memory
+MSG_423
+não é possível enviar
+; can't send
+MSG_424
+rede fechada
+; network closed
+MSG_425
+ligação recusada
+; connection refused
+MSG_426
+demasiadas ligações ao mesmo tempo
+; too many connections at once
+MSG_427
+demasiadas ligações TLS
+; too many TLS connections
+MSG_428
+erro ao enviar
+; error sending
+MSG_429
+erro ao receber
+; error receiving
+MSG_430
+erro de rede
+; network error
+MSG_431
+erro de TLS
+; TLS error
+MSG_432
+a rede pertence a outra tarefa
+; the network belongs to another task
+MSG_433
+falta o AmiSSL (amisslmaster.library)
+; AmiSSL is missing (amisslmaster.library)
+MSG_434
+não há bsdsocket.library (falta uma pilha TCP/IP)
+; no bsdsocket.library (a TCP/IP stack is missing)
+MSG_435
+servidor não encontrado
+; server not found
+MSG_436
+não é possível abrir o AmiSSL (é preciso o AmiSSL 5.1 ou posterior)
+; can't open AmiSSL (5.1 or later is needed)
+MSG_437
+não é possível abrir um socket
+; can't open a socket
+MSG_438
+não é possível procurar o servidor
+; can't look up the server
+MSG_439
+tempo esgotado ao ligar
+; timed out connecting
+MSG_440
+tempo esgotado ao negociar o TLS
+; timed out negotiating TLS
+MSG_441
+tempo esgotado à procura do servidor
+; timed out looking up the server
+MSG_450
+não se sabe onde está o Tachyon
+; can't tell where Tachyon is
+MSG_451
+o ficheiro descarregado não existe
+; the download is missing
+MSG_452
+não é possível ler o ficheiro descarregado
+; can't read the download
+MSG_453
+o ficheiro descarregado não é um gzip
+; the download isn't a gzip
+MSG_454
+não é possível descomprimir o ficheiro descarregado
+; can't decompress the download
+MSG_455
+o ficheiro descarregado chegou danificado (CRC)
+; the download arrived damaged (CRC)
+MSG_456
+o ficheiro descarregado não é um programa
+; the download isn't a program
+MSG_457
+o ficheiro descarregado não é o Tachyon
+; the download isn't Tachyon
+MSG_458
+não é possível escrever na gaveta do Tachyon
+; can't write in Tachyon's drawer
+MSG_459
+o disco está cheio
+; the disk is full
+MSG_460
+não é possível pôr de lado o Tachyon atual
+; can't move the current Tachyon aside
+MSG_461
+não é possível pôr o novo no lugar
+; can't put the new one in place

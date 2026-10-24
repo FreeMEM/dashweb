@@ -129,8 +129,8 @@ MSG_42
 _Lukk
 ; _Close
 MSG_43
-\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT-lisens · github.com/FreeMEM/tachyon\n\n\033cEn nettleser for Amiga laget i Dash, med MUI og AmiSSL.\n\033cDen inneholder, tilpasset AmigaOS:\n\033cQuickJS (Fabrice Bellard og Charlie Gordon)\n\033cHubbub og LibParserUtils (NetSurf)\n\033cog dessuten stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm og MintVID.\n\033cLisensene deres ligger i skuffen Licencias.
-; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT-lisens · github.com/FreeMEM/tachyon\n\n\033cEn nettleser for Amiga laget i Dash, med MUI og AmiSSL.\n\033cDen inneholder, tilpasset AmigaOS:\n\033cQuickJS (Fabrice Bellard og Charlie Gordon)\n\033cHubbub og LibParserUtils (NetSurf)\n\033cog dessuten stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu og MintVID.\n\033cLisensene deres ligger i skuffen Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu and MintVID.\n\033cTheir licences are in the Licencias drawer.
 MSG_44
 Ny fane (Amiga-T)
 ; New tab (Amiga-T)
@@ -491,3 +491,108 @@ kan ikke skrive %1
 MSG_411
 kan ikke lese %1
 ; can't read %1
+MSG_412
+Kunne ikke laste inn siden
+; Couldn't load the page
+MSG_420
+for mange tilkoblinger
+; too many connections
+MSG_421
+tilkoblingen lukket
+; connection closed
+MSG_422
+tomt for minne
+; out of memory
+MSG_423
+kan ikke sende
+; can't send
+MSG_424
+nettverket lukket
+; network closed
+MSG_425
+tilkoblingen ble avvist
+; connection refused
+MSG_426
+for mange tilkoblinger samtidig
+; too many connections at once
+MSG_427
+for mange TLS-tilkoblinger
+; too many TLS connections
+MSG_428
+feil ved sending
+; error sending
+MSG_429
+feil ved mottak
+; error receiving
+MSG_430
+nettverksfeil
+; network error
+MSG_431
+TLS-feil
+; TLS error
+MSG_432
+nettverket tilhører en annen task
+; the network belongs to another task
+MSG_433
+AmiSSL mangler (amisslmaster.library)
+; AmiSSL is missing (amisslmaster.library)
+MSG_434
+ingen bsdsocket.library (en TCP/IP-stakk mangler)
+; no bsdsocket.library (a TCP/IP stack is missing)
+MSG_435
+fant ikke serveren
+; server not found
+MSG_436
+kan ikke åpne AmiSSL (AmiSSL 5.1 eller nyere trengs)
+; can't open AmiSSL (5.1 or later is needed)
+MSG_437
+kan ikke åpne en socket
+; can't open a socket
+MSG_438
+kan ikke slå opp serveren
+; can't look up the server
+MSG_439
+tidsavbrudd ved tilkobling
+; timed out connecting
+MSG_440
+tidsavbrudd ved TLS-forhandling
+; timed out negotiating TLS
+MSG_441
+tidsavbrudd ved søk etter serveren
+; timed out looking up the server
+MSG_450
+vet ikke hvor Tachyon ligger
+; can't tell where Tachyon is
+MSG_451
+nedlastingen mangler
+; the download is missing
+MSG_452
+kan ikke lese nedlastingen
+; can't read the download
+MSG_453
+nedlastingen er ikke en gzip
+; the download isn't a gzip
+MSG_454
+kan ikke pakke ut nedlastingen
+; can't decompress the download
+MSG_455
+nedlastingen kom fram skadet (CRC)
+; the download arrived damaged (CRC)
+MSG_456
+nedlastingen er ikke et program
+; the download isn't a program
+MSG_457
+nedlastingen er ikke Tachyon
+; the download isn't Tachyon
+MSG_458
+kan ikke skrive i Tachyons skuff
+; can't write in Tachyon's drawer
+MSG_459
+disken er full
+; the disk is full
+MSG_460
+kan ikke flytte nåværende Tachyon til side
+; can't move the current Tachyon aside
+MSG_461
+kan ikke sette den nye på plass
+; can't put the new one in place

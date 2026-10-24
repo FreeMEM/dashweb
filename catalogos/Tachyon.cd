@@ -85,7 +85,7 @@ About Tachyon
 MSG_42 (42//)
 _Close
 MSG_43 (43//)
-\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu and MintVID.\n\033cTheir licences are in the Licencias drawer.
 MSG_44 (44//)
 New tab (Amiga-T)
 MSG_45 (45//)
@@ -326,3 +326,73 @@ MSG_410 (410//)
 can't write %1
 MSG_411 (411//)
 can't read %1
+MSG_412 (412//)
+Couldn't load the page
+MSG_420 (420//)
+too many connections
+MSG_421 (421//)
+connection closed
+MSG_422 (422//)
+out of memory
+MSG_423 (423//)
+can't send
+MSG_424 (424//)
+network closed
+MSG_425 (425//)
+connection refused
+MSG_426 (426//)
+too many connections at once
+MSG_427 (427//)
+too many TLS connections
+MSG_428 (428//)
+error sending
+MSG_429 (429//)
+error receiving
+MSG_430 (430//)
+network error
+MSG_431 (431//)
+TLS error
+MSG_432 (432//)
+the network belongs to another task
+MSG_433 (433//)
+AmiSSL is missing (amisslmaster.library)
+MSG_434 (434//)
+no bsdsocket.library (a TCP/IP stack is missing)
+MSG_435 (435//)
+server not found
+MSG_436 (436//)
+can't open AmiSSL (5.1 or later is needed)
+MSG_437 (437//)
+can't open a socket
+MSG_438 (438//)
+can't look up the server
+MSG_439 (439//)
+timed out connecting
+MSG_440 (440//)
+timed out negotiating TLS
+MSG_441 (441//)
+timed out looking up the server
+MSG_450 (450//)
+can't tell where Tachyon is
+MSG_451 (451//)
+the download is missing
+MSG_452 (452//)
+can't read the download
+MSG_453 (453//)
+the download isn't a gzip
+MSG_454 (454//)
+can't decompress the download
+MSG_455 (455//)
+the download arrived damaged (CRC)
+MSG_456 (456//)
+the download isn't a program
+MSG_457 (457//)
+the download isn't Tachyon
+MSG_458 (458//)
+can't write in Tachyon's drawer
+MSG_459 (459//)
+the disk is full
+MSG_460 (460//)
+can't move the current Tachyon aside
+MSG_461 (461//)
+can't put the new one in place

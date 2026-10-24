@@ -10,7 +10,7 @@
 # expect-out: 200 5000 z
 # expect-out: [GET /eco?x=1 HTTP/1.1]
 # expect-out: unsupported scheme: ftp
-# expect-out: conexión rechazada
+# expect-out: connection refused
 # expect-out: binario 200 20000 bytes: 20000 2549392 79
 # expect-out: binario 200 20000 bytes: 20000 2549392 79
 # expect-out: 404 0 bytes [no]

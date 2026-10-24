@@ -259,7 +259,7 @@ end
         if (s->tls >= 0) { _dash_tls_close(s->tls); s->tls = -1; }
         if (s->sock >= 0) { _dash_net_close(s->sock); s->sock = -1; }
         ObtainSemaphore(&_rt_sem);
-        if (s->estado != _RT_ERROR) { s->estado = _RT_CERRADA; if (!s->error[0]) strcpy(s->error, "red cerrada"); }
+        if (s->estado != _RT_ERROR) { s->estado = _RT_CERRADA; if (!s->error[0]) strcpy(s->error, "network closed"); }
         ReleaseSemaphore(&_rt_sem);
     }
     /* las soltadas, libres (desde aquí _rt_soltar las libera él mismo) */
@@ -459,7 +459,7 @@ func _red_esperar_abierta(c: Conexion)
     desde = time_ms()
     while red_abrir_avanzar(c) == 0
         if c.espera > 0 and time_ms() - desde > c.espera * 3
-            c.error = "tiempo agotado"
+            c.error = "timed out"
             red_cerrar(c)
             return
         end
@@ -477,7 +477,7 @@ func red_abrir_empezar(host: String, puerto: Int, con_tls: Bool, espera_ms: Int)
     _rt_asegurar()
     c.sock = _rt_pedir(host, puerto, con_tls, espera_ms)
     if c.sock < 0
-        c.error = "demasiadas conexiones"
+        c.error = "too many connections"
         red_cerrar(c)
         return c
     end
@@ -501,7 +501,7 @@ func red_abrir_avanzar(c: Conexion) -> Int
         if _rt_con_error(c.sock)
             c.error = _rt_error(c.sock)
         else
-            c.error = "conexión cerrada"
+            c.error = "connection closed"
         end
         red_cerrar(c)
         return -1
@@ -539,7 +539,7 @@ func red_enviar(c: Conexion, texto: String) -> Bool
     end
     ok = _rt_enviar(c.sock, texto)
     if not ok
-        c.error = "sin memoria"
+        c.error = "out of memory"
     end
     return ok
 end
@@ -583,7 +583,7 @@ func _red_traer(c: Conexion) -> Bool
             return false
         end
         if c.espera >= 0 and time_ms() - desde > c.espera
-            c.error = "tiempo agotado"
+            c.error = "timed out"
             c.cerrada = true
             return false
         end
@@ -692,7 +692,7 @@ func red_copiar(c: Conexion, f: Int, n: Int) -> Int
             toma = n - hechos
         end
         if file_write(f, c.buf + c.ini, toma) != toma
-            c.error = "no se puede escribir"
+            c.error = "can't send"
             break
         end
         c.ini = c.ini + toma
@@ -748,7 +748,7 @@ func red_juntar(c: Conexion, b: Bytes, n: Int) -> Int
             toma = n - hechos
         end
         if not bytes_meter(b, c.buf + c.ini, toma)
-            c.error = "sin memoria"
+            c.error = "out of memory"
             break
         end
         c.ini = c.ini + toma

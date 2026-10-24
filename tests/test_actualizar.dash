@@ -13,7 +13,7 @@
 # expect-out: el de la versión: español | sin publicar: [] false | no es un catálogo: [] | preferido: true
 # expect-out: sin novedad: true
 # expect-out: instalada: [] true true
-# expect-out: rota: [lo bajado llegó mal (CRC)] true false
+# expect-out: rota: [the download arrived damaged (CRC)] true false
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/actualizar.dash"

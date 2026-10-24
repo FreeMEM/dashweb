@@ -1,0 +1,8 @@
+Ryu (https://github.com/ulfjack/ryu, commit 4c0618b0e44f del 2026-02-09), de Ulf Adams: el decimal más corto de un
+double sin enteros largos. Licencia Apache 2.0 o Boost 1.0 (a elegir; LICENSE-Apache2, LICENSE-Boost).
+
+Solo la parte de double a texto más corto (ryu/d2s.c y sus cabeceras). Un cambio en ryu/d2s.c (marcado "dashweb"):
+quitar las cifras de ocho en ocho y con 32 bits cuando cabe (un decimal corto quitaba 14 de una en una, con
+divisiones de 64 bits, caras en un 68k). d2d.c es de dashweb: da la
+mantisa y el exponente decimales a js_dtoa de QuickJS (third_party/quickjs/dtoa.c, en base 10 y formato libre).
+Se compila con QuickJS (tools/build_qjs.sh).

@@ -129,8 +129,8 @@ MSG_42
 _Stäng
 ; _Close
 MSG_43
-\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT-licens · github.com/FreeMEM/tachyon\n\n\033cEn webbläsare för Amiga gjord i Dash, med MUI och AmiSSL.\n\033cDen innehåller, anpassade för AmigaOS:\n\033cQuickJS (Fabrice Bellard och Charlie Gordon)\n\033cHubbub och LibParserUtils (NetSurf)\n\033csamt stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm och MintVID.\n\033cDeras licenser finns i lådan Licencias.
-; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT-licens · github.com/FreeMEM/tachyon\n\n\033cEn webbläsare för Amiga gjord i Dash, med MUI och AmiSSL.\n\033cDen innehåller, anpassade för AmigaOS:\n\033cQuickJS (Fabrice Bellard och Charlie Gordon)\n\033cHubbub och LibParserUtils (NetSurf)\n\033csamt stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu och MintVID.\n\033cDeras licenser finns i lådan Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu and MintVID.\n\033cTheir licences are in the Licencias drawer.
 MSG_44
 Ny flik (Amiga-T)
 ; New tab (Amiga-T)
@@ -491,3 +491,108 @@ kan inte skriva %1
 MSG_411
 kan inte läsa %1
 ; can't read %1
+MSG_412
+Kunde inte läsa in sidan
+; Couldn't load the page
+MSG_420
+för många anslutningar
+; too many connections
+MSG_421
+anslutningen stängd
+; connection closed
+MSG_422
+slut på minne
+; out of memory
+MSG_423
+kan inte skicka
+; can't send
+MSG_424
+nätverket stängt
+; network closed
+MSG_425
+anslutningen nekades
+; connection refused
+MSG_426
+för många anslutningar samtidigt
+; too many connections at once
+MSG_427
+för många TLS-anslutningar
+; too many TLS connections
+MSG_428
+fel vid sändning
+; error sending
+MSG_429
+fel vid mottagning
+; error receiving
+MSG_430
+nätverksfel
+; network error
+MSG_431
+TLS-fel
+; TLS error
+MSG_432
+nätverket tillhör en annan task
+; the network belongs to another task
+MSG_433
+AmiSSL saknas (amisslmaster.library)
+; AmiSSL is missing (amisslmaster.library)
+MSG_434
+ingen bsdsocket.library (en TCP/IP-stack saknas)
+; no bsdsocket.library (a TCP/IP stack is missing)
+MSG_435
+servern hittades inte
+; server not found
+MSG_436
+kan inte öppna AmiSSL (AmiSSL 5.1 eller senare behövs)
+; can't open AmiSSL (5.1 or later is needed)
+MSG_437
+kan inte öppna en socket
+; can't open a socket
+MSG_438
+kan inte slå upp servern
+; can't look up the server
+MSG_439
+tidsgränsen nåddes vid anslutning
+; timed out connecting
+MSG_440
+tidsgränsen nåddes vid TLS-förhandling
+; timed out negotiating TLS
+MSG_441
+tidsgränsen nåddes vid sökning efter servern
+; timed out looking up the server
+MSG_450
+vet inte var Tachyon ligger
+; can't tell where Tachyon is
+MSG_451
+nedladdningen saknas
+; the download is missing
+MSG_452
+kan inte läsa nedladdningen
+; can't read the download
+MSG_453
+nedladdningen är ingen gzip
+; the download isn't a gzip
+MSG_454
+kan inte packa upp nedladdningen
+; can't decompress the download
+MSG_455
+nedladdningen kom fram skadad (CRC)
+; the download arrived damaged (CRC)
+MSG_456
+nedladdningen är inget program
+; the download isn't a program
+MSG_457
+nedladdningen är inte Tachyon
+; the download isn't Tachyon
+MSG_458
+kan inte skriva i Tachyons låda
+; can't write in Tachyon's drawer
+MSG_459
+disken är full
+; the disk is full
+MSG_460
+kan inte flytta undan nuvarande Tachyon
+; can't move the current Tachyon aside
+MSG_461
+kan inte sätta den nya på plats
+; can't put the new one in place

@@ -16,10 +16,15 @@ def tareas(texto):
     filas = []
     padre = ""
     for linea in texto.splitlines():
-        m = re.match(r'^(\s*)(?:- )?\[( |x|~)\] ([A-Za-z]?\d+[a-z]?\d*)\. (.*)$', linea)
+        m = re.match(r'^(\s*)(?:- )?\[( |x|~)\] ([A-Za-z]?\d+[a-z]?\d*|[a-z]\d*)\. (.*)$', linea)
         if not m:
             continue
         sangria, marca, ident, resto = m.groups()
+        # las subtareas con solo su letra ("[x] f." dentro de la 45) llevan delante el número de la tarea
+        if re.fullmatch(r'[a-z]\d*', ident):
+            if not sangria or not padre:
+                continue
+            ident = padre + ident
         if not sangria:
             padre = re.match(r'[A-Za-z]?\d+', ident).group(0)
         estado = {"x": "hecha", "~": "en curso", " ": "pendiente"}[marca]

@@ -8,6 +8,9 @@ Arranque (desde cualquier directorio):
 
 **Encargo actual (usuario, 2026-10-20): la tarea 37, https://pre.opentimetrack.com, pasa delante de todo.**
 
+**Después (usuario, 2026-10-24): "que se vea bien la web de youtube sería un puntazo": la 38 va la siguiente, tras
+publicar la 0.7.2; luego la 53 (las webs de chat).**
+
 ## Objetivo
 
 Un navegador ligero para AmigaOS 3.x escrito en Dash, con interfaz MUI 5: XHTML, CSS, JavaScript
@@ -392,22 +395,22 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
-- [ ] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
+- [x] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
       y probar cada uno en el emulador con capturas (rtg, MUI 3.8, y alguna en 4 colores) hasta que encaje.
-      a. Menús ordenados (dashui admite varios): Proyecto (Nueva ventana N, Cerrar ventana K, Ir a la dirección L
+      [x] a. Menús ordenados (dashui admite varios): Proyecto (Nueva ventana N, Cerrar ventana K, Ir a la dirección L
          —el cursor al campo, MUIA_Window_ActiveObject—, Acerca de ?, Salir Q); Navegar (Atrás, Adelante, Recargar R,
          Parar, Página de inicio H, Historial Y); Marcadores (Ver marcadores B, Añadir o quitar esta página D, Usar
          como página de inicio); Herramientas (Cookies, Buscar actualizaciones, No avisar de versiones nuevas).
-      b. Iconos: Actualizar como icono (no un botón de texto), con su ayuda "Actualizar a la 0.5.0-alfa" (mui_help)
+      [x] b. Iconos: Actualizar como icono (no un botón de texto), con su ayuda "Actualizar a la 0.5.0-alfa" (mui_help)
          y otro para Reiniciar. Los iconos nuevos con 8 colores (los 4 del Workbench más verde, verde oscuro, rojo y
          amarillo; MUI los ajusta a la pantalla).
-      c. La actividad: fuera el punto de arriba; un led en la barra de estado, a la izquierda: verde que parpadea
+      [x] c. La actividad: fuera el punto de arriba; un led en la barra de estado, a la izquierda: verde que parpadea
          mientras algo llega, rojo un rato si la página falló, apagado parado (un lienzo de 12x12: barato).
-      d. El historial: fuera el panel lateral (no se leían las direcciones). Una página tachyon:historial como la de
+      [x] d. El historial: fuera el panel lateral (no se leían las direcciones). Una página tachyon:historial como la de
          Chrome: lo visto (todas las ventanas), lo último arriba, con la hora, el título y la dirección entera, y un
          enlace para borrarlo; se guarda en Tachyon.historial (las últimas 300). El botón y el menú la abren. Atrás y
          adelante, con una lista propia de cada ventana.
-      e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
+      [x] e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
          una estrella para el marcador (llena si la página está en marcadores; un clic la añade o la quita); en
          tachyon:marcadores, quitar cada uno; los atajos en el menú.
       [x] f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
@@ -420,7 +423,7 @@ tarea, con el estilo de Dash.
          punto ni esquema se buscan, como en Chrome). Antes, ver en el emulador qué páginas de resultados salen bien.
          Hecho (2026-10-23): DuckDuckGo (HTML) por defecto, Google, Bing, Brave, Wikipedia y Aminet; Startpage,
          Mojeek y Ecosia fuera (piden demostrar que no se es un robot). Google enseña antes su aviso de cookies.
-      [ ] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
+      [x] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
          (2026-10-23) Dash no los tiene: propuesto a la sesión dash como D71 (@catalog, tr(id, texto), ids en el
          .dashui y una herramienta .cd/.ct -> .catalog). Espera a ella.
@@ -435,6 +438,9 @@ tarea, con el estilo de Dash.
          catalogos/español.ct con el castellano; las pruebas que miran textos de las páginas tachyon:, en inglés.
          Avisar a la sesión de las webs cuando salga la versión.
          (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
+         (2026-10-24) Hecho todo menos los errores de lib/red.dash y de lib/actualizar.dash: siguen en castellano
+         (ahora que la interfaz es inglés de serie, se ven mezclados).
+         Hecho (2026-10-24; ver la bitácora, 45g 8).
 - [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
       la ventana; la página tachyon:descargas con cada una (nombre, dónde se guarda, KB de cuántos, velocidad, lo que
@@ -460,9 +466,11 @@ tarea, con el estilo de Dash.
          tampoco hidrata a los 35 s: mirar qué parchea (Promise, ReadableStream, TextDecoder...) y si su
          flujo funciona con lo nuestro; y en esa vuelta, por qué salen cajitas.
          Hecho (2026-10-24; ver la bitácora): attributes no era viva y React se quedaba en un bucle sin fin.
-      d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
+      [~] d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
          página (~83 ms en pasar a texto los decimales del color, dtoa.c de QuickJS con enteros largos: uno más
          rápido ayudaría a todas las webs; ~90 ms en las 3500 llamadas; ~46 en sus cuentas).
+         (2026-10-24) Los números a texto, con Ryu: hecho (ver la bitácora). La página de las estrellas de ahora
+         ya no hace textos de color en cada fotograma: quedan las llamadas y sus cuentas.
       [x] e. La bola Boing de dash.freemem.space: la caja negra salía vacía (16 px de alto).
          Hecho (2026-10-24; ver la bitácora): un <canvas> con display: block y aspect-ratio.
       f. dpms.freemem.space (usuario, 2026-10-24): un Django con un fondo de Three.js (three-background.js:
@@ -504,7 +512,28 @@ tarea, con el estilo de Dash.
       salida: Traspaso:Tachyon/Tachyon https://tachyon.freemem.space/ >Traspaso:salida.txt. Hasta entenderlo, sin
       versión nueva (sería un paso atrás en su sistema).
       Hecho (2026-10-24; ver la bitácora): la FPU empezaba en precisión simple.
-- [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
+- [ ] 38. **youtube.com (usuario, 2026-10-20; 2026-10-24: "sería un puntazo", la siguiente).** Que la portada y la
+      página de un vídeo de https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven,
+      tarea 30). Empezar como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
+      (2026-10-24) A "Tachyon/0.7 (AmigaOS)" YouTube le da la aplicación de escritorio para navegadores viejos (276 KB
+      de HTML, desktop_polymer en ES5) con sus polyfills: web-animations, webcomponents-all-noPatch (customElements y
+      ShadyDOM), fetch e IntersectionObserver. Tachyon no tiene customElements (el polyfill lo pone) y su
+      MutationObserver no avisa nunca: el polyfill lo necesita para mejorar los elementos que entran después.
+      a. Cómo sale hoy en la máquina RTG: errores, memoria, tiempo.
+      b. MutationObserver de verdad (childList, attributes, characterData, subtree; takeRecords; en una microtarea):
+         sirve a muchas webs, no solo a YouTube.
+      c. Lo que pida después (customElements nativo si el polyfill no basta, ShadyDOM, ytd-app...).
+- [ ] 53. **Las webs de chat (usuario, 2026-10-24: "si se viesen las webs de gemini, chatgpt, claude, etc y se pudiese
+      conversar con ellas... ya sería la releche").** gemini.google.com, chatgpt.com, claude.ai: que se vean y se pueda
+      escribir y leer la respuesta. Lo difícil: piden entrar con una cuenta (formularios, cookies, redirecciones de
+      Google), son aplicaciones de JavaScript muy grandes, la respuesta llega a trozos (fetch con ReadableStream o
+      EventSource; ¿WebSocket?) y suelen tener la comprobación de Cloudflare contra robots. Empezar mirando cada una
+      (cómo sale, errores, qué API le falta) y partirla en subtareas. Después de la 38.
+- [x] 52. **El idioma de Locale para las webs (pendiente de la 51).** navigator.language era 'es-ES' fijo y no se
+      mandaba Accept-Language: Google, DuckDuckGo y demás elegían el idioma por su cuenta. Que las dos sigan al
+      primer idioma de las Preferencias de Locale ("español": es-ES; uno que no se conoce, en-US).
+      Hecho (2026-10-24; ver la bitácora).
+- [~] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
       su JavaScript parado; con poca memoria libre, las de detrás se "descartan" como en Chrome (solo dirección,
@@ -520,6 +549,7 @@ tarea, con el estilo de Dash.
       Hecha la primera parte (2026-10-24; ver la bitácora): abrir, cambiar y cerrar pestañas. Falta: soltar las
       imágenes decodificadas de las de detrás y descartarlas con poca memoria: hecho (ver la bitácora). Falta
       medir lo demás de cada una (su JavaScript, su maqueta) y volver al mismo desplazamiento tras descartarla.
+      Volver al mismo desplazamiento: hecho (2026-10-24; ver la bitácora). Queda medir.
       Un enlace con Mayúsculas o Amiga pulsada, en una pestaña nueva: hecho, sin poderlo ver en el emulador (ver la
       bitácora).
 
@@ -560,8 +590,11 @@ tarea, con el estilo de Dash.
 - [ ] 42. **Lo que el usuario vio en CoffinOS (2026-10-22, pantalla de unos 1650 px, con la compilación de las 00:50:
       sin la 41a3).** Va antes que lo que queda de la 41. Probar con una pantalla igual de ancha (modo de uaegfx mayor
       en una copia de sys32rtg38) y comparar con Chrome:
-      a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
+      [x] a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
          Leer/Discusión/Editar pisadas. Mirar si con la v0.3.0-alfa (ya con la 41a3) sigue.
+         Hecho (2026-10-24; ver la bitácora): el artículo ya salía bien; la cabecera, en una fila como Chrome. Quedan,
+         menores: el pie de la foto, la raya bajo los títulos, la llamada de la referencia en alto, "Ir al contenido"
+         visible arriba y el campo del buscador (width: 100%) más estrecho que en Chrome en una prueba local.
       [x] b. google.com: el icono de las aplicaciones (nueve puntos) sale como nueve círculos enormes.
       [x] c. Resultados de Google: el logo se parte ("Googl" y la "e" debajo); el título y la dirección de cada resultado
          van en la misma línea (la dirección debe ir aparte).
@@ -642,9 +675,6 @@ tarea, con el estilo de Dash.
            (pasan / total) guardado en docs/ para ver cómo sube. Ir tarea a tarea por las carpetas con más fallos.
       Las pruebas de fuera no van al repo enteras: un guion que las baje (tools/) y las que se arreglen, copiadas
       como test con su licencia (WPT es BSD de 3 cláusulas).
-- [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
-      https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
-      como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
 
 - [ ] 40. **Lo que encontró la sesión dashweb-f7 al rehacer docs/ARQUITECTURA.md (2026-10-20; después de la 37,
       salvo la (a), que va antes de la próxima versión).** Comprobado en el código por ella:
@@ -4599,3 +4629,83 @@ Formato:
 - Batería 107/107 (con la 50). Visto: test_navegar_js; la /l/ de DuckDuckGo de la captura en la máquina RTG ancha: pasa a
   https://github.com/FreeMEM/dash y lo carga.
 - Pendiente: navigator.language sigue 'es-ES' fijo; debería seguir al idioma de Locale.
+
+### 2026-10-24 — Publicada la v0.7.1-alfa
+- Con la 50 y la 51 (los resultados de DuckDuckGo, el buscador de serie, no abrían). Batería 107/107; MUI 3.8
+  (sys32rtg38) con la /l/ de DuckDuckGo: salta a github.com/FreeMEM/dash. PR #9; paquete en un worktree limpio de
+  main; release con tachyon.lha, Tachyon.gz y los nueve catálogos (11 ficheros).
+
+### 2026-10-24 — Tarea 52: el idioma de Locale para las webs
+- navigator.language era 'es-ES' fijo (y languages ['es-ES', 'es', 'en']) y las peticiones no llevaban
+  Accept-Language: cada web elegía el idioma a su manera, y en inglés de serie (45g) el JavaScript seguía diciendo
+  español.
+- Ahora, al arrancar, el primer idioma de Locale pasa a su código de web (actualizar_idioma_web: los nombres de
+  AmigaOS sin acentos, "español" es-ES, "français" fr-FR, "norsk" nb-NO; uno que no se conoce, en-US) y de ahí a
+  http_idiomas (Accept-Language como Chrome: "es-ES,es;q=0.9,en;q=0.8") y a jsdom_idioma (navigator.language, y
+  languages con la base y "en"). De paso, navigator.userAgent decía "dashweb/0.1": ahora "Tachyon/0.7".
+- Batería: 108/108. Visto: test_idioma (los códigos, la cabecera que llega al servidor de pruebas, /eco_idioma, con y sin, y
+  navigator en la página con dos idiomas). En el emulador la Locale es inglés: en-US. Sin ver una web real en
+  castellano.
+
+- Panel: la sesión de trasfondo lo puso al día a mano (áreas, estándares, medidas: docs/panel/, revisados con la
+  bitácora); tools/panel_progreso.py cuenta ya las subtareas con solo su letra ("[x] f." de la 45: 45f). Marcadas
+  la 45 a-e; la 45, la 45g y la 46, en curso (lo que les falta, en cada una).
+
+### 2026-10-24 — Tarea 45g (8): los errores de la red y de la actualización, también en el catálogo
+- Quedaban fuera del catálogo: los errores de lib/red.dash (corre en la tarea de la red, que no debe abrirlo), los
+  de la red del runtime de Dash (net_error: en castellano, "conexión rechazada", "no se encuentra el servidor"...),
+  los de instalar una versión (C de lib/actualizar.dash) y el título de la página de error ("No se pudo cargar",
+  fijo en lib/documento.dash). Con el inglés de serie salían mezclados.
+- Ahora lib/red.dash da sus errores en inglés y lib/http.dash, en la tarea principal, pasa los de la conexión por
+  _http_error_red (los de red.dash y los de Dash, a tr(420-441); uno que no conoce, tal cual) al ponerlos en la
+  respuesta. La instalación da un número (_actualizar_instalar) y actualizar_instalar lo pasa a tr(450-461). El
+  título, tr(412). 35 textos nuevos (198), traducidos en los nueve catálogos.
+- Batería: 108/108. Visto: test_http, test_http_carga ("connection refused"), test_actualizar ("the download arrived damaged
+  (CRC)"), test_red; en la copia del CoffinOS (Locale en español) con el catálogo: "No se pudo cargar la página" y
+  "conexión rechazada". (En FS-UAE el catálogo no se abre: su Locale no tiene idioma; la captura con
+  medir_visor --catalogo engañaba, porque el título estaba fijo en castellano.)
+- La 45 queda hecha.
+
+### 2026-10-24 — Tarea 46 (5): la pestaña descartada vuelve a su sitio
+- Al traer una pestaña descartada por poca memoria se cargaba otra vez arriba del todo. Ahora Ventana.desde_volver
+  guarda dónde estaba: ajustar_barra la pone en cuanto la página es así de alta, y si no llega, al acabar de
+  cargar (sin imágenes pendientes) lo más cerca posible. Un desplazamiento de quien mira, otra dirección o cambiar
+  de pestaña antes lo anulan (al cambiar, se guarda como su sitio). Al traerla, la barra a cero: su aviso no
+  parece un desplazamiento de quien mira.
+- Visto en la máquina RTG con MUI 3.8 y POCAMEMORIA=999999 (tests/pages/larga.html, nueva: 300 párrafos): tres
+  páginas abajo, Amiga-T, clic en su botón: se carga otra vez y queda en el párrafo 50. Sin batería: el cambio es
+  solo de src/dashweb.dash, que ninguna prueba compila.
+
+### 2026-10-24 — Tarea 48d (1): los números a texto con Ryu
+- Number a texto (String(x), x + "", toString(), en base 10) iba por js_dtoa de QuickJS: prueba con enteros largos
+  si P cifras devuelven el número. Una búsqueda binaria de P salió peor (quitando los ceros del final, casi
+  siempre acierta en dos pruebas): lo caro son las multiplicaciones de enteros largos, no cuántas.
+- Ahora, en base 10, Ryu (third_party/ryu, de Ulf Adams, Apache 2.0 o Boost; commit 4c0618b0e44f): el decimal más
+  corto sin enteros largos. d2d.c (de dashweb) da a js_dtoa la mantisa y el exponente; el formato sigue siendo el
+  de QuickJS. Un cambio en ryu/d2s.c: las cifras sobrantes se quitan de ocho en ocho y con 32 bits cuando caben (un
+  decimal corto como 2.22 quitaba 14 de una en una con divisiones de 64 bits, y salía más lento que antes).
+  tools/build_qjs.sh lo compila (26 KB); tests/run.py rehace libqjs.a si cambia; su licencia, al paquete y a
+  "Acerca de".
+- De paso, más correcto: QuickJS daba a veces 17 cifras donde bastaban menos (-6.0908212571249994e+287 en vez de
+  -6.090821257125e+287; 21.833 de 5,5 millones al azar, todos con exponentes grandes). Ahora como Chrome.
+- Visto en el PC: igual que String() de Node en 2,4 millones de números (al azar, decimales cortos, colores,
+  diminutos, enormes), con el camino de 32 bits de Ryu, el del 68k. En la máquina RTG, 6000 números (restado el
+  bucle, ~80 ms): decimales largos ~220 -> ~170 ms, cortos (i * 0.37) ~287 -> ~195 ms.
+- Batería: 108/108.
+
+### 2026-10-24 — Tarea 42a: Wikipedia, la cabecera en una fila
+- es.wikipedia.org/wiki/Commodore_Amiga_1200 en la máquina RTG ancha con MUI 3.8, contra Chrome al mismo ancho: el
+  artículo ya no sale aplastado ni con las pestañas pisadas (arreglado por el camino). Lo que se veía distinto: el
+  buscador bajaba a otra fila bajo el logo y "Crear una cuenta" se partía en dos líneas.
+- Causa 1: la cabecera es un flex con flex-wrap y su parte derecha (flex-grow 1) se mide por su contenido
+  (_ancho_flotante a 4000); dentro, el buscador también tiene flex-grow y crecía hasta los 4000, así que la parte
+  derecha medía todo y bajaba de línea. Ahora, al medir el max-content (_midiendo_max), un flex en fila sin width
+  no reparte el sitio sobrante: cada uno con lo suyo, y uno con flex-basis (flex: 1) con su contenido.
+- Causa 2: una lista flex dentro de otro flex, con márgenes en sus elementos: el total cabía justo, entraba por el
+  camino de encoger y el mínimo automático de "Donaciones", medido a 1 de ancho, daba 3 más que su ancho a lo ancho;
+  "Crear una cuenta" encogía 6 para hacerle sitio y se partía. El mínimo automático ya no pasa de su base cuando
+  esta es la de su contenido.
+- Visto: test_maqueta_flex con dos casos nuevos (fallan sin el arreglo); las 29 de maqueta; Wikipedia: la cabecera
+  como en Chrome.
+- Batería: 108/108.
+
