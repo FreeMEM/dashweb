@@ -52,6 +52,10 @@ struct Imagenes
     # alta a la que se dibuja en la última maqueta; hasta: la y hasta la que se baja lo perezoso (-1: aún no se sabe)
     posiciones: {String: Int} = nil
     hasta: Int = -1
+    # las que llegaron de un fichero, para decodificarlas otra vez tras imagenes_dormir (una pestaña de detrás suelta
+    # sus imágenes y se queda con los ficheros de T:; tarea 46)
+    hechas: [Pedida] = nil
+    dormida: Bool = false
 end
 
 struct Pedida
@@ -300,6 +304,7 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                 if _imagen_llegada(im, doc, p, img)
                     llegadas = llegadas + 1
                 end
+                _imagen_hecha(im, p)
                 im.cola.remove(i)
                 continue
             end
@@ -329,6 +334,7 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
                     if _imagen_llegada(im, doc, p, img)
                         llegadas = llegadas + 1
                     end
+                    _imagen_hecha(im, p)
                     im.cola.remove(i)
                     continue
                 end
@@ -365,6 +371,63 @@ func imagenes_avanzar(im: Imagenes, doc: Nodo) -> Int
         i = i + 1
     end
     return llegadas
+end
+
+# Una decodificada de su fichero: se guarda su pedido (para imagenes_despertar)
+func _imagen_hecha(im: Imagenes, p: Pedida)
+    if p.fichero == "" or p.fuente != ""
+        return
+    end
+    var nada: Decodificando = nil
+    p.dec = nada
+    if im.hechas == nil
+        var hs: [Pedida] = []
+        im.hechas = hs
+    end
+    im.hechas.push(p)
+end
+
+# Una pestaña que pasa detrás (tarea 46): suelta las imágenes decodificadas de un fichero y sus copias escaladas (los
+# ficheros de T: se quedan); imagenes_despertar las decodifica otra vez al volver. Lo de sus <img> (su tamaño) no
+# cambia: la maqueta tampoco
+func imagenes_dormir(im: Imagenes)
+    if im.dormida or im.hechas == nil
+        return
+    end
+    var suyas: {String: Int} = {}
+    for p in im.hechas
+        suyas[p.src] = 1
+        if im.por_src.has(p.src) and im.por_src[p.src] != 0
+            image_free(im.por_src[p.src])
+            im.por_src[p.src] = 0
+        end
+    end
+    var fuera: [String] = []
+    for clave in im.escaladas.keys()
+        k = str_find(clave, " ")
+        if k > 0 and suyas.has(clave[:k])
+            fuera.push(clave)
+        end
+    end
+    for clave in fuera
+        image_free(im.escaladas[clave])
+        im.escaladas.remove(clave)
+    end
+    im.dormida = true
+end
+
+func imagenes_despertar(im: Imagenes)
+    if not im.dormida
+        return
+    end
+    im.dormida = false
+    for p in im.hechas
+        if file_exists(p.fichero)
+            p.llegada = true
+            im.cola.push(p)
+        end
+    end
+    im.hechas.clear()
 end
 
 # Hasta dónde decodificarla: al tamaño al que se ve si el HTML lo fija (una foto de 820x480 en una casilla

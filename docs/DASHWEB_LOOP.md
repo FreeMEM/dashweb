@@ -513,7 +513,8 @@ tarea, con el estilo de Dash.
       volver) y, más adelante, sin imágenes decodificadas. Menú Proyecto: Nueva pestaña (Amiga-T), Cerrar pestaña
       (Amiga-W); un enlace con el botón central del ratón, en una pestaña nueva.
       Hecha la primera parte (2026-10-24; ver la bitácora): abrir, cambiar y cerrar pestañas. Falta: soltar las
-      imágenes decodificadas de las de detrás (y descartarlas con poca memoria) y medir la memoria de cada una.
+      imágenes decodificadas de las de detrás: hecho (ver la bitácora). Falta descartarlas con poca memoria (solo
+      dirección, título y desplazamiento) y medir lo demás de cada una (su JavaScript, su maqueta).
       Un enlace con Mayúsculas o Amiga pulsada, en una pestaña nueva: hecho, sin poderlo ver en el emulador (ver la
       bitácora).
 
@@ -4487,4 +4488,10 @@ Formato:
   un segundo), pero una tecla metida con IND_WRITEEVENT no cambia el estado que da PeekQualifier (sale 0; el
   dispositivo sí se abre). Con un teclado de verdad debería verse; si no, pedir a Dash el Qualifier del clic en el
   lienzo de MUI (mui_canvas_button solo dice si fue clic). El clic sin teclas, como siempre (visto).
+- (3) Las de detrás sin sus imágenes decodificadas: lib/imagenes.dash guarda el pedido de cada una que llega de un
+  fichero (Imagenes.hechas); imagenes_dormir suelta esas imágenes y sus copias escaladas (los ficheros de T:
+  quedan) e imagenes_despertar las vuelve a poner en la cola, que las decodifica otra vez sin bajarlas (su <img> ya
+  tiene su tamaño: la maqueta no cambia). src/dashweb.dash duerme la que pasa detrás y despierta la que vuelve.
+- tests/test_imagenes_dormir.dash (nuevo). Visto en el emulador con tests/pages/imagenes.html y la de inicio:
+  dormidas, de 12 KB de imágenes y 48 de copias a 0, y de 92 a 0; al volver, sus imágenes otra vez en su sitio.
 

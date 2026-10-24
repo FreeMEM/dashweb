@@ -1538,6 +1538,10 @@ func pestana_guardar(w: Ventana)
     p.fotograma = w.fotograma
     p.url = mui_get_text(w.v.url)
     p.estado = mui_get_text(w.v.estado)
+    # (detrás, sin sus imágenes decodificadas: se quedan sus ficheros y se decodifican otra vez al volver)
+    if w.actual != nil
+        imagenes_dormir(w.actual.im)
+    end
 end
 
 # La pestaña i, delante (su página, su dirección, sus botones y su barra de estado)
@@ -1557,6 +1561,9 @@ func pestana_traer(w: Ventana, i: Int)
     w.io_pagina = p.io_pagina
     w.animando = p.animando
     w.fotograma = p.fotograma
+    if w.actual != nil
+        imagenes_despertar(w.actual.im)
+    end
     mui_set_text(w.v.url, p.url)
     if w.actual != nil and w.actual.titulo != "" and w.actual.titulo != "Tachyon"
         mui_set_text(w.v.window, w.actual.titulo + " - Tachyon")
