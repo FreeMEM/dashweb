@@ -437,3 +437,39 @@ on quit
 MSG_358
 delete the ones from this domain
 ; borrar las de este dominio
+MSG_400
+too many redirects
+; demasiadas redirecciones
+MSG_401
+the server closed without answering
+; el servidor cerró sin responder
+MSG_402
+an answer that isn't HTTP
+; respuesta que no es HTTP
+MSG_403
+broken status line
+; línea de estado rota
+MSG_404
+cut headers
+; cabeceras cortadas
+MSG_405
+cut body
+; cuerpo cortado
+MSG_406
+could not decompress
+; no se pudo descomprimir
+MSG_407
+timed out
+; tiempo agotado
+MSG_408
+cancelled
+; cancelada
+MSG_409
+unsupported scheme: %1
+; esquema no admitido: %1
+MSG_410
+can't write %1
+; no se puede escribir %1
+MSG_411
+can't read %1
+; no se puede leer %1

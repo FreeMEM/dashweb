@@ -427,8 +427,9 @@ tarea, con el estilo de Dash.
          Hecha la primera parte (2026-10-24; ver la bitácora): la ventana, los menús, las ayudas, la barra de estado
          y la página de inicio, con el catálogo inglés; y luego las páginas tachyon: (descargas, buscadores,
          marcadores, historial, cookies), y la actualización automática baja también los catálogos de la versión
-         nueva; y Acerca de (sus créditos y el "compilado el"). Falta: los errores de red (lib/http.dash,
-         lib/red.dash) y los de lib/actualizar.dash (en C).
+         nueva; Acerca de (sus créditos y el "compilado el"); y los errores de lib/http.dash y lib/documento.dash.
+         Quedan en español: los de lib/red.dash (corre en la tarea de la red: que no abra ella el catálogo) y los de
+         lib/actualizar.dash (en C).
          (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
 - [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
@@ -4437,4 +4438,7 @@ Formato:
 - (4) Acerca de: sus créditos ("tr": 43 en el .dashui) y "compilado el %1 a las %2" (texto_version ya no lo pone en
   C: compilado_fecha y compilado_hora). 145 textos, todos traducidos. Sin ver en el emulador (la acción de menú
   de tools/amiga/clicar.dash no la abrió).
+- (5) Los errores de lib/http.dash y lib/documento.dash (400-411, "tiempo agotado", "cuerpo cortado"...): salen tras
+  "Error:" en la barra. Los de lib/red.dash no: parte corre en la tarea de la red y el catálogo se abre con el primer
+  tr, mejor que lo abra la principal. 157 textos, todos traducidos.
 

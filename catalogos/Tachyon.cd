@@ -290,3 +290,27 @@ MSG_357 (357//)
 al salir
 MSG_358 (358//)
 borrar las de este dominio
+MSG_400 (400//)
+demasiadas redirecciones
+MSG_401 (401//)
+el servidor cerró sin responder
+MSG_402 (402//)
+respuesta que no es HTTP
+MSG_403 (403//)
+línea de estado rota
+MSG_404 (404//)
+cabeceras cortadas
+MSG_405 (405//)
+cuerpo cortado
+MSG_406 (406//)
+no se pudo descomprimir
+MSG_407 (407//)
+tiempo agotado
+MSG_408 (408//)
+cancelada
+MSG_409 (409//)
+esquema no admitido: %1
+MSG_410 (410//)
+no se puede escribir %1
+MSG_411 (411//)
+no se puede leer %1
