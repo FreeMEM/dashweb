@@ -527,6 +527,7 @@ tarea, con el estilo de Dash.
       Hecha la primera parte (2026-10-24; ver la bitácora): abrir, cambiar y cerrar pestañas. Falta: soltar las
       imágenes decodificadas de las de detrás y descartarlas con poca memoria: hecho (ver la bitácora). Falta
       medir lo demás de cada una (su JavaScript, su maqueta) y volver al mismo desplazamiento tras descartarla.
+      Volver al mismo desplazamiento: hecho (2026-10-24; ver la bitácora). Queda medir.
       Un enlace con Mayúsculas o Amiga pulsada, en una pestaña nueva: hecho, sin poderlo ver en el emulador (ver la
       bitácora).
 
@@ -4642,4 +4643,14 @@ Formato:
   "conexión rechazada". (En FS-UAE el catálogo no se abre: su Locale no tiene idioma; la captura con
   medir_visor --catalogo engañaba, porque el título estaba fijo en castellano.)
 - La 45 queda hecha.
+
+### 2026-10-24 — Tarea 46 (5): la pestaña descartada vuelve a su sitio
+- Al traer una pestaña descartada por poca memoria se cargaba otra vez arriba del todo. Ahora Ventana.desde_volver
+  guarda dónde estaba: ajustar_barra la pone en cuanto la página es así de alta, y si no llega, al acabar de
+  cargar (sin imágenes pendientes) lo más cerca posible. Un desplazamiento de quien mira, otra dirección o cambiar
+  de pestaña antes lo anulan (al cambiar, se guarda como su sitio). Al traerla, la barra a cero: su aviso no
+  parece un desplazamiento de quien mira.
+- Visto en la máquina RTG con MUI 3.8 y POCAMEMORIA=999999 (tests/pages/larga.html, nueva: 300 párrafos): tres
+  páginas abajo, Amiga-T, clic en su botón: se carga otra vez y queda en el párrafo 50. Sin batería: el cambio es
+  solo de src/dashweb.dash, que ninguna prueba compila.
 

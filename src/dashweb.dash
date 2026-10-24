@@ -86,6 +86,7 @@ struct Ventana
     abierta: Bool = true
     actual: Documento = nil
     desde: Int = 0
+    desde_volver: Int = -1    # una pestaña descartada vuelve a su sitio cuando su página llega hasta ahí (-1: no)
     pasos: [String] = nil    # las direcciones de esta ventana, para atrás y adelante
     visto: Int = -1          # la de pasos que se ve
     carga: Carga = nil       # la página que está llegando (sin congelar la ventana)
@@ -690,6 +691,10 @@ func ajustar_barra(w: Ventana)
         return
     end
     alto = mui_height(w.v.pagina)
+    if w.desde_volver >= 0 and w.actual.pagina.alto - alto >= w.desde_volver
+        w.desde = w.desde_volver
+        w.desde_volver = -1
+    end
     mui_set_range(w.v.barra, w.actual.pagina.alto, alto)
     if w.desde > w.actual.pagina.alto - alto
         w.desde = w.actual.pagina.alto - alto
@@ -712,6 +717,7 @@ end
 # vuelve: la página llega en los tics (la ventana sigue respondiendo y se puede parar).
 func abrir(w: Ventana, direccion: String)
     parar_carga(w)
+    w.desde_volver = -1
     # (las direcciones internas de antes del nombre Tachyon: dashweb:marcadores...)
     if str_starts(str_lower(direccion), "dashweb:")
         direccion = "tachyon:" + direccion[8:]
@@ -1309,6 +1315,13 @@ end
 func tic(w: Ventana)
     avanzar_carga(w)
     ir_pedido(w)
+    # (la pestaña descartada que volvía a su sitio: con la página ya cargada, lo más cerca que se pueda)
+    if w.desde_volver >= 0 and w.actual != nil and w.carga == nil and w.preparando == nil and imagenes_pendientes(w.actual.im) == 0
+        w.desde = w.desde_volver
+        w.desde_volver = -1
+        ajustar_barra(w)
+        mui_canvas_redraw(w.v.pagina)
+    end
     # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
     if js_cortado()
         dw_estado(w, tr(117, "A script on the page took too long: stopped"))
@@ -1663,6 +1676,10 @@ func pestana_guardar(w: Ventana)
     p = _pestanas(w)[w.pestana]
     p.actual = w.actual
     p.desde = w.desde
+    if w.desde_volver >= 0
+        p.desde = w.desde_volver
+        w.desde_volver = -1
+    end
     p.pasos = w.pasos
     p.visto = w.visto
     p.carga = w.carga
@@ -1720,7 +1737,11 @@ func pestana_traer(w: Ventana, i: Int)
     if p.descartada
         p.descartada = false
         if w.visto >= 0 and w.visto < w.pasos.length
+            # (sin página: la barra a cero, que su aviso no parezca un desplazamiento de quien mira)
+            w.desde = 0
+            mui_set_value(w.v.barra, 0)
             abrir(w, w.pasos[w.visto])
+            w.desde_volver = p.desde
         end
     end
     programar()
@@ -2205,6 +2226,8 @@ Main
             if ev == ID_SCROLL
                 if w.desde != mui_get_value(w.v.barra)
                     w.aviso_scroll = true
+                    # (lo mueve quien mira: la pestaña que volvía a su sitio se queda donde la deja)
+                    w.desde_volver = -1
                 end
                 w.desde = mui_get_value(w.v.barra)
                 mui_canvas_redraw(w.v.pagina)
