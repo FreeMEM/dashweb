@@ -1,0 +1,493 @@
+## version $VER: Tachyon.catalog 1.0 (24.10.2026)
+## language norsk
+## codeset 0
+;
+MSG_1
+Prosjekt
+; Project
+MSG_2
+Nytt vindu
+; New window
+MSG_3
+Lukk vindu
+; Close window
+MSG_4
+Gå til adresse
+; Go to address
+MSG_5
+Om...
+; About...
+MSG_6
+Avslutt
+; Quit
+MSG_7
+Naviger
+; Navigate
+MSG_8
+Tilbake
+; Back
+MSG_9
+Fremover
+; Forward
+MSG_10
+Last inn på nytt
+; Reload
+MSG_11
+Stopp
+; Stop
+MSG_12
+Startside
+; Home page
+MSG_13
+Historikk
+; History
+MSG_14
+Bokmerker
+; Bookmarks
+MSG_15
+Vis bokmerker
+; Show bookmarks
+MSG_16
+Legg til eller fjern denne siden
+; Add or remove this page
+MSG_17
+Bruk som startside
+; Use as home page
+MSG_18
+Verktøy
+; Tools
+MSG_19
+Informasjonskapsler
+; Cookies
+MSG_20
+Nedlastinger
+; Downloads
+MSG_21
+Søkemotor...
+; Search engine...
+MSG_22
+Se etter oppdateringer
+; Check for updates
+MSG_23
+Ikke si fra om nye versjoner
+; Don't tell me about new versions
+MSG_24
+Tilbake
+; Back
+MSG_25
+Tilbake
+; Back
+MSG_26
+Fremover
+; Forward
+MSG_27
+Fremover
+; Forward
+MSG_28
+Last inn siden på nytt
+; Reload the page
+MSG_29
+Stopp innlastingen
+; Stop loading
+MSG_30
+Startside
+; Home page
+MSG_31
+Kryptert tilkobling (HTTPS)
+; Encrypted connection (HTTPS)
+MSG_32
+Ukryptert tilkobling (HTTP)
+; Unencrypted connection (HTTP)
+MSG_33
+Adresse: skriv den og trykk Return
+; Address: type it and press Return
+MSG_34
+Legg til i bokmerker
+; Add to bookmarks
+MSG_35
+I bokmerker: klikk for å fjerne den
+; In bookmarks: click to remove it
+MSG_36
+Historikk: det du har sett
+; History: what you have seen
+MSG_37
+Nedlastinger
+; Downloads
+MSG_38
+Det finnes en ny versjon av Tachyon: klikk for å installere den
+; There is a new version of Tachyon: click to install it
+MSG_39
+Ny versjon installert: klikk for å starte Tachyon på nytt med den
+; New version installed: click to restart Tachyon with it
+MSG_40
+Klar
+; Ready
+MSG_41
+Om Tachyon
+; About Tachyon
+MSG_42
+_Lukk
+; _Close
+MSG_43
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT-lisens · github.com/FreeMEM/tachyon\n\n\033cEn nettleser for Amiga laget i Dash, med MUI og AmiSSL.\n\033cDen inneholder, tilpasset AmigaOS:\n\033cQuickJS (Fabrice Bellard og Charlie Gordon)\n\033cHubbub og LibParserUtils (NetSurf)\n\033cog dessuten stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm og MintVID.\n\033cLisensene deres ligger i skuffen Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+MSG_44
+Ny fane (Amiga-T)
+; New tab (Amiga-T)
+MSG_45
+Ny fane
+; New tab
+MSG_46
+Lukk fane
+; Close tab
+MSG_100
+Denne siden kan ikke legges i bokmerker
+; This page can't be bookmarked
+MSG_101
+Fjernet fra bokmerker
+; Removed from bookmarks
+MSG_102
+I bokmerker: %1
+; In bookmarks: %1
+MSG_103
+Kunne ikke lagre bokmerket
+; Could not save the bookmark
+MSG_104
+Kobler til %1...
+; Connecting to %1...
+MSG_105
+Åpner %1...
+; Opening %1...
+MSG_106
+Sender til %1...
+; Sending to %1...
+MSG_107
+Slår opp %1...
+; Looking up %1...
+MSG_108
+Sikker tilkobling til %1...
+; Secure connection to %1...
+MSG_109
+Mottar %1: %2 KB
+; Receiving %1: %2 KB
+MSG_110
+Henter stilark og skript...
+; Fetching style sheets and scripts...
+MSG_111
+Henter stilark og skript: %1 igjen
+; Fetching style sheets and scripts: %1 left
+MSG_112
+Lagre %1
+; Save %1
+MSG_113
+Nedlasting avbrutt: %1
+; Download cancelled: %1
+MSG_114
+Laster ned %1 (Amiga-J: nedlastinger)
+; Downloading %1 (Amiga-J: downloads)
+MSG_115
+Feil: %1
+; Error: %1
+MSG_116
+Klar: %1 byte på %2 ms
+; Ready: %1 bytes in %2 ms
+MSG_117
+Et skript på siden brukte for lang tid: stoppet
+; A script on the page took too long: stopped
+MSG_118
+Bilder: %1 igjen
+; Images: %1 left
+MSG_120
+Kryptert tilkobling (HTTPS) til %1
+; Encrypted connection (HTTPS) to %1
+MSG_121
+Denne siden kommer ukryptert (HTTP)
+; This page arrives unencrypted (HTTP)
+MSG_122
+Stoppet
+; Stopped
+MSG_123
+Startside: %1
+; Home page: %1
+MSG_124
+Høyst %1 vinduer
+; At most %1 windows
+MSG_125
+Ser etter en ny versjon...
+; Checking for a new version...
+MSG_126
+Sier ikke fra om nye versjoner
+; Won't tell you about new versions
+MSG_127
+Det finnes en ny versjon, %1: klikk for å installere den
+; There is a new version, %1: click to install it
+MSG_128
+%1 installert: klikk for å starte Tachyon på nytt med den
+; %1 installed: click to restart Tachyon with it
+MSG_129
+Kunne ikke se etter nye versjoner
+; Could not check for new versions
+MSG_130
+Det finnes en ny versjon: %1
+; There is a new version: %1
+MSG_131
+Tachyon er oppdatert (%1)
+; Tachyon is up to date (%1)
+MSG_132
+Kunne ikke laste ned den nye versjonen
+; Could not download the new version
+MSG_133
+Ikke installert: %1
+; Not installed: %1
+MSG_134
+%1 installert: klikk på det grønne ikonet
+; %1 installed: click the green icon
+MSG_135
+Laster ned Tachyon %1...
+; Downloading Tachyon %1...
+MSG_136
+%1 (klikk for å se dem)
+; %1 (click to see them)
+MSG_137
+Nedlasting ferdig: %1
+; Download finished: %1
+MSG_138
+Tachyon: video
+; Tachyon: video
+MSG_140
+En nettleser for <b>AmigaOS</b>, skrevet i <i>Dash</i>
+; A web browser for <b>AmigaOS</b>, written in <i>Dash</i>
+MSG_141
+Søk med %1
+; Search with %1
+MSG_142
+Søk
+; Search
+MSG_143
+Bokmerker
+; Bookmarks
+MSG_144
+Sidene du har lagret
+; Your saved pages
+MSG_145
+Hva hvert nettsted lagrer
+; What each site stores
+MSG_146
+Historikk
+; History
+MSG_147
+Det du har sett
+; What you have seen
+MSG_148
+Søkemotor
+; Search engine
+MSG_149
+Hvilken du vil søke med
+; Which one to search with
+MSG_150
+Programmer for Amiga
+; Software for the Amiga
+MSG_151
+Nyheter og forum
+; News and forums
+MSG_152
+Det frie leksikonet
+; The free encyclopedia
+MSG_153
+Koden og nyhetene
+; The code and what's new
+MSG_154
+HTML, CSS, JavaScript (QuickJS) og HTTPS (AmiSSL)
+; HTML, CSS, JavaScript (QuickJS) and HTTPS (AmiSSL)
+MSG_155
+1 nedlasting
+; 1 download
+MSG_156
+%1 nedlastinger
+; %1 downloads
+MSG_157
+%1: %2 %
+; %1: %2 %
+MSG_158
+https://no.wikipedia.org/
+; https://en.wikipedia.org/
+MSG_159
+bygget %1 kl. %2
+; built on %1 at %2
+MSG_160
+Ny fane
+; New tab
+MSG_161
+Høyst %1 faner per vindu
+; At most %1 tabs per window
+MSG_162
+Tachyon på ditt språk: menyene også, når du åpner det igjen
+; Tachyon in your language: the menus too when you open it again
+MSG_300
+Versjonen uten JavaScript: lett, den som går best på en Amiga. Privat.
+; Its JavaScript-free version: light, the one that runs best on an Amiga. Private.
+MSG_301
+Den vanlige.
+; The usual one.
+MSG_302
+Microsofts.
+; Microsoft's.
+MSG_303
+Privat, med egen indeks.
+; Private, with its own index.
+MSG_304
+Søker i leksikonet.
+; Searches the encyclopedia.
+MSG_305
+Søker etter programmer for Amiga.
+; Searches for Amiga software.
+MSG_306
+Søkemotor
+; Search engine
+MSG_307
+Søker etter det du skriver i adressefeltet (noen ord, ikke en adresse) og på startsiden.
+; Searches what you type in the address bar (a few words, not an address) and on the home page.
+MSG_308
+I bruk
+; In use
+MSG_309
+Bruk denne
+; Use this one
+MSG_310
+https://no.wikipedia.org/w/index.php?search=%s
+; https://en.wikipedia.org/w/index.php?search=%s
+MSG_320
+tjeneren svarte %1
+; the server answered %1
+MSG_321
+Stoppet: %1
+; Stopped: %1
+MSG_322
+På nytt: %1
+; Again: %1
+MSG_323
+Fjernet fra listen: %1
+; Removed from the list: %1
+MSG_324
+Åpnet skuffen til %1
+; Opened the drawer of %1
+MSG_325
+Workbench kan ikke åpne skuffen (krever AmigaOS 3.5 eller nyere)
+; Workbench can't open the drawer (it needs AmigaOS 3.5 or later)
+MSG_326
+Nedlastinger
+; Downloads
+MSG_327
+Du har ikke lastet ned noe ennå. Alt som ikke er en side (en .lha, en .zip...) lastes ned hit.
+; You haven't downloaded anything yet. Anything that isn't a page (an .lha, a .zip...) is downloaded here.
+MSG_328
+stopp
+; stop
+MSG_329
+prøv igjen
+; retry
+MSG_330
+åpne skuffen
+; open the drawer
+MSG_331
+fjern
+; remove
+MSG_332
+ av %1 (%2 %)
+;  of %1 (%2 %)
+MSG_333
+ · %1 s igjen
+;  · %1 s left
+MSG_334
+Ferdig: %1
+; Done: %1
+MSG_335
+Stoppet
+; Stopped
+MSG_336
+Mislyktes: %1
+; Failed: %1
+MSG_340
+Bokmerker
+; Bookmarks
+MSG_341
+Ingen bokmerker ennå: stjernen ved siden av adressen, eller menyen Bokmerker, Legg til.
+; No bookmarks yet: the star next to the address, or menu Bookmarks, Add.
+MSG_342
+Historikk
+; History
+MSG_343
+Du har ikke sett noen sider ennå.
+; You haven't seen any page yet.
+MSG_344
+Slett historikken
+; Clear the history
+MSG_345
+I dag
+; Today
+MSG_346
+I går
+; Yesterday
+MSG_350
+Ingen lagret.
+; None stored.
+MSG_351
+%1 lagret.
+; %1 stored.
+MSG_352
+Slett alle
+; Delete them all
+MSG_353
+Domene
+; Domain
+MSG_354
+Navn
+; Name
+MSG_355
+Verdi
+; Value
+MSG_356
+Utløper
+; Expires
+MSG_357
+ved avslutning
+; on quit
+MSG_358
+slett dem fra dette domenet
+; delete the ones from this domain
+MSG_400
+for mange omdirigeringer
+; too many redirects
+MSG_401
+tjeneren lukket uten å svare
+; the server closed without answering
+MSG_402
+et svar som ikke er HTTP
+; an answer that isn't HTTP
+MSG_403
+ødelagt statuslinje
+; broken status line
+MSG_404
+avkuttede hoder
+; cut headers
+MSG_405
+avkuttet innhold
+; cut body
+MSG_406
+kunne ikke pakke ut
+; could not decompress
+MSG_407
+tidsavbrudd
+; timed out
+MSG_408
+avbrutt
+; cancelled
+MSG_409
+skjema støttes ikke: %1
+; unsupported scheme: %1
+MSG_410
+kan ikke skrive %1
+; can't write %1
+MSG_411
+kan ikke lese %1
+; can't read %1

@@ -1,0 +1,493 @@
+## version $VER: Tachyon.catalog 1.0 (24.10.2026)
+## language nederlands
+## codeset 0
+;
+MSG_1
+Project
+; Project
+MSG_2
+Nieuw venster
+; New window
+MSG_3
+Venster sluiten
+; Close window
+MSG_4
+Naar adres
+; Go to address
+MSG_5
+Over...
+; About...
+MSG_6
+Stoppen
+; Quit
+MSG_7
+Navigeren
+; Navigate
+MSG_8
+Terug
+; Back
+MSG_9
+Vooruit
+; Forward
+MSG_10
+Vernieuwen
+; Reload
+MSG_11
+Stop
+; Stop
+MSG_12
+Startpagina
+; Home page
+MSG_13
+Geschiedenis
+; History
+MSG_14
+Bladwijzers
+; Bookmarks
+MSG_15
+Bladwijzers tonen
+; Show bookmarks
+MSG_16
+Deze pagina toevoegen of verwijderen
+; Add or remove this page
+MSG_17
+Als startpagina gebruiken
+; Use as home page
+MSG_18
+Gereedschap
+; Tools
+MSG_19
+Cookies
+; Cookies
+MSG_20
+Downloads
+; Downloads
+MSG_21
+Zoekmachine...
+; Search engine...
+MSG_22
+Op updates controleren
+; Check for updates
+MSG_23
+Niet melden bij nieuwe versies
+; Don't tell me about new versions
+MSG_24
+Terug
+; Back
+MSG_25
+Terug
+; Back
+MSG_26
+Vooruit
+; Forward
+MSG_27
+Vooruit
+; Forward
+MSG_28
+De pagina vernieuwen
+; Reload the page
+MSG_29
+Laden stoppen
+; Stop loading
+MSG_30
+Startpagina
+; Home page
+MSG_31
+Versleutelde verbinding (HTTPS)
+; Encrypted connection (HTTPS)
+MSG_32
+Onversleutelde verbinding (HTTP)
+; Unencrypted connection (HTTP)
+MSG_33
+Adres: typ het en druk op Return
+; Address: type it and press Return
+MSG_34
+Aan bladwijzers toevoegen
+; Add to bookmarks
+MSG_35
+In bladwijzers: klik om te verwijderen
+; In bookmarks: click to remove it
+MSG_36
+Geschiedenis: wat u hebt bekeken
+; History: what you have seen
+MSG_37
+Downloads
+; Downloads
+MSG_38
+Er is een nieuwe versie van Tachyon: klik om te installeren
+; There is a new version of Tachyon: click to install it
+MSG_39
+Nieuwe versie geïnstalleerd: klik om Tachyon ermee te herstarten
+; New version installed: click to restart Tachyon with it
+MSG_40
+Gereed
+; Ready
+MSG_41
+Over Tachyon
+; About Tachyon
+MSG_42
+_Sluiten
+; _Close
+MSG_43
+\ec© 2026 Francisco Antonio Tapias Bravo\n\ecMIT-licentie · github.com/FreeMEM/tachyon\n\n\ecEen browser voor de Amiga, gemaakt in Dash, met MUI en AmiSSL.\n\ecBevat, aangepast voor AmigaOS:\n\ecQuickJS (Fabrice Bellard en Charlie Gordon)\n\ecHubbub en LibParserUtils (NetSurf)\n\ecen ook stb, NanoSVG, Brotli, libwebp,\n\ecTJpgDec, fdlibm en MintVID.\n\ecHun licenties staan in de lade Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+MSG_44
+Nieuw tabblad (Amiga-T)
+; New tab (Amiga-T)
+MSG_45
+Nieuw tabblad
+; New tab
+MSG_46
+Tabblad sluiten
+; Close tab
+MSG_100
+Deze pagina kan geen bladwijzer worden
+; This page can't be bookmarked
+MSG_101
+Uit bladwijzers verwijderd
+; Removed from bookmarks
+MSG_102
+In bladwijzers: %1
+; In bookmarks: %1
+MSG_103
+Kon de bladwijzer niet opslaan
+; Could not save the bookmark
+MSG_104
+Verbinden met %1...
+; Connecting to %1...
+MSG_105
+%1 openen...
+; Opening %1...
+MSG_106
+Verzenden naar %1...
+; Sending to %1...
+MSG_107
+%1 opzoeken...
+; Looking up %1...
+MSG_108
+Beveiligde verbinding met %1...
+; Secure connection to %1...
+MSG_109
+%1 ontvangen: %2 KB
+; Receiving %1: %2 KB
+MSG_110
+Stijlbladen en scripts ophalen...
+; Fetching style sheets and scripts...
+MSG_111
+Stijlbladen en scripts ophalen: nog %1
+; Fetching style sheets and scripts: %1 left
+MSG_112
+%1 opslaan
+; Save %1
+MSG_113
+Download geannuleerd: %1
+; Download cancelled: %1
+MSG_114
+%1 downloaden (Amiga-J: downloads)
+; Downloading %1 (Amiga-J: downloads)
+MSG_115
+Fout: %1
+; Error: %1
+MSG_116
+Gereed: %1 bytes in %2 ms
+; Ready: %1 bytes in %2 ms
+MSG_117
+Een script op de pagina duurde te lang: gestopt
+; A script on the page took too long: stopped
+MSG_118
+Afbeeldingen: nog %1
+; Images: %1 left
+MSG_120
+Versleutelde verbinding (HTTPS) met %1
+; Encrypted connection (HTTPS) to %1
+MSG_121
+Deze pagina komt onversleuteld binnen (HTTP)
+; This page arrives unencrypted (HTTP)
+MSG_122
+Gestopt
+; Stopped
+MSG_123
+Startpagina: %1
+; Home page: %1
+MSG_124
+Hoogstens %1 vensters
+; At most %1 windows
+MSG_125
+Controleren op een nieuwe versie...
+; Checking for a new version...
+MSG_126
+Er wordt niet meer gemeld bij nieuwe versies
+; Won't tell you about new versions
+MSG_127
+Er is een nieuwe versie, %1: klik om te installeren
+; There is a new version, %1: click to install it
+MSG_128
+%1 geïnstalleerd: klik om Tachyon ermee te herstarten
+; %1 installed: click to restart Tachyon with it
+MSG_129
+Kon niet controleren op nieuwe versies
+; Could not check for new versions
+MSG_130
+Er is een nieuwe versie: %1
+; There is a new version: %1
+MSG_131
+Tachyon is bijgewerkt (%1)
+; Tachyon is up to date (%1)
+MSG_132
+Kon de nieuwe versie niet downloaden
+; Could not download the new version
+MSG_133
+Niet geïnstalleerd: %1
+; Not installed: %1
+MSG_134
+%1 geïnstalleerd: klik op het groene pictogram
+; %1 installed: click the green icon
+MSG_135
+Tachyon %1 downloaden...
+; Downloading Tachyon %1...
+MSG_136
+%1 (klik om ze te zien)
+; %1 (click to see them)
+MSG_137
+Download voltooid: %1
+; Download finished: %1
+MSG_138
+Tachyon: video
+; Tachyon: video
+MSG_140
+Een webbrowser voor <b>AmigaOS</b>, geschreven in <i>Dash</i>
+; A web browser for <b>AmigaOS</b>, written in <i>Dash</i>
+MSG_141
+Zoeken met %1
+; Search with %1
+MSG_142
+Zoeken
+; Search
+MSG_143
+Bladwijzers
+; Bookmarks
+MSG_144
+Uw opgeslagen pagina's
+; Your saved pages
+MSG_145
+Wat elke site opslaat
+; What each site stores
+MSG_146
+Geschiedenis
+; History
+MSG_147
+Wat u hebt bekeken
+; What you have seen
+MSG_148
+Zoekmachine
+; Search engine
+MSG_149
+Waarmee zoeken
+; Which one to search with
+MSG_150
+Software voor de Amiga
+; Software for the Amiga
+MSG_151
+Nieuws en forums
+; News and forums
+MSG_152
+De vrije encyclopedie
+; The free encyclopedia
+MSG_153
+De code en het nieuws
+; The code and what's new
+MSG_154
+HTML, CSS, JavaScript (QuickJS) en HTTPS (AmiSSL)
+; HTML, CSS, JavaScript (QuickJS) and HTTPS (AmiSSL)
+MSG_155
+1 download
+; 1 download
+MSG_156
+%1 downloads
+; %1 downloads
+MSG_157
+%1: %2 %
+; %1: %2 %
+MSG_158
+https://nl.wikipedia.org/
+; https://en.wikipedia.org/
+MSG_159
+gecompileerd op %1 om %2
+; built on %1 at %2
+MSG_160
+Nieuw tabblad
+; New tab
+MSG_161
+Hoogstens %1 tabbladen per venster
+; At most %1 tabs per window
+MSG_162
+Tachyon in uw taal: de menu's ook, als u het opnieuw opent
+; Tachyon in your language: the menus too when you open it again
+MSG_300
+De versie zonder JavaScript: licht, werkt het best op een Amiga. Privé.
+; Its JavaScript-free version: light, the one that runs best on an Amiga. Private.
+MSG_301
+De bekende.
+; The usual one.
+MSG_302
+Die van Microsoft.
+; Microsoft's.
+MSG_303
+Privé, met een eigen index.
+; Private, with its own index.
+MSG_304
+Zoekt in de encyclopedie.
+; Searches the encyclopedia.
+MSG_305
+Zoekt naar Amiga-software.
+; Searches for Amiga software.
+MSG_306
+Zoekmachine
+; Search engine
+MSG_307
+Zoekt wat u in de adresbalk typt (een paar woorden, geen adres) en op de startpagina.
+; Searches what you type in the address bar (a few words, not an address) and on the home page.
+MSG_308
+In gebruik
+; In use
+MSG_309
+Deze gebruiken
+; Use this one
+MSG_310
+https://nl.wikipedia.org/w/index.php?search=%s
+; https://en.wikipedia.org/w/index.php?search=%s
+MSG_320
+de server antwoordde %1
+; the server answered %1
+MSG_321
+Gestopt: %1
+; Stopped: %1
+MSG_322
+Opnieuw: %1
+; Again: %1
+MSG_323
+Uit de lijst verwijderd: %1
+; Removed from the list: %1
+MSG_324
+Lade van %1 geopend
+; Opened the drawer of %1
+MSG_325
+Workbench kan de lade niet openen (AmigaOS 3.5 of hoger nodig)
+; Workbench can't open the drawer (it needs AmigaOS 3.5 or later)
+MSG_326
+Downloads
+; Downloads
+MSG_327
+U hebt nog niets gedownload. Alles wat geen pagina is (een .lha, een .zip...) wordt hier gedownload.
+; You haven't downloaded anything yet. Anything that isn't a page (an .lha, a .zip...) is downloaded here.
+MSG_328
+stoppen
+; stop
+MSG_329
+opnieuw
+; retry
+MSG_330
+lade openen
+; open the drawer
+MSG_331
+verwijderen
+; remove
+MSG_332
+ van %1 (%2 %)
+;  of %1 (%2 %)
+MSG_333
+ · nog %1 s
+;  · %1 s left
+MSG_334
+Klaar: %1
+; Done: %1
+MSG_335
+Gestopt
+; Stopped
+MSG_336
+Mislukt: %1
+; Failed: %1
+MSG_340
+Bladwijzers
+; Bookmarks
+MSG_341
+Nog geen bladwijzers: de ster naast het adres, of menu Bladwijzers, Toevoegen.
+; No bookmarks yet: the star next to the address, or menu Bookmarks, Add.
+MSG_342
+Geschiedenis
+; History
+MSG_343
+U hebt nog geen enkele pagina bekeken.
+; You haven't seen any page yet.
+MSG_344
+Geschiedenis wissen
+; Clear the history
+MSG_345
+Vandaag
+; Today
+MSG_346
+Gisteren
+; Yesterday
+MSG_350
+Geen opgeslagen.
+; None stored.
+MSG_351
+%1 opgeslagen.
+; %1 stored.
+MSG_352
+Alle wissen
+; Delete them all
+MSG_353
+Domein
+; Domain
+MSG_354
+Naam
+; Name
+MSG_355
+Waarde
+; Value
+MSG_356
+Verloopt
+; Expires
+MSG_357
+bij afsluiten
+; on quit
+MSG_358
+die van dit domein wissen
+; delete the ones from this domain
+MSG_400
+te veel omleidingen
+; too many redirects
+MSG_401
+de server sloot zonder te antwoorden
+; the server closed without answering
+MSG_402
+een antwoord dat geen HTTP is
+; an answer that isn't HTTP
+MSG_403
+kapotte statusregel
+; broken status line
+MSG_404
+afgebroken headers
+; cut headers
+MSG_405
+afgebroken inhoud
+; cut body
+MSG_406
+kon niet uitpakken
+; could not decompress
+MSG_407
+time-out
+; timed out
+MSG_408
+geannuleerd
+; cancelled
+MSG_409
+niet-ondersteund schema: %1
+; unsupported scheme: %1
+MSG_410
+kan %1 niet schrijven
+; can't write %1
+MSG_411
+kan %1 niet lezen
+; can't read %1

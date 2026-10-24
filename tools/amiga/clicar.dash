@@ -4,7 +4,7 @@
 #   clicar "dashweb" e 100 c 50 40 e 50 t 0x4D
 #
 # Acciones: "e N" espera N/50 s; "c X Y" clic en X, Y dentro de los bordes de la ventana;
-# "v X Y" lleva el puntero a X, Y sin pulsar; "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...); "a COD" la misma con Amiga
+# "C X Y" lo mismo con Mayúsculas pulsada; "v X Y" lleva el puntero a X, Y sin pulsar; "t COD" pulsa y suelta la tecla raw COD (0x4D abajo, 0x40 espacio...); "a COD" la misma con Amiga
 # derecha (atajos de menú: 0x22 = D); "m M E" elige con el ratón el elemento E del menú M (desde 0,
 # separadores incluidos); "r X Y" pulsa el botón derecho en X, Y, "p X Y" lo lleva pulsado al punto X, Y
 # de la pantalla y "s" lo suelta (menús de MUI). Escribe lo que hace.
@@ -84,7 +84,16 @@ end
             ie.ie_SubClass = IESUBCLASS_PIXEL;
             ie.ie_EventAddress = (APTR)&pp;
             DoIO((struct IORequest *)io);
-        } else if (tipo == 1) {          /* clic */
+        } else if (tipo == 1 || tipo == 7) {   /* clic (7: con Mayúsculas izquierda pulsada) */
+            UWORD mayus = tipo == 7 ? IEQUALIFIER_LSHIFT : 0;
+            if (tipo == 7) {
+                memset(&ie, 0, sizeof(ie));
+                ie.ie_Class = IECLASS_RAWKEY;
+                ie.ie_Code = 0x60;
+                ie.ie_Qualifier = IEQUALIFIER_LSHIFT;
+                DoIO((struct IORequest *)io);
+                Delay(2);
+            }
             memset(&ie, 0, sizeof(ie));
             pp.iepp_Screen = w->WScreen;
             pp.iepp_Position.X = w->LeftEdge + w->BorderLeft + x;
@@ -97,12 +106,19 @@ end
             memset(&ie, 0, sizeof(ie));
             ie.ie_Class = IECLASS_RAWMOUSE;
             ie.ie_Code = IECODE_LBUTTON;
-            ie.ie_Qualifier = IEQUALIFIER_LEFTBUTTON | IEQUALIFIER_RELATIVEMOUSE;
+            ie.ie_Qualifier = IEQUALIFIER_LEFTBUTTON | IEQUALIFIER_RELATIVEMOUSE | mayus;
             DoIO((struct IORequest *)io);
             Delay(3);
             ie.ie_Code = IECODE_LBUTTON | IECODE_UP_PREFIX;
-            ie.ie_Qualifier = IEQUALIFIER_RELATIVEMOUSE;
+            ie.ie_Qualifier = IEQUALIFIER_RELATIVEMOUSE | mayus;
             DoIO((struct IORequest *)io);
+            if (tipo == 7) {
+                Delay(50);           /* (como una persona: Mayúsculas sigue pulsada mientras el programa atiende el clic) */
+                memset(&ie, 0, sizeof(ie));
+                ie.ie_Class = IECLASS_RAWKEY;
+                ie.ie_Code = 0x60 | IECODE_UP_PREFIX;
+                DoIO((struct IORequest *)io);
+            }
         } else {                         /* tecla (tipo 3: con Amiga derecha, para los menús) */
             memset(&ie, 0, sizeof(ie));
             ie.ie_Class = IECLASS_RAWKEY;
@@ -260,6 +276,10 @@ Main
             elif a == "c" and i + 2 < arg_count()
                 evento(w, 1, Int(arg(i + 1)), Int(arg(i + 2)), 0)
                 Print "clicar: clic " + arg(i + 1) + "," + arg(i + 2)
+                i = i + 3
+            elif a == "C" and i + 2 < arg_count()
+                evento(w, 7, Int(arg(i + 1)), Int(arg(i + 2)), 0)
+                Print "clicar: clic con Mayúsculas " + arg(i + 1) + "," + arg(i + 2)
                 i = i + 3
             elif a == "v" and i + 2 < arg_count()
                 evento(w, 6, Int(arg(i + 1)), Int(arg(i + 2)), 0)

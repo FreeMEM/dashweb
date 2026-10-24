@@ -3,7 +3,7 @@
 # emu-server: http.py 40893
 # memcheck
 # expect-out: dos activas: 2
-# expect-out: hecha: 1 true, error: 2 [el servidor respondió 404]
+# expect-out: hecha: 1 true, error: 2 [the server answered 404]
 # expect-out: parada: 3 0
 # expect-out: reintentada: 0 -> 1 true
 # expect-out: página: true true true
@@ -38,7 +38,7 @@ Main
     esperar()
     Print "reintentada: " + otra + " -> " + c.estado + " " + (file_size("T:lento.txt") == 2000)
     h = descargas_html()
-    Print "página: " + str_contains(h, "dec_base.jpg") + " " + str_contains(h, "No se pudo") + " " + str_contains(h, "tachyon:descargas?quitar=" + b.id)
+    Print "página: " + str_contains(h, "dec_base.jpg") + " " + str_contains(h, "Failed:") + " " + str_contains(h, "tachyon:descargas?quitar=" + b.id)
     descargas_accion("quitar", b.id)
     quedan = descargas.length
     # otra vez desde el fichero (las acabadas)

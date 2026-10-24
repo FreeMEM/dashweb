@@ -1,0 +1,493 @@
+## version $VER: Tachyon.catalog 1.0 (24.10.2026)
+## language italiano
+## codeset 0
+;
+MSG_1
+Progetto
+; Project
+MSG_2
+Nuova finestra
+; New window
+MSG_3
+Chiudi finestra
+; Close window
+MSG_4
+Vai all'indirizzo
+; Go to address
+MSG_5
+Informazioni...
+; About...
+MSG_6
+Esci
+; Quit
+MSG_7
+Naviga
+; Navigate
+MSG_8
+Indietro
+; Back
+MSG_9
+Avanti
+; Forward
+MSG_10
+Ricarica
+; Reload
+MSG_11
+Ferma
+; Stop
+MSG_12
+Pagina iniziale
+; Home page
+MSG_13
+Cronologia
+; History
+MSG_14
+Segnalibri
+; Bookmarks
+MSG_15
+Mostra segnalibri
+; Show bookmarks
+MSG_16
+Aggiungi o togli questa pagina
+; Add or remove this page
+MSG_17
+Usa come pagina iniziale
+; Use as home page
+MSG_18
+Strumenti
+; Tools
+MSG_19
+Cookie
+; Cookies
+MSG_20
+Scaricamenti
+; Downloads
+MSG_21
+Motore di ricerca...
+; Search engine...
+MSG_22
+Cerca aggiornamenti
+; Check for updates
+MSG_23
+Non avvisare di nuove versioni
+; Don't tell me about new versions
+MSG_24
+Indietro
+; Back
+MSG_25
+Indietro
+; Back
+MSG_26
+Avanti
+; Forward
+MSG_27
+Avanti
+; Forward
+MSG_28
+Ricarica la pagina
+; Reload the page
+MSG_29
+Ferma il caricamento
+; Stop loading
+MSG_30
+Pagina iniziale
+; Home page
+MSG_31
+Connessione cifrata (HTTPS)
+; Encrypted connection (HTTPS)
+MSG_32
+Connessione non cifrata (HTTP)
+; Unencrypted connection (HTTP)
+MSG_33
+Indirizzo: scrivilo e premi Return
+; Address: type it and press Return
+MSG_34
+Aggiungi ai segnalibri
+; Add to bookmarks
+MSG_35
+Nei segnalibri: clicca per toglierla
+; In bookmarks: click to remove it
+MSG_36
+Cronologia: ciò che hai visto
+; History: what you have seen
+MSG_37
+Scaricamenti
+; Downloads
+MSG_38
+C'è una nuova versione di Tachyon: clicca per installarla
+; There is a new version of Tachyon: click to install it
+MSG_39
+Nuova versione installata: clicca per riavviare Tachyon con essa
+; New version installed: click to restart Tachyon with it
+MSG_40
+Pronto
+; Ready
+MSG_41
+Informazioni su Tachyon
+; About Tachyon
+MSG_42
+_Chiudi
+; _Close
+MSG_43
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicenza MIT · github.com/FreeMEM/tachyon\n\n\033cUn browser per Amiga fatto in Dash, con MUI e AmiSSL.\n\033cInclude, adattati per AmigaOS:\n\033cQuickJS (Fabrice Bellard e Charlie Gordon)\n\033cHubbub e LibParserUtils (NetSurf)\n\033ce anche stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm e MintVID.\n\033cLe loro licenze sono nel cassetto Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+MSG_44
+Nuova scheda (Amiga-T)
+; New tab (Amiga-T)
+MSG_45
+Nuova scheda
+; New tab
+MSG_46
+Chiudi scheda
+; Close tab
+MSG_100
+Questa pagina non può andare nei segnalibri
+; This page can't be bookmarked
+MSG_101
+Tolta dai segnalibri
+; Removed from bookmarks
+MSG_102
+Nei segnalibri: %1
+; In bookmarks: %1
+MSG_103
+Impossibile salvare il segnalibro
+; Could not save the bookmark
+MSG_104
+Connessione a %1...
+; Connecting to %1...
+MSG_105
+Apertura di %1...
+; Opening %1...
+MSG_106
+Invio a %1...
+; Sending to %1...
+MSG_107
+Ricerca di %1...
+; Looking up %1...
+MSG_108
+Connessione sicura a %1...
+; Secure connection to %1...
+MSG_109
+Ricezione di %1: %2 KB
+; Receiving %1: %2 KB
+MSG_110
+Caricamento di fogli di stile e script...
+; Fetching style sheets and scripts...
+MSG_111
+Caricamento di fogli di stile e script: ne mancano %1
+; Fetching style sheets and scripts: %1 left
+MSG_112
+Salva %1
+; Save %1
+MSG_113
+Scaricamento annullato: %1
+; Download cancelled: %1
+MSG_114
+Scaricamento di %1 (Amiga-J: scaricamenti)
+; Downloading %1 (Amiga-J: downloads)
+MSG_115
+Errore: %1
+; Error: %1
+MSG_116
+Pronto: %1 byte in %2 ms
+; Ready: %1 bytes in %2 ms
+MSG_117
+Uno script della pagina impiegava troppo: fermato
+; A script on the page took too long: stopped
+MSG_118
+Immagini: ne mancano %1
+; Images: %1 left
+MSG_120
+Connessione cifrata (HTTPS) con %1
+; Encrypted connection (HTTPS) to %1
+MSG_121
+Questa pagina arriva non cifrata (HTTP)
+; This page arrives unencrypted (HTTP)
+MSG_122
+Fermato
+; Stopped
+MSG_123
+Pagina iniziale: %1
+; Home page: %1
+MSG_124
+Al massimo %1 finestre
+; At most %1 windows
+MSG_125
+Controllo se c'è una nuova versione...
+; Checking for a new version...
+MSG_126
+Non avviserà di nuove versioni
+; Won't tell you about new versions
+MSG_127
+C'è una nuova versione, la %1: clicca per installarla
+; There is a new version, %1: click to install it
+MSG_128
+Installata la %1: clicca per riavviare Tachyon con essa
+; %1 installed: click to restart Tachyon with it
+MSG_129
+Impossibile controllare le nuove versioni
+; Could not check for new versions
+MSG_130
+C'è una nuova versione: %1
+; There is a new version: %1
+MSG_131
+Tachyon è aggiornato (%1)
+; Tachyon is up to date (%1)
+MSG_132
+Impossibile scaricare la nuova versione
+; Could not download the new version
+MSG_133
+Non installata: %1
+; Not installed: %1
+MSG_134
+Installata la %1: clicca l'icona verde
+; %1 installed: click the green icon
+MSG_135
+Scaricamento di Tachyon %1...
+; Downloading Tachyon %1...
+MSG_136
+%1 (clicca per vederli)
+; %1 (click to see them)
+MSG_137
+Scaricamento completato: %1
+; Download finished: %1
+MSG_138
+Tachyon: video
+; Tachyon: video
+MSG_140
+Un browser web per <b>AmigaOS</b>, scritto in <i>Dash</i>
+; A web browser for <b>AmigaOS</b>, written in <i>Dash</i>
+MSG_141
+Cerca con %1
+; Search with %1
+MSG_142
+Cerca
+; Search
+MSG_143
+Segnalibri
+; Bookmarks
+MSG_144
+Le tue pagine salvate
+; Your saved pages
+MSG_145
+Cosa memorizza ogni sito
+; What each site stores
+MSG_146
+Cronologia
+; History
+MSG_147
+Ciò che hai visto
+; What you have seen
+MSG_148
+Motore di ricerca
+; Search engine
+MSG_149
+Con quale cercare
+; Which one to search with
+MSG_150
+Programmi per Amiga
+; Software for the Amiga
+MSG_151
+Notizie e forum
+; News and forums
+MSG_152
+L'enciclopedia libera
+; The free encyclopedia
+MSG_153
+Il codice e le novità
+; The code and what's new
+MSG_154
+HTML, CSS, JavaScript (QuickJS) e HTTPS (AmiSSL)
+; HTML, CSS, JavaScript (QuickJS) and HTTPS (AmiSSL)
+MSG_155
+1 scaricamento
+; 1 download
+MSG_156
+%1 scaricamenti
+; %1 downloads
+MSG_157
+%1: %2 %
+; %1: %2 %
+MSG_158
+https://it.wikipedia.org/
+; https://en.wikipedia.org/
+MSG_159
+compilato il %1 alle %2
+; built on %1 at %2
+MSG_160
+Nuova scheda
+; New tab
+MSG_161
+Al massimo %1 schede per finestra
+; At most %1 tabs per window
+MSG_162
+Tachyon nella tua lingua: anche i menu, alla prossima apertura
+; Tachyon in your language: the menus too when you open it again
+MSG_300
+La sua versione senza JavaScript: leggera, quella che va meglio su un Amiga. Privato.
+; Its JavaScript-free version: light, the one that runs best on an Amiga. Private.
+MSG_301
+Il solito.
+; The usual one.
+MSG_302
+Quello di Microsoft.
+; Microsoft's.
+MSG_303
+Privato, con un suo indice.
+; Private, with its own index.
+MSG_304
+Cerca nell'enciclopedia.
+; Searches the encyclopedia.
+MSG_305
+Cerca programmi per Amiga.
+; Searches for Amiga software.
+MSG_306
+Motore di ricerca
+; Search engine
+MSG_307
+Cerca ciò che scrivi nella barra dell'indirizzo (qualche parola, non un indirizzo) e nella pagina iniziale.
+; Searches what you type in the address bar (a few words, not an address) and on the home page.
+MSG_308
+In uso
+; In use
+MSG_309
+Usa questo
+; Use this one
+MSG_310
+https://it.wikipedia.org/w/index.php?search=%s
+; https://en.wikipedia.org/w/index.php?search=%s
+MSG_320
+il server ha risposto %1
+; the server answered %1
+MSG_321
+Fermato: %1
+; Stopped: %1
+MSG_322
+Di nuovo: %1
+; Again: %1
+MSG_323
+Tolto dalla lista: %1
+; Removed from the list: %1
+MSG_324
+Aperto il cassetto di %1
+; Opened the drawer of %1
+MSG_325
+Il Workbench non può aprire il cassetto (serve AmigaOS 3.5 o superiore)
+; Workbench can't open the drawer (it needs AmigaOS 3.5 or later)
+MSG_326
+Scaricamenti
+; Downloads
+MSG_327
+Non hai ancora scaricato nulla. Ciò che non è una pagina (un .lha, uno .zip...) viene scaricato qui.
+; You haven't downloaded anything yet. Anything that isn't a page (an .lha, a .zip...) is downloaded here.
+MSG_328
+ferma
+; stop
+MSG_329
+riprova
+; retry
+MSG_330
+apri il cassetto
+; open the drawer
+MSG_331
+togli
+; remove
+MSG_332
+ di %1 (%2 %)
+;  of %1 (%2 %)
+MSG_333
+ · mancano %1 s
+;  · %1 s left
+MSG_334
+Completato: %1
+; Done: %1
+MSG_335
+Fermato
+; Stopped
+MSG_336
+Non riuscito: %1
+; Failed: %1
+MSG_340
+Segnalibri
+; Bookmarks
+MSG_341
+Ancora nessun segnalibro: la stella accanto all'indirizzo, o menu Segnalibri, Aggiungi.
+; No bookmarks yet: the star next to the address, or menu Bookmarks, Add.
+MSG_342
+Cronologia
+; History
+MSG_343
+Non hai ancora visto nessuna pagina.
+; You haven't seen any page yet.
+MSG_344
+Cancella la cronologia
+; Clear the history
+MSG_345
+Oggi
+; Today
+MSG_346
+Ieri
+; Yesterday
+MSG_350
+Nessuno memorizzato.
+; None stored.
+MSG_351
+%1 memorizzati.
+; %1 stored.
+MSG_352
+Cancellali tutti
+; Delete them all
+MSG_353
+Dominio
+; Domain
+MSG_354
+Nome
+; Name
+MSG_355
+Valore
+; Value
+MSG_356
+Scade
+; Expires
+MSG_357
+all'uscita
+; on quit
+MSG_358
+cancella quelli di questo dominio
+; delete the ones from this domain
+MSG_400
+troppi reindirizzamenti
+; too many redirects
+MSG_401
+il server ha chiuso senza rispondere
+; the server closed without answering
+MSG_402
+una risposta che non è HTTP
+; an answer that isn't HTTP
+MSG_403
+riga di stato non valida
+; broken status line
+MSG_404
+intestazioni troncate
+; cut headers
+MSG_405
+corpo troncato
+; cut body
+MSG_406
+impossibile decomprimere
+; could not decompress
+MSG_407
+tempo scaduto
+; timed out
+MSG_408
+annullato
+; cancelled
+MSG_409
+schema non supportato: %1
+; unsupported scheme: %1
+MSG_410
+impossibile scrivere %1
+; can't write %1
+MSG_411
+impossibile leggere %1
+; can't read %1

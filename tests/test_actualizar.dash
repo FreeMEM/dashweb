@@ -1,10 +1,16 @@
 # Test: lib/actualizar.dash (tarea 44) contra un GitHub de mentira (tests/servers/http.py, /act/): qué versión es
 # más nueva, la de la lista con su Tachyon.gz, bajarlo e instalarlo en lugar de otro (el de antes como .old), y uno
-# que llega mal (CRC) no cambia nada.
+# que llega mal (CRC) no cambia nada. Sus catálogos (tarea 45g): el idioma de cada uno, adónde van (junto al programa,
+# en Catalogs/<idioma>/, también en la raíz de un disco) y bajarlo y ponerlo, con el idioma de dentro (el nombre
+# publicado va sin acentos: GitHub los cambia); y el de una versión en un idioma, que no está si no se publicó.
 # emu-server: http.py 40892
 # memcheck
 # expect-out: versiones: true false false true false
 # expect-out: novedad: 9.9.0-alfa http://127.0.0.1:40892/act/Tachyon.gz
+# expect-out: catálogos: 1 espanol [] | T:prueba_cat/Catalogs RAM:Catalogs
+# expect-out: catálogo puesto: español 28 false
+# expect-out: sin acentos: espanol francais portugues deutsch | http://127.0.0.1:40892/act/v9.9.0-alfa/Tachyon-espanol.catalog
+# expect-out: el de la versión: español | sin publicar: [] false | no es un catálogo: [] | preferido: true
 # expect-out: sin novedad: true
 # expect-out: instalada: [] true true
 # expect-out: rota: [lo bajado llegó mal (CRC)] true false
@@ -26,6 +32,26 @@ Main
     lista = http_texto(c.respuesta)
     n = actualizar_leer(lista, "0.4.0-alfa")
     Print "novedad: " + n.version + " " + n.url
+    dir_create("T:prueba_cat")
+    cajon = actualizar_catalogos("T:prueba_cat/Tachyon")
+    Print "catálogos: " + n.catalogos.length + " " + actualizar_catalogo_idioma(n.catalogos[0]) + " [" + actualizar_catalogo_idioma("http://x/Tachyon.gz") + "] | " + cajon + " " + actualizar_catalogos("RAM:Tachyon")
+    k = actualizar_catalogo_bajar(n.catalogos[0], cajon)
+    esperar(k)
+    puesto = actualizar_catalogo_poner(k, n.catalogos[0], cajon)
+    Print "catálogo puesto: " + puesto + " " + file_size(cajon + "/español/Tachyon.catalog") + " " + file_exists(cajon + "/Tachyon-espanol.new")
+    actualizar_descargas = "http://127.0.0.1:40892/act/"
+    url = actualizar_catalogo_url("9.9.0-alfa", "español")
+    Print "sin acentos: " + actualizar_ascii("español") + " " + actualizar_ascii("français") + " " + actualizar_ascii("português") + " " + actualizar_ascii("deutsch") + " | " + url
+    file_delete(cajon + "/español/Tachyon.catalog")
+    k2 = actualizar_catalogo_bajar(url, cajon)
+    esperar(k2)
+    l = "el de la versión: " + actualizar_catalogo_poner(k2, url, cajon)
+    url2 = actualizar_catalogo_url("9.9.0-alfa", "deutsch")
+    k3 = actualizar_catalogo_bajar(url2, cajon)
+    esperar(k3)
+    l = l + " | sin publicar: [" + actualizar_catalogo_poner(k3, url2, cajon) + "] " + file_exists(cajon + "/Tachyon-deutsch.new")
+    file_write_text("T:prueba_cat/nada", "FORMxxxxILBMyyyy")
+    Print l + " | no es un catálogo: [" + actualizar_catalogo_lang("T:prueba_cat/nada") + "] | preferido: " + (actualizar_idioma_preferido() != "x")
     Print "sin novedad: " + (actualizar_leer(lista, "9.9.0-alfa") == nil)
     # uno de antes en T:, cambiado por el bajado
     file_write_text("T:prueba_tachyon", "el de antes")

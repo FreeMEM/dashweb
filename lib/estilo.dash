@@ -1139,6 +1139,28 @@ func _logica_lados(p: String) -> [String]
     return nada
 end
 
+# inline-size, block-size y sus min- y max-: width y height (en horizontal; las barras de dash.freemem.space son
+# inline-size: 63%); las demás, tal cual
+func _logica_tamano(p: String) -> String
+    if not str_ends(p, "-size")
+        return p
+    end
+    if p == "inline-size"
+        return "width"
+    elif p == "block-size"
+        return "height"
+    elif p == "min-inline-size"
+        return "min-width"
+    elif p == "max-inline-size"
+        return "max-width"
+    elif p == "min-block-size"
+        return "min-height"
+    elif p == "max-block-size"
+        return "max-height"
+    end
+    return p
+end
+
 func _es_atajo(p: String) -> Bool
     if (str_ends(p, "-inline") or str_ends(p, "-block") or str_ends(p, "-start") or str_ends(p, "-end")) and _logica_lados(p) != nil
         return true
@@ -1171,7 +1193,7 @@ end
 var estilo_raro: Bool = false
 
 func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp: Int, orden: Int)
-    p = d.propiedad
+    p = _logica_tamano(d.propiedad)
     v = d.valor
     # una longitud sin unidad (que no sea 0) no vale en modo estándar: la declaración no cuenta (Acid2: .parser {
     # width: 200 }; tarea 41a)
@@ -1245,7 +1267,29 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
         var lugar: [String] = []
         tam = "auto"
         fija = "scroll"
-        for t in _palabras(v)
+        # varias capas (separadas por comas): entera en background-capas (lib/maqueta.dash pinta sus degradados, cada
+        # uno con su sitio y su tamaño; tarea 48j) y lo de siempre con la que lleva imagen (o la última); el color va en
+        # la última
+        capas = css_partir(v, 44)
+        uno = v
+        if capas.length > 1
+            _proponer(ganadoras, "background-capas", Candidata(v, d.importante, autor, esp, orden))
+            uno = capas[capas.length - 1]
+            for c in capas
+                if str_find(str_lower(c), "url(") >= 0
+                    uno = c
+                    break
+                end
+            end
+            for t in _palabras(capas[capas.length - 1])
+                if _es_color(t) and not str_starts(str_lower(t), "linear-gradient(") and not str_starts(str_lower(t), "-webkit-linear-gradient(") and not str_starts(t, "/")
+                    color = t
+                end
+            end
+        else
+            _proponer(ganadoras, "background-capas", Candidata("none", d.importante, autor, esp, orden))
+        end
+        for t in _palabras(uno)
             tl = str_lower(t)
             if str_starts(tl, "url(") or str_starts(tl, "linear-gradient(") or str_starts(tl, "-webkit-linear-gradient(") or str_starts(tl, "-moz-linear-gradient(") or str_starts(tl, "-o-linear-gradient(")
                 imagen = t
@@ -2936,10 +2980,12 @@ func _pistas_html(n: Nodo) -> [Declaracion]
         return r
     end
     nombre = n.nombre
-    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "col" or nombre == "colgroup" or nombre == "hr" or nombre == "iframe" or nombre == "embed" or nombre == "object" or nombre == "canvas"
+    # (los de un <canvas> no: son el tamaño de su lienzo, el natural; la página lo cambia al medirlo y la bola Boing de
+    # dash.freemem.space, 4/3 de su ancho, se quedaba en el alto que le dio la primera vez; HTML 15.4.3)
+    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "col" or nombre == "colgroup" or nombre == "hr" or nombre == "iframe" or nombre == "embed" or nombre == "object"
         _pista(r, "width", _html_largo(dom_atributo(n, "width")))
     end
-    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "tr" or nombre == "iframe" or nombre == "embed" or nombre == "object" or nombre == "canvas"
+    if nombre == "table" or nombre == "td" or nombre == "th" or nombre == "tr" or nombre == "iframe" or nombre == "embed" or nombre == "object"
         _pista(r, "height", _html_largo(dom_atributo(n, "height")))
     end
     if nombre == "body" or nombre == "table" or nombre == "tr" or nombre == "td" or nombre == "th" or nombre == "thead" or nombre == "tbody" or nombre == "tfoot"

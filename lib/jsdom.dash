@@ -17,6 +17,7 @@ import "js.dash"
 import "estilo.dash"
 import "formularios.dash"
 import "jsdom_preludio.dash"
+import "lienzo.dash"
 
 # === La parte en Dash (la llaman las funciones de C de abajo) ===
 
@@ -1421,6 +1422,223 @@ static const JSCFunctionListEntry _jsdom_documento[] = {
 """
 end
 
+# === CanvasRenderingContext2D (tarea 48a): lo que pide el JavaScript, al dibujo de lib/lienzo.dash ===
+@c
+"""
+static JSClassID _lz_clase;
+
+static void _lz_finalizar(JSRuntime *rt, JSValue v) {
+    _lz_liberar((_Lienzo *)JS_GetOpaque(v, _lz_clase));
+}
+
+#define _LZ_ESTE _Lienzo *l = (_Lienzo *)JS_GetOpaque(this_val, _lz_clase); \
+    if (!l) return JS_ThrowTypeError(ctx, "not a CanvasRenderingContext2D")
+
+static double _lz_num(JSContext *ctx, int argc, JSValueConst *argv, int i) {
+    double d = 0;
+    if (i < argc) JS_ToFloat64(ctx, &d, argv[i]);
+    return d != d ? 0 : d;     /* (NaN: 0) */
+}
+#define _LZ_A(i) _lz_num(ctx, argc, argv, i)
+
+static JSValue _lz_fillRect(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_fill_rect(l, _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(3)); return JS_UNDEFINED;
+}
+static JSValue _lz_clearRect(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_clear_rect(l, _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(3)); return JS_UNDEFINED;
+}
+static JSValue _lz_strokeRect(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    double x = _LZ_A(0), y = _LZ_A(1), w = _LZ_A(2), h = _LZ_A(3);
+    LONG n;
+    _LZ_ESTE;
+    n = l->n;
+    l->n = 0;
+    _lz_move(l, x, y); _lz_line(l, x + w, y); _lz_line(l, x + w, y + h); _lz_line(l, x, y + h); _lz_close(l);
+    _lz_stroke(l);
+    l->n = 0;
+    (void)n;
+    return JS_UNDEFINED;
+}
+static JSValue _lz_beginPath(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_begin(l); return JS_UNDEFINED;
+}
+static JSValue _lz_moveTo(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_move(l, _LZ_A(0), _LZ_A(1)); return JS_UNDEFINED;
+}
+static JSValue _lz_lineTo(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_line(l, _LZ_A(0), _LZ_A(1)); return JS_UNDEFINED;
+}
+static JSValue _lz_closePath(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_close(l); return JS_UNDEFINED;
+}
+static JSValue _lz_rect_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    double x = _LZ_A(0), y = _LZ_A(1), w = _LZ_A(2), h = _LZ_A(3);
+    _LZ_ESTE;
+    _lz_move(l, x, y); _lz_line(l, x + w, y); _lz_line(l, x + w, y + h); _lz_line(l, x, y + h); _lz_close(l);
+    return JS_UNDEFINED;
+}
+static JSValue _lz_arc_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE;
+    _lz_arc(l, _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(2), _LZ_A(3), _LZ_A(4), argc > 5 && JS_ToBool(ctx, argv[5]));
+    return JS_UNDEFINED;
+}
+static JSValue _lz_ellipse_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE;
+    _lz_arc(l, _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(3), _LZ_A(5), _LZ_A(6), argc > 7 && JS_ToBool(ctx, argv[7]));
+    return JS_UNDEFINED;
+}
+static JSValue _lz_quadratic(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_bezier(l, _LZ_A(0), _LZ_A(1), _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(3), 1); return JS_UNDEFINED;
+}
+static JSValue _lz_bezier_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_bezier(l, _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(3), _LZ_A(4), _LZ_A(5), 0); return JS_UNDEFINED;
+}
+static JSValue _lz_arcTo(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_line(l, _LZ_A(0), _LZ_A(1)); return JS_UNDEFINED;
+}
+static JSValue _lz_stroke_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_stroke(l); return JS_UNDEFINED;
+}
+static JSValue _lz_fill_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_fill(l); return JS_UNDEFINED;
+}
+static JSValue _lz_setTransform(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE;
+    if (argc >= 6) _lz_set_transform(l, _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(3), _LZ_A(4), _LZ_A(5));
+    else _lz_set_transform(l, 1, 0, 0, 1, 0, 0);
+    return JS_UNDEFINED;
+}
+static JSValue _lz_resetTransform(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_set_transform(l, 1, 0, 0, 1, 0, 0); return JS_UNDEFINED;
+}
+static JSValue _lz_transform_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_transform(l, _LZ_A(0), _LZ_A(1), _LZ_A(2), _LZ_A(3), _LZ_A(4), _LZ_A(5)); return JS_UNDEFINED;
+}
+static JSValue _lz_scale(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_transform(l, _LZ_A(0), 0, 0, _LZ_A(1), 0, 0); return JS_UNDEFINED;
+}
+static JSValue _lz_translate(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_transform(l, 1, 0, 0, 1, _LZ_A(0), _LZ_A(1)); return JS_UNDEFINED;
+}
+static JSValue _lz_rotate(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    double a = _LZ_A(0), c = cos(a), s = sin(a);
+    _LZ_ESTE; _lz_transform(l, c, s, -s, c, 0, 0); return JS_UNDEFINED;
+}
+static JSValue _lz_save_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_save(l); return JS_UNDEFINED;
+}
+static JSValue _lz_restore_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_restore(l); return JS_UNDEFINED;
+}
+/* __tam(ancho, alto): canvas.width/height (el preludio) */
+static JSValue _lz_tam_js(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _LZ_ESTE; _lz_tam(l, (LONG)_LZ_A(0), (LONG)_LZ_A(1)); return JS_UNDEFINED;
+}
+
+/* fillStyle y strokeStyle: un texto de color (lo demás, un degradado o un patrón, se queda con el de antes) */
+static JSValue _lz_estilo_get(JSContext *ctx, JSValueConst this_val, int magic) {
+    char b[32];
+    ULONG c;
+    _LZ_ESTE;
+    c = magic ? l->e.trazo : l->e.relleno;
+    if ((c >> 24) == 255) sprintf(b, "#%02lx%02lx%02lx", (c >> 16) & 255, (c >> 8) & 255, c & 255);
+    else sprintf(b, "rgba(%ld, %ld, %ld, %ld.%02ld)", (c >> 16) & 255, (c >> 8) & 255, c & 255, (c >> 24) / 255, ((c >> 24) % 255) * 100 / 255);
+    return JS_NewString(ctx, b);
+}
+static JSValue _lz_estilo_set(JSContext *ctx, JSValueConst this_val, JSValueConst v, int magic) {
+    const char *t;
+    _LZ_ESTE;
+    if (!JS_IsString(v)) return JS_UNDEFINED;
+    t = JS_ToCString(ctx, v);
+    if (!t) return JS_EXCEPTION;
+    if (magic) l->e.trazo = _lz_color(l, t, l->e.trazo);
+    else l->e.relleno = _lz_color(l, t, l->e.relleno);
+    JS_FreeCString(ctx, t);
+    return JS_UNDEFINED;
+}
+/* lineWidth (0), globalAlpha (1), y el tamaño del lienzo, __w (2) y __h (3), solo de leer */
+static JSValue _lz_num_get(JSContext *ctx, JSValueConst this_val, int magic) {
+    _LZ_ESTE;
+    if (magic == 0) return JS_NewFloat64(ctx, l->e.grosor);
+    if (magic == 1) return JS_NewFloat64(ctx, l->e.alfa / 255.0);
+    return JS_NewInt32(ctx, magic == 2 ? l->w : l->h);
+}
+static JSValue _lz_num_set(JSContext *ctx, JSValueConst this_val, JSValueConst v, int magic) {
+    double d = 0;
+    _LZ_ESTE;
+    if (JS_ToFloat64(ctx, &d, v) || d != d) return JS_UNDEFINED;
+    if (magic == 0 && d > 0) l->e.grosor = d;
+    if (magic == 1 && d >= 0 && d <= 1) l->e.alfa = (LONG)(d * 255 + 0.5);
+    return JS_UNDEFINED;
+}
+
+static const JSCFunctionListEntry _lz_metodos[] = {
+    JS_CFUNC_DEF("fillRect", 4, _lz_fillRect),
+    JS_CFUNC_DEF("clearRect", 4, _lz_clearRect),
+    JS_CFUNC_DEF("strokeRect", 4, _lz_strokeRect),
+    JS_CFUNC_DEF("beginPath", 0, _lz_beginPath),
+    JS_CFUNC_DEF("moveTo", 2, _lz_moveTo),
+    JS_CFUNC_DEF("lineTo", 2, _lz_lineTo),
+    JS_CFUNC_DEF("closePath", 0, _lz_closePath),
+    JS_CFUNC_DEF("rect", 4, _lz_rect_js),
+    JS_CFUNC_DEF("arc", 6, _lz_arc_js),
+    JS_CFUNC_DEF("ellipse", 8, _lz_ellipse_js),
+    JS_CFUNC_DEF("quadraticCurveTo", 4, _lz_quadratic),
+    JS_CFUNC_DEF("bezierCurveTo", 6, _lz_bezier_js),
+    JS_CFUNC_DEF("arcTo", 5, _lz_arcTo),
+    JS_CFUNC_DEF("stroke", 0, _lz_stroke_js),
+    JS_CFUNC_DEF("fill", 0, _lz_fill_js),
+    JS_CFUNC_DEF("setTransform", 6, _lz_setTransform),
+    JS_CFUNC_DEF("resetTransform", 0, _lz_resetTransform),
+    JS_CFUNC_DEF("transform", 6, _lz_transform_js),
+    JS_CFUNC_DEF("scale", 2, _lz_scale),
+    JS_CFUNC_DEF("translate", 2, _lz_translate),
+    JS_CFUNC_DEF("rotate", 1, _lz_rotate),
+    JS_CFUNC_DEF("save", 0, _lz_save_js),
+    JS_CFUNC_DEF("restore", 0, _lz_restore_js),
+    JS_CFUNC_DEF("__tam", 2, _lz_tam_js),
+    JS_CGETSET_MAGIC_DEF("fillStyle", _lz_estilo_get, _lz_estilo_set, 0),
+    JS_CGETSET_MAGIC_DEF("strokeStyle", _lz_estilo_get, _lz_estilo_set, 1),
+    JS_CGETSET_MAGIC_DEF("lineWidth", _lz_num_get, _lz_num_set, 0),
+    JS_CGETSET_MAGIC_DEF("globalAlpha", _lz_num_get, _lz_num_set, 1),
+    JS_CGETSET_MAGIC_DEF("__w", _lz_num_get, NULL, 2),
+    JS_CGETSET_MAGIC_DEF("__h", _lz_num_get, NULL, 3),
+};
+
+/* __dashweb_lienzo(canvas, ancho, alto, "color de detrás"): su contexto 2D (el preludio lo guarda en el elemento) */
+static JSValue _jsdom_lienzo(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    _Dash_Nodo *n = argc > 0 ? _jsdom_nodo(ctx, argv[0]) : NULL;
+    const char *fondo;
+    ULONG c = 0xFFFFFFUL;
+    _Lienzo *l;
+    JSValue o;
+    if (!n) return JS_NULL;
+    if (argc > 3 && JS_IsString(argv[3]) && (fondo = JS_ToCString(ctx, argv[3]))) {
+        c = _lz_leer_color(fondo, 0xFFFFFFFFUL);
+        if ((c >> 24) == 0) c = 0xFFFFFFUL;
+        JS_FreeCString(ctx, fondo);
+    }
+    l = _lz_nuevo((APTR)n, (LONG)_lz_num(ctx, argc, argv, 1), (LONG)_lz_num(ctx, argc, argv, 2), c);
+    if (!l) return JS_NULL;
+    o = JS_NewObjectClass(ctx, _lz_clase);
+    if (JS_IsException(o)) { _lz_liberar(l); return o; }
+    JS_SetOpaque(o, l);
+    return o;
+}
+
+static void _jsdom_lienzo_clase(JSContext *ctx) {
+    JSClassDef clase = { "CanvasRenderingContext2D", _lz_finalizar };
+    JSValue proto;
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    JS_NewClassID(&_lz_clase);
+    if (!JS_IsRegisteredClass(rt, _lz_clase)) JS_NewClass(rt, _lz_clase, &clase);
+    proto = JS_NewObject(ctx);
+    JS_SetPropertyFunctionList(ctx, proto, _lz_metodos, sizeof(_lz_metodos) / sizeof(_lz_metodos[0]));
+    JS_SetClassProto(ctx, _lz_clase, proto);
+}
+"""
+end
+
 # document = doc en el motor js (una sola vez por motor); jsdom_preparar pone además el preludio
 @native(borrow) func jsdom_motor_dom(js: Int, doc: Nodo)
 """
@@ -1456,6 +1674,8 @@ end
     JS_SetPropertyStr(m->ctx, global, "__dashweb_calculado", JS_NewCFunction(m->ctx, _jsdom_calculado, "__dashweb_calculado", 2));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_media", JS_NewCFunction(m->ctx, _jsdom_media, "__dashweb_media", 1));
     JS_SetPropertyStr(m->ctx, global, "__dashweb_documento_nuevo", JS_NewCFunction(m->ctx, _jsdom_documento_nuevo, "__dashweb_documento_nuevo", 1));
+    _jsdom_lienzo_clase(m->ctx);
+    JS_SetPropertyStr(m->ctx, global, "__dashweb_lienzo", JS_NewCFunction(m->ctx, _jsdom_lienzo, "__dashweb_lienzo", 4));
     JS_FreeValue(m->ctx, global);
 """
 end

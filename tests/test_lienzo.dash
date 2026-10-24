@@ -1,0 +1,52 @@
+# Test: Canvas 2D (lib/lienzo.dash y su contexto en lib/jsdom.dash; tarea 48a). El JavaScript dibuja en lienzos y se
+# leen sus píxeles: fillRect opaco y translúcido (rgba), una línea, un círculo relleno (arc), setTransform, el lienzo
+# grande a media resolución, width que lo vacía (del color de detrás), y getContext que da null si no es un 2D.
+# memcheck
+# expect-out: opaco: ff0000 0000ff
+# expect-out: translúcido: 80007e
+# expect-out: línea: ffffff 000000
+# expect-out: círculo: 00ff00 000000
+# expect-out: transform: ffff00
+# expect-out: grande: 500x300 en 250x150, 00ff00
+# expect-out: width: 101010 2x2
+# expect-out: null: true true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/jsdom.dash"
+
+func hex(c: Int) -> String
+    h = "0123456789abcdef"
+    r = ""
+    for i in (0..5)
+        r = h[c % 16] + r
+        c = c / 16
+    end
+    return r
+end
+
+Main
+    doc = dom_desde_html("<body style='background:#101010'><canvas id=a width=100 height=50></canvas><canvas id=g width=500 height=300></canvas><div id=d></div></body>")
+    estilo_aplicar(doc, estilo_hojas(doc, "prueba.html"))
+    js = js_nuevo()
+    jsdom_preparar(js, doc)
+    js_evaluar(js, "var c = document.getElementById('a').getContext('2d'); c.fillStyle = '#ff0000'; c.fillRect(0, 0, 50, 50); c.fillStyle = 'blue'; c.fillRect(50, 0, 50, 50);", "t1")
+    a = dom_por_id(doc, "a")
+    l = lienzo_de(a)
+    Print "opaco: " + hex(lienzo_pixel(l, 10, 10)) + " " + hex(lienzo_pixel(l, 60, 10))
+    js_evaluar(js, "c.fillStyle = 'rgba(0, 0, 255, 0.5)'; c.fillRect(0, 0, 10, 10);", "t2")
+    Print "translúcido: " + hex(lienzo_pixel(l, 5, 5))
+    js_evaluar(js, "c.fillStyle = '#000'; c.fillRect(0, 0, 100, 50); c.strokeStyle = '#fff'; c.lineWidth = 1; c.beginPath(); c.moveTo(0, 25); c.lineTo(99, 25); c.stroke();", "t3")
+    Print "línea: " + hex(lienzo_pixel(l, 50, 25)) + " " + hex(lienzo_pixel(l, 50, 20))
+    js_evaluar(js, "c.fillStyle = '#000'; c.fillRect(0, 0, 100, 50); c.fillStyle = 'lime'; c.beginPath(); c.arc(50, 25, 20, 0, Math.PI * 2); c.fill();", "t4")
+    Print "círculo: " + hex(lienzo_pixel(l, 50, 25)) + " " + hex(lienzo_pixel(l, 50, 2))
+    js_evaluar(js, "c.setTransform(2, 0, 0, 2, 10, 10); c.fillStyle = 'yellow'; c.fillRect(0, 0, 5, 5); c.setTransform(1, 0, 0, 1, 0, 0);", "t5")
+    Print "transform: " + hex(lienzo_pixel(l, 18, 18))
+    js_evaluar(js, "var g = document.getElementById('g').getContext('2d'); g.fillStyle = '#00ff00'; g.fillRect(0, 0, 500, 300);", "t6")
+    lg = lienzo_de(dom_por_id(doc, "g"))
+    Print "grande: 500x300 en " + lienzo_bw(lg) + "x" + lienzo_bh(lg) + ", " + hex(lienzo_pixel(lg, 200, 100))
+    js_evaluar(js, "document.getElementById('a').width = 2; document.getElementById('a').height = 2;", "t7")
+    Print "width: " + hex(lienzo_pixel(l, 1, 1)) + " " + lienzo_bw(l) + "x" + lienzo_bh(l)
+    r = js_evaluar(js, "String(document.getElementById('d').getContext('2d') === null) + ' ' + String(document.getElementById('a').getContext('webgl') === null)", "t8")
+    Print "null: " + r
+    js_liberar(js)
+end

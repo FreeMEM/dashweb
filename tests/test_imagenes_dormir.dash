@@ -1,0 +1,40 @@
+# Test: imagenes_dormir e imagenes_despertar (tarea 46: una pestaña de detrás suelta sus imágenes decodificadas y se
+# queda con sus ficheros de T:). Una página con un ILBM que llega por HTTP por la cola de siempre (imagenes_pedir e
+# imagenes_avanzar): dormida, sin imágenes ni copias (el <img> sigue con su tamaño); despierta, otra vez en la cola,
+# y decodificada como antes sin bajarla otra vez.
+# emu-server: http.py 40894
+# memcheck
+# expect-out: llegó: true 8x4
+# expect-out: dormida: imágenes 0 KB y copias 0 KB | 0 | 8x4
+# expect-out: despierta: 1 en la cola
+# expect-out: otra vez: true
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/imagenes.dash"
+
+func esperar(im: Imagenes, doc: Nodo)
+    vueltas = 0
+    while imagenes_pendientes(im) > 0 and vueltas < 3000
+        imagenes_avanzar(im, doc)
+        time_delay(1)
+        vueltas = vueltas + 1
+    end
+end
+
+Main
+    doc = dom_desde_html("<html><body><img id=i src=cuadro.iff></body></html>")
+    base = "http://127.0.0.1:40894/pages/prueba.html"
+    estilo_aplicar(doc, estilo_hojas(doc, base))
+    im = imagenes_nuevas()
+    imagenes_pedir(im, doc, base)
+    esperar(im, doc)
+    i = dom_por_id(doc, "i")
+    Print "llegó: " + (imagenes_cargada(im, "cuadro.iff") != 0) + " " + dom_atributo(i, "width") + "x" + dom_atributo(i, "height")
+    imagenes_dormir(im)
+    Print "dormida: " + imagenes_kb(im) + " | " + imagenes_cargada(im, "cuadro.iff") + " | " + dom_atributo(i, "width") + "x" + dom_atributo(i, "height")
+    imagenes_despertar(im)
+    Print "despierta: " + imagenes_pendientes(im) + " en la cola"
+    esperar(im, doc)
+    Print "otra vez: " + (imagenes_cargada(im, "cuadro.iff") != 0)
+    imagenes_liberar(im)
+end

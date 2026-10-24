@@ -1,0 +1,493 @@
+## version $VER: Tachyon.catalog 1.0 (24.10.2026)
+## language svenska
+## codeset 0
+;
+MSG_1
+Projekt
+; Project
+MSG_2
+Nytt fönster
+; New window
+MSG_3
+Stäng fönster
+; Close window
+MSG_4
+Gå till adress
+; Go to address
+MSG_5
+Om...
+; About...
+MSG_6
+Avsluta
+; Quit
+MSG_7
+Navigera
+; Navigate
+MSG_8
+Bakåt
+; Back
+MSG_9
+Framåt
+; Forward
+MSG_10
+Ladda om
+; Reload
+MSG_11
+Stoppa
+; Stop
+MSG_12
+Startsida
+; Home page
+MSG_13
+Historik
+; History
+MSG_14
+Bokmärken
+; Bookmarks
+MSG_15
+Visa bokmärken
+; Show bookmarks
+MSG_16
+Lägg till eller ta bort denna sida
+; Add or remove this page
+MSG_17
+Använd som startsida
+; Use as home page
+MSG_18
+Verktyg
+; Tools
+MSG_19
+Kakor
+; Cookies
+MSG_20
+Nedladdningar
+; Downloads
+MSG_21
+Sökmotor...
+; Search engine...
+MSG_22
+Sök efter uppdateringar
+; Check for updates
+MSG_23
+Meddela inte om nya versioner
+; Don't tell me about new versions
+MSG_24
+Bakåt
+; Back
+MSG_25
+Bakåt
+; Back
+MSG_26
+Framåt
+; Forward
+MSG_27
+Framåt
+; Forward
+MSG_28
+Ladda om sidan
+; Reload the page
+MSG_29
+Stoppa laddningen
+; Stop loading
+MSG_30
+Startsida
+; Home page
+MSG_31
+Krypterad anslutning (HTTPS)
+; Encrypted connection (HTTPS)
+MSG_32
+Okrypterad anslutning (HTTP)
+; Unencrypted connection (HTTP)
+MSG_33
+Adress: skriv den och tryck på Return
+; Address: type it and press Return
+MSG_34
+Lägg till i bokmärken
+; Add to bookmarks
+MSG_35
+I bokmärken: klicka för att ta bort den
+; In bookmarks: click to remove it
+MSG_36
+Historik: det du har sett
+; History: what you have seen
+MSG_37
+Nedladdningar
+; Downloads
+MSG_38
+Det finns en ny version av Tachyon: klicka för att installera den
+; There is a new version of Tachyon: click to install it
+MSG_39
+Ny version installerad: klicka för att starta om Tachyon med den
+; New version installed: click to restart Tachyon with it
+MSG_40
+Klar
+; Ready
+MSG_41
+Om Tachyon
+; About Tachyon
+MSG_42
+_Stäng
+; _Close
+MSG_43
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT-licens · github.com/FreeMEM/tachyon\n\n\033cEn webbläsare för Amiga gjord i Dash, med MUI och AmiSSL.\n\033cDen innehåller, anpassade för AmigaOS:\n\033cQuickJS (Fabrice Bellard och Charlie Gordon)\n\033cHubbub och LibParserUtils (NetSurf)\n\033csamt stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm och MintVID.\n\033cDeras licenser finns i lådan Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+MSG_44
+Ny flik (Amiga-T)
+; New tab (Amiga-T)
+MSG_45
+Ny flik
+; New tab
+MSG_46
+Stäng flik
+; Close tab
+MSG_100
+Denna sida kan inte bokmärkas
+; This page can't be bookmarked
+MSG_101
+Borttagen från bokmärken
+; Removed from bookmarks
+MSG_102
+I bokmärken: %1
+; In bookmarks: %1
+MSG_103
+Kunde inte spara bokmärket
+; Could not save the bookmark
+MSG_104
+Ansluter till %1...
+; Connecting to %1...
+MSG_105
+Öppnar %1...
+; Opening %1...
+MSG_106
+Skickar till %1...
+; Sending to %1...
+MSG_107
+Slår upp %1...
+; Looking up %1...
+MSG_108
+Säker anslutning till %1...
+; Secure connection to %1...
+MSG_109
+Tar emot %1: %2 KB
+; Receiving %1: %2 KB
+MSG_110
+Hämtar stilmallar och skript...
+; Fetching style sheets and scripts...
+MSG_111
+Hämtar stilmallar och skript: %1 kvar
+; Fetching style sheets and scripts: %1 left
+MSG_112
+Spara %1
+; Save %1
+MSG_113
+Nedladdning avbruten: %1
+; Download cancelled: %1
+MSG_114
+Laddar ner %1 (Amiga-J: nedladdningar)
+; Downloading %1 (Amiga-J: downloads)
+MSG_115
+Fel: %1
+; Error: %1
+MSG_116
+Klar: %1 byte på %2 ms
+; Ready: %1 bytes in %2 ms
+MSG_117
+Ett skript på sidan tog för lång tid: stoppat
+; A script on the page took too long: stopped
+MSG_118
+Bilder: %1 kvar
+; Images: %1 left
+MSG_120
+Krypterad anslutning (HTTPS) till %1
+; Encrypted connection (HTTPS) to %1
+MSG_121
+Denna sida kommer okrypterad (HTTP)
+; This page arrives unencrypted (HTTP)
+MSG_122
+Stoppad
+; Stopped
+MSG_123
+Startsida: %1
+; Home page: %1
+MSG_124
+Högst %1 fönster
+; At most %1 windows
+MSG_125
+Söker efter en ny version...
+; Checking for a new version...
+MSG_126
+Meddelar inte om nya versioner
+; Won't tell you about new versions
+MSG_127
+Det finns en ny version, %1: klicka för att installera den
+; There is a new version, %1: click to install it
+MSG_128
+%1 installerad: klicka för att starta om Tachyon med den
+; %1 installed: click to restart Tachyon with it
+MSG_129
+Kunde inte söka efter nya versioner
+; Could not check for new versions
+MSG_130
+Det finns en ny version: %1
+; There is a new version: %1
+MSG_131
+Tachyon är uppdaterad (%1)
+; Tachyon is up to date (%1)
+MSG_132
+Kunde inte ladda ner den nya versionen
+; Could not download the new version
+MSG_133
+Inte installerad: %1
+; Not installed: %1
+MSG_134
+%1 installerad: klicka på den gröna ikonen
+; %1 installed: click the green icon
+MSG_135
+Laddar ner Tachyon %1...
+; Downloading Tachyon %1...
+MSG_136
+%1 (klicka för att se dem)
+; %1 (click to see them)
+MSG_137
+Nedladdning klar: %1
+; Download finished: %1
+MSG_138
+Tachyon: video
+; Tachyon: video
+MSG_140
+En webbläsare för <b>AmigaOS</b>, skriven i <i>Dash</i>
+; A web browser for <b>AmigaOS</b>, written in <i>Dash</i>
+MSG_141
+Sök med %1
+; Search with %1
+MSG_142
+Sök
+; Search
+MSG_143
+Bokmärken
+; Bookmarks
+MSG_144
+Dina sparade sidor
+; Your saved pages
+MSG_145
+Vad varje webbplats sparar
+; What each site stores
+MSG_146
+Historik
+; History
+MSG_147
+Det du har sett
+; What you have seen
+MSG_148
+Sökmotor
+; Search engine
+MSG_149
+Vilken du söker med
+; Which one to search with
+MSG_150
+Program för Amiga
+; Software for the Amiga
+MSG_151
+Nyheter och forum
+; News and forums
+MSG_152
+Den fria encyklopedin
+; The free encyclopedia
+MSG_153
+Koden och nyheterna
+; The code and what's new
+MSG_154
+HTML, CSS, JavaScript (QuickJS) och HTTPS (AmiSSL)
+; HTML, CSS, JavaScript (QuickJS) and HTTPS (AmiSSL)
+MSG_155
+1 nedladdning
+; 1 download
+MSG_156
+%1 nedladdningar
+; %1 downloads
+MSG_157
+%1: %2 %
+; %1: %2 %
+MSG_158
+https://sv.wikipedia.org/
+; https://en.wikipedia.org/
+MSG_159
+byggd den %1 kl. %2
+; built on %1 at %2
+MSG_160
+Ny flik
+; New tab
+MSG_161
+Högst %1 flikar per fönster
+; At most %1 tabs per window
+MSG_162
+Tachyon på ditt språk: menyerna också, när du öppnar det igen
+; Tachyon in your language: the menus too when you open it again
+MSG_300
+Dess version utan JavaScript: lätt, den som fungerar bäst på en Amiga. Privat.
+; Its JavaScript-free version: light, the one that runs best on an Amiga. Private.
+MSG_301
+Den vanliga.
+; The usual one.
+MSG_302
+Microsofts.
+; Microsoft's.
+MSG_303
+Privat, med eget index.
+; Private, with its own index.
+MSG_304
+Söker i encyklopedin.
+; Searches the encyclopedia.
+MSG_305
+Söker efter Amiga-program.
+; Searches for Amiga software.
+MSG_306
+Sökmotor
+; Search engine
+MSG_307
+Söker det du skriver i adressfältet (några ord, inte en adress) och på startsidan.
+; Searches what you type in the address bar (a few words, not an address) and on the home page.
+MSG_308
+Används
+; In use
+MSG_309
+Använd denna
+; Use this one
+MSG_310
+https://sv.wikipedia.org/w/index.php?search=%s
+; https://en.wikipedia.org/w/index.php?search=%s
+MSG_320
+servern svarade %1
+; the server answered %1
+MSG_321
+Stoppad: %1
+; Stopped: %1
+MSG_322
+Igen: %1
+; Again: %1
+MSG_323
+Borttagen från listan: %1
+; Removed from the list: %1
+MSG_324
+Öppnade lådan för %1
+; Opened the drawer of %1
+MSG_325
+Workbench kan inte öppna lådan (det kräver AmigaOS 3.5 eller senare)
+; Workbench can't open the drawer (it needs AmigaOS 3.5 or later)
+MSG_326
+Nedladdningar
+; Downloads
+MSG_327
+Du har inte laddat ner något än. Det som inte är en sida (en .lha, en .zip...) laddas ner hit.
+; You haven't downloaded anything yet. Anything that isn't a page (an .lha, a .zip...) is downloaded here.
+MSG_328
+stoppa
+; stop
+MSG_329
+försök igen
+; retry
+MSG_330
+öppna lådan
+; open the drawer
+MSG_331
+ta bort
+; remove
+MSG_332
+ av %1 (%2 %)
+;  of %1 (%2 %)
+MSG_333
+ · %1 s kvar
+;  · %1 s left
+MSG_334
+Klar: %1
+; Done: %1
+MSG_335
+Stoppad
+; Stopped
+MSG_336
+Misslyckades: %1
+; Failed: %1
+MSG_340
+Bokmärken
+; Bookmarks
+MSG_341
+Inga bokmärken än: stjärnan bredvid adressen, eller menyn Bokmärken, Lägg till.
+; No bookmarks yet: the star next to the address, or menu Bookmarks, Add.
+MSG_342
+Historik
+; History
+MSG_343
+Du har inte sett någon sida än.
+; You haven't seen any page yet.
+MSG_344
+Rensa historiken
+; Clear the history
+MSG_345
+Idag
+; Today
+MSG_346
+Igår
+; Yesterday
+MSG_350
+Inga sparade.
+; None stored.
+MSG_351
+%1 sparade.
+; %1 stored.
+MSG_352
+Ta bort alla
+; Delete them all
+MSG_353
+Domän
+; Domain
+MSG_354
+Namn
+; Name
+MSG_355
+Värde
+; Value
+MSG_356
+Upphör
+; Expires
+MSG_357
+vid avslut
+; on quit
+MSG_358
+ta bort de från denna domän
+; delete the ones from this domain
+MSG_400
+för många omdirigeringar
+; too many redirects
+MSG_401
+servern stängde utan att svara
+; the server closed without answering
+MSG_402
+ett svar som inte är HTTP
+; an answer that isn't HTTP
+MSG_403
+trasig statusrad
+; broken status line
+MSG_404
+avkortade huvuden
+; cut headers
+MSG_405
+avkortad kropp
+; cut body
+MSG_406
+kunde inte packa upp
+; could not decompress
+MSG_407
+tidsgränsen överskreds
+; timed out
+MSG_408
+avbruten
+; cancelled
+MSG_409
+schema som inte stöds: %1
+; unsupported scheme: %1
+MSG_410
+kan inte skriva %1
+; can't write %1
+MSG_411
+kan inte läsa %1
+; can't read %1

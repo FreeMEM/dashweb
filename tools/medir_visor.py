@@ -10,6 +10,7 @@ a page in the visor and prints the times it reports (load, html, style, layout, 
 Needs $DASH_KICKSTART and $DASH_EMU_SYS, like tests/run.py; Dash is $DASH (default the worktree).
 """
 import argparse
+import atexit
 import os
 import shutil
 import subprocess
@@ -61,9 +62,12 @@ def main():
                          "emulated CPU many times slower (measure the A1200 like this)")
     ap.add_argument("--memcheck", action="store_true", help="build with ./dash --memcheck (memory errors to the output)")
     ap.add_argument("--gc-siempre", action="store_true", help="dashweb GCSIEMPRE: QuickJS's cycle collector after every script and call")
+    ap.add_argument("--poca-memoria", metavar="KB", help="dashweb POCAMEMORIA=KB: below that free memory the tabs behind are discarded")
     ap.add_argument("--dibujos", metavar="Y0-Y1", help="dashweb DIBUJOS=Y0-Y1: when the page is whole, its drawings between those heights")
     ap.add_argument("--versiones", action="store_true", help="dashweb VERSIONES=: the list of versions from tests/servers/http.py "
                     "(/act/releases: a 9.9.0-alfa with a pretend Tachyon.gz) instead of GitHub (task 44)")
+    ap.add_argument("--catalogo", metavar="IDIOMA", help="Catalogs/IDIOMA/Tachyon.catalog (de catalogos/IDIOMA.ct, tools/catalogo.py) "
+                    "junto al programa mientras dura (tarea 45g): la interfaz en ese idioma si el sistema lo pide")
     ap.add_argument("--traza", action="store_true", help="dashweb TRAZA: the timeline of the load (lib/traza.dash)")
     ap.add_argument("--perfil", action="store_true", help="build with ./dash --profile (the table goes to the output)")
     ap.add_argument("--guardar", metavar="DIR", help="keep the emulated disk there (outputs: out0.txt, bg0.txt)")
@@ -91,6 +95,14 @@ def main():
     sistema = args.sistema or os.environ.get("DASH_EMU_SYS")
     if iconos.is_dir() and sistema:
         shutil.copytree(iconos, Path(sistema) / "iconos", dirs_exist_ok=True)
+    catalogo = None
+    if args.catalogo and sistema:
+        destino = Path(sistema) / "Catalogs" / args.catalogo
+        destino.mkdir(parents=True, exist_ok=True)
+        subprocess.run([sys.executable, str(DASH / "tools" / "catalogo.py"), "catalog", str(ROOT / "catalogos" / (args.catalogo + ".ct"))],
+                       cwd=str(Path(sistema)), check=True, capture_output=True)
+        catalogo = destino / "Tachyon.catalog"
+        atexit.register(lambda: catalogo.unlink(missing_ok=True))   # (las demás pruebas, en el idioma de siempre)
 
     with tempfile.TemporaryDirectory(prefix="visor_") as tmp:
         exe = Path(tmp) / "visor"
@@ -127,6 +139,8 @@ def main():
                 prog_args[0] += " TRAZA"
             if args.dibujos:
                 prog_args[0] += " DIBUJOS=" + args.dibujos
+            if args.poca_memoria:
+                prog_args[0] += " POCAMEMORIA=" + args.poca_memoria
             if args.gc_siempre:
                 prog_args[0] += " GCSIEMPRE"
             if args.versiones:

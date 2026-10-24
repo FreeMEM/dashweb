@@ -1,0 +1,55 @@
+# Test: el subrayado lo dibuja la maqueta (tarea 48b; los enlaces de dash.freemem.space, con la fuente web topaz, salían
+# sin él): una línea por tramo con text-decoration-color, text-decoration-thickness y text-underline-offset (naranja,
+# 2 px, a 3 de la línea base), seguida bajo el espacio entre "uno" y "dos"; y la de un <a> vale para el <span> de
+# dentro (se propaga), con el color del enlace. Sin subrayado, ninguna.
+# memcheck
+# expect-out: subrayados: 2 | ff8800 2 3 | 0000ee 1 1 | bajo el espacio: true
+# expect-out: sin subrayar: 0
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/maqueta.dash"
+
+func hex6(c: Int) -> String
+    d = "0123456789abcdef"
+    r = ""
+    for i in (0..5)
+        k = (c >> ((5 - i) * 4)) & 15
+        r = r + d[k:k + 1]
+    end
+    return r
+end
+
+Main
+    h = "<html><body style='margin:0'><p><a id=a href=x style='text-decoration-color:#ff8800;text-decoration-thickness:2px;text-underline-offset:3px'>uno dos</a> tres "
+    h = h + "<a href=y><span id=s>cuatro</span></a></p><p style='text-decoration:none'><b id=b>nada</b></p></body></html>"
+    doc = dom_desde_html(h)
+    estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
+    p = maquetar(doc, 400)
+    var lineas: [Dibujo] = []
+    ancho_texto = 0
+    base_y = 0
+    for d in p.dibujos
+        if d.tipo == D_LINEA and d.estilo == 7
+            lineas.push(d)
+        end
+        if d.tipo == D_TEXTO and str_starts(d.texto, "uno")
+            ancho_texto = d.ancho
+            font_use(d.fuente)
+            base_y = d.y + font_baseline()
+        end
+    end
+    l = "subrayados: " + lineas.length
+    for d in lineas
+        sep = d.y - base_y
+        l = l + " | " + hex6(d.color) + " " + d.alto + " " + sep
+    end
+    junto = lineas.length > 0 and lineas[0].ancho >= ancho_texto - 1
+    Print l + " | bajo el espacio: " + junto
+    n = 0
+    for d in p.dibujos
+        if d.tipo == D_LINEA and d.estilo == 7 and d.nodo != nil and d.nodo.nombre == "b"
+            n = n + 1
+        end
+    end
+    Print "sin subrayar: " + n
+end

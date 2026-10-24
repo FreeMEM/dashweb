@@ -7,129 +7,164 @@
       "id": 1,
       "menus": [
         {
-          "title": "Proyecto",
+          "title": "Project",
           "items": [
             {
-              "label": "Nueva ventana",
+              "label": "New window",
               "key": "N",
-              "event": 18
+              "event": 18,
+              "tr": 2
             },
             {
-              "label": "Cerrar ventana",
+              "label": "Close window",
               "key": "K",
-              "event": 19
+              "event": 19,
+              "tr": 3
+            },
+            {
+              "label": "New tab",
+              "key": "T",
+              "event": 49,
+              "tr": 45
+            },
+            {
+              "label": "Close tab",
+              "key": "W",
+              "event": 50,
+              "tr": 46
             },
             {
               "separator": true
             },
             {
-              "label": "Ir a la dirección",
+              "label": "Go to address",
               "key": "L",
-              "event": 24
+              "event": 24,
+              "tr": 4
             },
             {
               "separator": true
             },
             {
-              "label": "Acerca de...",
+              "label": "About...",
               "key": "?",
-              "event": 8
+              "event": 8,
+              "tr": 5
             },
             {
               "separator": true
             },
             {
-              "label": "Salir",
+              "label": "Quit",
               "key": "Q",
-              "event": 9
+              "event": 9,
+              "tr": 6
             }
-          ]
+          ],
+          "tr": 1
         },
         {
-          "title": "Navegar",
+          "title": "Navigate",
           "items": [
             {
-              "label": "Atrás",
-              "event": 1
+              "label": "Back",
+              "event": 1,
+              "tr": 8
             },
             {
-              "label": "Adelante",
-              "event": 2
+              "label": "Forward",
+              "event": 2,
+              "tr": 9
             },
             {
-              "label": "Recargar",
+              "label": "Reload",
               "key": "R",
-              "event": 3
+              "event": 3,
+              "tr": 10
             },
             {
-              "label": "Parar",
-              "event": 13
+              "label": "Stop",
+              "event": 13,
+              "tr": 11
             },
             {
               "separator": true
             },
             {
-              "label": "Página de inicio",
+              "label": "Home page",
               "key": "H",
-              "event": 17
+              "event": 17,
+              "tr": 12
             },
             {
-              "label": "Historial",
+              "label": "History",
               "key": "Y",
-              "event": 20
+              "event": 20,
+              "tr": 13
             }
-          ]
+          ],
+          "tr": 7
         },
         {
-          "title": "Marcadores",
+          "title": "Bookmarks",
           "items": [
             {
-              "label": "Ver marcadores",
+              "label": "Show bookmarks",
               "key": "B",
-              "event": 14
+              "event": 14,
+              "tr": 15
             },
             {
-              "label": "Añadir o quitar esta página",
+              "label": "Add or remove this page",
               "key": "D",
-              "event": 15
+              "event": 15,
+              "tr": 16
             },
             {
               "separator": true
             },
             {
-              "label": "Usar como página de inicio",
-              "event": 16
+              "label": "Use as home page",
+              "event": 16,
+              "tr": 17
             }
-          ]
+          ],
+          "tr": 14
         },
         {
-          "title": "Herramientas",
+          "title": "Tools",
           "items": [
             {
               "label": "Cookies",
-              "event": 25
+              "event": 25,
+              "tr": 19
             },
             {
-              "label": "Descargas",
+              "label": "Downloads",
               "key": "J",
-              "event": 29
+              "event": 29,
+              "tr": 20
             },
             {
-              "label": "Buscador...",
-              "event": 28
+              "label": "Search engine...",
+              "event": 28,
+              "tr": 21
             },
             {
               "separator": true
             },
             {
-              "label": "Buscar actualizaciones",
-              "event": 22
+              "label": "Check for updates",
+              "event": 22,
+              "tr": 22
             },
             {
-              "label": "No avisar de versiones nuevas",
-              "event": 23
+              "label": "Don't tell me about new versions",
+              "event": 23,
+              "tr": 23
             }
-          ]
+          ],
+          "tr": 18
         }
       ],
       "root": {
@@ -143,68 +178,95 @@
                 "name": "atras",
                 "file": "PROGDIR:iconos/atras.iff",
                 "event": 1,
-                "help": "Atrás",
-                "hidden": true
+                "help": "Back",
+                "hidden": true,
+                "tr": {
+                  "help": 24
+                }
               },
               {
                 "type": "image_button",
                 "name": "atras_no",
                 "file": "PROGDIR:iconos/atras_apagado.iff",
                 "event": 1,
-                "help": "Atrás"
+                "help": "Back",
+                "tr": {
+                  "help": 25
+                }
               },
               {
                 "type": "image_button",
                 "name": "adelante",
                 "file": "PROGDIR:iconos/adelante.iff",
                 "event": 2,
-                "help": "Adelante",
-                "hidden": true
+                "help": "Forward",
+                "hidden": true,
+                "tr": {
+                  "help": 26
+                }
               },
               {
                 "type": "image_button",
                 "name": "adelante_no",
                 "file": "PROGDIR:iconos/adelante_apagado.iff",
                 "event": 2,
-                "help": "Adelante"
+                "help": "Forward",
+                "tr": {
+                  "help": 27
+                }
               },
               {
                 "type": "image_button",
                 "name": "recargar",
                 "file": "PROGDIR:iconos/recargar.iff",
                 "event": 3,
-                "help": "Recargar la página"
+                "help": "Reload the page",
+                "tr": {
+                  "help": 28
+                }
               },
               {
                 "type": "image_button",
                 "name": "parar",
                 "file": "PROGDIR:iconos/parar.iff",
                 "event": 13,
-                "help": "Parar la carga",
-                "hidden": true
+                "help": "Stop loading",
+                "hidden": true,
+                "tr": {
+                  "help": 29
+                }
               },
               {
                 "type": "image_button",
                 "name": "inicio",
                 "file": "PROGDIR:iconos/inicio.iff",
                 "event": 17,
-                "help": "Página de inicio"
+                "help": "Home page",
+                "tr": {
+                  "help": 30
+                }
               },
               {
                 "type": "image_button",
                 "name": "candado",
                 "file": "PROGDIR:iconos/candado.iff",
                 "event": 27,
-                "help": "Conexión cifrada (HTTPS)",
-                "hidden": true
+                "help": "Encrypted connection (HTTPS)",
+                "hidden": true,
+                "tr": {
+                  "help": 31
+                }
               },
               {
                 "type": "image_button",
                 "name": "candado_abierto",
                 "file": "PROGDIR:iconos/candado_abierto.iff",
                 "event": 27,
-                "help": "Conexión sin cifrar (HTTP)",
-                "hidden": true
+                "help": "Unencrypted connection (HTTP)",
+                "hidden": true,
+                "tr": {
+                  "help": 32
+                }
               },
               {
                 "type": "string",
@@ -213,53 +275,151 @@
                 "max": 1024,
                 "ack": 4,
                 "weight": 400,
-                "help": "Dirección: escríbela y pulsa Return"
+                "help": "Address: type it and press Return",
+                "tr": {
+                  "help": 33
+                }
               },
               {
                 "type": "image_button",
                 "name": "estrella",
                 "file": "PROGDIR:iconos/estrella.iff",
                 "event": 26,
-                "help": "Añadir a marcadores"
+                "help": "Add to bookmarks",
+                "tr": {
+                  "help": 34
+                }
               },
               {
                 "type": "image_button",
                 "name": "estrella_llena",
                 "file": "PROGDIR:iconos/estrella_llena.iff",
                 "event": 26,
-                "help": "En marcadores: pulsa para quitarla",
-                "hidden": true
+                "help": "In bookmarks: click to remove it",
+                "hidden": true,
+                "tr": {
+                  "help": 35
+                }
               },
               {
                 "type": "image_button",
                 "name": "ver_historial",
                 "file": "PROGDIR:iconos/historial.iff",
                 "event": 20,
-                "help": "Historial: lo que has visto"
+                "help": "History: what you have seen",
+                "tr": {
+                  "help": 36
+                }
               },
               {
                 "type": "image_button",
                 "name": "ver_descargas",
                 "file": "PROGDIR:iconos/descargas.iff",
                 "event": 29,
-                "help": "Descargas",
-                "hidden": true
+                "help": "Downloads",
+                "hidden": true,
+                "tr": {
+                  "help": 37
+                }
               },
               {
                 "type": "image_button",
                 "name": "actualizar",
                 "file": "PROGDIR:iconos/actualizar.iff",
                 "event": 21,
-                "help": "Hay una versión nueva de Tachyon: pulsa para instalarla",
-                "hidden": true
+                "help": "There is a new version of Tachyon: click to install it",
+                "hidden": true,
+                "tr": {
+                  "help": 38
+                }
               },
               {
                 "type": "image_button",
                 "name": "reiniciar",
                 "file": "PROGDIR:iconos/reiniciar.iff",
                 "event": 21,
-                "help": "Instalada la versión nueva: pulsa para reiniciar Tachyon con ella",
+                "help": "New version installed: click to restart Tachyon with it",
+                "hidden": true,
+                "tr": {
+                  "help": 39
+                }
+              }
+            ]
+          },
+          {
+            "type": "hgroup",
+            "name": "pestanas",
+            "hidden": true,
+            "children": [
+              {
+                "type": "button",
+                "name": "pest0",
+                "label": " ",
+                "event": 40,
                 "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest1",
+                "label": " ",
+                "event": 41,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest2",
+                "label": " ",
+                "event": 42,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest3",
+                "label": " ",
+                "event": 43,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest4",
+                "label": " ",
+                "event": 44,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest5",
+                "label": " ",
+                "event": 45,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest6",
+                "label": " ",
+                "event": 46,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest7",
+                "label": " ",
+                "event": 47,
+                "hidden": true
+              },
+              {
+                "type": "space"
+              },
+              {
+                "type": "button",
+                "name": "pest_nueva",
+                "label": "+",
+                "event": 48,
+                "weight": 0,
+                "help": "New tab (Amiga-T)",
+                "tr": {
+                  "help": 44
+                }
               }
             ]
           },
@@ -293,7 +453,8 @@
               {
                 "type": "text",
                 "name": "estado",
-                "text": "Listo"
+                "text": "Ready",
+                "tr": 40
               },
               {
                 "type": "gauge",
@@ -313,7 +474,7 @@
     },
     {
       "name": "Acerca",
-      "title": "Acerca de Tachyon",
+      "title": "About Tachyon",
       "id": 2,
       "close": 8,
       "root": {
@@ -331,16 +492,19 @@
           },
           {
             "type": "text",
-            "text": "\u001bc© 2026 Francisco Antonio Tapias Bravo\n\u001bcLicencia MIT · github.com/FreeMEM/tachyon\n\n\u001bcUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\u001bcLleva, adaptados para AmigaOS:\n\u001bcQuickJS (Fabrice Bellard y Charlie Gordon)\n\u001bcHubbub y LibParserUtils (NetSurf)\n\u001bcy también stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm y MintVID.\n\u001bcSus licencias, en el cajón Licencias."
+            "text": "\u001bc© 2026 Francisco Antonio Tapias Bravo\n\u001bcMIT License · github.com/FreeMEM/tachyon\n\n\u001bcA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\u001bcIt includes, adapted for AmigaOS:\n\u001bcQuickJS (Fabrice Bellard and Charlie Gordon)\n\u001bcHubbub and LibParserUtils (NetSurf)\n\u001bcand also stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm and MintVID.\n\u001bcTheir licences are in the Licencias drawer.",
+            "tr": 43
           },
           {
             "type": "button",
             "name": "cerrar",
-            "label": "_Cerrar",
-            "event": 8
+            "label": "_Close",
+            "event": 8,
+            "tr": 42
           }
         ]
-      }
+      },
+      "tr": 41
     }
   ]
 }

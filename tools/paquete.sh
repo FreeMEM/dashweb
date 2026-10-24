@@ -22,6 +22,8 @@ PYTHONPATH=$DASH ./dash --fpu "$R/src/dashweb.dash" -o "$B/Tachyon/Tachyon"
 PYTHONPATH=$DASH ./dash --fpu "$R/src/visor.dash" -o "$B/Tachyon/visor"
 python3 "$R/tools/iconos.py" >/dev/null
 cp -r "$R/iconos" "$B/Tachyon/iconos"   # la barra de herramientas (PROGDIR:iconos/)
+# los catálogos de idiomas (PROGDIR:Catalogs/<idioma>/Tachyon.catalog; tarea 45g): uno por catalogos/*.ct
+(cd "$B/Tachyon" && for ct in "$R"/catalogos/*.ct; do python3 "$DASH/tools/catalogo.py" catalog "$ct" >/dev/null; done)
 # el LEEME y el guion del Installer en Latin-1 (MultiView y el Installer no leen UTF-8)
 iconv -f UTF-8 -t LATIN1 "$R/paquete/LEEME" > "$B/Tachyon/LEEME"
 iconv -f UTF-8 -t LATIN1 "$R/paquete/Instalar" > "$B/Tachyon/Instalar"
@@ -47,3 +49,11 @@ ls -l "$R/build/tachyon.lha"
 lha -l "$R/build/tachyon.lha" | tail -12
 gzip -9 -n -c "$B/Tachyon/Tachyon" > "$R/build/Tachyon.gz"
 ls -l "$R/build/Tachyon.gz"
+# y los catálogos sueltos, para la actualización automática (lib/actualizar.dash: Tachyon-<idioma>.catalog), con el
+# idioma sin acentos ("espanol"), que GitHub los cambia: el de verdad va dentro del catálogo
+rm -f "$R"/build/Tachyon-*.catalog
+for c in "$B"/Tachyon/Catalogs/*/Tachyon.catalog; do
+    a=$(python3 -c 'import sys, unicodedata; print(unicodedata.normalize("NFKD", sys.argv[1]).encode("ascii", "ignore").decode())' "$(basename "$(dirname "$c")")")
+    [ -f "$c" ] && cp "$c" "$R/build/Tachyon-$a.catalog"
+done
+ls -l "$R"/build/Tachyon-*.catalog 2>/dev/null

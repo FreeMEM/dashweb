@@ -2,13 +2,26 @@
 # valores); un absoluto con inset: 0 en un elemento flex-1 de una columna llena su hueco; aspect-ratio con
 # box-sizing: border-box es de la caja con relleno (280 de ancho y 9/19: 591 de alto) y su alto vale para un
 # height: 100% de dentro. place-items: center en un grid: el hijo, a su ancho y en medio (como el móvil). Lo que
-# desborda un overflow: hidden no ensancha al medir (una caja de 100 con algo de 500 dentro mide 100).
+# desborda un overflow: hidden no ensancha al medir (una caja de 100 con algo de 500 dentro mide 100). Un <canvas> con
+# display: block, width: 100% y aspect-ratio: 4/3 (la bola Boing de dash.freemem.space; tarea 48e) es una pieza de
+# 300x225 aunque sus atributos digan 100x16 (no son CSS: su tamaño natural, el del otro, sin estilo). min-width en
+# inline-block (las columnas "entra" y "sale" del panel de trasfondo.freemem.space; tarea 48i): 82 cada una, en un
+# bloque y en una fila flex con justify-content: space-between (a la derecha: 300 - 164). Un absoluto con width
+# más ancho que su contenedor (tarea 48b): se queda si un overflow de fuera lo recorta (300) y, si no, sin salirse
+# de la ventana de 400, se encoge al contenedor (100). Un background de tres capas (dos linear-gradient con su sitio
+# y su tamaño sobre gris; tarea 48j): la de abajo primero (10x8 en 8,7), luego la de encima (9x7 en 5,5), y el gris.
+# inline-size y block-size (las barras de dash.freemem.space; tarea 48b): width y height (63 % de 200 y 7).
 # memcheck
 # expect-out: inset: 0 0 0 0 | 1px 2px 1px 2px
 # expect-out: uno 0,30 200x270 | abs 0,30 200x270
 # expect-out: movil 280x591 | dentro 262x573
 # expect-out: recortado 100
+# expect-out: lienzos 300x225 100x16
 # expect-out: centrado 150 100 | align-items center justify-items center
+# expect-out: min-width 82 82 | flex 164 136
+# expect-out: absoluto ancho: 300 100
+# expect-out: capas: 10x8+8+7 9x7+5+5 | gris true
+# expect-out: lógicas: 126x7
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -28,7 +41,14 @@ Main
     h = h + "<div id=dos style='position:absolute;inset:1px 2px'></div>"
     h = h + "<div style='width:280px'><div id=movil style='box-sizing:border-box;padding:9px;aspect-ratio:9/19;background:#000'><div id=dentro style='height:100%;background:#fff'></div></div></div>"
     h = h + "<div id=g style='display:grid;place-items:center;width:400px'><div id=hijo><div style='width:100px;height:20px;background:blue'></div></div></div>"
-    h = h + "<div style='display:grid;place-items:center;width:400px'><div id=rec><div style='width:100px;overflow:hidden'><div style='width:500px;height:10px;background:red'>x</div></div></div></div></body></html>"
+    h = h + "<div style='display:grid;place-items:center;width:400px'><div id=rec><div style='width:100px;overflow:hidden'><div style='width:500px;height:10px;background:red'>x</div></div></div></div>"
+    h = h + "<div style='width:300px;border:2px solid #000'><canvas width=100 height=16 style='display:block;width:100%;aspect-ratio:4/3'></canvas></div><canvas width=100 height=16></canvas>"
+    h = h + "<div style='width:300px'><em id=m1 style='display:inline-block;min-width:82px'>entra</em><em id=m2 style='display:inline-block;min-width:82px'>sale</em></div>"
+    h = h + "<div style='display:flex;justify-content:space-between;width:300px'><span>Red</span><span id=mf><em style='display:inline-block;min-width:82px'>entra</em><em style='display:inline-block;min-width:82px'>sale</em></span></div>"
+    h = h + "<div style='position:relative;width:200px;height:20px;overflow:hidden'><div id=ancha style='position:absolute;top:0;left:0;width:300px;height:10px'></div></div>"
+    h = h + "<div style='position:relative;width:100px;height:20px'><div id=ancha2 style='position:absolute;top:0;left:0;width:600px;height:10px'></div></div>"
+    h = h + "<div id=capas style='width:22px;height:20px;background:linear-gradient(red, red) 5px 5px / 9px 7px no-repeat, linear-gradient(blue, blue) 8px 7px / 10px 8px no-repeat, gray'></div>"
+    h = h + "<div style='width:200px'><div id=logica style='inline-size:63%;block-size:7px;background:red'></div></div></body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
     p = maquetar(doc, 400)
@@ -40,5 +60,29 @@ Main
     hijo = dom_por_id(doc, "hijo")
     g = dom_por_id(doc, "g")
     Print "recortado " + dom_por_id(doc, "rec").caja_w
+    l = "lienzos"
+    for dib in p.dibujos
+        if dib.tipo == D_LIENZO
+            l = l + " " + dib.ancho + "x" + dib.alto
+        end
+    end
+    Print l
     Print "centrado " + (hijo.caja_x - g.caja_x) + " " + hijo.caja_w + " | align-items " + g.estilo["align-items"] + " justify-items " + g.estilo["justify-items"]
+    m1 = dom_por_id(doc, "m1")
+    mf = dom_por_id(doc, "mf")
+    Print "min-width " + m1.caja_w + " " + (dom_por_id(doc, "m2").caja_x - m1.caja_x) + " | flex " + mf.caja_w + " " + mf.caja_x
+    Print "absoluto ancho: " + dom_por_id(doc, "ancha").caja_w + " " + dom_por_id(doc, "ancha2").caja_w
+    cp = dom_por_id(doc, "capas")
+    l = "capas:"
+    gris = false
+    for dib in p.dibujos
+        if dib.nodo == cp and dib.tipo == D_DEGRADADO
+            l = l + " " + dib.ancho + "x" + dib.alto + "+" + (dib.x - cp.caja_x) + "+" + (dib.y - cp.caja_y)
+        elif dib.nodo == cp and dib.tipo == D_RECT and dib.color == 8421504
+            gris = true
+        end
+    end
+    Print l + " | gris " + gris
+    lg = dom_por_id(doc, "logica")
+    Print "lógicas: " + lg.caja_w + "x" + lg.caja_h
 end

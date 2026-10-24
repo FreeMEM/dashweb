@@ -424,6 +424,16 @@ tarea, con el estilo de Dash.
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
          (2026-10-23) Dash no los tiene: propuesto a la sesión dash como D71 (@catalog, tr(id, texto), ids en el
          .dashui y una herramienta .cd/.ct -> .catalog). Espera a ella.
+         Hecha la primera parte (2026-10-24; ver la bitácora): la ventana, los menús, las ayudas, la barra de estado
+         y la página de inicio, con el catálogo inglés; y luego las páginas tachyon: (descargas, buscadores,
+         marcadores, historial, cookies), y la actualización automática baja también los catálogos de la versión
+         nueva; Acerca de (sus créditos y el "compilado el"); y los errores de lib/http.dash y lib/documento.dash.
+         Quedan en español: los de lib/red.dash (corre en la tarea de la red: que no abra ella el catálogo) y los de
+         lib/actualizar.dash (en C).
+         (2026-10-24, decisión del usuario por la sesión de las webs: "Inglés de serie y castellano en catálogo")
+         Darle la vuelta: los textos del código en inglés (@catalog "Tachyon.catalog" 1, sin idioma) y un
+         catalogos/español.ct con el castellano; las pruebas que miran textos de las páginas tachyon:, en inglés.
+         Avisar a la sesión de las webs cuando salga la versión.
          (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
 - [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
@@ -440,13 +450,78 @@ tarea, con el estilo de Dash.
          por lienzo (lo dibuja el JavaScript, en C), el pintor lo vuelca a su caja como un vídeo y cada
          requestAnimationFrame repinta solo esa zona. Las estrellas: 700 líneas por fotograma con estela (un fillRect
          translúcido): medir cuántos fotogramas da.
+         Hecho (2026-10-24; ver la bitácora): el lienzo y las estrellas en una página local con su mismo código;
+         en tachyon.freemem.space aún no: React no hidrata la portada y su efecto no llega a pedir el lienzo (48c).
+      [x] c. tachyon.freemem.space: React no hidrata (ni __react* en los nodos ni efectos), así que el efecto de las
+         estrellas no llega a pedir el lienzo. La salida (ya vaciada en cada tic) dice: React #412 "Connection
+         closed" (el flujo de datos de Next, self.__next_f, se cierra con filas sin resolver). readyState y
+         DOMContentLoaded van bien (tras todos los scripts). Sin ejecutar el script noModule de parches de Next
+         (0cz1d0mv5g_q7.js) el #412 no sale, pero la página cambia (letras de una fuente web en cajitas) y
+         tampoco hidrata a los 35 s: mirar qué parchea (Promise, ReadableStream, TextDecoder...) y si su
+         flujo funciona con lo nuestro; y en esa vuelta, por qué salen cajitas.
+         Hecho (2026-10-24; ver la bitácora): attributes no era viva y React se quedaba en un bucle sin fin.
+      d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
+         página (~83 ms en pasar a texto los decimales del color, dtoa.c de QuickJS con enteros largos: uno más
+         rápido ayudaría a todas las webs; ~90 ms en las 3500 llamadas; ~46 en sus cuentas).
+      [x] e. La bola Boing de dash.freemem.space: la caja negra salía vacía (16 px de alto).
+         Hecho (2026-10-24; ver la bitácora): un <canvas> con display: block y aspect-ratio.
+      f. dpms.freemem.space (usuario, 2026-10-24): un Django con un fondo de Three.js (three-background.js:
+         partículas, líneas y un plasma, con ShaderMaterial). Es WebGL con shaders: en Tachyon no (getContext
+         "webgl" da null y WebGLRenderer lanza un error). Mirar que el resto de la página salga bien sin él; el
+         fondo, solo si la web tiene uno en 2D cuando no hay WebGL (se le puede pedir a la sesión de las webs).
+         Mirado (2026-10-24, rtg): entera en 37 s, el cartel, los textos y los botones bien; solo falta el fondo
+         (el error de WebGL no para lo demás). "Qué es" e "Info del Evento" del menú parten en dos líneas.
+      [x] g. trasfondo.freemem.space: las capturas (WebP diferidas) se quedaban en negro.
+         Hecho (2026-10-24; ver la bitácora): las maquetas caras del JavaScript, como mucho un tercio del tiempo.
+      [x] h. Maquetar otra vez solo una caja que no puede mover nada de fuera (absoluta con ancho y alto fijos, como
+         el escritorio de trasfondo: 960x600): el panel cambia su "CPU 2,1 %" cada segundo y hoy eso es la maqueta
+         entera (~730 ms y 160 de estilo en el emulador). Guardar al maquetar dónde y con qué se maquetó cada una
+         (su contenedor, el pase, sus recortes y desplazamientos de fuera), quitar sus dibujos y poner los nuevos.
+         Hecho (2026-10-24; ver la bitácora).
+      [x] i. trasfondo: en el panel del escritorio, la fila "Red" junta "entra" y "sale" (y sus cifras: "133 B/s36 B/s");
+         en Chrome van separadas.
+         Hecho (2026-10-24; ver la bitácora): min-width.
+      [x] j. trasfondo: los botones de las barras del escritorio y de sus ventanas (wb-profundidad, wb-cierre) son
+         varios linear-gradient de un color con su background-position y background-size sobre un color: salen
+         como un cuadro negro (o blanco). Pintar cada capa de fondo con su tamaño y su sitio.
+         Hecho (2026-10-24; ver la bitácora).
+      k. React #412 ("Connection closed") de vez en cuando (2 de ~10 cargas de la copia de trasfondo en el
+         emulador): la página se queda sin hidratar. Next cierra el flujo de self.__next_f en DOMContentLoaded (o
+         al momento si readyState ya no es "loading"): mirar si a veces se cierra antes de que corran todos los
+         <script> en línea que lo llenan (el orden de los async frente a los de en línea).
+         Medido (2026-10-24, copia con un script que apunta los push y el flujo): en las buenas, Next toma
+         __next_f y crea su ReadableStream a ~4,5 s, llegan 2 push y DOMContentLoaded (cierre) ~760 ms después;
+         en la del #412, solo 100 ms después: los scripts corrieron en otro orden (¿el async de Next tras los
+         datos en línea?). Con el diagnóstico puesto, 0 de 14 cargas: sin reproducir; mirar cómo ordena
+         lib/jsdom.dash los async que llegan tarde.
       b. Cada web: comparar con Chrome y arreglar lo que salga.
 
+- [x] 49. **tachyon.freemem.space sale en azul en el CoffinOS del usuario (2026-10-24, con la compilación de 48c y
+      48e).** Solo el fondo: ni la cabecera, ni los textos, ni las estrellas; "Listo" en la barra, y sigue así tras un
+      minuto. En el emulador sale entera (18-25 s) en todas las pruebas: MUI 5 y MUI 3.8, 1024x768 y 1680x1050, 16 y
+      32 bits (sys32rtg, sys32rtg38, sys32rtg38ancha, sys32rtg32, sys32rtg38ancha32), y sin hidratar (React #412) el
+      contenido también se ve. Su CoffinOS: Amiberry, 68040 con JIT, MUI 3.8, una ventana de ~1700x1250. Pedida la
+      salida: Traspaso:Tachyon/Tachyon https://tachyon.freemem.space/ >Traspaso:salida.txt. Hasta entenderlo, sin
+      versión nueva (sería un paso atrás en su sistema).
+      Hecho (2026-10-24; ver la bitácora): la FPU empezaba en precisión simple.
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
       su JavaScript parado; con poca memoria libre, las de detrás se "descartan" como en Chrome (solo dirección,
       título y desplazamiento; se cargan al volver). Medir cuánto ocupa cada una antes y después.
+      Diseño (2026-10-24): Dash no añade ni quita objetos MUI mientras corre, pero sí los enseña y esconde
+      (mui_set_visible): la barra, una fila de 8 botones en navegador.dashui (como mucho 8 pestañas por ventana),
+      escondida con una sola; cada botón con el título de su página (cortado) y la de delante marcada. Ventana se
+      queda con los campos de la pestaña de delante (actual, desde, pasos, visto, carga, preparando, js_cuando, foco,
+      empezada, io_pagina, animando, fotograma...): cambiar de pestaña los guarda en su Pestana y trae los de la otra
+      (así casi todo el código sigue igual). Las de detrás, quietas: sin temporizadores ni cargas (la carga sigue al
+      volver) y, más adelante, sin imágenes decodificadas. Menú Proyecto: Nueva pestaña (Amiga-T), Cerrar pestaña
+      (Amiga-W); un enlace con el botón central del ratón, en una pestaña nueva.
+      Hecha la primera parte (2026-10-24; ver la bitácora): abrir, cambiar y cerrar pestañas. Falta: soltar las
+      imágenes decodificadas de las de detrás y descartarlas con poca memoria: hecho (ver la bitácora). Falta
+      medir lo demás de cada una (su JavaScript, su maqueta) y volver al mismo desplazamiento tras descartarla.
+      Un enlace con Mayúsculas o Amiga pulsada, en una pestaña nueva: hecho, sin poderlo ver en el emulador (ver la
+      bitácora).
 
 - [x] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
       una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
@@ -459,7 +534,9 @@ tarea, con el estilo de Dash.
       con su tamaño y su SHA-256 en las notas para comprobarlo antes de cambiar nada (tools/paquete.sh y la
       publicación). Probar en el emulador con una versión de mentira servida en local.
       Hecho (2026-10-23; ver la bitácora). AL PUBLICAR UNA VERSIÓN: subir también build/Tachyon.gz (lo deja
-      tools/paquete.sh junto a build/tachyon.lha), o las versiones de antes no la ven como actualización.
+      tools/paquete.sh junto a build/tachyon.lha), o las versiones de antes no la ven como actualización. Y desde
+      la 0.7.0, también build/Tachyon-<idioma>.catalog (los catálogos sueltos: la actualización los baja tras
+      instalar; 45g).
 - [x] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
       (Grim Reaper) al iniciar, en código 68k bajo Petunia; luego otra vez sí arrancó y navegó (Aminet). En sus
       registros: ___main+0x300 (la vuelta de main al arranque), una llamada a FreeVec (LVO -690) y _strchr+0x10.
@@ -4222,3 +4299,255 @@ Formato:
   tachyon.freemem.space (una caja vacía: una imagen que no llega) y las animaciones (Canvas 2D).
 - Las 13 de js/jsdom pasan (590 s).
 
+### 2026-10-24 — Publicada la v0.6.0-alfa (la primera actualización automática)
+- Usuario: "publícala ya y la traducción para la 0.7.0". Base: 100/100 (4f791b3) y las 13 de js/jsdom con 48 (1).
+  Versión 0.6.0-alfa (7d87ca4); PR #7 (706fb0c), etiqueta v0.6.0-alfa y pre-release
+  https://github.com/FreeMEM/tachyon/releases/tag/v0.6.0-alfa con tachyon.lha (6,6 MB) y Tachyon.gz (1,7 MB), con
+  tools/paquete.sh en un worktree limpio y Dash 9c1c1f6.
+- Probado: freemem.space con el del paquete (27,6 s); y el ejecutable de la v0.5.0 publicada, tal cual, abierto sin
+  argumentos en el emulador: vio la 0.6.0 en GitHub y con un clic la instaló (idéntica a la publicada).
+- En CoffinOS se queda el de dev con versión 0.5.0 (de antes de subir el número): el usuario prueba allí la
+  actualización con el icono verde.
+
+### 2026-10-24 — Tarea 48a: Canvas 2D (las estrellas de tachyon.freemem.space)
+- lib/lienzo.dash: cada <canvas> con getContext("2d") es un búfer RGB de 24 bits dibujado en C. Pensado para un 68k:
+  - más de 90.000 píxeles, a media resolución (y el pintor lo vuelca al doble con gfx_rgb_draw_scaled: el camino
+    rápido de 16 bits);
+  - fillRect sin giro por filas: opaco copiando, translúcido con una tabla por transparencia;
+  - líneas de hasta 1,5 px con DDA en coma fija y su mezcla; las gruesas, un polígono;
+  - rellenos par-impar por líneas horizontales, con subcaminos;
+  - arcos y curvas en tramos rectos;
+  - colores con un lector propio de rgb()/rgba() (enteros, sin strtod) y una caché de 8;
+  - lo transparente, con el color de lo que tiene detrás (clearRect lo pone);
+  - matriz completa (setTransform, transform, scale, translate, rotate), save/restore.
+- lib/jsdom.dash: la clase CanvasRenderingContext2D de QuickJS sobre eso (fillRect, clearRect, strokeRect,
+  beginPath, moveTo, lineTo, closePath, rect, arc, ellipse, curvas, stroke, fill, las de la matriz; fillStyle,
+  strokeStyle, lineWidth y globalAlpha); lib/jsdom_preludio.js: getContext('2d'), width y height del lienzo (otro
+  búfer, como los navegadores), y lo que aún no dibuja (texto, imágenes, degradados, getImageData) sin romper.
+- ResizeObserver de verdad (antes un objeto que no avisaba): tras cada maqueta, el tamaño de lo observado. Las
+  estrellas miden así su lienzo; sin él salía de 104x31 y se veían como bloques gordos.
+- Maqueta y pintor: D_LIENZO (en línea y con position absolute, por los caminos del vídeo); un z-index negativo en
+  un absoluto (las estrellas: -1) va en la lista tras el fondo de su antepasado posicionado o con isolation, bajo lo
+  demás suyo (CSS 2.1 apéndice E). src/dashweb.dash, tras cada vuelta del JavaScript: solo la zona de los lienzos
+  que cambiaron se repinta, con lo que tengan encima.
+- Medido en el emulador (rtg) con el código de las estrellas en una página local (tests/pages/estrellas.html): ~265
+  ms por fotograma (antes del lector de colores, 309). El reparto: ~83 ms el JavaScript al hacer el texto del color
+  (los decimales), ~90 las 3500 llamadas, ~46 sus cuentas, ~44 mover las 700 estrellas y el velo. Ver 48d.
+- test_lienzo (fillRect opaco y translúcido, línea, círculo, setTransform, media resolución, width, null).
+- src/dashweb.dash vacía la salida (Flush) en cada tic: si el navegador no acaba (una página a la que le falta una
+  imagen), los errores del JavaScript ya no se pierden en el búfer de AmigaDOS.
+- En tachyon.freemem.space aún no salen: ver 48c.
+- Batería: 101/101 (2331 s).
+
+### 2026-10-24 — Tarea 48c: React se quedaba en un bucle sin fin (attributes no era viva)
+- Con una copia de tachyon.freemem.space servida en local y un script de diagnóstico dentro: los temporizadores se
+  paraban a los ~4 s (el JavaScript, atascado) y el corte de 120 s caía en la función de React que, al rehacer un
+  elemento tras el #418 (el texto del servidor no cuadra), hace `for (l = t.attributes; l.length;)
+  t.removeAttributeNode(l[0])`. En los navegadores attributes es un NamedNodeMap vivo; el de lib/jsdom.dash era una
+  copia: su length no bajaba nunca. Por eso no hidrataba, no corrían los efectos (las estrellas no pedían el lienzo)
+  y no llegaban sus imágenes (el logo y los iconos del menú: cajas vacías). El #412 ("Connection closed") era de
+  ese corte.
+- lib/jsdom_preludio.js: attributes viva con un Proxy sobre la copia de C (length, índices, item, getNamedItem,
+  setNamedItem, removeNamedItem, por nombre, y los métodos de lista que ya usa el preludio).
+- tachyon.freemem.space entera en 28,4 s con las estrellas animadas detrás de la portada, el logo y los iconos;
+  dash.freemem.space entera en 24,7 s con sus iconos. (La bola Boing de dash, más abajo: sin mirar aún.)
+- Ojo para otras webs de React: lo mismo con cualquier lista que el DOM da viva (childNodes, children,
+  getElementsBy*): si alguna se da como copia, el mismo bucle sin fin.
+
+### 2026-10-24 — Tarea 48e: la bola Boing de dash.freemem.space
+- La bola usa lo que ya hay del lienzo (fillRect, stroke, arc, fill, caminos de 4 lados), pero su caja salía de
+  16 px de alto y vacía. Con su código tal cual en tests/pages/boing.html, dos fallos:
+  - un <canvas> con display: block iba como un bloque vacío y no como pieza (lib/maqueta.dash: como un vídeo);
+  - sus atributos width y height pasaban a CSS (lib/estilo.dash, _pistas_html). En HTML son el tamaño del lienzo,
+    no el de su caja. La bola se mide (getBoundingClientRect, 16 de alto antes de la primera maqueta), lo pone en
+    height y se quedaba así.
+- Y el aspect-ratio de un canvas en línea sin alto (4/3 de su ancho): lib/maqueta.dash.
+- Visto en el emulador (rtg): la bola rebota y gira sobre su rejilla morada, a 895x671, con su sombra translúcida.
+  tests/test_maqueta_inset.dash: el canvas 4/3 y el que no lleva estilo.
+- La sesión de las webs aligeró las dos animaciones (un camino y un stroke por color: de ~3500 llamadas a ~1400 en las
+  estrellas, de 256 rellenos y trazos a 4 en la bola; las estrellas bajan de 700 a 120 si un fotograma pasa de
+  25 ms). Con un camino de 64 cuadros, el relleno miraba los 256 lados en cada fila: ahora solo los subcaminos que
+  cruzan la fila (lib/lienzo.dash). tests/pages/estrellas.html y boing.html, con su código nuevo. En el emulador
+  (rtg, con JIT): estrellas ~20 fotogramas/s (antes ~4), bola ~11/s. Con 120 estrellas el cielo se ve casi vacío:
+  se le propuso a la web un mínimo de 300 y un umbral de 40 ms.
+
+### 2026-10-24 — Tarea 48g: trasfondo.freemem.space y las maquetas caras del JavaScript
+- En el emulador salía bien arriba, pero sus capturas de pantalla (WebP con loading="lazy", tras la portada) se
+  quedaban en cajas negras. Con una copia servida en local y la traza: aga-panel.webp llegaba a los 15 s y a los 45
+  aún no estaba decodificada (sola, en una página mínima, en 1,5 s). El escritorio de mentira de la portada cambia
+  cada segundo el texto de su panel ("CPU 2,1 %"): cada cambio era la maqueta entera, ~160 ms de estilo y ~730 de
+  maqueta (500 bloques). Al proceso que decodifica (prioridad -1) no le quedaba tiempo.
+- lib/documento.dash: si la última maqueta entera por el JavaScript pasó de 150 ms, la siguiente espera a que haya
+  pasado el doble (los cambios se juntan; lo del ratón no espera). src/dashweb.dash lo activa
+  (documento_aplazar) y despierta cuando toca aunque la página no tenga más temporizadores; las pruebas siguen
+  con cada cambio al momento.
+- Con eso aga-panel.webp se decodifica 4,6 s después de llegar, la página está entera a los 19,7 s y, bajándola
+  entera (scrollBy desde la copia), todas sus imágenes salen. El panel se pone al día cada ~2 s en vez de cada 1.
+- Pendiente (48h): maquetar otra vez solo esa caja.
+
+### 2026-10-24 — Tarea 48h: maquetar sola una caja absoluta de tamaño fijo
+- Una caja con position: absolute y width y height en px no mueve nada de fuera por lo que lleve dentro. Al
+  maquetarla (_absoluto) se apunta en la página (Pagina.limites) con qué se maquetó (su contenedor y lo de
+  alrededor: _cat_atomica, _alto_definido, la línea...) y su primer dibujo propio con dónde quedó; sus dibujos
+  llevan la caja (Dibujo.lim).
+- lib/documento.dash: si todo lo tocado por el JavaScript está dentro de una de ellas (no sus propios atributos;
+  lo que React tocó y luego quitó no cuenta) y los estilos que cambian son de dentro, maqueta_rehacer la maqueta
+  sola y pone lo que le hicieron los de fuera a la de antes (moverla, recortarla, su capa, velarla), sacado de dónde
+  acabó aquel dibujo; si algo de fuera la transforma, anima, fija o pega, la maqueta entera como antes. Se repinta
+  solo su zona.
+- tests/test_documento_limite.dash: un texto que se alarga en una fila flex dentro de una caja con scale(0.5), en un
+  marco relative con overflow: hidden y z-index, queda igual que con la maqueta entera (sitio, recorte, capa y su
+  caja para el JavaScript); un cambio fuera o en el style de la caja, maqueta entera.
+- trasfondo.freemem.space (copia local, emulador rtg): cada ciclo del panel, de ~870 ms a 500-640 (el escritorio
+  tiene 320 de los 510 bloques de la página). Y la traza dice por qué no se maqueta sola cuando no.
+- Visto: React #412 una vez en cinco cargas de la copia (sin hidratar); no se repitió.
+
+### 2026-10-24 — Tarea 48i: min-width
+- min-width solo se miraba en las cajas flex. Las columnas "entra" y "sale" del panel de trasfondo.freemem.space
+  (em inline-block con min-width: 82px y text-align: right) salían pegadas.
+- lib/maqueta.dash: un bloque no baja de su min-width (manda sobre width y max-width, CSS 2.1 10.4); al medir un
+  flotante o un inline-block, tampoco; y al medir lo de dentro, el fondo de un elemento con min-width cuenta como el
+  de uno con width (en una fila flex, las dos columnas saltaban de línea), solo hasta su min-width (al medir se
+  estira a 4000), y sin fondo deja el rectángulo vacío que ya dejaba una caja con width.
+- tests/test_maqueta_inset.dash: 82 y 82 en un bloque; 164 a la derecha (136) en la fila flex. En la copia de
+  trasfondo, "entra" y "sale" y sus cifras, cada una a la derecha de su columna.
+- Ojo, Dash: reusar en _ancho_flotante_medir el nombre de una variable que era un Nodo (medido) para un Int compiló
+  sin aviso y daba anchos de basura (la prueba se colgaba); se cambió el nombre. Pendiente de contárselo a Dash
+  (el mensaje a su sesión no llegó: va en otro modo de permisos).
+
+### 2026-10-24 — Tarea 48b (trasfondo): un absoluto con width fijo más ancho que su contenedor
+- El escritorio de la portada de trasfondo.freemem.space mide 960 (width) con scale(0.93) en un marco de 891 con
+  overflow: hidden. _absoluto encogía a su contenedor todo absoluto más ancho: se maquetaba a 891 y luego se
+  encogía (la barra "Workbench Screen" y el panel no llegaban a la derecha).
+- lib/maqueta.dash: con width fijo se queda su ancho (CSS 2.1 10.3.7) si cabe en la ventana o si un overflow de
+  fuera lo recorta (_recortado_fuera, hasta su antepasado posicionado); si no, como antes.
+- tests/test_maqueta_inset.dash: 300 recortado por su marco; 600 en una ventana de 400, al contenedor (100).
+  En la copia de trasfondo, la barra y el panel ya llegan al borde derecho, como en Chrome.
+
+### 2026-10-24 — Tarea 48j: fondos de varias capas
+- background con varias capas (separadas por comas) se leía como una: se juntaban sus palabras y salía el último
+  degradado a tamaño completo (los botones de profundidad y de cierre de las barras del Workbench de trasfondo,
+  tres linear-gradient de un color de 9x7, 8x6 y 10x8 px sobre gris, eran un cuadro negro o blanco).
+- lib/estilo.dash: con varias capas, la declaración entera va en background-capas y lo de siempre se queda con
+  la capa que lleva imagen (o la última; el color, de la última): las imágenes de fondo, como antes.
+- lib/maqueta.dash (_fondo_capas): cada capa que es un linear-gradient, de la última a la primera, con su
+  background-position y background-size en px (sin tamaño, toda la caja).
+- Visto en la copia de trasfondo: los botones de la ventana del cajón ya son su dibujo.
+
+### 2026-10-24 — Tarea 45g (1): catálogos de idiomas, la interfaz
+- Con D71 de Dash (@catalog, tr, "tr" en el .dashui, tools/catalogo.py). src/dashweb.dash: @catalog
+  "Tachyon.catalog" 1 "español"; los textos que se ven, con tr(número, "texto"); los que llevan algo dentro, con
+  huecos (%1, %2) que pone hueco()/hueco2(), para no partir las frases. src/navegador.dashui: "tr" en cada menú,
+  botón y ayuda (1-42). La barra de estado miraba si empezaba por "Imágenes": ahora, por el texto del catálogo.
+- catalogos/: Tachyon.cd (98 textos, sacado del código), english.ct (traducido) y LEEME (cómo se pone al día y
+  cómo se añade un idioma). tools/paquete.sh mete Catalogs/<idioma>/Tachyon.catalog en el cajón (el Installer
+  copia el cajón entero). tools/medir_visor.py --catalogo english lo pone junto al programa mientras dura.
+- Visto en el emulador (rtg, sin Locale: inglés): la página de inicio y la barra de estado en inglés ("Ready:
+  4649 bytes in 267 ms"). Sin catálogo, como antes.
+- Ojo: tools/catalogo.py también lee los tr( de los comentarios (un ejemplo en uno chocaba con el número 5).
+- (2) Las páginas tachyon: de lib/ (buscadores, descargas, marcadores, historial, cookies; números 300-358) y los
+  enlaces a Wikipedia (en inglés, en.wikipedia.org). hueco y hueco2 pasan a lib/idioma.dash. 143 textos, todos
+  traducidos. Visto tachyon:buscadores en inglés en el emulador.
+- (3) La actualización automática trae también los catálogos: lib/actualizar.dash recoge de la versión nueva sus
+  Tachyon-<idioma>.catalog (actualizar_catalogo_idioma) y, tras instalar el programa, src/dashweb.dash los baja uno
+  a uno a Catalogs/<idioma>/ de su cajón (como .new y, si es un IFF FORM, en lugar del de antes). tools/paquete.sh
+  los deja en build/ para subirlos con la versión. tests/test_actualizar.dash: el idioma, adónde va (también en la
+  raíz de un disco) y bajarlo y ponerlo.
+- (4) Acerca de: sus créditos ("tr": 43 en el .dashui) y "compilado el %1 a las %2" (texto_version ya no lo pone en
+  C: compilado_fecha y compilado_hora). 145 textos, todos traducidos. Sin ver en el emulador (la acción de menú
+  de tools/amiga/clicar.dash no la abrió).
+- (5) Los errores de lib/http.dash y lib/documento.dash (400-411, "tiempo agotado", "cuerpo cortado"...): salen tras
+  "Error:" en la barra. Los de lib/red.dash no: parte corre en la tarea de la red y el catálogo se abre con el primer
+  tr, mejor que lo abra la principal. 157 textos, todos traducidos.
+
+### 2026-10-24 — Tarea 48b (dash): las barras y los subrayados
+- dash.freemem.space entera contra Chrome (copia local bajada con scrollBy, capturas juntadas): casi igual. Dos
+  cosas: las barras de "609 builtins" salían todas enteras y los enlaces del pie y los títulos de "Hecho con Dash"
+  sin su subrayado naranja.
+- Las barras son inline-size: 63%: lib/estilo.dash pasa inline-size, block-size y sus min- y max- a width y height
+  (_logica_tamano; los márgenes y rellenos lógicos ya se pasaban).
+- El subrayado era el estilo de la fuente del Amiga: del color del texto, de 1 px y nada con las fuentes web (los
+  enlaces van en topaz, una fuente web). Ahora lo dibuja la maqueta (_subrayar: una línea por tramo, seguida bajo los
+  espacios), con text-decoration-color (o el del atajo), text-decoration-thickness y text-underline-offset; el de un
+  antepasado en línea vale para lo de dentro (un <a> con un <span>), con su color.
+- tests/test_maqueta_subrayado.dash (nuevo) y test_maqueta_inset.dash (inline-size). Visto en la copia: las barras en
+  su proporción y el pie con sus subrayados naranja. Queda distinto: la letra del código (LetterGothic, algo más
+  pequeña que la monospace de Chrome con el mismo interlineado).
+
+### 2026-10-24 — Tarea 46 (1): pestañas
+- src/navegador.dashui: una fila bajo la barra de herramientas (escondida con una sola pestaña) con 8 botones
+  escondidos, un hueco y un "+"; menú Proyecto: Nueva pestaña (Amiga-T) y Cerrar pestaña (Amiga-W). Dash no añade
+  objetos MUI mientras corre: los botones se enseñan con el título de su página (cortado a 18; la de delante en
+  negrita, \eb).
+- src/dashweb.dash: Ventana sigue con los campos de la pestaña de delante (casi todo el código, igual) y una lista
+  de Pestana con los de las de detrás; cambiar de pestaña (pestana_guardar / pestana_traer) los guarda y trae, y pone
+  al día la dirección, el título, la barra de estado, los botones, la barra de desplazamiento y la página. Las de
+  detrás, quietas: sin temporizadores ni carga (sigue al volver). Cerrar la última cierra la ventana; cerrar la
+  ventana suelta las páginas de todas.
+- Visto en el emulador (rtg): Amiga-T abre la de inicio en una segunda pestaña, la barra sale con "Buscador" y
+  "Tachyon", un clic en la primera la trae entera (su dirección, su título, su página) y Amiga-W cierra la de
+  delante y esconde la barra. Ojo: sin el hueco, al enseñar la fila MUI estrechaba la ventana (los botones tienen
+  un ancho máximo).
+- (2) Mayúsculas o Amiga con un clic en un enlace: en una pestaña nueva (modificadoras: PeekQualifier de
+  input.device). Sin ver en el emulador: tools/amiga/clicar.dash tiene ahora "C X Y" (clic con Mayúsculas, pulsada
+  un segundo), pero una tecla metida con IND_WRITEEVENT no cambia el estado que da PeekQualifier (sale 0; el
+  dispositivo sí se abre). Con un teclado de verdad debería verse; si no, pedir a Dash el Qualifier del clic en el
+  lienzo de MUI (mui_canvas_button solo dice si fue clic). El clic sin teclas, como siempre (visto).
+- (3) Las de detrás sin sus imágenes decodificadas: lib/imagenes.dash guarda el pedido de cada una que llega de un
+  fichero (Imagenes.hechas); imagenes_dormir suelta esas imágenes y sus copias escaladas (los ficheros de T:
+  quedan) e imagenes_despertar las vuelve a poner en la cola, que las decodifica otra vez sin bajarlas (su <img> ya
+  tiene su tamaño: la maqueta no cambia). src/dashweb.dash duerme la que pasa detrás y despierta la que vuelve.
+- tests/test_imagenes_dormir.dash (nuevo). Visto en el emulador con tests/pages/imagenes.html y la de inicio:
+  dormidas, de 12 KB de imágenes y 48 de copias a 0, y de 92 a 0; al volver, sus imágenes otra vez en su sitio.
+- (4) Con poca memoria libre (menos de 4 MB; POCAMEMORIA=KB lo cambia, y tools/medir_visor.py --poca-memoria),
+  las pestañas de detrás de todas las ventanas sueltan su página (descartar_pestanas, al acabar de cargar una y al
+  abrir una nueva) y se quedan su dirección, su historial y su título; al traerla, se carga otra vez (arriba del
+  todo). Visto en el emulador con POCAMEMORIA=999999: la de tests/pages/imagenes.html, descartada al abrir otra,
+  con "Imágenes" en su botón, y entera otra vez al volver.
+
+### 2026-10-24 — Tarea 49: la portada en azul del CoffinOS del usuario (la FPU en precisión simple)
+- Reproducido con una copia de su CoffinOS (cp --reflink del disco a ~/.cache/tachyon-pruebas/, Amiberry en Xvfb
+  :97 con su configuración y use_gui=no). Amiberry tiene un socket de control (/run/user/1000/amiberry.sock; las
+  órdenes con tabuladores: SEND_KEY código estado, SEND_MOUSE dx dy botones): Amiga derecha+E abre "Ejecutar orden" y
+  se teclea con el mapa de su teclado (":" es Mayúsculas+0x2A, "/" la del teclado numérico 0x5C, ">" Mayúsculas+0x30).
+- Su salida: tras el #418 y un #519 de React (desajuste al hidratar), "101 cambios": React quitaba todo lo de <body>
+  y no ponía nada; solo quedaba el fondo. Con una página que mide: 0.1 + 0.2 = 0.30000001192092896, 1/3 =
+  0.3333333432674408 y Date.now() a saltos de 131072 ms: el JavaScript contaba con 24 bits. El FPCR de Tachyon era
+  0x40 (precisión simple) ya al empezar Main; un programa de Dash mínimo, lanzado igual, tenía 0 (libnix
+  ___fpucheck solo toca el redondeo). FS-UAE no emula la precisión del FPCR y por eso no salía aquí; un 68040 o
+  68060 de verdad sí la respeta.
+- src/dashweb.dash: fpu_precision_extendida() al empezar (FPCR, bits 6-7 a 0, si hay FPU). Visto en la copia:
+  doble precisión, el reloj bien y tachyon.freemem.space entera con sus estrellas en 5 s.
+- Pendiente: saber quién deja el FPCR en 0x40 antes de Main (algo del arranque de Tachyon que el programa mínimo no
+  tiene) y si las tareas que crea Tachyon (red, imágenes) lo heredan.
+
+### 2026-10-24 — Tarea 45g (6): inglés de serie, el castellano en su catálogo
+- Decisión del usuario (por la sesión de las webs): "Inglés de serie y castellano en catálogo", como los programas
+  del sistema. Volteado con un script: cada tr(N, "castellano") del código y cada texto con "tr" del .dashui, al
+  inglés de catalogos/english.ct; @catalog "Tachyon.catalog" 1 (sin idioma: inglés); catalogos/español.ct con el
+  castellano de antes (162 textos), english.ct fuera; catalogos/LEEME al día.
+- Visto: en el emulador (sin Locale) la página de inicio y la barra en inglés; en la copia del CoffinOS del usuario
+  (Locale en español) con Catalogs/español/Tachyon.catalog junto al programa, en castellano.
+
+- Los tests que esperaban textos en castellano (test_buscadores, test_descargas, test_http, test_http_carga,
+  test_marcadores), al inglés.
+
+### 2026-10-24 — Tarea 45g (7): el catálogo que falta se baja solo, y ocho idiomas más
+- El problema: la 0.5.0 y la 0.6.0 se actualizan solas pero no bajan catálogos (eso entró después), y con el inglés
+  de serie quien actualizase desde el navegador se quedaba en inglés. Ahora Tachyon, al abrirlo sin argumentos y sin
+  catálogo en el idioma de Locale (loc_PrefLanguages[0]; no si es english), baja el de su versión de GitHub
+  (releases/download/v<versión>/Tachyon-<idioma>.catalog) a Catalogs/<idioma>/, lo abre ya (catalog_open: las
+  páginas tachyon: y la barra en ese idioma; los menús, al abrirlo otra vez) y lo dice en la barra. Una vez por
+  versión e idioma (preferencia catalogo_pedido; sin red se prueba otra vez, un 404 no). DESCARGAS=dirección lo
+  pide de ahí, para probarlo.
+- GitHub cambia los nombres de fichero con caracteres que no son ASCII: los catálogos se publican sin acentos
+  (Tachyon-espanol.catalog; tools/paquete.sh) y el idioma de verdad se lee de dentro (su LANG). También para los de
+  la actualización (lib/actualizar.dash: actualizar_catalogos, actualizar_catalogo_poner con el idioma de dentro,
+  actualizar_catalogo_lang, actualizar_idioma_preferido, actualizar_ascii, actualizar_catalogo_url).
+- Ocho idiomas más, traducidos de una vez (por revisar con quien los hable): deutsch, français, italiano, português,
+  nederlands, svenska, dansk y norsk (catalogos/*.ct, 163 textos cada uno). Polaco y checo necesitan Latin-2: fuera.
+- Visto: test_actualizar (el idioma de dentro, sin acentos, el de una versión y uno sin publicar: 404); en la copia
+  del CoffinOS (Locale en español) sin Catalogs/: lo pidió, quedó en Catalogs/español y, abierto otra vez, todo en
+  castellano y sin pedirlo más.
+- Fallo mío: el socket del IPC de Amiberry (amiberry.sock) era del CoffinOS del usuario, abierto a las 12:02; unas
+  teclas de la prueba le llegaron a él. El script de teclas busca ahora el socket por el PID de la copia.

@@ -8,6 +8,7 @@
 #   inicio = preferencia("PROGDIR:dashweb.prefs", "inicio")   # "" si no está
 
 import "texto.dash"
+import "idioma.dash"
 
 func _lineas_de(fichero: String) -> [String]
     var r: [String] = []
@@ -85,14 +86,14 @@ end
 # Una página con los marcadores como enlaces, cada uno con su dirección y un enlace para quitarlo
 # (tachyon:marcadores?quitar=dirección)
 func marcadores_html(fichero: String) -> String
-    h = "<html><head><title>Marcadores</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
+    h = "<html><head><title>" + tr(340, "Bookmarks") + "</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
     h = h + "h1 { color: #1d3557 } .e { margin: 8px 0; padding: 6px 10px; background: #f3f5f9; border-radius: 6px } "
     h = h + ".dir { color: #2a7a3a; font-size: 12px } a { color: #1a4fa0 } .quitar { float: right; font-size: 12px; "
-    h = h + "color: #a33 }</style></head><body><h1>Marcadores</h1>"
+    h = h + "color: #a33 }</style></head><body><h1>" + tr(340, "Bookmarks") + "</h1>"
     direcciones = marcadores_direcciones(fichero)
     titulos = marcadores_titulos(fichero)
     if direcciones.length == 0
-        h = h + "<p>Aún no hay marcadores: la estrella junto a la dirección, o menú Marcadores, Añadir.</p>"
+        h = h + "<p>" + tr(341, "No bookmarks yet: the star next to the address, or menu Bookmarks, Add.") + "</p>"
     else
         for i in (0..direcciones.length - 1)
             d = _html_escapar(direcciones[i])
@@ -100,7 +101,7 @@ func marcadores_html(fichero: String) -> String
             if t == ""
                 t = d
             end
-            h = h + "<div class=e><a class=quitar href=\"tachyon:marcadores?quitar=" + d + "\">quitar</a>"
+            h = h + "<div class=e><a class=quitar href=\"tachyon:marcadores?quitar=" + d + "\">" + tr(331, "remove") + "</a>"
             h = h + "<a href=\"" + d + "\">" + t + "</a><div class=dir>" + d + "</div></div>"
         end
     end
@@ -221,16 +222,16 @@ end
 
 # Una página con lo visto, lo último arriba, por días (Hoy, Ayer, la fecha), con la hora, el título y la dirección
 func historial_html(fichero: String, ahora: Int) -> String
-    h = "<html><head><title>Historial</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
+    h = "<html><head><title>" + tr(342, "History") + "</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
     h = h + "h1 { color: #1d3557; margin-bottom: 4px } h2 { color: #1d3557; font-size: 15px; border-bottom: 1px solid #ccd; "
     h = h + "padding-bottom: 3px; margin-top: 18px } .e { margin: 6px 0 } .hora { color: #888; display: inline-block; "
     h = h + "width: 48px } .dir { color: #2a7a3a; font-size: 12px; margin-left: 48px } a { color: #1a4fa0 } "
-    h = h + ".borrar { font-size: 13px }</style></head><body><h1>Historial</h1>"
+    h = h + ".borrar { font-size: 13px }</style></head><body><h1>" + tr(342, "History") + "</h1>"
     lineas = _lineas_de(fichero)
     if lineas.length == 0
-        return h + "<p>Aún no has visto ninguna página.</p></body></html>"
+        return h + "<p>" + tr(343, "You haven't seen any page yet.") + "</p></body></html>"
     end
-    h = h + "<p class=borrar><a href=\"tachyon:historial?borrar\">Borrar el historial</a></p>"
+    h = h + "<p class=borrar><a href=\"tachyon:historial?borrar\">" + tr(344, "Clear the history") + "</a></p>"
     hoy = ahora / 1440
     dia = -1
     i = lineas.length - 1
@@ -245,9 +246,9 @@ func historial_html(fichero: String, ahora: Int) -> String
         if minuto / 1440 != dia
             dia = minuto / 1440
             if dia == hoy
-                h = h + "<h2>Hoy</h2>"
+                h = h + "<h2>" + tr(345, "Today") + "</h2>"
             elif dia == hoy - 1
-                h = h + "<h2>Ayer</h2>"
+                h = h + "<h2>" + tr(346, "Yesterday") + "</h2>"
             else
                 h = h + "<h2>" + _fecha(dia) + "</h2>"
             end

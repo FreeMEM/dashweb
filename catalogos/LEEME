@@ -1,0 +1,24 @@
+Los textos de la interfaz de Tachyon en otros idiomas (tarea 45g)
+
+Tachyon lleva sus textos en inglés, como los programas del sistema (decisión del usuario, 2026-10-24). Con un
+catálogo de locale.library en Catalogs/<idioma>/Tachyon.catalog (junto al programa o en LOCALE:Catalogs/) los enseña
+en el idioma elegido en las Preferencias de Locale. Hay castellano (español.ct), alemán, francés, italiano,
+portugués, neerlandés, sueco, danés y noruego (los ocho, traducidos de una vez: por revisar con quien los hable).
+
+Cada versión publicada lleva también sus catálogos sueltos (Tachyon-<idioma>.catalog, con el idioma sin acentos,
+que GitHub los cambia; el de verdad va dentro, en su LANG). Con ellos se actualiza el catálogo al actualizar
+Tachyon, y uno que se quedó sin el de su idioma (una 0.5.0 o 0.6.0 que se actualizó sola no los bajaba) se lo baja
+al abrirlo, una vez por versión e idioma (lib/actualizar.dash).
+
+- Tachyon.cd: los textos, con su número (src/navegador.dashui: 1-99; src/dashweb.dash: 100-299). Se saca del código:
+      python3 $DASH/tools/catalogo.py cd src/dashweb.dash -o catalogos/Tachyon.cd
+- <idioma>.ct: la traducción (español.ct). Uno nuevo, o el de siempre al día con los textos nuevos:
+      python3 $DASH/tools/catalogo.py ct catalogos/Tachyon.cd --language español --name Tachyon.catalog \
+              --version 1.0 --update catalogos/español.ct -o catalogos/español.ct
+  Debajo de cada MSG_<número>, la traducción (vacía: queda el inglés); %1 y %2 son lo que el programa pone ahí.
+- El catálogo: tools/paquete.sh hace uno por cada .ct dentro del cajón; a mano,
+      python3 $DASH/tools/catalogo.py catalog catalogos/español.ct     # -> Catalogs/español/Tachyon.catalog
+- Probarlo en el emulador: tools/medir_visor.py --programa src/dashweb.dash --catalogo español ... (el emulador sin Locale: el inglés de serie)
+
+La versión del .ct (1.0) va con la de @catalog en src/dashweb.dash (1): si se cambia el sentido de un texto, se le
+da un número nuevo.
