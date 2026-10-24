@@ -12,12 +12,14 @@
             {
               "label": "Nueva ventana",
               "key": "N",
-              "event": 18
+              "event": 18,
+              "tr": 2
             },
             {
               "label": "Cerrar ventana",
               "key": "K",
-              "event": 19
+              "event": 19,
+              "tr": 3
             },
             {
               "separator": true
@@ -25,7 +27,8 @@
             {
               "label": "Ir a la dirección",
               "key": "L",
-              "event": 24
+              "event": 24,
+              "tr": 4
             },
             {
               "separator": true
@@ -33,7 +36,8 @@
             {
               "label": "Acerca de...",
               "key": "?",
-              "event": 8
+              "event": 8,
+              "tr": 5
             },
             {
               "separator": true
@@ -41,29 +45,35 @@
             {
               "label": "Salir",
               "key": "Q",
-              "event": 9
+              "event": 9,
+              "tr": 6
             }
-          ]
+          ],
+          "tr": 1
         },
         {
           "title": "Navegar",
           "items": [
             {
               "label": "Atrás",
-              "event": 1
+              "event": 1,
+              "tr": 8
             },
             {
               "label": "Adelante",
-              "event": 2
+              "event": 2,
+              "tr": 9
             },
             {
               "label": "Recargar",
               "key": "R",
-              "event": 3
+              "event": 3,
+              "tr": 10
             },
             {
               "label": "Parar",
-              "event": 13
+              "event": 13,
+              "tr": 11
             },
             {
               "separator": true
@@ -71,14 +81,17 @@
             {
               "label": "Página de inicio",
               "key": "H",
-              "event": 17
+              "event": 17,
+              "tr": 12
             },
             {
               "label": "Historial",
               "key": "Y",
-              "event": 20
+              "event": 20,
+              "tr": 13
             }
-          ]
+          ],
+          "tr": 7
         },
         {
           "title": "Marcadores",
@@ -86,50 +99,60 @@
             {
               "label": "Ver marcadores",
               "key": "B",
-              "event": 14
+              "event": 14,
+              "tr": 15
             },
             {
               "label": "Añadir o quitar esta página",
               "key": "D",
-              "event": 15
+              "event": 15,
+              "tr": 16
             },
             {
               "separator": true
             },
             {
               "label": "Usar como página de inicio",
-              "event": 16
+              "event": 16,
+              "tr": 17
             }
-          ]
+          ],
+          "tr": 14
         },
         {
           "title": "Herramientas",
           "items": [
             {
               "label": "Cookies",
-              "event": 25
+              "event": 25,
+              "tr": 19
             },
             {
               "label": "Descargas",
               "key": "J",
-              "event": 29
+              "event": 29,
+              "tr": 20
             },
             {
               "label": "Buscador...",
-              "event": 28
+              "event": 28,
+              "tr": 21
             },
             {
               "separator": true
             },
             {
               "label": "Buscar actualizaciones",
-              "event": 22
+              "event": 22,
+              "tr": 22
             },
             {
               "label": "No avisar de versiones nuevas",
-              "event": 23
+              "event": 23,
+              "tr": 23
             }
-          ]
+          ],
+          "tr": 18
         }
       ],
       "root": {
@@ -144,14 +167,20 @@
                 "file": "PROGDIR:iconos/atras.iff",
                 "event": 1,
                 "help": "Atrás",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 24
+                }
               },
               {
                 "type": "image_button",
                 "name": "atras_no",
                 "file": "PROGDIR:iconos/atras_apagado.iff",
                 "event": 1,
-                "help": "Atrás"
+                "help": "Atrás",
+                "tr": {
+                  "help": 25
+                }
               },
               {
                 "type": "image_button",
@@ -159,21 +188,30 @@
                 "file": "PROGDIR:iconos/adelante.iff",
                 "event": 2,
                 "help": "Adelante",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 26
+                }
               },
               {
                 "type": "image_button",
                 "name": "adelante_no",
                 "file": "PROGDIR:iconos/adelante_apagado.iff",
                 "event": 2,
-                "help": "Adelante"
+                "help": "Adelante",
+                "tr": {
+                  "help": 27
+                }
               },
               {
                 "type": "image_button",
                 "name": "recargar",
                 "file": "PROGDIR:iconos/recargar.iff",
                 "event": 3,
-                "help": "Recargar la página"
+                "help": "Recargar la página",
+                "tr": {
+                  "help": 28
+                }
               },
               {
                 "type": "image_button",
@@ -181,14 +219,20 @@
                 "file": "PROGDIR:iconos/parar.iff",
                 "event": 13,
                 "help": "Parar la carga",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 29
+                }
               },
               {
                 "type": "image_button",
                 "name": "inicio",
                 "file": "PROGDIR:iconos/inicio.iff",
                 "event": 17,
-                "help": "Página de inicio"
+                "help": "Página de inicio",
+                "tr": {
+                  "help": 30
+                }
               },
               {
                 "type": "image_button",
@@ -196,7 +240,10 @@
                 "file": "PROGDIR:iconos/candado.iff",
                 "event": 27,
                 "help": "Conexión cifrada (HTTPS)",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 31
+                }
               },
               {
                 "type": "image_button",
@@ -204,7 +251,10 @@
                 "file": "PROGDIR:iconos/candado_abierto.iff",
                 "event": 27,
                 "help": "Conexión sin cifrar (HTTP)",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 32
+                }
               },
               {
                 "type": "string",
@@ -213,14 +263,20 @@
                 "max": 1024,
                 "ack": 4,
                 "weight": 400,
-                "help": "Dirección: escríbela y pulsa Return"
+                "help": "Dirección: escríbela y pulsa Return",
+                "tr": {
+                  "help": 33
+                }
               },
               {
                 "type": "image_button",
                 "name": "estrella",
                 "file": "PROGDIR:iconos/estrella.iff",
                 "event": 26,
-                "help": "Añadir a marcadores"
+                "help": "Añadir a marcadores",
+                "tr": {
+                  "help": 34
+                }
               },
               {
                 "type": "image_button",
@@ -228,14 +284,20 @@
                 "file": "PROGDIR:iconos/estrella_llena.iff",
                 "event": 26,
                 "help": "En marcadores: pulsa para quitarla",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 35
+                }
               },
               {
                 "type": "image_button",
                 "name": "ver_historial",
                 "file": "PROGDIR:iconos/historial.iff",
                 "event": 20,
-                "help": "Historial: lo que has visto"
+                "help": "Historial: lo que has visto",
+                "tr": {
+                  "help": 36
+                }
               },
               {
                 "type": "image_button",
@@ -243,7 +305,10 @@
                 "file": "PROGDIR:iconos/descargas.iff",
                 "event": 29,
                 "help": "Descargas",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 37
+                }
               },
               {
                 "type": "image_button",
@@ -251,7 +316,10 @@
                 "file": "PROGDIR:iconos/actualizar.iff",
                 "event": 21,
                 "help": "Hay una versión nueva de Tachyon: pulsa para instalarla",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 38
+                }
               },
               {
                 "type": "image_button",
@@ -259,7 +327,10 @@
                 "file": "PROGDIR:iconos/reiniciar.iff",
                 "event": 21,
                 "help": "Instalada la versión nueva: pulsa para reiniciar Tachyon con ella",
-                "hidden": true
+                "hidden": true,
+                "tr": {
+                  "help": 39
+                }
               }
             ]
           },
@@ -293,7 +364,8 @@
               {
                 "type": "text",
                 "name": "estado",
-                "text": "Listo"
+                "text": "Listo",
+                "tr": 40
               },
               {
                 "type": "gauge",
@@ -331,16 +403,19 @@
           },
           {
             "type": "text",
-            "text": "\u001bc© 2026 Francisco Antonio Tapias Bravo\n\u001bcLicencia MIT · github.com/FreeMEM/tachyon\n\n\u001bcUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\u001bcLleva, adaptados para AmigaOS:\n\u001bcQuickJS (Fabrice Bellard y Charlie Gordon)\n\u001bcHubbub y LibParserUtils (NetSurf)\n\u001bcy también stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm y MintVID.\n\u001bcSus licencias, en el cajón Licencias."
+            "text": "\u001bc© 2026 Francisco Antonio Tapias Bravo\n\u001bcLicencia MIT · github.com/FreeMEM/tachyon\n\n\u001bcUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\u001bcLleva, adaptados para AmigaOS:\n\u001bcQuickJS (Fabrice Bellard y Charlie Gordon)\n\u001bcHubbub y LibParserUtils (NetSurf)\n\u001bcy también stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm y MintVID.\n\u001bcSus licencias, en el cajón Licencias.",
+            "tr": 43
           },
           {
             "type": "button",
             "name": "cerrar",
             "label": "_Cerrar",
-            "event": 8
+            "event": 8,
+            "tr": 42
           }
         ]
-      }
+      },
+      "tr": 41
     }
   ]
 }

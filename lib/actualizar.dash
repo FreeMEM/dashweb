@@ -19,6 +19,7 @@ const ACTUALIZAR_GZ = "T:Tachyon.gz"
 struct Novedad
     version: String   # "0.5.0-alfa"
     url: String       # la de su Tachyon.gz
+    catalogos: [String] = nil   # las de sus Tachyon-<idioma>.catalog (tarea 45g): se bajan tras instalar
 end
 
 # Las versiones publicadas (también las pre-release, que /releases/latest no da), sin esperar
@@ -105,24 +106,87 @@ func actualizar_leer(json: String, actual: String) -> Novedad
     if not actualizar_mas_nueva(etiqueta, actual)
         return nada
     end
-    # los ficheros de esa versión van entre su tag_name y el de la siguiente
+    # los ficheros de esa versión van entre su tag_name y el de la siguiente: su Tachyon.gz y sus catálogos
     fin = str_find_from(json, "\"tag_name\"", p + 10)
+    gz = ""
+    var catalogos: [String] = []
     q = p
     while true
         url = _json_texto(json, "browser_download_url", q, fin)
         if url == ""
-            return nada
+            break
         end
         if str_ends(url, "/Tachyon.gz")
-            version = etiqueta
-            if str_starts(version, "v")
-                version = version[1:]
-            end
-            return Novedad(version, url)
+            gz = url
+        elif actualizar_catalogo_idioma(url) != ""
+            catalogos.push(url)
         end
         q = str_find_from(json, "\"browser_download_url\"", q) + 22
     end
-    return nada
+    if gz == ""
+        return nada
+    end
+    version = etiqueta
+    if str_starts(version, "v")
+        version = version[1:]
+    end
+    n = Novedad(version, gz)
+    n.catalogos = catalogos
+    return n
+end
+
+# El idioma de un catálogo publicado (".../Tachyon-english.catalog": "english"); "" si no es uno
+func actualizar_catalogo_idioma(url: String) -> String
+    p = str_find(url, "/Tachyon-")
+    if p < 0 or not str_ends(url, ".catalog")
+        return ""
+    end
+    while str_find_from(url, "/Tachyon-", p + 1) >= 0
+        p = str_find_from(url, "/Tachyon-", p + 1)
+    end
+    idioma = url[p + 9:url.length - 8]
+    if idioma == "" or str_find(idioma, "/") >= 0
+        return ""
+    end
+    return idioma
+end
+
+# Dónde va un catálogo bajado: Catalogs/<idioma>/Tachyon.catalog junto al programa (crea los cajones)
+func actualizar_catalogo_destino(url: String, programa: String) -> String
+    i = programa.length - 1
+    while i >= 0 and str_code(programa, i) != 47 and str_code(programa, i) != 58
+        i = i - 1
+    end
+    cajon = programa[:i + 1]
+    if i >= 0 and str_code(programa, i) == 47
+        cajon = programa[:i]
+    end
+    sep = "/"
+    if cajon == "" or str_ends(cajon, ":")
+        sep = ""
+    end
+    dir_create(cajon + sep + "Catalogs")
+    dir_create(cajon + sep + "Catalogs/" + actualizar_catalogo_idioma(url))
+    return cajon + sep + "Catalogs/" + actualizar_catalogo_idioma(url) + "/Tachyon.catalog"
+end
+
+# Baja el catálogo a su sitio, primero como .new (sin esperar: http_avanzar hasta true y luego
+# actualizar_catalogo_poner)
+func actualizar_catalogo_bajar(url: String, destino: String) -> Carga
+    file_delete(destino + ".new")
+    return http_volcar(http_empezar_a_fichero(url, destino + ".new", 30000))
+end
+
+# El .new en lugar del de antes, si llegó bien (un catálogo empieza por FORM); true si quedó puesto
+func actualizar_catalogo_poner(c: Carga, destino: String) -> Bool
+    r = c.respuesta
+    nuevo = destino + ".new"
+    if r.error != "" or r.estado != 200 or file_size(nuevo) < 12 or not str_starts(file_read_text(nuevo), "FORM")
+        file_delete(nuevo)
+        return false
+    end
+    file_delete(destino)
+    return file_rename(nuevo, destino)
 end
 
 # Baja su Tachyon.gz a T: sin esperar

@@ -9,6 +9,7 @@
 #   descargas_accion("parar", 3)   # parar, reintentar, quitar, abrir (por su número)
 
 import "http.dash"
+import "idioma.dash"
 
 @header "#include <proto/wb.h>"
 
@@ -99,7 +100,7 @@ func descargas_avanzar() -> Bool
                 d.estado = DESCARGA_ERROR
                 d.error = r.error
                 if d.error == ""
-                    d.error = "el servidor respondió " + r.estado
+                    d.error = hueco(tr(320, "el servidor respondió %1"), "" + r.estado)
                 end
             end
             var nada: Carga = nil
@@ -135,7 +136,7 @@ func descargas_accion(accion: String, id: Int) -> String
         d.carga = nada
         d.estado = DESCARGA_PARADA
         descargas_guardar()
-        return "Parada: " + d.nombre
+        return hueco(tr(321, "Parada: %1"), d.nombre)
     end
     if accion == "reintentar" and d.estado != DESCARGA_BAJANDO
         d.estado = DESCARGA_BAJANDO
@@ -145,7 +146,7 @@ func descargas_accion(accion: String, id: Int) -> String
         d.empezada = time_ms()
         file_delete(d.ruta)
         d.carga = http_volcar(http_empezar_a_fichero(d.direccion, d.ruta, 30000))
-        return "Otra vez: " + d.nombre
+        return hueco(tr(322, "Otra vez: %1"), d.nombre)
     end
     if accion == "quitar"
         if d.estado == DESCARGA_BAJANDO
@@ -160,13 +161,13 @@ func descargas_accion(accion: String, id: Int) -> String
             end
         end
         descargas_guardar()
-        return "Quitada de la lista: " + d.nombre
+        return hueco(tr(323, "Quitada de la lista: %1"), d.nombre)
     end
     if accion == "abrir"
         if _abrir_cajon(d.ruta)
-            return "Abierto el cajón de " + d.nombre
+            return hueco(tr(324, "Abierto el cajón de %1"), d.nombre)
         end
-        return "El Workbench no puede abrir el cajón (necesita AmigaOS 3.5 o más)"
+        return tr(325, "El Workbench no puede abrir el cajón (necesita AmigaOS 3.5 o más)")
     end
     return ""
 end
@@ -231,27 +232,27 @@ end
 
 # La página tachyon:descargas: cada una con su estado y sus acciones (tachyon:descargas?parar=3...)
 func descargas_html() -> String
-    h = "<html><head><title>Descargas</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
+    h = "<html><head><title>" + tr(326, "Descargas") + "</title><style>body { font-family: sans-serif; margin: 16px 24px; color: #222 } "
     h = h + "h1 { color: #1d3557 } .e { margin: 8px 0; padding: 8px 12px; background: #f3f5f9; border-radius: 6px } "
     h = h + ".n { font-weight: bold; color: #1d3557 } .r { color: #555; font-size: 12px } .estado { font-size: 13px; "
     h = h + "margin-top: 4px } .ok { color: #2e7a3e } .mal { color: #b3261e } .barra { height: 8px; background: #d8dde8; "
     h = h + "border-radius: 4px; margin-top: 6px } .lleno { height: 8px; background: #2e9e48; border-radius: 4px } "
-    h = h + ".acc { float: right; font-size: 13px; color: #888 }</style></head><body><h1>Descargas</h1>"
+    h = h + ".acc { float: right; font-size: 13px; color: #888 }</style></head><body><h1>" + tr(326, "Descargas") + "</h1>"
     if descargas.length == 0
-        return h + "<p>Aún no has bajado nada. Lo que no es una página (un .lha, un .zip...) se baja aquí.</p></body></html>"
+        return h + "<p>" + tr(327, "Aún no has bajado nada. Lo que no es una página (un .lha, un .zip...) se baja aquí.") + "</p></body></html>"
     end
     for d in descargas
         q = "tachyon:descargas?"
         h = h + "<div class=e><span class=acc>"
         if d.estado == DESCARGA_BAJANDO
-            h = h + "<a href=\"" + q + "parar=" + d.id + "\">parar</a>"
+            h = h + "<a href=\"" + q + "parar=" + d.id + "\">" + tr(328, "parar") + "</a>"
         else
             if d.estado != DESCARGA_HECHA
-                h = h + "<a href=\"" + q + "reintentar=" + d.id + "\">reintentar</a>"
+                h = h + "<a href=\"" + q + "reintentar=" + d.id + "\">" + tr(329, "reintentar") + "</a>"
             else
-                h = h + "<a href=\"" + q + "abrir=" + d.id + "\">abrir el cajón</a>"
+                h = h + "<a href=\"" + q + "abrir=" + d.id + "\">" + tr(330, "abrir el cajón") + "</a>"
             end
-            h = h + " · <a href=\"" + q + "quitar=" + d.id + "\">quitar</a>"
+            h = h + " · <a href=\"" + q + "quitar=" + d.id + "\">" + tr(331, "quitar") + "</a>"
         end
         h = h + "</span><span class=n>" + _escapar(d.nombre) + "</span><div class=r>" + _escapar(d.ruta) + " · "
         h = h + _escapar(d.direccion) + "</div><div class=estado>"
@@ -263,12 +264,12 @@ func descargas_html() -> String
             end
             t = _tamano(d.bytes)
             if d.total > 0
-                t = t + " de " + _tamano(d.total) + " (" + d.bytes * 100 / d.total + " %)"
+                t = t + hueco2(tr(332, " de %1 (%2 %)"), _tamano(d.total), "" + d.bytes * 100 / d.total)
             end
             if vel > 0
                 t = t + " · " + _tamano(vel) + "/s"
                 if d.total > d.bytes
-                    t = t + " · faltan " + (d.total - d.bytes) / vel + " s"
+                    t = t + hueco(tr(333, " · faltan %1 s"), "" + (d.total - d.bytes) / vel)
                 end
             end
             h = h + t + "</div>"
@@ -276,11 +277,11 @@ func descargas_html() -> String
                 h = h + "<div class=barra><div class=lleno style=\"width:" + d.bytes * 100 / d.total + "%\"></div></div>"
             end
         elif d.estado == DESCARGA_HECHA
-            h = h + "<span class=ok>Hecha: " + _tamano(d.bytes) + "</span></div>"
+            h = h + "<span class=ok>" + hueco(tr(334, "Hecha: %1"), _tamano(d.bytes)) + "</span></div>"
         elif d.estado == DESCARGA_PARADA
-            h = h + "Parada</div>"
+            h = h + tr(335, "Parada") + "</div>"
         else
-            h = h + "<span class=mal>No se pudo: " + _escapar(d.error) + "</span></div>"
+            h = h + "<span class=mal>" + hueco(tr(336, "No se pudo: %1"), _escapar(d.error)) + "</span></div>"
         end
         h = h + "</div>"
     end

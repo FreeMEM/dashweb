@@ -9,6 +9,7 @@
 #   cookies_cargar("PROGDIR:cookies")
 
 import "url.dash"
+import "idioma.dash"
 
 struct Cookie
     nombre: String
@@ -381,16 +382,16 @@ func cookies_html() -> String
     h = h + "<body><h1>Cookies</h1>"
     ahora = cookies_ahora()
     if cookies_todas.length == 0
-        return h + "<p>No hay ninguna guardada.</p></body></html>"
+        return h + "<p>" + tr(350, "No hay ninguna guardada.") + "</p></body></html>"
     end
-    h = h + "<p>" + cookies_todas.length + " guardadas. <a href=\"tachyon:cookies?borrar\">Borrarlas todas</a></p>"
-    h = h + "<table><tr><th>Dominio</th><th>Nombre</th><th>Valor</th><th>Caduca</th><th></th></tr>"
+    h = h + "<p>" + hueco(tr(351, "%1 guardadas."), "" + cookies_todas.length) + " <a href=\"tachyon:cookies?borrar\">" + tr(352, "Borrarlas todas") + "</a></p>"
+    h = h + "<table><tr><th>" + tr(353, "Dominio") + "</th><th>" + tr(354, "Nombre") + "</th><th>" + tr(355, "Valor") + "</th><th>" + tr(356, "Caduca") + "</th><th></th></tr>"
     for c in cookies_todas
         v = c.valor
         if v.length > 24
             v = v[:24] + "..."
         end
-        caduca = "al salir"
+        caduca = tr(357, "al salir")
         if c.caduca >= 0
             caduca = cookies_dia(c.caduca)
         end
@@ -402,7 +403,7 @@ func cookies_html() -> String
             extra = extra + " HttpOnly"
         end
         h = h + "<tr><td>" + _cookies_escapar(c.dominio) + "</td><td>" + _cookies_escapar(c.nombre) + "</td><td class=gris>" + _cookies_escapar(v) + "</td><td>" + caduca + "<span class=gris>" + extra + "</span></td>"
-        h = h + "<td><a href=\"tachyon:cookies?borrar=" + _cookies_escapar(c.dominio) + "\">borrar las de este dominio</a></td></tr>"
+        h = h + "<td><a href=\"tachyon:cookies?borrar=" + _cookies_escapar(c.dominio) + "\">" + tr(358, "borrar las de este dominio") + "</a></td></tr>"
     end
     return h + "</table></body></html>"
 end

@@ -1,10 +1,13 @@
 # Test: lib/actualizar.dash (tarea 44) contra un GitHub de mentira (tests/servers/http.py, /act/): qué versión es
 # más nueva, la de la lista con su Tachyon.gz, bajarlo e instalarlo en lugar de otro (el de antes como .old), y uno
-# que llega mal (CRC) no cambia nada.
+# que llega mal (CRC) no cambia nada. Sus catálogos (tarea 45g): el idioma de cada uno, adónde van (junto al programa,
+# en Catalogs/<idioma>/, también en la raíz de un disco) y bajarlo y ponerlo.
 # emu-server: http.py 40892
 # memcheck
 # expect-out: versiones: true false false true false
 # expect-out: novedad: 9.9.0-alfa http://127.0.0.1:40892/act/Tachyon.gz
+# expect-out: catálogos: 1 english [] | T:prueba_cat/Catalogs/english/Tachyon.catalog RAM:Catalogs/english/Tachyon.catalog
+# expect-out: catálogo puesto: true 20 false
 # expect-out: sin novedad: true
 # expect-out: instalada: [] true true
 # expect-out: rota: [lo bajado llegó mal (CRC)] true false
@@ -26,6 +29,12 @@ Main
     lista = http_texto(c.respuesta)
     n = actualizar_leer(lista, "0.4.0-alfa")
     Print "novedad: " + n.version + " " + n.url
+    dir_create("T:prueba_cat")
+    destino = actualizar_catalogo_destino(n.catalogos[0], "T:prueba_cat/Tachyon")
+    Print "catálogos: " + n.catalogos.length + " " + actualizar_catalogo_idioma(n.catalogos[0]) + " [" + actualizar_catalogo_idioma("http://x/Tachyon.gz") + "] | " + destino + " " + actualizar_catalogo_destino(n.catalogos[0], "RAM:Tachyon")
+    k = actualizar_catalogo_bajar(n.catalogos[0], destino)
+    esperar(k)
+    Print "catálogo puesto: " + actualizar_catalogo_poner(k, destino) + " " + file_size(destino) + " " + file_exists(destino + ".new")
     Print "sin novedad: " + (actualizar_leer(lista, "9.9.0-alfa") == nil)
     # uno de antes en T:, cambiado por el bajado
     file_write_text("T:prueba_tachyon", "el de antes")

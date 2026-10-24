@@ -1,0 +1,17 @@
+Los textos de la interfaz de Tachyon en otros idiomas (tarea 45g)
+
+Tachyon lleva sus textos en español. Con un catálogo de locale.library en Catalogs/<idioma>/Tachyon.catalog (junto
+al programa o en LOCALE:Catalogs/) los enseña en el idioma elegido en las Preferencias de Locale.
+
+- Tachyon.cd: los textos, con su número (src/navegador.dashui: 1-99; src/dashweb.dash: 100-299). Se saca del código:
+      python3 $DASH/tools/catalogo.py cd src/dashweb.dash -o catalogos/Tachyon.cd
+- <idioma>.ct: la traducción (english.ct). Uno nuevo, o el de siempre al día con los textos nuevos:
+      python3 $DASH/tools/catalogo.py ct catalogos/Tachyon.cd --language english --name Tachyon.catalog \
+              --version 1.0 --update catalogos/english.ct -o catalogos/english.ct
+  Debajo de cada MSG_<número>, la traducción (vacía: queda el español); %1 y %2 son lo que el programa pone ahí.
+- El catálogo: tools/paquete.sh hace uno por cada .ct dentro del cajón; a mano,
+      python3 $DASH/tools/catalogo.py catalog catalogos/english.ct     # -> Catalogs/english/Tachyon.catalog
+- Probarlo en el emulador: tools/medir_visor.py --programa src/dashweb.dash --catalogo english ...
+
+La versión del .ct (1.0) va con la de @catalog en src/dashweb.dash (1): si se cambia el sentido de un texto, se le
+da un número nuevo.

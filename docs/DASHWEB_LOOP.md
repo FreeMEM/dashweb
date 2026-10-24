@@ -424,6 +424,11 @@ tarea, con el estilo de Dash.
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
          (2026-10-23) Dash no los tiene: propuesto a la sesión dash como D71 (@catalog, tr(id, texto), ids en el
          .dashui y una herramienta .cd/.ct -> .catalog). Espera a ella.
+         Hecha la primera parte (2026-10-24; ver la bitácora): la ventana, los menús, las ayudas, la barra de estado
+         y la página de inicio, con el catálogo inglés; y luego las páginas tachyon: (descargas, buscadores,
+         marcadores, historial, cookies), y la actualización automática baja también los catálogos de la versión
+         nueva; y Acerca de (sus créditos y el "compilado el"). Falta: los errores de red (lib/http.dash,
+         lib/red.dash) y los de lib/actualizar.dash (en C).
          (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
 - [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
@@ -503,7 +508,9 @@ tarea, con el estilo de Dash.
       con su tamaño y su SHA-256 en las notas para comprobarlo antes de cambiar nada (tools/paquete.sh y la
       publicación). Probar en el emulador con una versión de mentira servida en local.
       Hecho (2026-10-23; ver la bitácora). AL PUBLICAR UNA VERSIÓN: subir también build/Tachyon.gz (lo deja
-      tools/paquete.sh junto a build/tachyon.lha), o las versiones de antes no la ven como actualización.
+      tools/paquete.sh junto a build/tachyon.lha), o las versiones de antes no la ven como actualización. Y desde
+      la 0.7.0, también build/Tachyon-<idioma>.catalog (los catálogos sueltos: la actualización los baja tras
+      instalar; 45g).
 - [x] 43. **Cuelgue al arrancar en AmigaOS 4 (usuario, 2026-10-23: lo reportó un usuario con v0.3.0-alfa).** Un DSI
       (Grim Reaper) al iniciar, en código 68k bajo Petunia; luego otra vez sí arrancó y navegó (Aminet). En sus
       registros: ___main+0x300 (la vuelta de main al arranque), una llamada a FreeVec (LVO -690) y _strchr+0x10.
@@ -4400,3 +4407,27 @@ Formato:
 - lib/maqueta.dash (_fondo_capas): cada capa que es un linear-gradient, de la última a la primera, con su
   background-position y background-size en px (sin tamaño, toda la caja).
 - Visto en la copia de trasfondo: los botones de la ventana del cajón ya son su dibujo.
+
+### 2026-10-24 — Tarea 45g (1): catálogos de idiomas, la interfaz
+- Con D71 de Dash (@catalog, tr, "tr" en el .dashui, tools/catalogo.py). src/dashweb.dash: @catalog
+  "Tachyon.catalog" 1 "español"; los textos que se ven, con tr(número, "texto"); los que llevan algo dentro, con
+  huecos (%1, %2) que pone hueco()/hueco2(), para no partir las frases. src/navegador.dashui: "tr" en cada menú,
+  botón y ayuda (1-42). La barra de estado miraba si empezaba por "Imágenes": ahora, por el texto del catálogo.
+- catalogos/: Tachyon.cd (98 textos, sacado del código), english.ct (traducido) y LEEME (cómo se pone al día y
+  cómo se añade un idioma). tools/paquete.sh mete Catalogs/<idioma>/Tachyon.catalog en el cajón (el Installer
+  copia el cajón entero). tools/medir_visor.py --catalogo english lo pone junto al programa mientras dura.
+- Visto en el emulador (rtg, sin Locale: inglés): la página de inicio y la barra de estado en inglés ("Ready:
+  4649 bytes in 267 ms"). Sin catálogo, como antes.
+- Ojo: tools/catalogo.py también lee los tr( de los comentarios (un ejemplo en uno chocaba con el número 5).
+- (2) Las páginas tachyon: de lib/ (buscadores, descargas, marcadores, historial, cookies; números 300-358) y los
+  enlaces a Wikipedia (en inglés, en.wikipedia.org). hueco y hueco2 pasan a lib/idioma.dash. 143 textos, todos
+  traducidos. Visto tachyon:buscadores en inglés en el emulador.
+- (3) La actualización automática trae también los catálogos: lib/actualizar.dash recoge de la versión nueva sus
+  Tachyon-<idioma>.catalog (actualizar_catalogo_idioma) y, tras instalar el programa, src/dashweb.dash los baja uno
+  a uno a Catalogs/<idioma>/ de su cajón (como .new y, si es un IFF FORM, en lugar del de antes). tools/paquete.sh
+  los deja en build/ para subirlos con la versión. tests/test_actualizar.dash: el idioma, adónde va (también en la
+  raíz de un disco) y bajarlo y ponerlo.
+- (4) Acerca de: sus créditos ("tr": 43 en el .dashui) y "compilado el %1 a las %2" (texto_version ya no lo pone en
+  C: compilado_fecha y compilado_hora). 145 textos, todos traducidos. Sin ver en el emulador (la acción de menú
+  de tools/amiga/clicar.dash no la abrió).
+

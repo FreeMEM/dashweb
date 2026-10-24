@@ -1,0 +1,292 @@
+; Texts of src/dashweb.dash (tools/catalogo.py)
+;
+MSG_1 (1//)
+Proyecto
+MSG_2 (2//)
+Nueva ventana
+MSG_3 (3//)
+Cerrar ventana
+MSG_4 (4//)
+Ir a la dirección
+MSG_5 (5//)
+Acerca de...
+MSG_6 (6//)
+Salir
+MSG_7 (7//)
+Navegar
+MSG_8 (8//)
+Atrás
+MSG_9 (9//)
+Adelante
+MSG_10 (10//)
+Recargar
+MSG_11 (11//)
+Parar
+MSG_12 (12//)
+Página de inicio
+MSG_13 (13//)
+Historial
+MSG_14 (14//)
+Marcadores
+MSG_15 (15//)
+Ver marcadores
+MSG_16 (16//)
+Añadir o quitar esta página
+MSG_17 (17//)
+Usar como página de inicio
+MSG_18 (18//)
+Herramientas
+MSG_19 (19//)
+Cookies
+MSG_20 (20//)
+Descargas
+MSG_21 (21//)
+Buscador...
+MSG_22 (22//)
+Buscar actualizaciones
+MSG_23 (23//)
+No avisar de versiones nuevas
+MSG_24 (24//)
+Atrás
+MSG_25 (25//)
+Atrás
+MSG_26 (26//)
+Adelante
+MSG_27 (27//)
+Adelante
+MSG_28 (28//)
+Recargar la página
+MSG_29 (29//)
+Parar la carga
+MSG_30 (30//)
+Página de inicio
+MSG_31 (31//)
+Conexión cifrada (HTTPS)
+MSG_32 (32//)
+Conexión sin cifrar (HTTP)
+MSG_33 (33//)
+Dirección: escríbela y pulsa Return
+MSG_34 (34//)
+Añadir a marcadores
+MSG_35 (35//)
+En marcadores: pulsa para quitarla
+MSG_36 (36//)
+Historial: lo que has visto
+MSG_37 (37//)
+Descargas
+MSG_38 (38//)
+Hay una versión nueva de Tachyon: pulsa para instalarla
+MSG_39 (39//)
+Instalada la versión nueva: pulsa para reiniciar Tachyon con ella
+MSG_40 (40//)
+Listo
+MSG_41 (41//)
+Acerca de Tachyon
+MSG_42 (42//)
+_Cerrar
+MSG_43 (43//)
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicencia MIT · github.com/FreeMEM/tachyon\n\n\033cUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\033cLleva, adaptados para AmigaOS:\n\033cQuickJS (Fabrice Bellard y Charlie Gordon)\n\033cHubbub y LibParserUtils (NetSurf)\n\033cy también stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm y MintVID.\n\033cSus licencias, en el cajón Licencias.
+MSG_100 (100//)
+Esta página no se guarda en marcadores
+MSG_101 (101//)
+Quitada de marcadores
+MSG_102 (102//)
+En marcadores: %1
+MSG_103 (103//)
+No se pudo guardar el marcador
+MSG_104 (104//)
+Conectando con %1...
+MSG_105 (105//)
+Abriendo %1...
+MSG_106 (106//)
+Enviando a %1...
+MSG_107 (107//)
+Buscando %1...
+MSG_108 (108//)
+Conexión segura con %1...
+MSG_109 (109//)
+Recibiendo %1: %2 KB
+MSG_110 (110//)
+Trayendo hojas de estilo y scripts...
+MSG_111 (111//)
+Trayendo hojas de estilo y scripts: faltan %1
+MSG_112 (112//)
+Guardar %1
+MSG_113 (113//)
+Descarga cancelada: %1
+MSG_114 (114//)
+Bajando %1 (Amiga-J: las descargas)
+MSG_115 (115//)
+Error: %1
+MSG_116 (116//)
+Listo: %1 bytes en %2 ms
+MSG_117 (117//)
+Un script de la página tardaba demasiado: cortado
+MSG_118 (118//)
+Imágenes: faltan %1
+MSG_120 (120//)
+Conexión cifrada (HTTPS) con %1
+MSG_121 (121//)
+Esta página llega sin cifrar (HTTP)
+MSG_122 (122//)
+Parado
+MSG_123 (123//)
+Página de inicio: %1
+MSG_124 (124//)
+Como mucho %1 ventanas
+MSG_125 (125//)
+Mirando si hay una versión nueva...
+MSG_126 (126//)
+No avisará de versiones nuevas
+MSG_127 (127//)
+Hay una versión nueva, la %1: pulsa para instalarla
+MSG_128 (128//)
+Instalada la %1: pulsa para reiniciar Tachyon con ella
+MSG_129 (129//)
+No se pudo mirar si hay versiones nuevas
+MSG_130 (130//)
+Hay una versión nueva: %1
+MSG_131 (131//)
+Tachyon está al día (%1)
+MSG_132 (132//)
+No se pudo bajar la versión nueva
+MSG_133 (133//)
+No se instaló: %1
+MSG_134 (134//)
+Instalada la %1: pulsa el icono verde
+MSG_135 (135//)
+Bajando Tachyon %1...
+MSG_136 (136//)
+%1 (pulsa para verlas)
+MSG_137 (137//)
+Descarga hecha: %1
+MSG_138 (138//)
+Tachyon: vídeo
+MSG_140 (140//)
+Un navegador web para <b>AmigaOS</b>, escrito en <i>Dash</i>
+MSG_141 (141//)
+Busca con %1
+MSG_142 (142//)
+Buscar
+MSG_143 (143//)
+Marcadores
+MSG_144 (144//)
+Tus páginas guardadas
+MSG_145 (145//)
+Qué guarda cada web
+MSG_146 (146//)
+Historial
+MSG_147 (147//)
+Lo que has visto
+MSG_148 (148//)
+Buscador
+MSG_149 (149//)
+Con cuál buscar
+MSG_150 (150//)
+Programas para Amiga
+MSG_151 (151//)
+Noticias y foros
+MSG_152 (152//)
+La enciclopedia libre
+MSG_153 (153//)
+El código y las novedades
+MSG_154 (154//)
+HTML, CSS, JavaScript (QuickJS) y HTTPS (AmiSSL)
+MSG_155 (155//)
+1 descarga
+MSG_156 (156//)
+%1 descargas
+MSG_157 (157//)
+%1: %2 %
+MSG_158 (158//)
+https://es.wikipedia.org/
+MSG_159 (159//)
+compilado el %1 a las %2
+MSG_300 (300//)
+Su versión sin JavaScript: ligera, la que mejor va en un Amiga. Privado.
+MSG_301 (301//)
+El de siempre.
+MSG_302 (302//)
+El de Microsoft.
+MSG_303 (303//)
+Privado, con su propio índice.
+MSG_304 (304//)
+Busca en la enciclopedia.
+MSG_305 (305//)
+Busca programas para Amiga.
+MSG_306 (306//)
+Buscador
+MSG_307 (307//)
+Busca lo que escribes en la barra de la dirección (unas palabras, no una dirección) y en la página de inicio.
+MSG_308 (308//)
+En uso
+MSG_309 (309//)
+Usar este
+MSG_310 (310//)
+https://es.wikipedia.org/w/index.php?search=%s
+MSG_320 (320//)
+el servidor respondió %1
+MSG_321 (321//)
+Parada: %1
+MSG_322 (322//)
+Otra vez: %1
+MSG_323 (323//)
+Quitada de la lista: %1
+MSG_324 (324//)
+Abierto el cajón de %1
+MSG_325 (325//)
+El Workbench no puede abrir el cajón (necesita AmigaOS 3.5 o más)
+MSG_326 (326//)
+Descargas
+MSG_327 (327//)
+Aún no has bajado nada. Lo que no es una página (un .lha, un .zip...) se baja aquí.
+MSG_328 (328//)
+parar
+MSG_329 (329//)
+reintentar
+MSG_330 (330//)
+abrir el cajón
+MSG_331 (331//)
+quitar
+MSG_332 (332//)
+ de %1 (%2 %)
+MSG_333 (333//)
+ · faltan %1 s
+MSG_334 (334//)
+Hecha: %1
+MSG_335 (335//)
+Parada
+MSG_336 (336//)
+No se pudo: %1
+MSG_340 (340//)
+Marcadores
+MSG_341 (341//)
+Aún no hay marcadores: la estrella junto a la dirección, o menú Marcadores, Añadir.
+MSG_342 (342//)
+Historial
+MSG_343 (343//)
+Aún no has visto ninguna página.
+MSG_344 (344//)
+Borrar el historial
+MSG_345 (345//)
+Hoy
+MSG_346 (346//)
+Ayer
+MSG_350 (350//)
+No hay ninguna guardada.
+MSG_351 (351//)
+%1 guardadas.
+MSG_352 (352//)
+Borrarlas todas
+MSG_353 (353//)
+Dominio
+MSG_354 (354//)
+Nombre
+MSG_355 (355//)
+Valor
+MSG_356 (356//)
+Caduca
+MSG_357 (357//)
+al salir
+MSG_358 (358//)
+borrar las de este dominio
