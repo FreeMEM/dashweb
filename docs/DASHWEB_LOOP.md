@@ -442,13 +442,14 @@ tarea, con el estilo de Dash.
          translúcido): medir cuántos fotogramas da.
          Hecho (2026-10-24; ver la bitácora): el lienzo y las estrellas en una página local con su mismo código;
          en tachyon.freemem.space aún no: React no hidrata la portada y su efecto no llega a pedir el lienzo (48c).
-      c. tachyon.freemem.space: React no hidrata (ni __react* en los nodos ni efectos), así que el efecto de las
+      [x] c. tachyon.freemem.space: React no hidrata (ni __react* en los nodos ni efectos), así que el efecto de las
          estrellas no llega a pedir el lienzo. La salida (ya vaciada en cada tic) dice: React #412 "Connection
          closed" (el flujo de datos de Next, self.__next_f, se cierra con filas sin resolver). readyState y
          DOMContentLoaded van bien (tras todos los scripts). Sin ejecutar el script noModule de parches de Next
          (0cz1d0mv5g_q7.js) el #412 no sale, pero la página cambia (letras de una fuente web en cajitas) y
          tampoco hidrata a los 35 s: mirar qué parchea (Promise, ReadableStream, TextDecoder...) y si su
          flujo funciona con lo nuestro; y en esa vuelta, por qué salen cajitas.
+         Hecho (2026-10-24; ver la bitácora): attributes no era viva y React se quedaba en un bucle sin fin.
       d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
          página (~83 ms en pasar a texto los decimales del color, dtoa.c de QuickJS con enteros largos: uno más
          rápido ayudaría a todas las webs; ~90 ms en las 3500 llamadas; ~46 en sus cuentas).
@@ -4274,3 +4275,17 @@ Formato:
 - En tachyon.freemem.space aún no salen: ver 48c.
 - Batería: 101/101 (2331 s).
 
+### 2026-10-24 — Tarea 48c: React se quedaba en un bucle sin fin (attributes no era viva)
+- Con una copia de tachyon.freemem.space servida en local y un script de diagnóstico dentro: los temporizadores se
+  paraban a los ~4 s (el JavaScript, atascado) y el corte de 120 s caía en la función de React que, al rehacer un
+  elemento tras el #418 (el texto del servidor no cuadra), hace `for (l = t.attributes; l.length;)
+  t.removeAttributeNode(l[0])`. En los navegadores attributes es un NamedNodeMap vivo; el de lib/jsdom.dash era una
+  copia: su length no bajaba nunca. Por eso no hidrataba, no corrían los efectos (las estrellas no pedían el lienzo)
+  y no llegaban sus imágenes (el logo y los iconos del menú: cajas vacías). El #412 ("Connection closed") era de
+  ese corte.
+- lib/jsdom_preludio.js: attributes viva con un Proxy sobre la copia de C (length, índices, item, getNamedItem,
+  setNamedItem, removeNamedItem, por nombre, y los métodos de lista que ya usa el preludio).
+- tachyon.freemem.space entera en 28,4 s con las estrellas animadas detrás de la portada, el logo y los iconos;
+  dash.freemem.space entera en 24,7 s con sus iconos. (La bola Boing de dash, más abajo: sin mirar aún.)
+- Ojo para otras webs de React: lo mismo con cualquier lista que el DOM da viva (childNodes, children,
+  getElementsBy*): si alguna se da como copia, el mismo bucle sin fin.
