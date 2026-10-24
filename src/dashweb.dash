@@ -129,7 +129,12 @@ struct Pestana
     fotograma: Int = 0
     url: String = ""          # lo escrito en la barra de la dirección
     estado: String = ""       # lo que decía la barra de estado
+    descartada: Bool = false  # sin su página por falta de memoria (como Chrome): se carga otra vez al volver
+    titulo: String = ""       # el de su página, para su botón aunque esté descartada
 end
+
+# Por debajo de esta memoria libre (KB), las pestañas de detrás se descartan (POCAMEMORIA=KB lo cambia, para probarlo)
+var dw_poca_memoria: Int = 4096
 
 var dw_ventanas: [Ventana] = []
 # DIBUJOS=y0-y1 (argumento): los dibujos de la página entre esas alturas, por la salida al acabar (-1: no)
@@ -970,6 +975,7 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     actualizar_giro(w)
     indicadores(w)
     pestanas_barra(w)
+    descartar_pestanas()
     # al historial (tachyon:historial) lo que llegó bien, no las páginas propias
     if w.actual.error == "" and (str_starts(w.actual.direccion, "http:") or str_starts(w.actual.direccion, "https:"))
         historial_agregar(FICHERO_HISTORIAL, w.actual.direccion, w.actual.titulo, historial_ahora())
@@ -1578,6 +1584,13 @@ func pestana_traer(w: Ventana, i: Int)
     actualizar_giro(w)
     pestanas_barra(w)
     mui_canvas_redraw(w.v.pagina)
+    # (descartada por falta de memoria: su página otra vez)
+    if p.descartada
+        p.descartada = false
+        if w.visto >= 0 and w.visto < w.pasos.length
+            abrir(w, w.pasos[w.visto])
+        end
+    end
     programar()
 end
 
@@ -1611,6 +1624,8 @@ func _pestana_nombre(w: Ventana, i: Int) -> String
     t = url
     if d != nil and d.titulo != ""
         t = d.titulo
+    elif d == nil and i != w.pestana and w.pestanas[i].titulo != ""
+        t = w.pestanas[i].titulo
     end
     if t == ""
         t = tr(160, "Nueva pestaña")
@@ -1649,6 +1664,7 @@ func nueva_pestana(w: Ventana, direccion: String)
         return
     end
     pestana_guardar(w)
+    descartar_pestanas()
     ps.push(Pestana())
     var nada: Documento = nil
     var sin_carga: Carga = nil
@@ -1695,6 +1711,37 @@ func cerrar_pestana(w: Ventana)
         i = ps.length - 1
     end
     pestana_traer(w, i)
+end
+
+# Con poca memoria libre, las pestañas de detrás de todas las ventanas sueltan su página (se quedan su dirección, su
+# historial y su título) hasta que vuelve a haber; se cargan al traerlas
+func descartar_pestanas()
+    for w in dw_ventanas
+        if w.abierta and w.pestanas != nil
+            for i in (0..w.pestanas.length - 1)
+                if mem_total() / 1024 >= dw_poca_memoria
+                    return
+                end
+                p = w.pestanas[i]
+                if i != w.pestana and p.actual != nil
+                    if p.carga != nil
+                        http_cancelar(p.carga)
+                        var sin_carga: Carga = nil
+                        p.carga = sin_carga
+                    end
+                    p.titulo = p.actual.titulo
+                    documento_liberar(p.actual)
+                    var nada: Documento = nil
+                    p.actual = nada
+                    if p.preparando != nil
+                        documento_liberar(p.preparando)
+                        p.preparando = nada
+                    end
+                    p.descartada = true
+                end
+            end
+        end
+    end
 end
 
 # Un botón de la barra: esa pestaña, delante
@@ -1853,6 +1900,9 @@ Main
                 traza("memoria libre al empezar " + mem_total() / 1024 + " KB")
             elif arg(i) == "GCSIEMPRE"
                 js_gc_siempre(true)
+            elif str_starts(arg(i), "POCAMEMORIA=")
+                # POCAMEMORIA=KB: por debajo de esa memoria libre se descartan las pestañas de detrás (para probarlo)
+                dw_poca_memoria = Int(arg(i)[12:])
             elif str_starts(arg(i), "VERSIONES=")
                 # VERSIONES=dirección: la lista de versiones de ahí y no de GitHub, mirada ya (para probarlo)
                 actualizar_api = arg(i)[10:]
@@ -1871,7 +1921,7 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=")
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=") and not str_starts(arg(i), "POCAMEMORIA=")
                 nueva_ventana(arg(i))
             end
         end

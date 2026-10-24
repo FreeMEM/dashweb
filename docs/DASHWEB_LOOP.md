@@ -513,8 +513,8 @@ tarea, con el estilo de Dash.
       volver) y, más adelante, sin imágenes decodificadas. Menú Proyecto: Nueva pestaña (Amiga-T), Cerrar pestaña
       (Amiga-W); un enlace con el botón central del ratón, en una pestaña nueva.
       Hecha la primera parte (2026-10-24; ver la bitácora): abrir, cambiar y cerrar pestañas. Falta: soltar las
-      imágenes decodificadas de las de detrás: hecho (ver la bitácora). Falta descartarlas con poca memoria (solo
-      dirección, título y desplazamiento) y medir lo demás de cada una (su JavaScript, su maqueta).
+      imágenes decodificadas de las de detrás y descartarlas con poca memoria: hecho (ver la bitácora). Falta
+      medir lo demás de cada una (su JavaScript, su maqueta) y volver al mismo desplazamiento tras descartarla.
       Un enlace con Mayúsculas o Amiga pulsada, en una pestaña nueva: hecho, sin poderlo ver en el emulador (ver la
       bitácora).
 
@@ -4494,4 +4494,9 @@ Formato:
   tiene su tamaño: la maqueta no cambia). src/dashweb.dash duerme la que pasa detrás y despierta la que vuelve.
 - tests/test_imagenes_dormir.dash (nuevo). Visto en el emulador con tests/pages/imagenes.html y la de inicio:
   dormidas, de 12 KB de imágenes y 48 de copias a 0, y de 92 a 0; al volver, sus imágenes otra vez en su sitio.
+- (4) Con poca memoria libre (menos de 4 MB; POCAMEMORIA=KB lo cambia, y tools/medir_visor.py --poca-memoria),
+  las pestañas de detrás de todas las ventanas sueltan su página (descartar_pestanas, al acabar de cargar una y al
+  abrir una nueva) y se quedan su dirección, su historial y su título; al traerla, se carga otra vez (arriba del
+  todo). Visto en el emulador con POCAMEMORIA=999999: la de tests/pages/imagenes.html, descartada al abrir otra,
+  con "Imágenes" en su botón, y entera otra vez al volver.
 
