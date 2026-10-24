@@ -4521,3 +4521,33 @@ Formato:
 - Pendiente: saber quién deja el FPCR en 0x40 antes de Main (algo del arranque de Tachyon que el programa mínimo no
   tiene) y si las tareas que crea Tachyon (red, imágenes) lo heredan.
 
+### 2026-10-24 — Tarea 45g (6): inglés de serie, el castellano en su catálogo
+- Decisión del usuario (por la sesión de las webs): "Inglés de serie y castellano en catálogo", como los programas
+  del sistema. Volteado con un script: cada tr(N, "castellano") del código y cada texto con "tr" del .dashui, al
+  inglés de catalogos/english.ct; @catalog "Tachyon.catalog" 1 (sin idioma: inglés); catalogos/español.ct con el
+  castellano de antes (162 textos), english.ct fuera; catalogos/LEEME al día.
+- Visto: en el emulador (sin Locale) la página de inicio y la barra en inglés; en la copia del CoffinOS del usuario
+  (Locale en español) con Catalogs/español/Tachyon.catalog junto al programa, en castellano.
+
+- Los tests que esperaban textos en castellano (test_buscadores, test_descargas, test_http, test_http_carga,
+  test_marcadores), al inglés.
+
+### 2026-10-24 — Tarea 45g (7): el catálogo que falta se baja solo, y ocho idiomas más
+- El problema: la 0.5.0 y la 0.6.0 se actualizan solas pero no bajan catálogos (eso entró después), y con el inglés
+  de serie quien actualizase desde el navegador se quedaba en inglés. Ahora Tachyon, al abrirlo sin argumentos y sin
+  catálogo en el idioma de Locale (loc_PrefLanguages[0]; no si es english), baja el de su versión de GitHub
+  (releases/download/v<versión>/Tachyon-<idioma>.catalog) a Catalogs/<idioma>/, lo abre ya (catalog_open: las
+  páginas tachyon: y la barra en ese idioma; los menús, al abrirlo otra vez) y lo dice en la barra. Una vez por
+  versión e idioma (preferencia catalogo_pedido; sin red se prueba otra vez, un 404 no). DESCARGAS=dirección lo
+  pide de ahí, para probarlo.
+- GitHub cambia los nombres de fichero con caracteres que no son ASCII: los catálogos se publican sin acentos
+  (Tachyon-espanol.catalog; tools/paquete.sh) y el idioma de verdad se lee de dentro (su LANG). También para los de
+  la actualización (lib/actualizar.dash: actualizar_catalogos, actualizar_catalogo_poner con el idioma de dentro,
+  actualizar_catalogo_lang, actualizar_idioma_preferido, actualizar_ascii, actualizar_catalogo_url).
+- Ocho idiomas más, traducidos de una vez (por revisar con quien los hable): deutsch, français, italiano, português,
+  nederlands, svenska, dansk y norsk (catalogos/*.ct, 163 textos cada uno). Polaco y checo necesitan Latin-2: fuera.
+- Visto: test_actualizar (el idioma de dentro, sin acentos, el de una versión y uno sin publicar: 404); en la copia
+  del CoffinOS (Locale en español) sin Catalogs/: lo pidió, quedó en Catalogs/español y, abierto otra vez, todo en
+  castellano y sin pedirlo más.
+- Fallo mío: el socket del IPC de Amiberry (amiberry.sock) era del CoffinOS del usuario, abierto a las 12:02; unas
+  teclas de la prueba le llegaron a él. El script de teclas busca ahora el socket por el PID de la copia.

@@ -24,9 +24,10 @@ import "../lib/idioma.dash"
 @workbench_output "NIL:"
 
 # Los textos de la interfaz, en el idioma del usuario (tarea 45g): Catalogs/<idioma>/Tachyon.catalog (del cajón de
-# Tachyon o de LOCALE:); sin catálogo, los de aquí, en español. Los números: 1-99 los de navegador.dashui, 100-299
+# Tachyon o de LOCALE:); sin catálogo, los de aquí, en inglés (el castellano va en su catálogo, como los programas
+# del sistema). Los números: 1-99 los de navegador.dashui, 100-299
 # los de este fichero, 300-499 los de las páginas tachyon: de lib/. Se hacen con tools/catalogo.py (ver catalogos/LEEME)
-@catalog "Tachyon.catalog" 1 "español"
+@catalog "Tachyon.catalog" 1
 
 
 # Los números de evento del .dashui (los mismos en todas las ventanas: la activa dice de cuál viene)
@@ -151,8 +152,12 @@ var dw_act_nueva: Novedad = nil
 var dw_act_bajada: Carga = nil
 # los catálogos de la versión nueva, tras instalarla: el que se baja, adónde, y cuál toca (tarea 45g)
 var dw_act_cat: Carga = nil
-var dw_act_cat_destino: String = ""
+var dw_act_cat_cajon: String = ""
 var dw_act_cat_i: Int = 0
+# el catálogo de esta versión en el idioma del usuario, si no tiene ninguno (llegó sin él: una 0.5.0 o 0.6.0 que se
+# actualizó sola no baja catálogos), de GitHub y una sola vez por versión e idioma
+var dw_cat_propio: Carga = nil
+var dw_cat_propio_url: String = ""
 var dw_act_lista: Bool = false      # ya instalada: el botón reinicia
 var dw_reiniciar: Bool = false
 
@@ -177,8 +182,8 @@ func versiones_boton(t: Ventana)
     if dw_act_nueva == nil
         return
     end
-    mui_help(t.v.actualizar, hueco(tr(127, "Hay una versión nueva, la %1: pulsa para instalarla"), dw_act_nueva.version))
-    mui_help(t.v.reiniciar, hueco(tr(128, "Instalada la %1: pulsa para reiniciar Tachyon con ella"), dw_act_nueva.version))
+    mui_help(t.v.actualizar, hueco(tr(127, "There is a new version, %1: click to install it"), dw_act_nueva.version))
+    mui_help(t.v.reiniciar, hueco(tr(128, "%1 installed: click to restart Tachyon with it"), dw_act_nueva.version))
     mui_set_visible(t.v.actualizar, not dw_act_lista)
     mui_set_visible(t.v.reiniciar, dw_act_lista)
 end
@@ -191,7 +196,7 @@ func versiones_avanzar()
         dw_act_carga = nada
         if r.error != "" or r.estado != 200
             if dw_act_manual
-                versiones_estado(tr(129, "No se pudo mirar si hay versiones nuevas"))
+                versiones_estado(tr(129, "Could not check for new versions"))
             end
             return
         end
@@ -203,21 +208,21 @@ func versiones_avanzar()
                     versiones_boton(t)
                 end
             end
-            versiones_estado(hueco(tr(130, "Hay una versión nueva: %1"), dw_act_nueva.version))
+            versiones_estado(hueco(tr(130, "There is a new version: %1"), dw_act_nueva.version))
         elif dw_act_manual
-            versiones_estado(hueco(tr(131, "Tachyon está al día (%1)"), DASHWEB_VERSION))
+            versiones_estado(hueco(tr(131, "Tachyon is up to date (%1)"), DASHWEB_VERSION))
         end
     end
     if dw_act_bajada != nil and http_avanzar(dw_act_bajada)
         r = dw_act_bajada.respuesta
         dw_act_bajada = nada
         if r.error != "" or r.estado != 200
-            versiones_estado(tr(132, "No se pudo bajar la versión nueva"))
+            versiones_estado(tr(132, "Could not download the new version"))
             return
         end
         error = actualizar_instalar(actualizar_programa())
         if error != ""
-            versiones_estado(hueco(tr(133, "No se instaló: %1"), error))
+            versiones_estado(hueco(tr(133, "Not installed: %1"), error))
             return
         end
         dw_act_lista = true
@@ -226,17 +231,42 @@ func versiones_avanzar()
                 versiones_boton(t)
             end
         end
-        versiones_estado(hueco(tr(134, "Instalada la %1: pulsa el icono verde"), dw_act_nueva.version))
+        versiones_estado(hueco(tr(134, "%1 installed: click the green icon"), dw_act_nueva.version))
         dw_act_cat_i = 0
         versiones_catalogo()
     end
     # sus catálogos, uno tras otro y sin avisar (si falla uno, se queda el de antes)
     if dw_act_cat != nil and http_avanzar(dw_act_cat)
-        actualizar_catalogo_poner(dw_act_cat, dw_act_cat_destino)
+        actualizar_catalogo_poner(dw_act_cat, dw_act_nueva.catalogos[dw_act_cat_i], dw_act_cat_cajon)
         dw_act_cat = nada
         dw_act_cat_i = dw_act_cat_i + 1
         versiones_catalogo()
     end
+    if dw_cat_propio != nil and http_avanzar(dw_cat_propio)
+        r = dw_cat_propio.respuesta
+        # (sin red, se prueba otra vez al volver a abrirlo; si no lo hay en ese idioma, no)
+        if r.error == "" and (r.estado == 200 or r.estado == 404)
+            preferencia_poner(FICHERO_PREFERENCIAS, "catalogo_pedido", DASHWEB_VERSION + " " + actualizar_idioma_preferido())
+        end
+        idioma = actualizar_catalogo_poner(dw_cat_propio, dw_cat_propio_url, actualizar_catalogos(actualizar_programa()))
+        dw_cat_propio = nada
+        if idioma != "" and catalog_open("Tachyon.catalog", 1)
+            versiones_estado(tr(162, "Tachyon in your language: the menus too when you open it again"))
+        end
+    end
+end
+
+# Si no hay catálogo en el idioma del usuario, el de esta versión de GitHub (sin esperar: versiones_avanzar)
+func catalogo_propio()
+    idioma = actualizar_idioma_preferido()
+    if catalog_language() != "" or idioma == "" or idioma == "english" or dw_cat_propio != nil
+        return
+    end
+    if preferencia(FICHERO_PREFERENCIAS, "catalogo_pedido") == DASHWEB_VERSION + " " + idioma
+        return
+    end
+    dw_cat_propio_url = actualizar_catalogo_url(DASHWEB_VERSION, idioma)
+    dw_cat_propio = actualizar_catalogo_bajar(dw_cat_propio_url, actualizar_catalogos(actualizar_programa()))
 end
 
 # El siguiente catálogo de la versión nueva, si queda alguno
@@ -245,8 +275,8 @@ func versiones_catalogo()
         return
     end
     url = dw_act_nueva.catalogos[dw_act_cat_i]
-    dw_act_cat_destino = actualizar_catalogo_destino(url, actualizar_programa())
-    dw_act_cat = actualizar_catalogo_bajar(url, dw_act_cat_destino)
+    dw_act_cat_cajon = actualizar_catalogos(actualizar_programa())
+    dw_act_cat = actualizar_catalogo_bajar(url, dw_act_cat_cajon)
 end
 
 # El botón: bajar e instalar, o (ya instalada) reiniciar
@@ -259,7 +289,7 @@ func versiones_clic()
         return
     end
     dw_act_bajada = actualizar_bajar(dw_act_nueva)
-    versiones_estado(hueco(tr(135, "Bajando Tachyon %1..."), dw_act_nueva.version))
+    versiones_estado(hueco(tr(135, "Downloading Tachyon %1..."), dw_act_nueva.version))
 end
 
 # El logo de la página de inicio: docs/logo/tachyon.svg a 540 de ancho sobre blanco (rsvg-convert), recortado y en
@@ -280,19 +310,19 @@ func dw_inicio() -> String
     h = h + ".pie { text-align: center; font-size: 12px; color: #6b7898; margin: 8px 0 20px }"
     h = h + "</style></head><body><div class=cab>"
     h = h + "<img src=\"" + LOGO_INICIO + "\" width=366 height=65 alt=Tachyon>"
-    h = h + "<p class=lema>" + tr(140, "Un navegador web para <b>AmigaOS</b>, escrito en <i>Dash</i>") + "</p>"
-    h = h + "<form action=\"tachyon:buscar\" method=get><input type=text name=q placeholder=\"" + hueco(tr(141, "Busca con %1"), buscador_de(buscador_elegido()).nombre) + "\">"
-    h = h + "<button type=submit>" + tr(142, "Buscar") + "</button></form></div>"
+    h = h + "<p class=lema>" + tr(140, "A web browser for <b>AmigaOS</b>, written in <i>Dash</i>") + "</p>"
+    h = h + "<form action=\"tachyon:buscar\" method=get><input type=text name=q placeholder=\"" + hueco(tr(141, "Search with %1"), buscador_de(buscador_elegido()).nombre) + "\">"
+    h = h + "<button type=submit>" + tr(142, "Search") + "</button></form></div>"
     h = h + "<div class=rejilla>"
-    h = h + "<a href=\"tachyon:marcadores\"><b>" + tr(143, "Marcadores") + "</b>" + tr(144, "Tus páginas guardadas") + "</a>"
-    h = h + "<a href=\"tachyon:cookies\"><b>Cookies</b>" + tr(145, "Qué guarda cada web") + "</a>"
-    h = h + "<a href=\"tachyon:historial\"><b>" + tr(146, "Historial") + "</b>" + tr(147, "Lo que has visto") + "</a>"
-    h = h + "<a href=\"tachyon:buscadores\"><b>" + tr(148, "Buscador") + "</b>" + tr(149, "Con cuál buscar") + "</a>"
-    h = h + "<a href=\"https://aminet.net/\"><b>Aminet</b>" + tr(150, "Programas para Amiga") + "</a>"
-    h = h + "<a href=\"https://amigaworld.net/\"><b>AmigaWorld.net</b>" + tr(151, "Noticias y foros") + "</a>"
-    h = h + "<a href=\"" + tr(158, "https://es.wikipedia.org/") + "\"><b>Wikipedia</b>" + tr(152, "La enciclopedia libre") + "</a>"
-    h = h + "<a href=\"https://github.com/FreeMEM/tachyon\"><b>Tachyon</b>" + tr(153, "El código y las novedades") + "</a>"
-    h = h + "</div><p class=pie>Tachyon " + DASHWEB_VERSION + " · " + tr(154, "HTML, CSS, JavaScript (QuickJS) y HTTPS (AmiSSL)") + "</p></body></html>"
+    h = h + "<a href=\"tachyon:marcadores\"><b>" + tr(143, "Bookmarks") + "</b>" + tr(144, "Your saved pages") + "</a>"
+    h = h + "<a href=\"tachyon:cookies\"><b>Cookies</b>" + tr(145, "What each site stores") + "</a>"
+    h = h + "<a href=\"tachyon:historial\"><b>" + tr(146, "History") + "</b>" + tr(147, "What you have seen") + "</a>"
+    h = h + "<a href=\"tachyon:buscadores\"><b>" + tr(148, "Search engine") + "</b>" + tr(149, "Which one to search with") + "</a>"
+    h = h + "<a href=\"https://aminet.net/\"><b>Aminet</b>" + tr(150, "Software for the Amiga") + "</a>"
+    h = h + "<a href=\"https://amigaworld.net/\"><b>AmigaWorld.net</b>" + tr(151, "News and forums") + "</a>"
+    h = h + "<a href=\"" + tr(158, "https://en.wikipedia.org/") + "\"><b>Wikipedia</b>" + tr(152, "The free encyclopedia") + "</a>"
+    h = h + "<a href=\"https://github.com/FreeMEM/tachyon\"><b>Tachyon</b>" + tr(153, "The code and what's new") + "</a>"
+    h = h + "</div><p class=pie>Tachyon " + DASHWEB_VERSION + " · " + tr(154, "HTML, CSS, JavaScript (QuickJS) and HTTPS (AmiSSL)") + "</p></body></html>"
     return h
 end
 
@@ -343,17 +373,17 @@ end
 func marcador_alternar(w: Ventana)
     dir = w.actual.direccion
     if dir == "" or str_starts(dir, "tachyon:")
-        dw_estado(w, tr(100, "Esta página no se guarda en marcadores"))
+        dw_estado(w, tr(100, "This page can't be bookmarked"))
         return
     end
     if marcadores_tiene(FICHERO_MARCADORES, dir)
         if marcadores_quitar(FICHERO_MARCADORES, dir)
-            dw_estado(w, tr(101, "Quitada de marcadores"))
+            dw_estado(w, tr(101, "Removed from bookmarks"))
         end
     elif marcadores_agregar(FICHERO_MARCADORES, dir, w.actual.titulo)
-        dw_estado(w, hueco(tr(102, "En marcadores: %1"), w.actual.titulo))
+        dw_estado(w, hueco(tr(102, "In bookmarks: %1"), w.actual.titulo))
     else
-        dw_estado(w, tr(103, "No se pudo guardar el marcador"))
+        dw_estado(w, tr(103, "Could not save the bookmark"))
     end
     indicadores(w)
 end
@@ -441,7 +471,7 @@ func pantalla_completa(w: Ventana, r: Reproductor)
         return
     end
     if dw_completa_win == 0
-        dw_completa_win = mui_window_begin(tr(138, "Tachyon: vídeo"), 0)
+        dw_completa_win = mui_window_begin(tr(138, "Tachyon: video"), 0)
         dw_completa_lienzo = mui_canvas(320, 200)
         mui_window_end()
         mui_canvas_on_draw(dw_completa_lienzo, pinta_completa)
@@ -683,7 +713,7 @@ func abrir(w: Ventana, direccion: String)
         mui_set_text(w.v.url, direccion)
     end
     if str_starts(direccion, "http://") or str_starts(direccion, "https://")
-        dw_estado(w, hueco(tr(104, "Conectando con %1..."), direccion))
+        dw_estado(w, hueco(tr(104, "Connecting to %1..."), direccion))
         mui_set_value(w.v.progreso, 5)
         w.carga = http_empezar(direccion, 20000)
         w.carga_dir = direccion
@@ -693,7 +723,7 @@ func abrir(w: Ventana, direccion: String)
         programar()
         return
     end
-    dw_estado(w, hueco(tr(105, "Abriendo %1..."), direccion))
+    dw_estado(w, hueco(tr(105, "Opening %1..."), direccion))
     vista(w)
     var d: Documento = nil
     if direccion == "" or direccion == "tachyon:inicio"
@@ -749,7 +779,7 @@ end
 # POST: como abrir, pero la carga manda el cuerpo
 func abrir_post(w: Ventana, direccion: String, cuerpo: String)
     parar_carga(w)
-    dw_estado(w, hueco(tr(106, "Enviando a %1..."), direccion))
+    dw_estado(w, hueco(tr(106, "Sending to %1..."), direccion))
     mui_set_value(w.v.progreso, 5)
     mui_set_text(w.v.url, direccion)
     w.carga = http_empezar_post(direccion, cuerpo, "", 20000)
@@ -767,11 +797,11 @@ func avanzar_carga(w: Ventana)
             if fase != "recibiendo"
                 host = url_parse(w.carga_dir).host
                 if fase == "buscando"
-                    dw_estado(w, hueco(tr(107, "Buscando %1..."), host))
+                    dw_estado(w, hueco(tr(107, "Looking up %1..."), host))
                 elif fase == "conectando"
-                    dw_estado(w, hueco(tr(104, "Conectando con %1..."), host))
+                    dw_estado(w, hueco(tr(104, "Connecting to %1..."), host))
                 else
-                    dw_estado(w, hueco(tr(108, "Conexión segura con %1..."), host))
+                    dw_estado(w, hueco(tr(108, "Secure connection to %1..."), host))
                 end
                 return
             end
@@ -790,7 +820,7 @@ func avanzar_carga(w: Ventana)
             else
                 mui_set_value(w.v.progreso, 10 + (http_recibidos(w.carga) / 1024) % 80)
             end
-            dw_estado(w, hueco2(tr(109, "Recibiendo %1: %2 KB"), w.carga_dir, "" + http_recibidos(w.carga) / 1024))
+            dw_estado(w, hueco2(tr(109, "Receiving %1: %2 KB"), w.carga_dir, "" + http_recibidos(w.carga) / 1024))
             return
         end
         c = w.carga
@@ -801,7 +831,7 @@ func avanzar_carga(w: Ventana)
             return
         end
         mui_set_value(w.v.progreso, 90)
-        dw_estado(w, tr(110, "Trayendo hojas de estilo y scripts..."))
+        dw_estado(w, tr(110, "Fetching style sheets and scripts..."))
         vista(w)
         w.preparando = documento_empezar(w.carga_dir, c.respuesta)
     end
@@ -809,7 +839,7 @@ func avanzar_carga(w: Ventana)
         return
     end
     if not documento_avanzar(w.preparando)
-        dw_estado(w, hueco(tr(111, "Trayendo hojas de estilo y scripts: faltan %1"), "" + recursos_pendientes(w.preparando.recursos)))
+        dw_estado(w, hueco(tr(111, "Fetching style sheets and scripts: %1 left"), "" + recursos_pendientes(w.preparando.recursos)))
         return
     end
     d = w.preparando
@@ -839,9 +869,9 @@ func empezar_descarga(w: Ventana, r: Respuesta)
     if cajon == ""
         cajon = "RAM:"
     end
-    ruta = descargas_pedir_ruta(hueco(tr(112, "Guardar %1"), nombre), cajon, nombre)
+    ruta = descargas_pedir_ruta(hueco(tr(112, "Save %1"), nombre), cajon, nombre)
     if ruta == ""
-        dw_estado(w, hueco(tr(113, "Descarga cancelada: %1"), nombre))
+        dw_estado(w, hueco(tr(113, "Download cancelled: %1"), nombre))
         actualizar_giro(w)
         return
     end
@@ -854,7 +884,7 @@ func empezar_descarga(w: Ventana, r: Respuesta)
         mui_set_text(w.v.url, "tachyon:descargas")
         abrir(w, "tachyon:descargas")
     end
-    dw_estado(w, hueco(tr(114, "Bajando %1 (Amiga-J: las descargas)"), nombre))
+    dw_estado(w, hueco(tr(114, "Downloading %1 (Amiga-J: downloads)"), nombre))
     descargas_tic()
     actualizar_giro(w)
     programar()
@@ -895,9 +925,9 @@ func descargas_tic()
         end
     end
     if activas > 0
-        ayuda = tr(155, "1 descarga")
+        ayuda = tr(155, "1 download")
         if activas > 1
-            ayuda = hueco(tr(156, "%1 descargas"), "" + activas)
+            ayuda = hueco(tr(156, "%1 downloads"), "" + activas)
         end
         pc = descargas_porcentaje()
         if pc >= 0
@@ -907,7 +937,7 @@ func descargas_tic()
             dw_desc_ayuda = ayuda
             for t in dw_ventanas
                 if t.abierta
-                    mui_help(t.v.ver_descargas, hueco(tr(136, "%1 (pulsa para verlas)"), ayuda))
+                    mui_help(t.v.ver_descargas, hueco(tr(136, "%1 (click to see them)"), ayuda))
                 end
             end
         end
@@ -915,7 +945,7 @@ func descargas_tic()
     if cambio
         for d in descargas
             if d.carga == nil and d.estado == DESCARGA_HECHA and d.bytes > 0 and time_ms() - d.empezada < 600000
-                versiones_estado(hueco(tr(137, "Descarga hecha: %1"), d.nombre))
+                versiones_estado(hueco(tr(137, "Download finished: %1"), d.nombre))
                 break
             end
         end
@@ -980,7 +1010,7 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     if w.actual.error != ""
         dw_estado(w, hueco(tr(115, "Error: %1"), w.actual.error))
     else
-        dw_estado(w, hueco2(tr(116, "Listo: %1 bytes en %2 ms"), "" + w.actual.bytes, "" + w.actual.ms))
+        dw_estado(w, hueco2(tr(116, "Ready: %1 bytes in %2 ms"), "" + w.actual.bytes, "" + w.actual.ms))
     end
     mui_set_value(w.v.progreso, 0)
     modo_carga(w, false)
@@ -1247,7 +1277,7 @@ func tic(w: Ventana)
     avanzar_carga(w)
     # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
     if js_cortado()
-        dw_estado(w, tr(117, "Un script de la página tardaba demasiado: cortado"))
+        dw_estado(w, tr(117, "A script on the page took too long: stopped"))
         Print "tachyon: un script de la página pasaba de 120 s y se cortó"
     end
     if w.actual != nil and documento_imagenes(w.actual) and documento_imagenes_visibles(w.actual, w.desde, estilo_vh)
@@ -1255,9 +1285,9 @@ func tic(w: Ventana)
         mui_canvas_redraw(w.v.pagina)
     end
     if w.actual != nil and w.carga == nil and imagenes_pendientes(w.actual.im) > 0
-        dw_estado(w, hueco(tr(118, "Imágenes: faltan %1"), "" + imagenes_pendientes(w.actual.im)))
-    elif w.actual != nil and w.carga == nil and str_starts(mui_get_text(w.v.estado), str_split(tr(118, "Imágenes: faltan %1"), "%1")[0])
-        dw_estado(w, tr(40, "Listo"))
+        dw_estado(w, hueco(tr(118, "Images: %1 left"), "" + imagenes_pendientes(w.actual.im)))
+    elif w.actual != nil and w.carga == nil and str_starts(mui_get_text(w.v.estado), str_split(tr(118, "Images: %1 left"), "%1")[0])
+        dw_estado(w, tr(40, "Ready"))
         # (en la salida: para medir la página entera, con sus imágenes)
         kb_js = 0
         if w.actual.js != 0
@@ -1492,11 +1522,11 @@ end
 
 # La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló; y para el comando Version del Amiga,
 # la cadena $VER del ejecutable (con la fecha del día en que se cambia la versión: van juntas)
-const DASHWEB_VERSION = "0.6.0-alfa"
+const DASHWEB_VERSION = "0.7.0-alfa"
 
 @native(borrow) func texto_version(v: String) -> String
 """
-    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.6.0-alfa (23.10.2026)";
+    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.7.0-alfa (24.10.2026)";
     static char b[160];
     sprintf(b, "\033c\033bTachyon %s\033n\n\033c", (char *)v);
     return (STRPTR)b;
@@ -1642,7 +1672,7 @@ func _pestana_nombre(w: Ventana, i: Int) -> String
         t = w.pestanas[i].titulo
     end
     if t == ""
-        t = tr(160, "Nueva pestaña")
+        t = tr(160, "New tab")
     end
     if t.length > 18
         t = t[:16] + "..."
@@ -1674,7 +1704,7 @@ end
 func nueva_pestana(w: Ventana, direccion: String)
     ps = _pestanas(w)
     if ps.length >= MAX_PESTANAS
-        dw_estado(w, hueco(tr(161, "Como mucho %1 pestañas por ventana"), "" + MAX_PESTANAS))
+        dw_estado(w, hueco(tr(161, "At most %1 tabs per window"), "" + MAX_PESTANAS))
         return
     end
     pestana_guardar(w)
@@ -1904,7 +1934,7 @@ Main
         Print "Tachyon necesita MUI (3.8 o 5) y un 68020"
     else
         a = Acerca_create()
-        mui_set_text(a.version, texto_version(DASHWEB_VERSION) + hueco2(tr(159, "compilado el %1 a las %2"), compilado_fecha(), compilado_hora()))
+        mui_set_text(a.version, texto_version(DASHWEB_VERSION) + hueco2(tr(159, "built on %1 at %2"), compilado_fecha(), compilado_hora()))
         # cada argumento en su ventana (hasta 4); sin argumentos, la página de inicio
         # TRAZA: la línea de tiempo de las cargas por la salida (lib/traza.dash)
         paginas = 0
@@ -1921,6 +1951,9 @@ Main
             elif str_starts(arg(i), "VERSIONES=")
                 # VERSIONES=dirección: la lista de versiones de ahí y no de GitHub, mirada ya (para probarlo)
                 actualizar_api = arg(i)[10:]
+            elif str_starts(arg(i), "DESCARGAS=")
+                # DESCARGAS=dirección: los ficheros de las versiones (el catálogo propio) de ahí, pedido ya (para probarlo)
+                actualizar_descargas = arg(i)[10:]
             elif str_starts(arg(i), "DIBUJOS=")
                 # DIBUJOS=y0-y1: al acabar la página, sus dibujos de entre esas alturas por la salida (para depurar)
                 trozos = css_partir(arg(i)[8:], 45)
@@ -1936,7 +1969,7 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=") and not str_starts(arg(i), "POCAMEMORIA=")
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=") and not str_starts(arg(i), "POCAMEMORIA=") and not str_starts(arg(i), "DESCARGAS=")
                 nueva_ventana(arg(i))
             end
         end
@@ -1945,6 +1978,12 @@ Main
             versiones_mirar(true)
         elif arg_count() == 0 and preferencia(FICHERO_PREFERENCIAS, "avisar_versiones") != "no" and preferencia(FICHERO_PREFERENCIAS, "versiones_visto") != "" + actualizar_hoy()
             versiones_mirar(false)
+        end
+        if arg_count() == 0
+            catalogo_propio()
+        elif str_starts(actualizar_descargas, "http://")
+            preferencia_poner(FICHERO_PREFERENCIAS, "catalogo_pedido", "")
+            catalogo_propio()
         end
         acerca_abierta = false
         while abiertas() > 0
@@ -2065,9 +2104,9 @@ Main
             end
             if ev == ID_CANDADO and w.actual != nil
                 if w.candado == 1
-                    dw_estado(w, hueco(tr(120, "Conexión cifrada (HTTPS) con %1"), url_parse(w.actual.direccion).host))
+                    dw_estado(w, hueco(tr(120, "Encrypted connection (HTTPS) to %1"), url_parse(w.actual.direccion).host))
                 else
-                    dw_estado(w, tr(121, "Esta página llega sin cifrar (HTTP)"))
+                    dw_estado(w, tr(121, "This page arrives unencrypted (HTTP)"))
                 end
             end
             if ev == ID_SCROLL
@@ -2086,7 +2125,7 @@ Main
                 parar_carga(w)
                 modo_carga(w, false)
                 mui_set_value(w.v.progreso, 0)
-                dw_estado(w, tr(122, "Parado"))
+                dw_estado(w, tr(122, "Stopped"))
                 actualizar_giro(w)
                 programar()
             end
@@ -2122,7 +2161,7 @@ Main
             end
             if ev == ID_USAR_INICIO and w.actual != nil
                 if preferencia_poner(FICHERO_PREFERENCIAS, "inicio", w.actual.direccion)
-                    dw_estado(w, hueco(tr(123, "Página de inicio: %1"), w.actual.direccion))
+                    dw_estado(w, hueco(tr(123, "Home page: %1"), w.actual.direccion))
                 end
             end
             if ev == ID_INICIO
@@ -2130,7 +2169,7 @@ Main
             end
             if ev == ID_NUEVA
                 if nueva_ventana(pagina_inicio()) == nil
-                    dw_estado(w, hueco(tr(124, "Como mucho %1 ventanas"), "" + MAX_VENTANAS))
+                    dw_estado(w, hueco(tr(124, "At most %1 windows"), "" + MAX_VENTANAS))
                 end
             end
             if ev == ID_CERRAR
@@ -2144,12 +2183,12 @@ Main
             end
             if ev == ID_BUSCAR_VERSIONES
                 preferencia_poner(FICHERO_PREFERENCIAS, "avisar_versiones", "si")
-                dw_estado(w, tr(125, "Mirando si hay una versión nueva..."))
+                dw_estado(w, tr(125, "Checking for a new version..."))
                 versiones_mirar(true)
             end
             if ev == ID_NO_AVISAR
                 preferencia_poner(FICHERO_PREFERENCIAS, "avisar_versiones", "no")
-                dw_estado(w, tr(126, "No avisará de versiones nuevas"))
+                dw_estado(w, tr(126, "Won't tell you about new versions"))
             end
             if ev == ID_ACERCA
                 if acerca_abierta

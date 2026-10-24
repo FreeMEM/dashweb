@@ -55,7 +55,7 @@ Main
     historial_agregar(hf, "http://c.org/", "C", hoy)
     lineas = str_split(str_trim(file_read_text(hf)), "\n")
     hh = historial_html(hf, hoy)
-    a = str_find(hh, "<h2>Hoy</h2>")
-    b = str_find(hh, "<h2>Ayer</h2>")
-    Print "historial: " + lineas.length + " líneas; Hoy primero " + (a >= 0 and a < b and str_find(hh, "C</a>") < str_find(hh, "B de nuevo")) + ", Ayer " + (b >= 0) + ", 23/10/2026 " + str_contains(historial_html(hf, hoy + 3 * 1440), "<h2>23/10/2026</h2>") + ", borrado " + (historial_borrar(hf) and str_contains(historial_html(hf, hoy), "Aún no"))
+    a = str_find(hh, "<h2>Today</h2>")
+    b = str_find(hh, "<h2>Yesterday</h2>")
+    Print "historial: " + lineas.length + " líneas; Hoy primero " + (a >= 0 and a < b and str_find(hh, "C</a>") < str_find(hh, "B de nuevo")) + ", Ayer " + (b >= 0) + ", 23/10/2026 " + str_contains(historial_html(hf, hoy + 3 * 1440), "<h2>23/10/2026</h2>") + ", borrado " + (historial_borrar(hf) and str_contains(historial_html(hf, hoy), "You haven't seen"))
 end

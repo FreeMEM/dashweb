@@ -38,7 +38,7 @@ static LONG _http_inflado = 0;
 end
 
 const HTTP_MAX_REDIRECCIONES = 5
-const HTTP_AGENTE = "Tachyon/0.6 (AmigaOS)"
+const HTTP_AGENTE = "Tachyon/0.7 (AmigaOS)"
 
 # Conexiones que siguen abiertas tras una respuesta (keep-alive), para la siguiente petición al mismo servidor
 # sin volver a conectar ni negociar TLS. Solo las cargas sin espera (http_empezar...) y solo si el programa lo
@@ -91,7 +91,7 @@ func _http_get(direccion: String, espera_ms: Int, fichero: String) -> Respuesta
         actual = url_resolve(actual, r.cabeceras["location"])
     end
     r = _respuesta_vacia(url_text(actual))
-    r.error = tr(400, "demasiadas redirecciones")
+    r.error = tr(400, "too many redirects")
     return r
 end
 
@@ -127,7 +127,7 @@ end
 func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cuerpo: String, tipo: String, comprimir: Bool) -> Conexion
     var c: Conexion = nil
     if u.esquema != "http" and u.esquema != "https"
-        r.error = hueco(tr(409, "esquema no admitido: %1"), u.esquema)
+        r.error = hueco(tr(409, "unsupported scheme: %1"), u.esquema)
         return c
     end
     if u.esquema == "https"
@@ -212,7 +212,7 @@ func _http_leer_respuesta(c: Conexion, r: Respuesta, fichero: String)
         if fichero != "" and r.estado >= 200 and r.estado < 300
             f = file_open(fichero, 1006)
             if f == 0
-                r.error = hueco(tr(410, "no se puede escribir %1"), fichero)
+                r.error = hueco(tr(410, "can't write %1"), fichero)
             end
         end
         if r.error == ""
@@ -228,20 +228,20 @@ end
 func _leer_estado(c: Conexion, r: Respuesta)
     linea = red_leer_linea(c)
     if linea == nil
-        r.error = tr(401, "el servidor cerró sin responder")
+        r.error = tr(401, "the server closed without answering")
         if c.error != ""
             r.error = c.error
         end
         return
     end
     if not str_starts(linea, "HTTP/")
-        r.error = tr(402, "respuesta que no es HTTP")
+        r.error = tr(402, "an answer that isn't HTTP")
         return
     end
     r.version_11 = str_starts(linea, "HTTP/1.1")
     p = str_find(linea, " ")
     if p < 0
-        r.error = tr(403, "línea de estado rota")
+        r.error = tr(403, "broken status line")
         return
     end
     resto = linea[p + 1:]
@@ -276,7 +276,7 @@ func _leer_cabeceras(c: Conexion, r: Respuesta)
         linea = red_leer_linea(c)
     end
     if linea == nil
-        r.error = tr(404, "cabeceras cortadas")
+        r.error = tr(404, "cut headers")
         return
     end
     if r.cabeceras.has("content-type")
@@ -326,17 +326,17 @@ func _leer_cuerpo(c: Conexion, r: Respuesta, f: Int)
         n = Int(r.cabeceras["content-length"])
         if b != nil
             if red_juntar(c, b, n) < n
-                r.error = tr(405, "cuerpo cortado")
+                r.error = tr(405, "cut body")
             end
         elif f != 0
             r.bytes = red_copiar(c, f, n)
             if r.bytes < n
-                r.error = tr(405, "cuerpo cortado")
+                r.error = tr(405, "cut body")
             end
         else
             r.cuerpo = red_leer(c, n)
             if r.cuerpo.length < n
-                r.error = tr(405, "cuerpo cortado")
+                r.error = tr(405, "cut body")
             end
         end
     elif b != nil
@@ -350,7 +350,7 @@ func _leer_cuerpo(c: Conexion, r: Respuesta, f: Int)
         if r.error == ""
             p = _http_inflar(b.buf, b.n)
             if p == 0
-                r.error = tr(406, "no se pudo descomprimir")
+                r.error = tr(406, "could not decompress")
             else
                 r.cuerpo = str_from_buffer(p, 0, _http_inflados())
                 _http_soltar_inflado(p)
@@ -429,14 +429,14 @@ func _leer_chunked(c: Conexion, r: Respuesta, f: Int, b: Bytes)
         end
         if llegados < n
             r.cuerpo = cuerpo
-            r.error = tr(405, "cuerpo cortado")
+            r.error = tr(405, "cut body")
             return
         end
         red_leer_linea(c)
         linea = red_leer_linea(c)
     end
     r.cuerpo = cuerpo
-    r.error = tr(405, "cuerpo cortado")
+    r.error = tr(405, "cut body")
 end
 
 # El cuerpo en Latin-1, según su juego de caracteres (sin él: UTF-8)
@@ -514,7 +514,7 @@ func _carga_empezar_volcado(c: Carga)
     end
     c.f = file_open(c.fichero, 1006)
     if c.f == 0
-        r.error = hueco(tr(410, "no se puede escribir %1"), c.fichero)
+        r.error = hueco(tr(410, "can't write %1"), c.fichero)
         return
     end
     c.restan = -1
@@ -595,7 +595,7 @@ func _carga_conectar(c: Carga)
     c.reusada = false
     u = c.actual
     if u.esquema != "http" and u.esquema != "https"
-        c.respuesta.error = hueco(tr(409, "esquema no admitido: %1"), u.esquema)
+        c.respuesta.error = hueco(tr(409, "unsupported scheme: %1"), u.esquema)
         var nada: Conexion = nil
         c.conexion = nada
         c.hecha = true
@@ -709,7 +709,7 @@ func http_avanzar(c: Carga) -> Bool
     if not entera
         if time_ms() - c.ultimo > c.espera
             red_cerrar(c.conexion)
-            c.respuesta.error = tr(407, "tiempo agotado")
+            c.respuesta.error = tr(407, "timed out")
             c.hecha = true
             return true
         end
@@ -722,7 +722,7 @@ func http_avanzar(c: Carga) -> Bool
     redireccion = r.estado == 301 or r.estado == 302 or r.estado == 303 or r.estado == 307 or r.estado == 308
     if r.error == "" and redireccion and r.cabeceras.has("location")
         if c.redirecciones >= HTTP_MAX_REDIRECCIONES
-            r.error = tr(400, "demasiadas redirecciones")
+            r.error = tr(400, "too many redirects")
         else
             c.redirecciones = c.redirecciones + 1
             c.actual = url_resolve(c.actual, r.cabeceras["location"])
@@ -756,14 +756,14 @@ func _carga_volcar(c: Carga, cerrada: Bool) -> Bool
             c.restan = c.restan - escritos
         end
         if escritos < hay
-            c.respuesta.error = hueco(tr(410, "no se puede escribir %1"), c.fichero)
+            c.respuesta.error = hueco(tr(410, "can't write %1"), c.fichero)
         end
     end
     r = c.respuesta
     acabada = c.restan == 0 or cerrada or r.error != ""
     if not acabada
         if time_ms() - c.ultimo > c.espera
-            r.error = tr(407, "tiempo agotado")
+            r.error = tr(407, "timed out")
         else
             return false
         end
@@ -773,7 +773,7 @@ func _carga_volcar(c: Carga, cerrada: Bool) -> Bool
     c.volcando = false
     r.bytes = c.volcados
     if r.error == "" and c.restan > 0
-        r.error = tr(405, "cuerpo cortado")
+        r.error = tr(405, "cut body")
     end
     _http_cookies(c.actual, r)
     if r.error == "" and c.restan == 0
@@ -849,7 +849,7 @@ func http_cancelar(c: Carga)
             c.f = 0
         end
         red_cerrar(c.conexion)     # también si aún se estaba abriendo
-        c.respuesta.error = tr(408, "cancelada")
+        c.respuesta.error = tr(408, "cancelled")
         c.hecha = true
     end
 end

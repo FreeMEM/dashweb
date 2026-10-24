@@ -92,7 +92,7 @@ func documento_texto(direccion: String, d: Documento) -> String
     end
     t = file_read_text(url_fichero(direccion))
     if t == nil
-        d.error = hueco(tr(411, "no se puede leer %1"), direccion)
+        d.error = hueco(tr(411, "can't read %1"), direccion)
         return "<title>Error</title><h1>No se pudo abrir</h1><p>" + direccion + "</p>"
     end
     return utf8_a_latin1(t)

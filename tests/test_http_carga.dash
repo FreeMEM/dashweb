@@ -10,11 +10,11 @@
 # expect-out: 404 [no]
 # expect-out: lento: 200 2000 bytes, a medias: true
 # expect-out: cabeceras pronto: 200 text/plain antes de acabar: true
-# expect-out: cancelada: [cancelada]
+# expect-out: cancelada: [cancelled]
 # expect-out: rechazada: [conexión rechazada]
 # expect-out: fase: buscando
 # expect-out: 200 [hola] fase: []
-# expect-out: cancelada buscando: [cancelada]
+# expect-out: cancelada buscando: [cancelled]
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/http.dash"

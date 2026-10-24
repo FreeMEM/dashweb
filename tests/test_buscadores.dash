@@ -23,5 +23,5 @@ Main
         p = str_find_from(h, "?usar=", p + 1)
     end
     m = str_find(h, "Brave")
-    Print "página: " + buscadores().length + " buscadores, en uso Brave " + (str_find(h, "En uso") >= 0 and str_find(h, "En uso") < m) + ", " + usar + " para usar"
+    Print "página: " + buscadores().length + " buscadores, en uso Brave " + (str_find(h, "In use") >= 0 and str_find(h, "In use") < m) + ", " + usar + " para usar"
 end

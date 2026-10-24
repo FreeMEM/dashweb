@@ -49,8 +49,11 @@ ls -l "$R/build/tachyon.lha"
 lha -l "$R/build/tachyon.lha" | tail -12
 gzip -9 -n -c "$B/Tachyon/Tachyon" > "$R/build/Tachyon.gz"
 ls -l "$R/build/Tachyon.gz"
-# y los catálogos sueltos, para la actualización automática (lib/actualizar.dash: Tachyon-<idioma>.catalog)
+# y los catálogos sueltos, para la actualización automática (lib/actualizar.dash: Tachyon-<idioma>.catalog), con el
+# idioma sin acentos ("espanol"), que GitHub los cambia: el de verdad va dentro del catálogo
+rm -f "$R"/build/Tachyon-*.catalog
 for c in "$B"/Tachyon/Catalogs/*/Tachyon.catalog; do
-    [ -f "$c" ] && cp "$c" "$R/build/Tachyon-$(basename "$(dirname "$c")").catalog"
+    a=$(python3 -c 'import sys, unicodedata; print(unicodedata.normalize("NFKD", sys.argv[1]).encode("ascii", "ignore").decode())' "$(basename "$(dirname "$c")")")
+    [ -f "$c" ] && cp "$c" "$R/build/Tachyon-$a.catalog"
 done
 ls -l "$R"/build/Tachyon-*.catalog 2>/dev/null

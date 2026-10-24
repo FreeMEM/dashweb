@@ -11,9 +11,12 @@
 import "http.dash"
 
 @header "#include <dos/dostags.h>"
+@header "#include <proto/locale.h>"
 
 # (las pruebas la cambian por la de un servidor local)
 var actualizar_api: String = "https://api.github.com/repos/FreeMEM/tachyon/releases?per_page=3"
+# los ficheros de cada versión publicada: + "v0.7.0-alfa/Tachyon-espanol.catalog"
+var actualizar_descargas: String = "https://github.com/FreeMEM/tachyon/releases/download/"
 const ACTUALIZAR_GZ = "T:Tachyon.gz"
 
 struct Novedad
@@ -151,8 +154,8 @@ func actualizar_catalogo_idioma(url: String) -> String
     return idioma
 end
 
-# Dónde va un catálogo bajado: Catalogs/<idioma>/Tachyon.catalog junto al programa (crea los cajones)
-func actualizar_catalogo_destino(url: String, programa: String) -> String
+# El cajón Catalogs junto al programa ("Work:Tachyon/Catalogs"; también en la raíz de un disco), creado si no está
+func actualizar_catalogos(programa: String) -> String
     i = programa.length - 1
     while i >= 0 and str_code(programa, i) != 47 and str_code(programa, i) != 58
         i = i - 1
@@ -166,27 +169,119 @@ func actualizar_catalogo_destino(url: String, programa: String) -> String
         sep = ""
     end
     dir_create(cajon + sep + "Catalogs")
-    dir_create(cajon + sep + "Catalogs/" + actualizar_catalogo_idioma(url))
-    return cajon + sep + "Catalogs/" + actualizar_catalogo_idioma(url) + "/Tachyon.catalog"
+    return cajon + sep + "Catalogs"
 end
 
-# Baja el catálogo a su sitio, primero como .new (sin esperar: http_avanzar hasta true y luego
+# Baja el catálogo a Catalogs/Tachyon-<idioma>.new (sin esperar: http_avanzar hasta true y luego
 # actualizar_catalogo_poner)
-func actualizar_catalogo_bajar(url: String, destino: String) -> Carga
-    file_delete(destino + ".new")
-    return http_volcar(http_empezar_a_fichero(url, destino + ".new", 30000))
+func actualizar_catalogo_bajar(url: String, cajon: String) -> Carga
+    nuevo = cajon + "/Tachyon-" + actualizar_catalogo_idioma(url) + ".new"
+    file_delete(nuevo)
+    return http_volcar(http_empezar_a_fichero(url, nuevo, 30000))
 end
 
-# El .new en lugar del de antes, si llegó bien (un catálogo empieza por FORM); true si quedó puesto
-func actualizar_catalogo_poner(c: Carga, destino: String) -> Bool
+# Lo bajado, si llegó bien (un catálogo: FORM con su LANG), en Catalogs/<idioma>/Tachyon.catalog en lugar del de
+# antes; el idioma, el de dentro del catálogo ("español": el nombre publicado va sin acentos), o "" si no quedó puesto
+func actualizar_catalogo_poner(c: Carga, url: String, cajon: String) -> String
     r = c.respuesta
-    nuevo = destino + ".new"
-    if r.error != "" or r.estado != 200 or file_size(nuevo) < 12 or not str_starts(file_read_text(nuevo), "FORM")
-        file_delete(nuevo)
-        return false
+    nuevo = cajon + "/Tachyon-" + actualizar_catalogo_idioma(url) + ".new"
+    idioma = ""
+    if r.error == "" and r.estado == 200 and file_size(nuevo) >= 12 and str_starts(file_read_text(nuevo), "FORM")
+        idioma = actualizar_catalogo_lang(nuevo)
     end
+    if idioma == "" or str_find(idioma, "/") >= 0 or str_find(idioma, ":") >= 0
+        file_delete(nuevo)
+        return ""
+    end
+    dir_create(cajon + "/" + idioma)
+    destino = cajon + "/" + idioma + "/Tachyon.catalog"
     file_delete(destino)
-    return file_rename(nuevo, destino)
+    if not file_rename(nuevo, destino)
+        file_delete(nuevo)
+        return ""
+    end
+    return idioma
+end
+
+# El idioma de un catálogo (su trozo LANG: "español"), "" si no es un catálogo
+@native(borrow) func actualizar_catalogo_lang(fichero: String) -> String
+"""
+    UBYTE b[512];
+    char idioma[64];
+    LONG n = 0, i = 12, largo;
+    BPTR f;
+    idioma[0] = 0;
+    if (fichero && (f = Open((STRPTR)fichero, MODE_OLDFILE))) {
+        n = Read(f, b, sizeof(b));
+        Close(f);
+    }
+    if (n >= 12 && !memcmp(b, "FORM", 4) && !memcmp(b + 8, "CTLG", 4)) {
+        while (i + 8 <= n) {
+            largo = (b[i + 4] << 24) | (b[i + 5] << 16) | (b[i + 6] << 8) | b[i + 7];
+            if (largo < 0) break;
+            if (!memcmp(b + i, "LANG", 4)) {
+                LONG k = 0;
+                while (k < largo && k < (LONG)sizeof(idioma) - 1 && i + 8 + k < n && b[i + 8 + k]) {
+                    idioma[k] = b[i + 8 + k];
+                    k++;
+                }
+                idioma[k] = 0;
+                break;
+            }
+            i += 8 + largo + (largo & 1);
+        }
+    }
+    return _dash_str_dup((STRPTR)idioma, TRUE);
+"""
+end
+
+# El idioma elegido el primero en las Preferencias de Locale ("español"), "" si no se sabe
+@native func actualizar_idioma_preferido() -> String
+"""
+    /* (una base propia: el programa puede no usar locale.library) */
+    struct LocaleBase *LocaleBase = (struct LocaleBase *)OpenLibrary((CONST_STRPTR)"locale.library", 38);
+    char idioma[64];
+    idioma[0] = 0;
+    if (LocaleBase) {
+        struct Locale *loc = OpenLocale(NULL);
+        if (loc) {
+            if (loc->loc_PrefLanguages[0]) {
+                strncpy(idioma, (char *)loc->loc_PrefLanguages[0], sizeof(idioma) - 1);
+                idioma[sizeof(idioma) - 1] = 0;
+            }
+            CloseLocale(loc);
+        }
+        CloseLibrary((struct Library *)LocaleBase);
+    }
+    return _dash_str_dup((STRPTR)idioma, TRUE);
+"""
+end
+
+# Un idioma como va en el nombre de un fichero publicado: sin acentos, que GitHub los cambia ("español": "espanol")
+@native(borrow) func actualizar_ascii(idioma: String) -> String
+"""
+    static const char *de = "\xc0\xc1\xc2\xc3\xc4\xc5\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd1\xd2\xd3\xd4\xd5\xd6\xd8\xd9\xda\xdb\xdc\xdd"
+                            "\xe0\xe1\xe2\xe3\xe4\xe5\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf1\xf2\xf3\xf4\xf5\xf6\xf8\xf9\xfa\xfb\xfc\xfd\xff";
+    static const char *a = "AAAAAACEEEEIIIINOOOOOOUUUUY" "aaaaaaceeeeiiiinoooooouuuuyy";
+    char r[64];
+    int k = 0;
+    const UBYTE *p = (const UBYTE *)(idioma ? idioma : (STRPTR)"");
+    for (; *p && k < (int)sizeof(r) - 3; p++) {
+        const char *q = *p >= 0x80 ? strchr(de, *p) : NULL;
+        if (*p == 0xdf) { r[k++] = 's'; r[k++] = 's'; }
+        else if (*p == 0xe6) { r[k++] = 'a'; r[k++] = 'e'; }
+        else if (*p == 0xc6) { r[k++] = 'A'; r[k++] = 'E'; }
+        else if (q) r[k++] = a[q - de];
+        else if (*p < 0x80) r[k++] = *p;
+    }
+    r[k] = 0;
+    return _dash_str_dup((STRPTR)r, TRUE);
+"""
+end
+
+# Dónde está publicado el catálogo de una versión en un idioma (lo bajan las que se quedan sin el suyo)
+func actualizar_catalogo_url(version: String, idioma: String) -> String
+    return actualizar_descargas + "v" + version + "/Tachyon-" + actualizar_ascii(idioma) + ".catalog"
 end
 
 # Baja su Tachyon.gz a T: sin esperar

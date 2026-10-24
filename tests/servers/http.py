@@ -126,11 +126,17 @@ class Handler(socketserver.StreamRequestHandler):
                 data = ('[{"url":"x","tag_name":"v9.9.0-alfa","draft":false,"prerelease":true,"assets":['
                         '{"name":"tachyon.lha","browser_download_url":"' + base + '/tachyon.lha"},'
                         '{"name":"Tachyon.gz","browser_download_url":"' + base + '/Tachyon.gz"},'
-                        '{"name":"Tachyon-english.catalog","browser_download_url":"' + base + '/Tachyon-english.catalog"}],"body":"a"},'
+                        '{"name":"Tachyon-espanol.catalog","browser_download_url":"' + base + '/Tachyon-espanol.catalog"}],"body":"a"},'
                         '{"url":"y","tag_name":"v0.4.0-alfa","assets":[]}]').encode()
                 kind = "application/json; charset=utf-8"
-            elif path.endswith("/Tachyon-english.catalog"):     # (a catalog: what matters is that it is an IFF FORM)
-                data, kind = b"FORM\x00\x00\x00\x0cCTLGLANG\x00\x00\x00\x00", "application/octet-stream"
+            elif path.endswith("/Tachyon-espanol.catalog"):     # (a catalog: an IFF FORM CTLG with its LANG, as GitHub
+                import struct                                  # names it: without accents; also /act/v<version>/...)
+                lang = "español".encode("latin-1") + b"\0"
+                body = b"CTLG" + b"LANG" + struct.pack(">I", len(lang)) + lang
+                data, kind = b"FORM" + struct.pack(">I", len(body)) + body, "application/octet-stream"
+            elif path.endswith(".catalog"):
+                self.wfile.write(reply("404 Not Found", [("Content-Length", "0")], b""))
+                return
             elif path in ("/act/Tachyon.gz", "/act/roto/Tachyon.gz"):
                 data = bytearray(gzip.compress(exe, mtime=0))
                 if "roto" in path:

@@ -5,11 +5,11 @@
 # expect-out: café
 # expect-out: 200 [hola] http://127.0.0.1:40851/hola
 # expect-out: 200 [hola]
-# expect-out: demasiadas redirecciones
+# expect-out: too many redirects
 # expect-out: 404 a=1, b=2
 # expect-out: 200 5000 z
 # expect-out: [GET /eco?x=1 HTTP/1.1]
-# expect-out: esquema no admitido: ftp
+# expect-out: unsupported scheme: ftp
 # expect-out: conexión rechazada
 # expect-out: binario 200 20000 bytes: 20000 2549392 79
 # expect-out: binario 200 20000 bytes: 20000 2549392 79
