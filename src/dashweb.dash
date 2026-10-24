@@ -391,6 +391,20 @@ func con_mayusculas_o_amiga() -> Bool
     return (q & 0xC3) != 0
 end
 
+# La FPU con precisión extendida (FPCR, bits 6-7 a 0). En el CoffinOS del usuario (Amiberry, 68040) Tachyon empezaba
+# con precisión simple (FPCR 0x40): todo el JavaScript contaba con 24 bits (0.1 + 0.2 = 0.30000001192092896,
+# Date.now() a saltos de 131 s) y React tiraba la página al hidratar (tarea 49). Un 68040 o 68060 de verdad también
+# respeta esa precisión
+@native func fpu_precision_extendida()
+"""
+    ULONG v;
+    if (!(SysBase->AttnFlags & (AFF_68881 | AFF_68882 | AFF_FPU40))) return;
+    __asm__ volatile ("fmove.l %%fpcr,%0" : "=d"(v));
+    v &= ~0xC0UL;
+    __asm__ volatile ("fmove.l %0,%%fpcr" : : "d"(v));
+"""
+end
+
 @native func vaciar_salida()
 """
     Flush(Output());
@@ -1874,6 +1888,7 @@ func ficheros_de_antes()
 end
 
 Main
+    fpu_precision_extendida()
     ficheros_de_antes()
     # las conexiones siguen abiertas para los recursos del mismo servidor (sin volver a negociar TLS)
     http_seguir = true

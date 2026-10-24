@@ -430,6 +430,10 @@ tarea, con el estilo de Dash.
          nueva; Acerca de (sus créditos y el "compilado el"); y los errores de lib/http.dash y lib/documento.dash.
          Quedan en español: los de lib/red.dash (corre en la tarea de la red: que no abra ella el catálogo) y los de
          lib/actualizar.dash (en C).
+         (2026-10-24, decisión del usuario por la sesión de las webs: "Inglés de serie y castellano en catálogo")
+         Darle la vuelta: los textos del código en inglés (@catalog "Tachyon.catalog" 1, sin idioma) y un
+         catalogos/español.ct con el castellano; las pruebas que miran textos de las páginas tachyon:, en inglés.
+         Avisar a la sesión de las webs cuando salga la versión.
          (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
 - [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
@@ -492,13 +496,14 @@ tarea, con el estilo de Dash.
          lib/jsdom.dash los async que llegan tarde.
       b. Cada web: comparar con Chrome y arreglar lo que salga.
 
-- [ ] 49. **tachyon.freemem.space sale en azul en el CoffinOS del usuario (2026-10-24, con la compilación de 48c y
+- [x] 49. **tachyon.freemem.space sale en azul en el CoffinOS del usuario (2026-10-24, con la compilación de 48c y
       48e).** Solo el fondo: ni la cabecera, ni los textos, ni las estrellas; "Listo" en la barra, y sigue así tras un
       minuto. En el emulador sale entera (18-25 s) en todas las pruebas: MUI 5 y MUI 3.8, 1024x768 y 1680x1050, 16 y
       32 bits (sys32rtg, sys32rtg38, sys32rtg38ancha, sys32rtg32, sys32rtg38ancha32), y sin hidratar (React #412) el
       contenido también se ve. Su CoffinOS: Amiberry, 68040 con JIT, MUI 3.8, una ventana de ~1700x1250. Pedida la
       salida: Traspaso:Tachyon/Tachyon https://tachyon.freemem.space/ >Traspaso:salida.txt. Hasta entenderlo, sin
       versión nueva (sería un paso atrás en su sistema).
+      Hecho (2026-10-24; ver la bitácora): la FPU empezaba en precisión simple.
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
@@ -4499,4 +4504,20 @@ Formato:
   abrir una nueva) y se quedan su dirección, su historial y su título; al traerla, se carga otra vez (arriba del
   todo). Visto en el emulador con POCAMEMORIA=999999: la de tests/pages/imagenes.html, descartada al abrir otra,
   con "Imágenes" en su botón, y entera otra vez al volver.
+
+### 2026-10-24 — Tarea 49: la portada en azul del CoffinOS del usuario (la FPU en precisión simple)
+- Reproducido con una copia de su CoffinOS (cp --reflink del disco a ~/.cache/tachyon-pruebas/, Amiberry en Xvfb
+  :97 con su configuración y use_gui=no). Amiberry tiene un socket de control (/run/user/1000/amiberry.sock; las
+  órdenes con tabuladores: SEND_KEY código estado, SEND_MOUSE dx dy botones): Amiga derecha+E abre "Ejecutar orden" y
+  se teclea con el mapa de su teclado (":" es Mayúsculas+0x2A, "/" la del teclado numérico 0x5C, ">" Mayúsculas+0x30).
+- Su salida: tras el #418 y un #519 de React (desajuste al hidratar), "101 cambios": React quitaba todo lo de <body>
+  y no ponía nada; solo quedaba el fondo. Con una página que mide: 0.1 + 0.2 = 0.30000001192092896, 1/3 =
+  0.3333333432674408 y Date.now() a saltos de 131072 ms: el JavaScript contaba con 24 bits. El FPCR de Tachyon era
+  0x40 (precisión simple) ya al empezar Main; un programa de Dash mínimo, lanzado igual, tenía 0 (libnix
+  ___fpucheck solo toca el redondeo). FS-UAE no emula la precisión del FPCR y por eso no salía aquí; un 68040 o
+  68060 de verdad sí la respeta.
+- src/dashweb.dash: fpu_precision_extendida() al empezar (FPCR, bits 6-7 a 0, si hay FPU). Visto en la copia:
+  doble precisión, el reloj bien y tachyon.freemem.space entera con sus estrellas en 5 s.
+- Pendiente: saber quién deja el FPCR en 0x40 antes de Main (algo del arranque de Tachyon que el programa mínimo no
+  tiene) y si las tareas que crea Tachyon (red, imágenes) lo heredan.
 
