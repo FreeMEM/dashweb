@@ -9,7 +9,7 @@ Es también el banco de pruebas de Dash: un programa grande y exigente que oblig
 lenguaje, sus librerías y su rendimiento.
 
 **Descarga:** versión de prueba
-[v0.7.0-alfa](https://github.com/FreeMEM/tachyon/releases/tag/v0.7.0-alfa) (`tachyon.lha`). Es una alfa:
+[v0.7.1-alfa](https://github.com/FreeMEM/tachyon/releases/tag/v0.7.1-alfa) (`tachyon.lha`). Es una alfa:
 puede pararse en algunas páginas.
 
 ## Estado

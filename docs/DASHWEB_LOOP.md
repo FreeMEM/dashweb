@@ -4551,3 +4551,51 @@ Formato:
   castellano y sin pedirlo más.
 - Fallo mío: el socket del IPC de Amiberry (amiberry.sock) era del CoffinOS del usuario, abierto a las 12:02; unas
   teclas de la prueba le llegaron a él. El script de teclas busca ahora el socket por el PID de la copia.
+
+### 2026-10-24 — Publicada la v0.7.0-alfa
+- Batería 104/104 con todo (inglés de serie, catálogos, catálogo propio); MUI 3.8 (sys32rtg38) con freemem.space,
+  entera en 27 s. PR #8 de dev a main; paquete en un worktree limpio de main; release con tachyon.lha, Tachyon.gz y
+  los nueve Tachyon-<idioma>.catalog (GitHub no les cambió el nombre; Tachyon-espanol.catalog se baja: 200). El
+  CoffinOS del usuario tiene la 0.6.0 de las 09:00, sin Catalogs: es la prueba de verdad de actualizar y del
+  catálogo propio. Avisada la sesión de las webs.
+- Pendiente: la página de un repositorio de GitHub (la columna de la derecha, demasiado ancha; el botón Code tapado
+  por "About"): en las notas como fallo conocido. El vídeo de la 0.7.0 (RTG, en inglés y en castellano: actualizar,
+  un vídeo de YouTube con sonido, una web de freemem.space; música: un mod con licencia libre o con permiso).
+
+### 2026-10-24 — Tarea 50: la página de un repositorio de GitHub
+- Captura del usuario (CoffinOS, github.com/FreeMEM/tachyon): la lista de ficheros estrecha, la columna "About"
+  ocupando el resto y su título encima del botón Code. Reproducido con la página guardada (curl con el agente de
+  Tachyon; sus 38 hojas, 4 MB, podadas a 0,7 MB con las reglas cuyas clases están en el HTML: tinycss2) servida en
+  local, en la máquina RTG ancha con MUI 3.8. En los tests no: el 68020 de la batería no acaba con tanto CSS.
+- CAJAS=texto (medir_visor --cajas): al acabar, la caja y el estilo de maqueta de los elementos con ese texto en su
+  class. Así salió: el Pane sin width ni padding.
+- Causa 1: las --x se guardan solo si alguna hoja las nombra en un var() (Hojas.vars_usadas), y GitHub nombra
+  --pane-width-large y --spacing-normal solo en el style del Pane (--pane-width-size:var(--pane-width-large)): la
+  regla del antepasado que las da se saltaba. Ahora estilo_aplicar suma las de los atributos style del árbol, y un
+  cambio del JavaScript que trae una --x nueva en un style (o un elemento que entra con ella) rehace el estilo
+  entero.
+- Causa 2: los títulos (h2 { font-size: var(--h2-size, 24px) } en la capa primer-css-base y :where(.Heading):where(
+  [data-variant=small]) { font: var(--text-title-shorthand-small, ...) } en primer-react, de después) salían a 24 px:
+  el font-size de un atajo font con var() no se miraba nunca. Ahora va si le gana al suelto. Y "600 1rem / 1.5 ..."
+  (la barra con espacios, como da la --x de Primer) ya no mete "/ 1.5" en la familia.
+- Visto: test_estilo_vars_inline (la --x del style con @media en el antepasado, y con el JavaScript) y
+  test_estilo_font_var (capas, respaldo, el suelto que gana y la barra); los dos fallan sin el arreglo. La página
+  guardada: la columna a 320 px a la derecha, la lista de 952 y los títulos a 16 px, como Chrome. Quedan las barras
+  grises de los commits (llegan por fetch; con la página guardada no hay de dónde) y la cabecera ("Platform").
+
+### 2026-10-24 — Tarea 51: ir a otra página desde la página (location.replace, meta refresh)
+- Captura del usuario: un resultado de html.duckduckgo.com lleva a duckduckgo.com/l/?uddg=..., que solo hace
+  window.parent.location.replace(destino) (con una meta refresh dentro de <noscript>), y se quedaba en blanco.
+  location.assign/replace apuntaban __dashweb_ir y nadie lo leía; location.href = y window.location = no hacían
+  nada; y no había meta refresh.
+- Ahora: __dashweb_navegar(url, sustituir) (lib/jsdom.dash) deja la dirección en los atributos "ir" e
+  "ir_sustituir" del documento; location.href es un get/set, assign y href = y window.location = y
+  document.location = van, replace y reload sustituyen; todo relativo a la página. dashweb (ir_pedido, en cada tic)
+  lo abre: replace y el refresh en lugar de la página en el historial (atrás no vuelve a la de salto).
+  documento_refresco: <meta http-equiv="refresh" content="N; url=...">, con comillas y URL= en mayúsculas; sin
+  dirección, la misma página si N >= 1; la de dentro de un <noscript> no cuenta. programar() despierta a su hora.
+- De paso: programar() no contaba el catálogo propio que se baja (45g 7): sin otra cosa en marcha podía quedarse
+  parado hasta el siguiente evento.
+- Batería 107/107 (con la 50). Visto: test_navegar_js; la /l/ de DuckDuckGo de la captura en la máquina RTG ancha: pasa a
+  https://github.com/FreeMEM/dash y lo carga.
+- Pendiente: navigator.language sigue 'es-ES' fijo; debería seguir al idioma de Locale.

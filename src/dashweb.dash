@@ -108,6 +108,10 @@ struct Ventana
     animando: Bool = false       # alguna animación de CSS viva: un fotograma en cada tic (unos 15 por segundo)
     fotograma: Int = 0           # time_ms del último fotograma pintado
     io_pagina: Pagina = nil      # la maqueta de la última vez que se miraron los IntersectionObserver
+    # el <meta http-equiv="refresh"> de la página (tarea 51): de qué documento, cuándo y adónde ("": nada)
+    refresco_doc: Documento = nil
+    refresco_en: Int = 0
+    refresco_url: String = ""
     # sus pestañas (tarea 46): los campos de arriba son los de la de delante; las de detrás, guardados en la suya
     pestanas: [Pestana] = nil
     pestana: Int = 0
@@ -141,6 +145,26 @@ var dw_ventanas: [Ventana] = []
 # DIBUJOS=y0-y1 (argumento): los dibujos de la página entre esas alturas, por la salida al acabar (-1: no)
 var dw_dibujos_y0: Int = -1
 var dw_dibujos_y1: Int = -1
+# CAJAS=texto (argumento): al acabar, la caja y el estilo de maqueta de los elementos con ese texto en su class (o
+# con ese nombre de etiqueta), por la salida ("": no)
+var dw_cajas: String = ""
+
+func cajas_volcar(n: Nodo, hondo: Int)
+    if n.tipo == DOM_ELEMENTO and (n.nombre == dw_cajas or str_find(dom_atributo(n, "class"), dw_cajas) >= 0)
+        l = "caja " + hondo + " " + n.nombre + "." + dom_atributo(n, "class") + " [" + n.caja_x + "," + n.caja_y + " " + n.caja_w + "x" + n.caja_h + "]"
+        if n.estilo != nil
+            for k in ["display", "position", "width", "min-width", "max-width", "flex", "flex-grow", "flex-shrink", "flex-basis", "flex-wrap", "flex-direction", "order", "font-size", "grid-template-columns", "grid-column", "box-sizing", "padding", "margin"]
+                if n.estilo.has(k)
+                    l = l + " " + k + "=" + n.estilo[k]
+                end
+            end
+        end
+        Print l
+    end
+    for h in n.hijos
+        cajas_volcar(h, hondo + 1)
+    end
+end
 
 # === Versiones nuevas (tarea 44, lib/actualizar.dash) ===
 # Al arrancar sin argumentos, como mucho una vez al día ("avisar_versiones=no" en las preferencias lo apaga), y con
@@ -1048,6 +1072,15 @@ func programar()
             if w.aviso_scroll and (espera < 0 or espera > 30)
                 espera = 30
             end
+            if w.refresco_url != "" and w.refresco_doc == w.actual
+                e = w.refresco_en - time_ms()
+                if e < 1
+                    e = 1
+                end
+                if espera < 0 or e < espera
+                    espera = e
+                end
+            end
             if w.actual != nil and w.actual.js != 0 and jsdom_peticiones_pendientes(w.actual.js) > 0 and (espera < 0 or espera > 50)
                 espera = 50
             end
@@ -1071,7 +1104,7 @@ func programar()
         end
     end
     # (las descargas, de todas las ventanas: lo que llega y la página tachyon:descargas al día)
-    if (descargas_activas() > 0 or dw_act_carga != nil or dw_act_bajada != nil or dw_act_cat != nil) and (espera < 0 or espera > 250)
+    if (descargas_activas() > 0 or dw_act_carga != nil or dw_act_bajada != nil or dw_act_cat != nil or dw_cat_propio != nil) and (espera < 0 or espera > 250)
         espera = 250
     end
     if espera > 0
@@ -1275,6 +1308,7 @@ end
 
 func tic(w: Ventana)
     avanzar_carga(w)
+    ir_pedido(w)
     # un script que no acababa (un bucle sin fin): cortado, y se dice (tarea 40c)
     if js_cortado()
         dw_estado(w, tr(117, "A script on the page took too long: stopped"))
@@ -1311,6 +1345,9 @@ func tic(w: Ventana)
                     Print "dibujo " + d.tipo + " [" + d.x + "," + d.y + " " + d.ancho + "x" + d.alto + "] " + d.color + " capa " + d.capa + " velado " + d.velado + rec + " " + t + " <" + nodo + ">"
                 end
             end
+        end
+        if dw_cajas != "" and w.actual.doc != nil
+            cajas_volcar(w.actual.doc, 0)
         end
         Print "tachyon: " + w.actual.direccion + " entera en " + (time_ms() - w.empezada) + " ms; memoria libre " + mem_total() / 1024 + " KB (JavaScript " + kb_js + " KB, " + imagenes_kb(w.actual.im) + ")"
     end
@@ -1487,6 +1524,57 @@ func navegar(w: Ventana, destino: String)
     apuntar(w, destino)
 end
 
+# La página pide ir a otra (tarea 51): su JavaScript (location.replace...; la de salto de DuckDuckGo) o su
+# <meta http-equiv="refresh">, cuando toca
+func ir_pedido(w: Ventana)
+    var d: Documento = w.actual
+    if w.preparando != nil
+        d = w.preparando
+    end
+    if d == nil or d.doc == nil
+        return
+    end
+    u = dom_atributo(d.doc, "ir")
+    if u != ""
+        sustituir = dom_atributo(d.doc, "ir_sustituir") == "1"
+        jsdom_navegar(d.doc, "", false)
+        ir_a(w, u, sustituir)
+        return
+    end
+    if w.carga == nil and w.preparando == nil and w.actual != nil and w.refresco_doc != w.actual
+        w.refresco_doc = w.actual
+        w.refresco_url = ""
+        r = documento_refresco(w.actual)
+        espacio = str_find(r, " ")
+        if espacio > 0
+            w.refresco_en = time_ms() + Int(r[:espacio]) * 1000
+            w.refresco_url = r[espacio + 1:]
+        end
+    end
+    if w.refresco_url != "" and w.refresco_doc == w.actual and w.carga == nil and time_ms() >= w.refresco_en
+        u = w.refresco_url
+        w.refresco_url = ""
+        ir_a(w, u, true)
+    end
+end
+
+# Abrir lo que pidió la página; sustituir: en lugar de ella en el historial (location.replace, el refresh), que atrás
+# no vuelva a la que salta
+func ir_a(w: Ventana, destino: String, sustituir: Bool)
+    if not sustituir or w.visto < 0 or w.visto >= w.pasos.length
+        navegar(w, destino)
+        return
+    end
+    if w.actual != nil and documento_sin_fragmento(destino) == documento_sin_fragmento(w.actual.direccion) and documento_fragmento(destino) != ""
+        navegar(w, destino)
+        return
+    end
+    mui_set_text(w.v.url, destino)
+    abrir(w, destino)
+    w.pasos[w.visto] = destino
+    botones(w)
+end
+
 # Una entrada nueva en el historial (lo que había delante se descarta)
 func apuntar(w: Ventana, destino: String)
     while w.pasos.length > w.visto + 1
@@ -1522,11 +1610,11 @@ end
 
 # La versión, en "Acerca de..." (menú Proyecto) con la fecha en que se compiló; y para el comando Version del Amiga,
 # la cadena $VER del ejecutable (con la fecha del día en que se cambia la versión: van juntas)
-const DASHWEB_VERSION = "0.7.0-alfa"
+const DASHWEB_VERSION = "0.7.1-alfa"
 
 @native(borrow) func texto_version(v: String) -> String
 """
-    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.7.0-alfa (24.10.2026)";
+    static const char __attribute__((used)) ver[] = "$VER: Tachyon 0.7.1-alfa (24.10.2026)";
     static char b[160];
     sprintf(b, "\033c\033bTachyon %s\033n\n\033c", (char *)v);
     return (STRPTR)b;
@@ -1954,6 +2042,8 @@ Main
             elif str_starts(arg(i), "DESCARGAS=")
                 # DESCARGAS=dirección: los ficheros de las versiones (el catálogo propio) de ahí, pedido ya (para probarlo)
                 actualizar_descargas = arg(i)[10:]
+            elif str_starts(arg(i), "CAJAS=")
+                dw_cajas = arg(i)[6:]
             elif str_starts(arg(i), "DIBUJOS=")
                 # DIBUJOS=y0-y1: al acabar la página, sus dibujos de entre esas alturas por la salida (para depurar)
                 trozos = css_partir(arg(i)[8:], 45)
@@ -1969,7 +2059,7 @@ Main
             nueva_ventana(preferencia(FICHERO_PREFERENCIAS, "inicio"))
         end
         for i in (0..arg_count() - 1)
-            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=") and not str_starts(arg(i), "POCAMEMORIA=") and not str_starts(arg(i), "DESCARGAS=")
+            if arg(i) != "TRAZA" and arg(i) != "GCSIEMPRE" and not str_starts(arg(i), "DIBUJOS=") and not str_starts(arg(i), "VERSIONES=") and not str_starts(arg(i), "POCAMEMORIA=") and not str_starts(arg(i), "DESCARGAS=") and not str_starts(arg(i), "CAJAS=")
                 nueva_ventana(arg(i))
             end
         end

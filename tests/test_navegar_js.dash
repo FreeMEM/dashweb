@@ -1,0 +1,40 @@
+# Test: la página pide ir a otra (tarea 51; la de salto de DuckDuckGo, window.parent.location.replace(destino), se
+# quedaba en blanco): location.replace (sustituye en el historial), assign, href = y window.location = (no), relativas
+# a la página, y location.href sigue diciendo la de la página; <meta http-equiv="refresh"> con dirección (entre
+# comillas, en mayúsculas), sin ella (la misma, si espera un segundo o más) y la de dentro de un <noscript>.
+# memcheck
+# expect-out: replace: http://x.com/dash 1 | href: http://x.com/a/b?q=1
+# expect-out: assign: http://x.com/a/c | href =: http://y.com/ | window.location =: http://x.com/a/w
+# expect-out: refresh: 3 http://x.com/z | 0 http://dd.com/ | sin dirección: 30 http://x.com/a/b?q=1 | []
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+func pedido(d: Documento) -> String
+    return dom_atributo(d.doc, "ir") + " " + dom_atributo(d.doc, "ir_sustituir")
+end
+
+func refresco(h: String) -> String
+    d = documento_html("http://x.com/a/b?q=1", h)
+    r = documento_refresco(d)
+    documento_liberar(d)
+    return r
+end
+
+Main
+    d = documento_html("http://x.com/a/b?q=1", "<html><body><script>window.parent.location.replace('/dash'); var h = location.href;</script></body></html>")
+    l = "replace: " + str_trim(pedido(d))
+    l = l + " | href: " + js_evaluar(d.js, "h", "t.js")
+    Print l
+    js_evaluar(d.js, "location.assign('c')", "t.js")
+    l = "assign: " + str_trim(pedido(d))
+    js_evaluar(d.js, "location.href = 'http://y.com/'", "t.js")
+    l = l + " | href =: " + str_trim(pedido(d))
+    js_evaluar(d.js, "window.location = 'w'", "t.js")
+    Print l + " | window.location =: " + str_trim(pedido(d))
+    documento_liberar(d)
+    l = "refresh: " + refresco("<html><head><meta http-equiv=Refresh content=\"3; URL='/z'\"></head><body>x</body></html>")
+    l = l + " | " + refresco("<html><head><meta http-equiv=refresh content='0;url=http://dd.com/'></head></html>")
+    l = l + " | sin dirección: " + refresco("<meta http-equiv=refresh content=30>")
+    Print l + " | [" + refresco("<meta http-equiv=refresh content=0>") + "]"
+end
