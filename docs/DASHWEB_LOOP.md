@@ -8,6 +8,9 @@ Arranque (desde cualquier directorio):
 
 **Encargo actual (usuario, 2026-10-20): la tarea 37, https://pre.opentimetrack.com, pasa delante de todo.**
 
+**Después (usuario, 2026-10-24): "que se vea bien la web de youtube sería un puntazo": la 38 va la siguiente, tras
+publicar la 0.7.2; luego la 53 (las webs de chat).**
+
 ## Objetivo
 
 Un navegador ligero para AmigaOS 3.x escrito en Dash, con interfaz MUI 5: XHTML, CSS, JavaScript
@@ -509,6 +512,23 @@ tarea, con el estilo de Dash.
       salida: Traspaso:Tachyon/Tachyon https://tachyon.freemem.space/ >Traspaso:salida.txt. Hasta entenderlo, sin
       versión nueva (sería un paso atrás en su sistema).
       Hecho (2026-10-24; ver la bitácora): la FPU empezaba en precisión simple.
+- [ ] 38. **youtube.com (usuario, 2026-10-20; 2026-10-24: "sería un puntazo", la siguiente).** Que la portada y la
+      página de un vídeo de https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven,
+      tarea 30). Empezar como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
+      (2026-10-24) A "Tachyon/0.7 (AmigaOS)" YouTube le da la aplicación de escritorio para navegadores viejos (276 KB
+      de HTML, desktop_polymer en ES5) con sus polyfills: web-animations, webcomponents-all-noPatch (customElements y
+      ShadyDOM), fetch e IntersectionObserver. Tachyon no tiene customElements (el polyfill lo pone) y su
+      MutationObserver no avisa nunca: el polyfill lo necesita para mejorar los elementos que entran después.
+      a. Cómo sale hoy en la máquina RTG: errores, memoria, tiempo.
+      b. MutationObserver de verdad (childList, attributes, characterData, subtree; takeRecords; en una microtarea):
+         sirve a muchas webs, no solo a YouTube.
+      c. Lo que pida después (customElements nativo si el polyfill no basta, ShadyDOM, ytd-app...).
+- [ ] 53. **Las webs de chat (usuario, 2026-10-24: "si se viesen las webs de gemini, chatgpt, claude, etc y se pudiese
+      conversar con ellas... ya sería la releche").** gemini.google.com, chatgpt.com, claude.ai: que se vean y se pueda
+      escribir y leer la respuesta. Lo difícil: piden entrar con una cuenta (formularios, cookies, redirecciones de
+      Google), son aplicaciones de JavaScript muy grandes, la respuesta llega a trozos (fetch con ReadableStream o
+      EventSource; ¿WebSocket?) y suelen tener la comprobación de Cloudflare contra robots. Empezar mirando cada una
+      (cómo sale, errores, qué API le falta) y partirla en subtareas. Después de la 38.
 - [x] 52. **El idioma de Locale para las webs (pendiente de la 51).** navigator.language era 'es-ES' fijo y no se
       mandaba Accept-Language: Google, DuckDuckGo y demás elegían el idioma por su cuenta. Que las dos sigan al
       primer idioma de las Preferencias de Locale ("español": es-ES; uno que no se conoce, en-US).
@@ -570,8 +590,11 @@ tarea, con el estilo de Dash.
 - [ ] 42. **Lo que el usuario vio en CoffinOS (2026-10-22, pantalla de unos 1650 px, con la compilación de las 00:50:
       sin la 41a3).** Va antes que lo que queda de la 41. Probar con una pantalla igual de ancha (modo de uaegfx mayor
       en una copia de sys32rtg38) y comparar con Chrome:
-      a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
+      [x] a. es.wikipedia.org/wiki/Commodore_Amiga_1200: el artículo aplastado (líneas encima de otras) y las pestañas
          Leer/Discusión/Editar pisadas. Mirar si con la v0.3.0-alfa (ya con la 41a3) sigue.
+         Hecho (2026-10-24; ver la bitácora): el artículo ya salía bien; la cabecera, en una fila como Chrome. Quedan,
+         menores: el pie de la foto, la raya bajo los títulos, la llamada de la referencia en alto, "Ir al contenido"
+         visible arriba y el campo del buscador (width: 100%) más estrecho que en Chrome en una prueba local.
       [x] b. google.com: el icono de las aplicaciones (nueve puntos) sale como nueve círculos enormes.
       [x] c. Resultados de Google: el logo se parte ("Googl" y la "e" debajo); el título y la dirección de cada resultado
          van en la misma línea (la dirección debe ir aparte).
@@ -652,9 +675,6 @@ tarea, con el estilo de Dash.
            (pasan / total) guardado en docs/ para ver cómo sube. Ir tarea a tarea por las carpetas con más fallos.
       Las pruebas de fuera no van al repo enteras: un guion que las baje (tools/) y las que se arreglen, copiadas
       como test con su licencia (WPT es BSD de 3 cláusulas).
-- [ ] 38. **youtube.com (usuario, 2026-10-20: después de la 37).** Que la portada y la página de un vídeo de
-      https://www.youtube.com funcionen bien (hoy los vídeos de YouTube incrustados ya se ven, tarea 30). Empezar
-      como la 37a: cómo sale, errores, memoria, y partirla en subtareas.
 
 - [ ] 40. **Lo que encontró la sesión dashweb-f7 al rehacer docs/ARQUITECTURA.md (2026-10-20; después de la 37,
       salvo la (a), que va antes de la próxima versión).** Comprobado en el código por ella:
@@ -4671,5 +4691,21 @@ Formato:
 - Visto en el PC: igual que String() de Node en 2,4 millones de números (al azar, decimales cortos, colores,
   diminutos, enormes), con el camino de 32 bits de Ryu, el del 68k. En la máquina RTG, 6000 números (restado el
   bucle, ~80 ms): decimales largos ~220 -> ~170 ms, cortos (i * 0.37) ~287 -> ~195 ms.
+- Batería: 108/108.
+
+### 2026-10-24 — Tarea 42a: Wikipedia, la cabecera en una fila
+- es.wikipedia.org/wiki/Commodore_Amiga_1200 en la máquina RTG ancha con MUI 3.8, contra Chrome al mismo ancho: el
+  artículo ya no sale aplastado ni con las pestañas pisadas (arreglado por el camino). Lo que se veía distinto: el
+  buscador bajaba a otra fila bajo el logo y "Crear una cuenta" se partía en dos líneas.
+- Causa 1: la cabecera es un flex con flex-wrap y su parte derecha (flex-grow 1) se mide por su contenido
+  (_ancho_flotante a 4000); dentro, el buscador también tiene flex-grow y crecía hasta los 4000, así que la parte
+  derecha medía todo y bajaba de línea. Ahora, al medir el max-content (_midiendo_max), un flex en fila sin width
+  no reparte el sitio sobrante: cada uno con lo suyo, y uno con flex-basis (flex: 1) con su contenido.
+- Causa 2: una lista flex dentro de otro flex, con márgenes en sus elementos: el total cabía justo, entraba por el
+  camino de encoger y el mínimo automático de "Donaciones", medido a 1 de ancho, daba 3 más que su ancho a lo ancho;
+  "Crear una cuenta" encogía 6 para hacerle sitio y se partía. El mínimo automático ya no pasa de su base cuando
+  esta es la de su contenido.
+- Visto: test_maqueta_flex con dos casos nuevos (fallan sin el arreglo); las 29 de maqueta; Wikipedia: la cabecera
+  como en Chrome.
 - Batería: 108/108.
 

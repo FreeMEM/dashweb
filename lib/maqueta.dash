@@ -2639,6 +2639,10 @@ end
 var _maqueta_pase: Int = 0
 # > 0 mientras se maqueta solo para medir (no se apuntan cajas)
 var _midiendo: Int = 0
+# Midiendo el ancho más grande de su contenido (max-content: _ancho_flotante con FLEX_GRANDE): un flex en fila no
+# reparte el sitio que sobra (la cabecera de Wikipedia: su buscador, con flex-grow, crecía hasta los 4000 y la parte
+# de la derecha no cabía al lado del logo; tarea 42a)
+var _midiendo_max: Bool = false
 var _medido: Nodo = nil     # el que se está midiendo (sus cajas no cuentan para su ancho)
 
 # El ancho de h según su contenido, con ancho de sitio: flex, grid, tablas y flotantes lo piden varias veces por
@@ -2843,7 +2847,10 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     _midiendo = _midiendo + 1
     medido = _medido
     _medido = h
+    midiendo_max = _midiendo_max
+    _midiendo_max = ancho >= FLEX_GRANDE
     _bloque_de(m, h, 0, 0, ancho, ancho)
+    _midiendo_max = midiendo_max
     _medido = medido
     _midiendo = _midiendo - 1
     corte_antes = _sangria_corte
@@ -5661,6 +5668,12 @@ func _flex_minimo(m: Maquetador, it: FlexHijo)
     if puesto >= 0 and puesto < minimo
         minimo = puesto
     end
+    # (lo más estrecho nunca pasa de lo más ancho: con su base del contenido, no más que ella; medido a 1 de ancho,
+    # "Donaciones" con márgenes daba 3 más que a lo ancho y "Crear una cuenta" encogía para hacerle sitio: los
+    # enlaces de arriba de Wikipedia, en dos líneas; tarea 42a)
+    if puesto < 0 and _val(it.nodo.estilo, "flex-basis", "auto") == "auto" and minimo > it.base
+        minimo = it.base
+    end
     if it.maximo >= 0 and minimo > it.maximo
         minimo = it.maximo
     end
@@ -5796,6 +5809,10 @@ func _flex(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, alto_fijo: Int) -
         gap = gap_col
         gap_c = gap_fila
         principal = ancho
+        # (midiendo su max-content, sin sitio que repartir: cada uno con lo suyo)
+        if _midiendo_max and _val(e, "width", "auto") == "auto"
+            principal = -1
+        end
     end
     var items: [FlexHijo] = []
     for h in _flex_hijos(n)
@@ -5832,6 +5849,13 @@ func _flex(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, alto_fijo: Int) -
         else
             for i in (l.ini..l.fin - 1)
                 items[i].meta = _flex_limitar(items[i], items[i].hip)
+                # (max-content de una fila: el de su contenido, también con flex-basis 0 como flex: 1)
+                if fila and _val(items[i].nodo.estilo, "width", "auto") == "auto" and _val(items[i].nodo.estilo, "flex-basis", "auto") != "auto"
+                    c = _ancho_flotante(m, items[i].nodo, FLEX_GRANDE) - items[i].mi - items[i].mf - items[i].bp
+                    if c > items[i].meta
+                        items[i].meta = _flex_limitar(items[i], c)
+                    end
+                end
             end
         end
     end
