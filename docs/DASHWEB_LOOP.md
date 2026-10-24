@@ -4551,3 +4551,13 @@ Formato:
   castellano y sin pedirlo más.
 - Fallo mío: el socket del IPC de Amiberry (amiberry.sock) era del CoffinOS del usuario, abierto a las 12:02; unas
   teclas de la prueba le llegaron a él. El script de teclas busca ahora el socket por el PID de la copia.
+
+### 2026-10-24 — Publicada la v0.7.0-alfa
+- Batería 104/104 con todo (inglés de serie, catálogos, catálogo propio); MUI 3.8 (sys32rtg38) con freemem.space,
+  entera en 27 s. PR #8 de dev a main; paquete en un worktree limpio de main; release con tachyon.lha, Tachyon.gz y
+  los nueve Tachyon-<idioma>.catalog (GitHub no les cambió el nombre; Tachyon-espanol.catalog se baja: 200). El
+  CoffinOS del usuario tiene la 0.6.0 de las 09:00, sin Catalogs: es la prueba de verdad de actualizar y del
+  catálogo propio. Avisada la sesión de las webs.
+- Pendiente: la página de un repositorio de GitHub (la columna de la derecha, demasiado ancha; el botón Code tapado
+  por "About"): en las notas como fallo conocido. El vídeo de la 0.7.0 (RTG, en inglés y en castellano: actualizar,
+  un vídeo de YouTube con sonido, una web de freemem.space; música: un mod con licencia libre o con permiso).
