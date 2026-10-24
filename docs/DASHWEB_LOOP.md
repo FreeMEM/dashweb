@@ -491,6 +491,13 @@ tarea, con el estilo de Dash.
          lib/jsdom.dash los async que llegan tarde.
       b. Cada web: comparar con Chrome y arreglar lo que salga.
 
+- [ ] 49. **tachyon.freemem.space sale en azul en el CoffinOS del usuario (2026-10-24, con la compilación de 48c y
+      48e).** Solo el fondo: ni la cabecera, ni los textos, ni las estrellas; "Listo" en la barra, y sigue así tras un
+      minuto. En el emulador sale entera (18-25 s) en todas las pruebas: MUI 5 y MUI 3.8, 1024x768 y 1680x1050, 16 y
+      32 bits (sys32rtg, sys32rtg38, sys32rtg38ancha, sys32rtg32, sys32rtg38ancha32), y sin hidratar (React #412) el
+      contenido también se ve. Su CoffinOS: Amiberry, 68040 con JIT, MUI 3.8, una ventana de ~1700x1250. Pedida la
+      salida: Traspaso:Tachyon/Tachyon https://tachyon.freemem.space/ >Traspaso:salida.txt. Hasta entenderlo, sin
+      versión nueva (sería un paso atrás en su sistema).
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
