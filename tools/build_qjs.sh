@@ -4,6 +4,7 @@
 #   tools/build_qjs.sh 020fpu -m68020 -m68881      # 68020+ with FPU
 #   tools/build_qjs.sh lib                         # build/qjs-lib/libqjs.a + quickjs.h, for lib/js.dash
 #
+# Number to text in radix 10 with Ryu (third_party/ryu/d2d.c: the shortest digits without big numbers).
 # lib: QuickJS without the test runner, fdlibm (third_party/fdlibm: sin, pow... exact to the
 # last digit, instead of libnix's -lm on the ROM's math libraries) and, without -m68881,
 # fp-bit, all in one archive for a Dash program's "@link". For a 68020 with FPU, like dashweb
@@ -30,6 +31,7 @@ CF="-noixemul -O2 -fomit-frame-pointer -fbbb=abcfhilmnpsz0 -fno-isolate-erroneou
 for f in quickjs libregexp libunicode cutils dtoa; do
   $GCC $CF -c "$Q/$f.c" -o "$B/$f.o"
 done
+$GCC $CF -I"$R/third_party/ryu" -c "$R/third_party/ryu/d2d.c" -o "$B/ryu.o"
 SOFT=
 case " $* " in
   *-m68881*|*-m68882*) ;;
@@ -47,12 +49,12 @@ if [ "$V" = lib ]; then
   done
   rm -f "$B/libqjs.a"
   ${AR:-/opt/amiga/bin/m68k-amigaos-ar} rcs "$B/libqjs.a" "$B/quickjs.o" "$B/libregexp.o" "$B/libunicode.o" \
-      "$B/cutils.o" "$B/dtoa.o" "$B"/fdlibm/*.o $SOFT
+      "$B/cutils.o" "$B/dtoa.o" "$B/ryu.o" "$B"/fdlibm/*.o $SOFT
   cp "$Q/quickjs.h" "$B/"
   ls -l "$B/libqjs.a"
   exit 0
 fi
 $GCC $CF -c "$Q/amiga/qjsamiga.c" -o "$B/qjsamiga.o"
 $GCC -noixemul $* -o "$B/qjs" "$B/qjsamiga.o" "$B/quickjs.o" "$B/libregexp.o" "$B/libunicode.o" \
-    "$B/cutils.o" "$B/dtoa.o" $SOFT -lm
+    "$B/cutils.o" "$B/dtoa.o" "$B/ryu.o" $SOFT -lm
 ls -l "$B/qjs"

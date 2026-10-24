@@ -83,7 +83,7 @@ def build_img_lib() -> bool:
 def build_qjs_lib() -> bool:
     """build/qjs-lib/libqjs.a (lib/js.dash links it) when it is missing or older than its sources"""
     lib = ROOT / "build" / "qjs-lib" / "libqjs.a"
-    sources = [f for d in ("quickjs", "fdlibm") for f in (ROOT / "third_party" / d).rglob("*.[ch]")]
+    sources = [f for d in ("quickjs", "fdlibm", "ryu") for f in (ROOT / "third_party" / d).rglob("*.[ch]")]
     sources.append(ROOT / "tools" / "build_qjs.sh")
     if lib.exists() and lib.stat().st_mtime >= max(f.stat().st_mtime for f in sources):
         return True

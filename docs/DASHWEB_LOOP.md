@@ -463,9 +463,11 @@ tarea, con el estilo de Dash.
          tampoco hidrata a los 35 s: mirar qué parchea (Promise, ReadableStream, TextDecoder...) y si su
          flujo funciona con lo nuestro; y en esa vuelta, por qué salen cajitas.
          Hecho (2026-10-24; ver la bitácora): attributes no era viva y React se quedaba en un bucle sin fin.
-      d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
+      [~] d. Más velocidad para las estrellas: ~265 ms por fotograma en el emulador, casi todo el JavaScript de la
          página (~83 ms en pasar a texto los decimales del color, dtoa.c de QuickJS con enteros largos: uno más
          rápido ayudaría a todas las webs; ~90 ms en las 3500 llamadas; ~46 en sus cuentas).
+         (2026-10-24) Los números a texto, con Ryu: hecho (ver la bitácora). La página de las estrellas de ahora
+         ya no hace textos de color en cada fotograma: quedan las llamadas y sus cuentas.
       [x] e. La bola Boing de dash.freemem.space: la caja negra salía vacía (16 px de alto).
          Hecho (2026-10-24; ver la bitácora): un <canvas> con display: block y aspect-ratio.
       f. dpms.freemem.space (usuario, 2026-10-24): un Django con un fondo de Three.js (three-background.js:
@@ -4653,4 +4655,21 @@ Formato:
 - Visto en la máquina RTG con MUI 3.8 y POCAMEMORIA=999999 (tests/pages/larga.html, nueva: 300 párrafos): tres
   páginas abajo, Amiga-T, clic en su botón: se carga otra vez y queda en el párrafo 50. Sin batería: el cambio es
   solo de src/dashweb.dash, que ninguna prueba compila.
+
+### 2026-10-24 — Tarea 48d (1): los números a texto con Ryu
+- Number a texto (String(x), x + "", toString(), en base 10) iba por js_dtoa de QuickJS: prueba con enteros largos
+  si P cifras devuelven el número. Una búsqueda binaria de P salió peor (quitando los ceros del final, casi
+  siempre acierta en dos pruebas): lo caro son las multiplicaciones de enteros largos, no cuántas.
+- Ahora, en base 10, Ryu (third_party/ryu, de Ulf Adams, Apache 2.0 o Boost; commit 4c0618b0e44f): el decimal más
+  corto sin enteros largos. d2d.c (de dashweb) da a js_dtoa la mantisa y el exponente; el formato sigue siendo el
+  de QuickJS. Un cambio en ryu/d2s.c: las cifras sobrantes se quitan de ocho en ocho y con 32 bits cuando caben (un
+  decimal corto como 2.22 quitaba 14 de una en una con divisiones de 64 bits, y salía más lento que antes).
+  tools/build_qjs.sh lo compila (26 KB); tests/run.py rehace libqjs.a si cambia; su licencia, al paquete y a
+  "Acerca de".
+- De paso, más correcto: QuickJS daba a veces 17 cifras donde bastaban menos (-6.0908212571249994e+287 en vez de
+  -6.090821257125e+287; 21.833 de 5,5 millones al azar, todos con exponentes grandes). Ahora como Chrome.
+- Visto en el PC: igual que String() de Node en 2,4 millones de números (al azar, decimales cortos, colores,
+  diminutos, enormes), con el camino de 32 bits de Ryu, el del 68k. En la máquina RTG, 6000 números (restado el
+  bucle, ~80 ms): decimales largos ~220 -> ~170 ms, cortos (i * 0.37) ~287 -> ~195 ms.
+- Batería: 108/108.
 

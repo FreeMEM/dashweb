@@ -129,8 +129,8 @@ MSG_42
 _Fechar
 ; _Close
 MSG_43
-\033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicença MIT · github.com/FreeMEM/tachyon\n\n\033cUm navegador para Amiga feito em Dash, com MUI e AmiSSL.\n\033cInclui, adaptados para o AmigaOS:\n\033cQuickJS (Fabrice Bellard e Charlie Gordon)\n\033cHubbub e LibParserUtils (NetSurf)\n\033ce também stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm e MintVID.\n\033cAs suas licenças estão na gaveta Licencias.
-; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+\033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicença MIT · github.com/FreeMEM/tachyon\n\n\033cUm navegador para Amiga feito em Dash, com MUI e AmiSSL.\n\033cInclui, adaptados para o AmigaOS:\n\033cQuickJS (Fabrice Bellard e Charlie Gordon)\n\033cHubbub e LibParserUtils (NetSurf)\n\033ce também stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu e MintVID.\n\033cAs suas licenças estão na gaveta Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu and MintVID.\n\033cTheir licences are in the Licencias drawer.
 MSG_44
 Novo separador (Amiga-T)
 ; New tab (Amiga-T)

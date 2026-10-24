@@ -39,6 +39,7 @@ cp "$R/third_party/nanosvg/LICENSE.txt" "$B/Tachyon/Licencias/nanosvg"
 cp "$R/third_party/mintvid/LICENSE" "$B/Tachyon/Licencias/MintVID"
 cp "$R/third_party/brotli/LICENSE" "$B/Tachyon/Licencias/Brotli"
 cp "$R/third_party/lucide/LICENSE" "$B/Tachyon/Licencias/Lucide"   # los iconos de la barra
+cp "$R/third_party/ryu/LICENSE-Boost" "$B/Tachyon/Licencias/Ryu"   # el texto de los números (Apache 2.0 o Boost: Boost)
 head -25 "$R/third_party/tjpgd/tjpgd.c" > "$B/Tachyon/Licencias/TJpgDec"
 printf '%s\n' "stb_image y stb_truetype (https://github.com/nothings/stb), de Sean Barrett: dominio público" \
     "(o MIT, a elegir; ver la cabecera de third_party/stb/*.h en el código de Tachyon)." > "$B/Tachyon/Licencias/stb"

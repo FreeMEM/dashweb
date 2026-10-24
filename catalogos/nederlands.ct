@@ -129,8 +129,8 @@ MSG_42
 _Sluiten
 ; _Close
 MSG_43
-\ec© 2026 Francisco Antonio Tapias Bravo\n\ecMIT-licentie · github.com/FreeMEM/tachyon\n\n\ecEen browser voor de Amiga, gemaakt in Dash, met MUI en AmiSSL.\n\ecBevat, aangepast voor AmigaOS:\n\ecQuickJS (Fabrice Bellard en Charlie Gordon)\n\ecHubbub en LibParserUtils (NetSurf)\n\ecen ook stb, NanoSVG, Brotli, libwebp,\n\ecTJpgDec, fdlibm en MintVID.\n\ecHun licenties staan in de lade Licencias.
-; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
+\ec© 2026 Francisco Antonio Tapias Bravo\n\ecMIT-licentie · github.com/FreeMEM/tachyon\n\n\ecEen browser voor de Amiga, gemaakt in Dash, met MUI en AmiSSL.\n\ecBevat, aangepast voor AmigaOS:\n\ecQuickJS (Fabrice Bellard en Charlie Gordon)\n\ecHubbub en LibParserUtils (NetSurf)\n\ecen ook stb, NanoSVG, Brotli, libwebp,\n\ecTJpgDec, fdlibm, Ryu en MintVID.\n\ecHun licenties staan in de lade Licencias.
+; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm, Ryu and MintVID.\n\033cTheir licences are in the Licencias drawer.
 MSG_44
 Nieuw tabblad (Amiga-T)
 ; New tab (Amiga-T)

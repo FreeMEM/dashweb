@@ -492,7 +492,7 @@
           },
           {
             "type": "text",
-            "text": "\u001bc© 2026 Francisco Antonio Tapias Bravo\n\u001bcMIT License · github.com/FreeMEM/tachyon\n\n\u001bcA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\u001bcIt includes, adapted for AmigaOS:\n\u001bcQuickJS (Fabrice Bellard and Charlie Gordon)\n\u001bcHubbub and LibParserUtils (NetSurf)\n\u001bcand also stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm and MintVID.\n\u001bcTheir licences are in the Licencias drawer.",
+            "text": "\u001bc© 2026 Francisco Antonio Tapias Bravo\n\u001bcMIT License · github.com/FreeMEM/tachyon\n\n\u001bcA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\u001bcIt includes, adapted for AmigaOS:\n\u001bcQuickJS (Fabrice Bellard and Charlie Gordon)\n\u001bcHubbub and LibParserUtils (NetSurf)\n\u001bcand also stb, NanoSVG, Brotli, libwebp,\n\u001bcTJpgDec, fdlibm, Ryu and MintVID.\n\u001bcTheir licences are in the Licencias drawer.",
             "tr": 43
           },
           {
