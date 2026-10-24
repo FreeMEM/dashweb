@@ -85,7 +85,7 @@ func documento_texto(direccion: String, d: Documento) -> String
         r = http_get(direccion, 20000)
         if r.error != ""
             d.error = r.error
-            return "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>"
+            return "<title>Error</title><h1>" + tr(412, "Couldn't load the page") + "</h1><p>" + r.error + "</p>"
         end
         d.direccion = r.url
         return http_texto(r)
@@ -116,7 +116,7 @@ func documento_desde_respuesta(direccion: String, r: Respuesta) -> Documento
     d = Documento(direccion, "", 0, nadie, sin_hojas, imagenes_nuevas(), 0, 0, sin_pagina, 0, "", 0)
     if r.error != ""
         d.error = r.error
-        return documento_desde_html(d, "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>", t0)
+        return documento_desde_html(d, "<title>Error</title><h1>" + tr(412, "Couldn't load the page") + "</h1><p>" + r.error + "</p>", t0)
     end
     d.direccion = r.url
     return documento_desde_html(d, _documento_de_tipo(r), t0)
@@ -133,7 +133,7 @@ func documento_empezar(direccion: String, r: Respuesta) -> Documento
     texto = ""
     if r.error != ""
         d.error = r.error
-        texto = "<title>Error</title><h1>No se pudo cargar</h1><p>" + r.error + "</p>"
+        texto = "<title>Error</title><h1>" + tr(412, "Couldn't load the page") + "</h1><p>" + r.error + "</p>"
     else
         d.direccion = r.url
         texto = _documento_de_tipo(r)

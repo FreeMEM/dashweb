@@ -491,3 +491,108 @@ no se puede escribir %1
 MSG_411
 no se puede leer %1
 ; can't read %1
+MSG_412
+No se pudo cargar la página
+; Couldn't load the page
+MSG_420
+demasiadas conexiones
+; too many connections
+MSG_421
+conexión cerrada
+; connection closed
+MSG_422
+sin memoria
+; out of memory
+MSG_423
+no se puede enviar
+; can't send
+MSG_424
+red cerrada
+; network closed
+MSG_425
+conexión rechazada
+; connection refused
+MSG_426
+demasiadas conexiones a la vez
+; too many connections at once
+MSG_427
+demasiadas conexiones TLS
+; too many TLS connections
+MSG_428
+error al enviar
+; error sending
+MSG_429
+error al recibir
+; error receiving
+MSG_430
+error de red
+; network error
+MSG_431
+error de TLS
+; TLS error
+MSG_432
+la red es de otra tarea
+; the network belongs to another task
+MSG_433
+no hay AmiSSL (amisslmaster.library)
+; AmiSSL is missing (amisslmaster.library)
+MSG_434
+no hay bsdsocket.library (falta una pila TCP/IP)
+; no bsdsocket.library (a TCP/IP stack is missing)
+MSG_435
+no se encuentra el servidor
+; server not found
+MSG_436
+no se puede abrir AmiSSL (hace falta AmiSSL 5.1 o posterior)
+; can't open AmiSSL (5.1 or later is needed)
+MSG_437
+no se puede abrir un socket
+; can't open a socket
+MSG_438
+no se puede buscar el servidor
+; can't look up the server
+MSG_439
+tiempo agotado al conectar
+; timed out connecting
+MSG_440
+tiempo agotado al negociar TLS
+; timed out negotiating TLS
+MSG_441
+tiempo agotado buscando el servidor
+; timed out looking up the server
+MSG_450
+no se sabe dónde está Tachyon
+; can't tell where Tachyon is
+MSG_451
+no se encuentra lo bajado
+; the download is missing
+MSG_452
+no se puede leer lo bajado
+; can't read the download
+MSG_453
+lo bajado no es un gzip
+; the download isn't a gzip
+MSG_454
+no se puede descomprimir lo bajado
+; can't decompress the download
+MSG_455
+lo bajado llegó mal (CRC)
+; the download arrived damaged (CRC)
+MSG_456
+lo bajado no es un programa
+; the download isn't a program
+MSG_457
+lo bajado no es Tachyon
+; the download isn't Tachyon
+MSG_458
+no se puede escribir en el cajón de Tachyon
+; can't write in Tachyon's drawer
+MSG_459
+el disco está lleno
+; the disk is full
+MSG_460
+no se puede apartar el Tachyon de ahora
+; can't move the current Tachyon aside
+MSG_461
+no se puede poner el nuevo
+; can't put the new one in place

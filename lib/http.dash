@@ -121,6 +121,19 @@ func _http_cookies(u: Url, r: Respuesta)
     r.set_cookies = nada
 end
 
+# El error de una conexión en el idioma de Tachyon: los de lib/red.dash (en inglés: corre en la tarea de la red, que
+# no abre el catálogo) y los de la red de Dash (en castellano); otro, tal cual
+func _http_error_red(e: String) -> String
+    claves = ["timed out", "too many connections", "connection closed", "out of memory", "can't send", "network closed", "conexión rechazada", "demasiadas conexiones a la vez", "demasiadas conexiones TLS", "error al enviar", "error al recibir", "error de red", "error de TLS", "la red es de otra tarea", "no hay AmiSSL (amisslmaster.library)", "no hay bsdsocket.library (falta una pila TCP/IP)", "no se encuentra el servidor", "no se puede abrir AmiSSL (hace falta AmiSSL 5.1 o posterior)", "no se puede abrir un socket", "no se puede buscar el servidor", "tiempo agotado al conectar", "tiempo agotado al negociar TLS", "tiempo agotado buscando el servidor"]
+    textos = [tr(407, "timed out"), tr(420, "too many connections"), tr(421, "connection closed"), tr(422, "out of memory"), tr(423, "can't send"), tr(424, "network closed"), tr(425, "connection refused"), tr(426, "too many connections at once"), tr(427, "too many TLS connections"), tr(428, "error sending"), tr(429, "error receiving"), tr(430, "network error"), tr(431, "TLS error"), tr(432, "the network belongs to another task"), tr(433, "AmiSSL is missing (amisslmaster.library)"), tr(434, "no bsdsocket.library (a TCP/IP stack is missing)"), tr(435, "server not found"), tr(436, "can't open AmiSSL (5.1 or later is needed)"), tr(437, "can't open a socket"), tr(438, "can't look up the server"), tr(439, "timed out connecting"), tr(440, "timed out negotiating TLS"), tr(441, "timed out looking up the server")]
+    for i in (0..claves.length - 1)
+        if e == claves[i]
+            return textos[i]
+        end
+    end
+    return e
+end
+
 # Conecta y manda la petición; nil (con r.error) si no se pudo
 func _http_conectar(u: Url, espera_ms: Int, r: Respuesta, comprimir: Bool) -> Conexion
     return _http_conectar_con(u, espera_ms, r, "GET", "", "", comprimir)
@@ -139,12 +152,12 @@ func _http_conectar_con(u: Url, espera_ms: Int, r: Respuesta, metodo: String, cu
         c = red_abrir(u.host, url_port(u), espera_ms)
     end
     if c.error != ""
-        r.error = c.error
+        r.error = _http_error_red(c.error)
         var nada: Conexion = nil
         return nada
     end
     if not red_enviar(c, _http_peticion(u, metodo, cuerpo, tipo, "", false, comprimir, ""))
-        r.error = c.error
+        r.error = _http_error_red(c.error)
         red_cerrar(c)
         var nada: Conexion = nil
         return nada
@@ -236,7 +249,7 @@ func _leer_estado(c: Conexion, r: Respuesta)
     if linea == nil
         r.error = tr(401, "the server closed without answering")
         if c.error != ""
-            r.error = c.error
+            r.error = _http_error_red(c.error)
         end
         return
     end
@@ -617,7 +630,7 @@ func _carga_conectar(c: Carga)
     end
     c.conexion = red_abrir_empezar(u.host, url_port(u), u.esquema == "https", c.espera)
     if c.conexion.cerrada
-        c.respuesta.error = c.conexion.error
+        c.respuesta.error = _http_error_red(c.conexion.error)
         c.hecha = true
     end
 end
@@ -646,7 +659,7 @@ func http_avanzar(c: Carga) -> Bool
             return false
         end
         if abierta < 0
-            c.respuesta.error = c.conexion.error
+            c.respuesta.error = _http_error_red(c.conexion.error)
             red_cerrar(c.conexion)
             c.hecha = true
             return true
@@ -658,7 +671,7 @@ func http_avanzar(c: Carga) -> Bool
                 _carga_otra_conexion(c)
                 return false
             end
-            c.respuesta.error = c.conexion.error
+            c.respuesta.error = _http_error_red(c.conexion.error)
             red_cerrar(c.conexion)
             c.hecha = true
             return true
@@ -1048,7 +1061,7 @@ func _carga_otra_conexion(c: Carga)
     c.enviada = false
     c.ultimo = time_ms()
     if c.conexion.cerrada
-        c.respuesta.error = c.conexion.error
+        c.respuesta.error = _http_error_red(c.conexion.error)
         c.hecha = true
     end
 end

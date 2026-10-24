@@ -18,7 +18,9 @@ al abrirlo, una vez por versión e idioma (lib/actualizar.dash).
   Debajo de cada MSG_<número>, la traducción (vacía: queda el inglés); %1 y %2 son lo que el programa pone ahí.
 - El catálogo: tools/paquete.sh hace uno por cada .ct dentro del cajón; a mano,
       python3 $DASH/tools/catalogo.py catalog catalogos/español.ct     # -> Catalogs/español/Tachyon.catalog
-- Probarlo en el emulador: tools/medir_visor.py --programa src/dashweb.dash --catalogo español ... (el emulador sin Locale: el inglés de serie)
+- Probarlo: medir_visor --catalogo español deja el catálogo en el sistema emulado, pero el FS-UAE de las pruebas no
+  tiene idioma en Locale y sale el inglés de serie. Para verlo traducido, un sistema con Locale en ese idioma (la
+  copia del CoffinOS: Catalogs/<idioma>/ junto al programa).
 
 La versión del .ct (1.0) va con la de @catalog en src/dashweb.dash (1): si se cambia el sentido de un texto, se le
 da un número nuevo.

@@ -392,7 +392,7 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
-- [~] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
+- [x] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
       y probar cada uno en el emulador con capturas (rtg, MUI 3.8, y alguna en 4 colores) hasta que encaje.
       [x] a. Menús ordenados (dashui admite varios): Proyecto (Nueva ventana N, Cerrar ventana K, Ir a la dirección L
          —el cursor al campo, MUIA_Window_ActiveObject—, Acerca de ?, Salir Q); Navegar (Atrás, Adelante, Recargar R,
@@ -420,7 +420,7 @@ tarea, con el estilo de Dash.
          punto ni esquema se buscan, como en Chrome). Antes, ver en el emulador qué páginas de resultados salen bien.
          Hecho (2026-10-23): DuckDuckGo (HTML) por defecto, Google, Bing, Brave, Wikipedia y Aminet; Startpage,
          Mojeek y Ecosia fuera (piden demostrar que no se es un robot). Google enseña antes su aviso de cookies.
-      [~] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
+      [x] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
          (2026-10-23) Dash no los tiene: propuesto a la sesión dash como D71 (@catalog, tr(id, texto), ids en el
          .dashui y una herramienta .cd/.ct -> .catalog). Espera a ella.
@@ -437,6 +437,7 @@ tarea, con el estilo de Dash.
          (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
          (2026-10-24) Hecho todo menos los errores de lib/red.dash y de lib/actualizar.dash: siguen en castellano
          (ahora que la interfaz es inglés de serie, se ven mezclados).
+         Hecho (2026-10-24; ver la bitácora, 45g 8).
 - [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
       la ventana; la página tachyon:descargas con cada una (nombre, dónde se guarda, KB de cuántos, velocidad, lo que
@@ -4626,3 +4627,19 @@ Formato:
 - Panel: la sesión de trasfondo lo puso al día a mano (áreas, estándares, medidas: docs/panel/, revisados con la
   bitácora); tools/panel_progreso.py cuenta ya las subtareas con solo su letra ("[x] f." de la 45: 45f). Marcadas
   la 45 a-e; la 45, la 45g y la 46, en curso (lo que les falta, en cada una).
+
+### 2026-10-24 — Tarea 45g (8): los errores de la red y de la actualización, también en el catálogo
+- Quedaban fuera del catálogo: los errores de lib/red.dash (corre en la tarea de la red, que no debe abrirlo), los
+  de la red del runtime de Dash (net_error: en castellano, "conexión rechazada", "no se encuentra el servidor"...),
+  los de instalar una versión (C de lib/actualizar.dash) y el título de la página de error ("No se pudo cargar",
+  fijo en lib/documento.dash). Con el inglés de serie salían mezclados.
+- Ahora lib/red.dash da sus errores en inglés y lib/http.dash, en la tarea principal, pasa los de la conexión por
+  _http_error_red (los de red.dash y los de Dash, a tr(420-441); uno que no conoce, tal cual) al ponerlos en la
+  respuesta. La instalación da un número (_actualizar_instalar) y actualizar_instalar lo pasa a tr(450-461). El
+  título, tr(412). 35 textos nuevos (198), traducidos en los nueve catálogos.
+- Batería: 108/108. Visto: test_http, test_http_carga ("connection refused"), test_actualizar ("the download arrived damaged
+  (CRC)"), test_red; en la copia del CoffinOS (Locale en español) con el catálogo: "No se pudo cargar la página" y
+  "conexión rechazada". (En FS-UAE el catálogo no se abre: su Locale no tiene idioma; la captura con
+  medir_visor --catalogo engañaba, porque el título estaba fijo en castellano.)
+- La 45 queda hecha.
+

@@ -491,3 +491,108 @@ kan ikke skrive %1
 MSG_411
 kan ikke læse %1
 ; can't read %1
+MSG_412
+Kunne ikke indlæse siden
+; Couldn't load the page
+MSG_420
+for mange forbindelser
+; too many connections
+MSG_421
+forbindelsen lukket
+; connection closed
+MSG_422
+ikke mere hukommelse
+; out of memory
+MSG_423
+kan ikke sende
+; can't send
+MSG_424
+netværket lukket
+; network closed
+MSG_425
+forbindelsen afvist
+; connection refused
+MSG_426
+for mange forbindelser på én gang
+; too many connections at once
+MSG_427
+for mange TLS-forbindelser
+; too many TLS connections
+MSG_428
+fejl ved afsendelse
+; error sending
+MSG_429
+fejl ved modtagelse
+; error receiving
+MSG_430
+netværksfejl
+; network error
+MSG_431
+TLS-fejl
+; TLS error
+MSG_432
+netværket tilhører en anden task
+; the network belongs to another task
+MSG_433
+AmiSSL mangler (amisslmaster.library)
+; AmiSSL is missing (amisslmaster.library)
+MSG_434
+ingen bsdsocket.library (der mangler en TCP/IP-stak)
+; no bsdsocket.library (a TCP/IP stack is missing)
+MSG_435
+serveren blev ikke fundet
+; server not found
+MSG_436
+kan ikke åbne AmiSSL (AmiSSL 5.1 eller nyere kræves)
+; can't open AmiSSL (5.1 or later is needed)
+MSG_437
+kan ikke åbne en socket
+; can't open a socket
+MSG_438
+kan ikke slå serveren op
+; can't look up the server
+MSG_439
+tidsgrænsen nået ved forbindelse
+; timed out connecting
+MSG_440
+tidsgrænsen nået ved TLS-forhandling
+; timed out negotiating TLS
+MSG_441
+tidsgrænsen nået ved søgning efter serveren
+; timed out looking up the server
+MSG_450
+ved ikke, hvor Tachyon ligger
+; can't tell where Tachyon is
+MSG_451
+overførslen mangler
+; the download is missing
+MSG_452
+kan ikke læse overførslen
+; can't read the download
+MSG_453
+overførslen er ikke en gzip
+; the download isn't a gzip
+MSG_454
+kan ikke pakke overførslen ud
+; can't decompress the download
+MSG_455
+overførslen kom frem beskadiget (CRC)
+; the download arrived damaged (CRC)
+MSG_456
+overførslen er ikke et program
+; the download isn't a program
+MSG_457
+overførslen er ikke Tachyon
+; the download isn't Tachyon
+MSG_458
+kan ikke skrive i Tachyons skuffe
+; can't write in Tachyon's drawer
+MSG_459
+disken er fuld
+; the disk is full
+MSG_460
+kan ikke flytte den nuværende Tachyon til side
+; can't move the current Tachyon aside
+MSG_461
+kan ikke sætte den nye på plads
+; can't put the new one in place
