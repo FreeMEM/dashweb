@@ -158,6 +158,9 @@ struct Pieza
     caja: Nodo = nil         # un inline-block maquetado como bloque en su sitio de la línea (ancho: con márgenes)
     video: Bool = false      # un <video> (texto: su dirección)
     lh: Int = -1             # el line-height de su texto en px (-1: normal; tarea 40d)
+    sub_color: Int = -1      # subrayado (text-decoration: underline): su color, grueso y distancia a la línea base;
+    sub_grosor: Int = 1      # -1: sin subrayar. Lo dibuja la maqueta (el estilo de la fuente del Amiga no vale para
+    sub_sep: Int = 1         # las fuentes web ni tiene color propio; los enlaces de dash.freemem.space, naranja de 2 px)
 end
 
 # Un número en hexadecimal ("e60a"); 0 si no lo es
@@ -332,6 +335,28 @@ func _fuente_de(m: Maquetador, familia: String, tam: Int) -> Int
     end
     m.fuentes[clave] = h
     return h
+end
+
+# El subrayado de una pieza en x (y: arriba de la línea): sigue al de la pieza de antes si es de la misma línea, color y
+# grueso y solo los separa un blanco (como en los navegadores, también bajo los espacios)
+func _subrayar(m: Maquetador, p: Pieza, x: Int, y: Int)
+    n = m.pagina.dibujos.length
+    i = n - 1
+    k = 0
+    while i >= 0 and k < 4
+        d = m.pagina.dibujos[i]
+        if d.tipo == D_LINEA and d.estilo == 7 and d.y == y and d.color == p.sub_color and d.alto == p.sub_grosor and x >= d.x + d.ancho and x - (d.x + d.ancho) <= p.alto
+            d.ancho = x + p.ancho - d.x
+            return
+        end
+        i = i - 1
+        k = k + 1
+    end
+    ln = _dibujo(D_LINEA, x, y, p.ancho, p.sub_grosor, p.sub_color)
+    ln.estilo = 7       # (un subrayado: los de la misma línea se juntan)
+    ln.nodo = p.nodo
+    ln.enlace = p.enlace
+    m.pagina.dibujos.push(ln)
 end
 
 # Los tamaños que traen las fuentes de mapa de bits del Workbench
@@ -4108,13 +4133,55 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
     if e.has("text-decoration")
         deco = e["text-decoration"]
     end
-    if str_find(deco, "underline") >= 0
-        estilo = estilo + EST_SUBRAYADO
-    end
     tachado = str_find(deco, "line-through") >= 0
     color = css_color(e["color"])
     if color < 0
         color = 0
+    end
+    # el subrayado: su color (text-decoration-color, o en el atajo), su grueso y su distancia; el de un antepasado en
+    # línea vale también para lo de dentro (CSS: se propaga; un <a> con un <span> dentro), con su color
+    sub_color = -1
+    sub_grosor = 1
+    sub_sep = 1
+    ed = e
+    if str_find(deco, "underline") < 0 and elemento != nil
+        a = elemento
+        while a != nil and a.tipo == DOM_ELEMENTO and _val(a.estilo, "display", "inline") == "inline"
+            if str_find(_val(a.estilo, "text-decoration", ""), "underline") >= 0
+                ed = a.estilo
+                deco = ed["text-decoration"]
+                break
+            end
+            a = a.padre
+        end
+    end
+    if str_find(deco, "underline") >= 0
+        sub_color = css_color(_val(ed, "color", ""))
+        if sub_color < 0
+            sub_color = color
+        end
+        for w in str_split(str_trim(deco), " ")
+            if w != "underline" and w != "solid" and css_color(w) >= 0
+                sub_color = css_color(w)
+            elif str_ends(w, "px")
+                sub_grosor = estilo_px(w, tam, 0)
+            end
+        end
+        dc = _val(ed, "text-decoration-color", "currentcolor")
+        if str_lower(dc) != "currentcolor" and css_color(dc) >= 0
+            sub_color = css_color(dc)
+        end
+        g = _val(ed, "text-decoration-thickness", "auto")
+        if g != "auto" and g != "from-font"
+            sub_grosor = estilo_px(g, tam, 0)
+        end
+        o = _val(ed, "text-underline-offset", "auto")
+        if o != "auto"
+            sub_sep = estilo_px(o, tam, 0)
+        end
+        if sub_grosor < 1
+            sub_grosor = 1
+        end
     end
     # -webkit-text-fill-color: el color de las letras; transparente con background-clip: text, el del fondo
     if e.has("-webkit-text-fill-color") and str_lower(e["-webkit-text-fill-color"]) != "currentcolor"
@@ -4140,6 +4207,9 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
             pz = Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false)
             pz.nodo = elemento
             pz.lh = lh
+            pz.sub_color = sub_color
+            pz.sub_grosor = sub_grosor
+            pz.sub_sep = sub_sep
             piezas.push(pz)
             salto = Pieza("", 0, alto, base, f, estilo, color, false, enlace, 0, true, false)
             salto.lh = lh
@@ -4152,6 +4222,9 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
             pz = Pieza(linea, font_text_width(linea), alto, base, f, estilo, color, tachado, enlace, 0, false, false)
             pz.nodo = elemento
             pz.lh = lh
+            pz.sub_color = sub_color
+            pz.sub_grosor = sub_grosor
+            pz.sub_sep = sub_sep
             piezas.push(pz)
         end
         return
@@ -4234,6 +4307,9 @@ func _palabras_texto(m: Maquetador, texto_dom: String, e: {String: String}, piez
         pz.nodo = elemento
         pz.espaciado = ls
         pz.lh = lh
+        pz.sub_color = sub_color
+        pz.sub_grosor = sub_grosor
+        pz.sub_sep = sub_sep
         if not hubo_blanco and piezas.length > 0
             anterior = piezas[piezas.length - 1]
             pz.pegada = not anterior.salto and not anterior.imagen and not anterior.control and not str_ends(anterior.texto, " ")
@@ -4431,6 +4507,9 @@ func _palabras_partidas(piezas: [Pieza], ancho: Int) -> [Pieza]
             pz.nodo = p.nodo
             pz.espaciado = p.espaciado
             pz.lh = p.lh
+            pz.sub_color = p.sub_color
+            pz.sub_grosor = p.sub_grosor
+            pz.sub_sep = p.sub_sep
             if primero
                 pz.espacio = p.espacio
                 pz.pegada = p.pegada
@@ -4687,6 +4766,9 @@ func _poner_linea(m: Maquetador, linea: [Pieza], x: Int, y: Int, ancho: Int, e: 
         end
         if p.tachado
             m.pagina.dibujos.push(_dibujo(D_LINEA, cx, y + base - p.base + uno + p.alto / 2, p.ancho, 1, p.color))
+        end
+        if p.sub_color >= 0 and p.texto != "" and p.ancho > 0
+            _subrayar(m, p, cx, y + base + uno + p.sub_sep)
         end
         cx = cx + p.ancho
     end

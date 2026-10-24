@@ -504,6 +504,14 @@ tarea, con el estilo de Dash.
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
       su JavaScript parado; con poca memoria libre, las de detrás se "descartan" como en Chrome (solo dirección,
       título y desplazamiento; se cargan al volver). Medir cuánto ocupa cada una antes y después.
+      Diseño (2026-10-24): Dash no añade ni quita objetos MUI mientras corre, pero sí los enseña y esconde
+      (mui_set_visible): la barra, una fila de 8 botones en navegador.dashui (como mucho 8 pestañas por ventana),
+      escondida con una sola; cada botón con el título de su página (cortado) y la de delante marcada. Ventana se
+      queda con los campos de la pestaña de delante (actual, desde, pasos, visto, carga, preparando, js_cuando, foco,
+      empezada, io_pagina, animando, fotograma...): cambiar de pestaña los guarda en su Pestana y trae los de la otra
+      (así casi todo el código sigue igual). Las de detrás, quietas: sin temporizadores ni cargas (la carga sigue al
+      volver) y, más adelante, sin imágenes decodificadas. Menú Proyecto: Nueva pestaña (Amiga-T), Cerrar pestaña
+      (Amiga-W); un enlace con el botón central del ratón, en una pestaña nueva.
 
 - [x] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
       una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
@@ -4441,4 +4449,18 @@ Formato:
 - (5) Los errores de lib/http.dash y lib/documento.dash (400-411, "tiempo agotado", "cuerpo cortado"...): salen tras
   "Error:" en la barra. Los de lib/red.dash no: parte corre en la tarea de la red y el catálogo se abre con el primer
   tr, mejor que lo abra la principal. 157 textos, todos traducidos.
+
+### 2026-10-24 — Tarea 48b (dash): las barras y los subrayados
+- dash.freemem.space entera contra Chrome (copia local bajada con scrollBy, capturas juntadas): casi igual. Dos
+  cosas: las barras de "609 builtins" salían todas enteras y los enlaces del pie y los títulos de "Hecho con Dash"
+  sin su subrayado naranja.
+- Las barras son inline-size: 63%: lib/estilo.dash pasa inline-size, block-size y sus min- y max- a width y height
+  (_logica_tamano; los márgenes y rellenos lógicos ya se pasaban).
+- El subrayado era el estilo de la fuente del Amiga: del color del texto, de 1 px y nada con las fuentes web (los
+  enlaces van en topaz, una fuente web). Ahora lo dibuja la maqueta (_subrayar: una línea por tramo, seguida bajo los
+  espacios), con text-decoration-color (o el del atajo), text-decoration-thickness y text-underline-offset; el de un
+  antepasado en línea vale para lo de dentro (un <a> con un <span>), con su color.
+- tests/test_maqueta_subrayado.dash (nuevo) y test_maqueta_inset.dash (inline-size). Visto en la copia: las barras en
+  su proporción y el pie con sus subrayados naranja. Queda distinto: la letra del código (LetterGothic, algo más
+  pequeña que la monospace de Chrome con el mismo interlineado).
 

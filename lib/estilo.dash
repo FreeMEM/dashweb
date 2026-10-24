@@ -1139,6 +1139,28 @@ func _logica_lados(p: String) -> [String]
     return nada
 end
 
+# inline-size, block-size y sus min- y max-: width y height (en horizontal; las barras de dash.freemem.space son
+# inline-size: 63%); las demás, tal cual
+func _logica_tamano(p: String) -> String
+    if not str_ends(p, "-size")
+        return p
+    end
+    if p == "inline-size"
+        return "width"
+    elif p == "block-size"
+        return "height"
+    elif p == "min-inline-size"
+        return "min-width"
+    elif p == "max-inline-size"
+        return "max-width"
+    elif p == "min-block-size"
+        return "min-height"
+    elif p == "max-block-size"
+        return "max-height"
+    end
+    return p
+end
+
 func _es_atajo(p: String) -> Bool
     if (str_ends(p, "-inline") or str_ends(p, "-block") or str_ends(p, "-start") or str_ends(p, "-end")) and _logica_lados(p) != nil
         return true
@@ -1171,7 +1193,7 @@ end
 var estilo_raro: Bool = false
 
 func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp: Int, orden: Int)
-    p = d.propiedad
+    p = _logica_tamano(d.propiedad)
     v = d.valor
     # una longitud sin unidad (que no sea 0) no vale en modo estándar: la declaración no cuenta (Acid2: .parser {
     # width: 200 }; tarea 41a)

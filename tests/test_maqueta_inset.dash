@@ -10,6 +10,7 @@
 # más ancho que su contenedor (tarea 48b): se queda si un overflow de fuera lo recorta (300) y, si no, sin salirse
 # de la ventana de 400, se encoge al contenedor (100). Un background de tres capas (dos linear-gradient con su sitio
 # y su tamaño sobre gris; tarea 48j): la de abajo primero (10x8 en 8,7), luego la de encima (9x7 en 5,5), y el gris.
+# inline-size y block-size (las barras de dash.freemem.space; tarea 48b): width y height (63 % de 200 y 7).
 # memcheck
 # expect-out: inset: 0 0 0 0 | 1px 2px 1px 2px
 # expect-out: uno 0,30 200x270 | abs 0,30 200x270
@@ -20,6 +21,7 @@
 # expect-out: min-width 82 82 | flex 164 136
 # expect-out: absoluto ancho: 300 100
 # expect-out: capas: 10x8+8+7 9x7+5+5 | gris true
+# expect-out: lógicas: 126x7
 # expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
 
 import "../lib/maqueta.dash"
@@ -45,7 +47,8 @@ Main
     h = h + "<div style='display:flex;justify-content:space-between;width:300px'><span>Red</span><span id=mf><em style='display:inline-block;min-width:82px'>entra</em><em style='display:inline-block;min-width:82px'>sale</em></span></div>"
     h = h + "<div style='position:relative;width:200px;height:20px;overflow:hidden'><div id=ancha style='position:absolute;top:0;left:0;width:300px;height:10px'></div></div>"
     h = h + "<div style='position:relative;width:100px;height:20px'><div id=ancha2 style='position:absolute;top:0;left:0;width:600px;height:10px'></div></div>"
-    h = h + "<div id=capas style='width:22px;height:20px;background:linear-gradient(red, red) 5px 5px / 9px 7px no-repeat, linear-gradient(blue, blue) 8px 7px / 10px 8px no-repeat, gray'></div></body></html>"
+    h = h + "<div id=capas style='width:22px;height:20px;background:linear-gradient(red, red) 5px 5px / 9px 7px no-repeat, linear-gradient(blue, blue) 8px 7px / 10px 8px no-repeat, gray'></div>"
+    h = h + "<div style='width:200px'><div id=logica style='inline-size:63%;block-size:7px;background:red'></div></div></body></html>"
     doc = dom_desde_html(h)
     estilo_aplicar(doc, estilo_hojas(doc, "http://x/"))
     p = maquetar(doc, 400)
@@ -80,4 +83,6 @@ Main
         end
     end
     Print l + " | gris " + gris
+    lg = dom_por_id(doc, "logica")
+    Print "lógicas: " + lg.caja_w + "x" + lg.caja_h
 end
