@@ -2016,6 +2016,9 @@ Main
     documento_aplazar = true
     cookies_cargar(FICHERO_COOKIES)
     descargas_cargar(FICHERO_DESCARGAS)
+    # el idioma de Locale para las webs: Accept-Language y navigator.language
+    jsdom_idioma = actualizar_idioma_web(actualizar_idioma_preferido())
+    http_idiomas = actualizar_idioma_cabecera(jsdom_idioma)
     # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)
     dos_requesters(false)
     if mui_app_begin("Tachyon", "TACHYON") == 0

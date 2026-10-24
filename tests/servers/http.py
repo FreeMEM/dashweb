@@ -62,6 +62,7 @@ class Handler(socketserver.StreamRequestHandler):
         self.galletas = ""
         self.prueba = ""
         self.tipo = ""
+        self.idiomas = "-"
         while True:
             header = self.rfile.readline()
             if header in (b"\r\n", b"\n", b""):
@@ -74,6 +75,8 @@ class Handler(socketserver.StreamRequestHandler):
                 self.prueba = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().startswith(b"content-type:"):
                 self.tipo = header.split(b":", 1)[1].strip().decode("latin-1")
+            if header.lower().startswith(b"accept-language:"):
+                self.idiomas = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().startswith(b"accept-encoding:"):
                 self.acepta = header.split(b":", 1)[1].strip().decode("latin-1")
             if header.lower().replace(b" ", b"").startswith(b"connection:keep-alive"):
@@ -164,6 +167,10 @@ class Handler(socketserver.StreamRequestHandler):
                 data = woff(open(f, "rb").read())
                 self.wfile.write(reply("200 OK", [("Content-Type", "font/woff"), ("Content-Length", str(len(data)))], data))
                 return
+        if path == "/eco_idioma":   # the Accept-Language it sent ("-" without one)
+            data = self.idiomas.encode("latin-1")
+            self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))
+            return
         if path.split("?")[0] == "/eco":   # what the client sent, to check the request (and a POST's body)
             data = line.encode("latin-1") + body
             self.wfile.write(reply("200 OK", [("Content-Length", str(len(data)))], data))

@@ -40,6 +40,9 @@ end
 const HTTP_MAX_REDIRECCIONES = 5
 const HTTP_AGENTE = "Tachyon/0.7 (AmigaOS)"
 
+# Accept-Language de cada petición ("es-ES,es;q=0.9,en;q=0.8"; "" sin ella): lo pone el programa con el idioma de Locale
+var http_idiomas: String = ""
+
 # Conexiones que siguen abiertas tras una respuesta (keep-alive), para la siguiente petición al mismo servidor
 # sin volver a conectar ni negociar TLS. Solo las cargas sin espera (http_empezar...) y solo si el programa lo
 # pide: http_seguir = true, y http_cerrar_libres() al acabar.
@@ -178,6 +181,9 @@ func _http_peticion(u: Url, metodo: String, cuerpo: String, tipo: String, agente
         peticion = peticion + "keep-alive"
     else
         peticion = peticion + "close"
+    end
+    if http_idiomas != ""
+        peticion = peticion + "\r\nAccept-Language: " + http_idiomas
     end
     galletas = cookies_para(u)
     if galletas != ""

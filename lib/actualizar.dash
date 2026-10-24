@@ -284,6 +284,28 @@ func actualizar_catalogo_url(version: String, idioma: String) -> String
     return actualizar_descargas + "v" + version + "/Tachyon-" + actualizar_ascii(idioma) + ".catalog"
 end
 
+# El idioma de Locale como lo dicen las webs ("español": "es-ES"); "en-US" si no se conoce
+func actualizar_idioma_web(idioma: String) -> String
+    nombres = ["espanol", "catala", "euskara", "galego", "deutsch", "francais", "italiano", "portugues", "nederlands", "svenska", "dansk", "norsk", "suomi", "polski", "magyar", "turkce", "english", "american", "british"]
+    codigos = ["es-ES", "ca-ES", "eu-ES", "gl-ES", "de-DE", "fr-FR", "it-IT", "pt-PT", "nl-NL", "sv-SE", "da-DK", "nb-NO", "fi-FI", "pl-PL", "hu-HU", "tr-TR", "en-GB", "en-US", "en-GB"]
+    a = str_lower(actualizar_ascii(idioma))
+    for i in (0..nombres.length - 1)
+        if a == nombres[i]
+            return codigos[i]
+        end
+    end
+    return "en-US"
+end
+
+# Su Accept-Language, como Chrome ("es-ES": "es-ES,es;q=0.9,en;q=0.8")
+func actualizar_idioma_cabecera(web: String) -> String
+    base = str_split(web, "-")[0]
+    if base == "en"
+        return web + ",en;q=0.9"
+    end
+    return web + "," + base + ";q=0.9,en;q=0.8"
+end
+
 # Baja su Tachyon.gz a T: sin esperar
 func actualizar_bajar(n: Novedad) -> Carga
     file_delete(ACTUALIZAR_GZ)

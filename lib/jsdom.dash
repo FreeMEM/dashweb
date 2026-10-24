@@ -1797,9 +1797,13 @@ end
 """
 end
 
+# navigator.language de las páginas ("es-ES"): lo pone el programa con el idioma de Locale
+var jsdom_idioma: String = "en-US"
+
 # document = doc en el motor js, con eventos y temporizadores (una sola vez por motor)
 func jsdom_preparar(js: Int, doc: Nodo)
     jsdom_motor_dom(js, doc)
+    js_evaluar(js, "var __dashweb_idioma = '" + jsdom_idioma + "';", "dashweb")
     js_evaluar(js, jsdom_preludio_js(), "dashweb")
     if js_error(js) != ""
         Print "JS: " + js_error(js)

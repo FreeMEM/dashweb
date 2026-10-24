@@ -392,22 +392,22 @@ tarea, con el estilo de Dash.
       [~] 37h. Bajar por la página comparando con Chrome y arreglar lo que salga hasta que se vea bien. Cerrar la 37
            cuando el usuario lo dé por bueno.
 
-- [ ] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
+- [~] 45. **La interfaz: menús, iconos, actividad e historial (usuario, 2026-10-23: "sorpréndeme").** Hacerla por pasos
       y probar cada uno en el emulador con capturas (rtg, MUI 3.8, y alguna en 4 colores) hasta que encaje.
-      a. Menús ordenados (dashui admite varios): Proyecto (Nueva ventana N, Cerrar ventana K, Ir a la dirección L
+      [x] a. Menús ordenados (dashui admite varios): Proyecto (Nueva ventana N, Cerrar ventana K, Ir a la dirección L
          —el cursor al campo, MUIA_Window_ActiveObject—, Acerca de ?, Salir Q); Navegar (Atrás, Adelante, Recargar R,
          Parar, Página de inicio H, Historial Y); Marcadores (Ver marcadores B, Añadir o quitar esta página D, Usar
          como página de inicio); Herramientas (Cookies, Buscar actualizaciones, No avisar de versiones nuevas).
-      b. Iconos: Actualizar como icono (no un botón de texto), con su ayuda "Actualizar a la 0.5.0-alfa" (mui_help)
+      [x] b. Iconos: Actualizar como icono (no un botón de texto), con su ayuda "Actualizar a la 0.5.0-alfa" (mui_help)
          y otro para Reiniciar. Los iconos nuevos con 8 colores (los 4 del Workbench más verde, verde oscuro, rojo y
          amarillo; MUI los ajusta a la pantalla).
-      c. La actividad: fuera el punto de arriba; un led en la barra de estado, a la izquierda: verde que parpadea
+      [x] c. La actividad: fuera el punto de arriba; un led en la barra de estado, a la izquierda: verde que parpadea
          mientras algo llega, rojo un rato si la página falló, apagado parado (un lienzo de 12x12: barato).
-      d. El historial: fuera el panel lateral (no se leían las direcciones). Una página tachyon:historial como la de
+      [x] d. El historial: fuera el panel lateral (no se leían las direcciones). Una página tachyon:historial como la de
          Chrome: lo visto (todas las ventanas), lo último arriba, con la hora, el título y la dirección entera, y un
          enlace para borrarlo; se guarda en Tachyon.historial (las últimas 300). El botón y el menú la abren. Atrás y
          adelante, con una lista propia de cada ventana.
-      e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
+      [x] e. Más: un candado junto a la dirección (cerrado con HTTPS, abierto con HTTP, nada en las páginas tachyon:);
          una estrella para el marcador (llena si la página está en marcadores; un clic la añade o la quita); en
          tachyon:marcadores, quitar cada uno; los atajos en el menú.
       [x] f. (2026-10-23) La página de inicio: el buscador (form con display: flex, input con flex: 1 y width: 400px, botón
@@ -420,7 +420,7 @@ tarea, con el estilo de Dash.
          punto ni esquema se buscan, como en Chrome). Antes, ver en el emulador qué páginas de resultados salen bien.
          Hecho (2026-10-23): DuckDuckGo (HTML) por defecto, Google, Bing, Brave, Wikipedia y Aminet; Startpage,
          Mojeek y Ecosia fuera (piden demostrar que no se es un robot). Google enseña antes su aviso de cookies.
-      [ ] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
+      [~] g. Catálogos de idiomas (usuario, 2026-10-23): los textos de la interfaz en catálogos de locale.library
          (Tachyon.catalog por idioma, español por defecto dentro), al menos inglés. Mirar si Dash tiene catálogos.
          (2026-10-23) Dash no los tiene: propuesto a la sesión dash como D71 (@catalog, tr(id, texto), ids en el
          .dashui y una herramienta .cd/.ct -> .catalog). Espera a ella.
@@ -435,6 +435,8 @@ tarea, con el estilo de Dash.
          catalogos/español.ct con el castellano; las pruebas que miran textos de las páginas tachyon:, en inglés.
          Avisar a la sesión de las webs cuando salga la versión.
          (2026-10-23) Hecha (D71, Dash 9c1c1f6). Usuario: la traducción, para la 0.7.0 (la 0.6.0 sale antes).
+         (2026-10-24) Hecho todo menos los errores de lib/red.dash y de lib/actualizar.dash: siguen en castellano
+         (ahora que la interfaz es inglés de serie, se ven mezclados).
 - [x] 47. **Gestor de descargas (usuario, 2026-10-23).** Hoy cada ventana baja una cosa a la vez (w.descarga) y solo
       lo dice la barra de estado. Una lista global: varias a la vez, que siguen aunque se cambie de página o se cierre
       la ventana; la página tachyon:descargas con cada una (nombre, dónde se guarda, KB de cuántos, velocidad, lo que
@@ -504,7 +506,11 @@ tarea, con el estilo de Dash.
       salida: Traspaso:Tachyon/Tachyon https://tachyon.freemem.space/ >Traspaso:salida.txt. Hasta entenderlo, sin
       versión nueva (sería un paso atrás en su sistema).
       Hecho (2026-10-24; ver la bitácora): la FPU empezaba en precisión simple.
-- [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
+- [x] 52. **El idioma de Locale para las webs (pendiente de la 51).** navigator.language era 'es-ES' fijo y no se
+      mandaba Accept-Language: Google, DuckDuckGo y demás elegían el idioma por su cuenta. Que las dos sigan al
+      primer idioma de las Preferencias de Locale ("español": es-ES; uno que no se conoce, en-US).
+      Hecho (2026-10-24; ver la bitácora).
+- [~] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
       de dibujo y un Documento por pestaña (la barra de pestañas encima). La de delante, entera; las de detrás sin
       sus imágenes decodificadas (se vuelven a pintar al volver: están en la caché de disco o se piden otra vez) y con
       su JavaScript parado; con poca memoria libre, las de detrás se "descartan" como en Chrome (solo dirección,
@@ -4604,3 +4610,19 @@ Formato:
 - Con la 50 y la 51 (los resultados de DuckDuckGo, el buscador de serie, no abrían). Batería 107/107; MUI 3.8
   (sys32rtg38) con la /l/ de DuckDuckGo: salta a github.com/FreeMEM/dash. PR #9; paquete en un worktree limpio de
   main; release con tachyon.lha, Tachyon.gz y los nueve catálogos (11 ficheros).
+
+### 2026-10-24 — Tarea 52: el idioma de Locale para las webs
+- navigator.language era 'es-ES' fijo (y languages ['es-ES', 'es', 'en']) y las peticiones no llevaban
+  Accept-Language: cada web elegía el idioma a su manera, y en inglés de serie (45g) el JavaScript seguía diciendo
+  español.
+- Ahora, al arrancar, el primer idioma de Locale pasa a su código de web (actualizar_idioma_web: los nombres de
+  AmigaOS sin acentos, "español" es-ES, "français" fr-FR, "norsk" nb-NO; uno que no se conoce, en-US) y de ahí a
+  http_idiomas (Accept-Language como Chrome: "es-ES,es;q=0.9,en;q=0.8") y a jsdom_idioma (navigator.language, y
+  languages con la base y "en"). De paso, navigator.userAgent decía "dashweb/0.1": ahora "Tachyon/0.7".
+- Batería: 108/108. Visto: test_idioma (los códigos, la cabecera que llega al servidor de pruebas, /eco_idioma, con y sin, y
+  navigator en la página con dos idiomas). En el emulador la Locale es inglés: en-US. Sin ver una web real en
+  castellano.
+
+- Panel: la sesión de trasfondo lo puso al día a mano (áreas, estándares, medidas: docs/panel/, revisados con la
+  bitácora); tools/panel_progreso.py cuenta ya las subtareas con solo su letra ("[x] f." de la 45: 45f). Marcadas
+  la 45 a-e; la 45, la 45g y la 46, en curso (lo que les falta, en cada una).

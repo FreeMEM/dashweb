@@ -1,0 +1,34 @@
+# Test: el idioma de Locale para las webs (tarea 52; navigator.language era 'es-ES' fijo y no se mandaba
+# Accept-Language): su código ("español": "es-ES", uno que no se conoce: "en-US"), la cabecera como Chrome, la
+# cabecera en la petición y navigator.language y languages en la página.
+# emu-server: http.py 40892
+# memcheck
+# expect-out: códigos: es-ES fr-FR pt-PT nb-NO en-GB en-US en-US
+# expect-out: cabecera: es-ES,es;q=0.9,en;q=0.8 | en-US,en;q=0.9
+# expect-out: petición: es-ES,es;q=0.9,en;q=0.8 | -
+# expect-out: navigator: de-DE de-DE,de,en | en-US en-US,en
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+import "../lib/actualizar.dash"
+
+func navegador() -> String
+    d = documento_html("http://x.com/", "<html><body><script>var z = 1;</script></body></html>")
+    r = js_evaluar(d.js, "navigator.language + ' ' + navigator.languages.join(',')", "t.js")
+    documento_liberar(d)
+    return r
+end
+
+Main
+    l = "códigos: " + actualizar_idioma_web("español") + " " + actualizar_idioma_web("français") + " " + actualizar_idioma_web("português")
+    Print l + " " + actualizar_idioma_web("norsk") + " " + actualizar_idioma_web("english") + " " + actualizar_idioma_web("klingon") + " " + actualizar_idioma_web("")
+    Print "cabecera: " + actualizar_idioma_cabecera("es-ES") + " | " + actualizar_idioma_cabecera("en-US")
+    http_idiomas = actualizar_idioma_cabecera("es-ES")
+    l = "petición: " + http_get("http://127.0.0.1:40892/eco_idioma", 5000).cuerpo
+    http_idiomas = ""
+    Print l + " | " + http_get("http://127.0.0.1:40892/eco_idioma", 5000).cuerpo
+    jsdom_idioma = "de-DE"
+    l = "navigator: " + navegador()
+    jsdom_idioma = "en-US"
+    Print l + " | " + navegador()
+end
