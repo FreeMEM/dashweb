@@ -22,6 +22,18 @@
               "tr": 3
             },
             {
+              "label": "Nueva pestaña",
+              "key": "T",
+              "event": 49,
+              "tr": 45
+            },
+            {
+              "label": "Cerrar pestaña",
+              "key": "W",
+              "event": 50,
+              "tr": 46
+            },
+            {
               "separator": true
             },
             {
@@ -330,6 +342,83 @@
                 "hidden": true,
                 "tr": {
                   "help": 39
+                }
+              }
+            ]
+          },
+          {
+            "type": "hgroup",
+            "name": "pestanas",
+            "hidden": true,
+            "children": [
+              {
+                "type": "button",
+                "name": "pest0",
+                "label": " ",
+                "event": 40,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest1",
+                "label": " ",
+                "event": 41,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest2",
+                "label": " ",
+                "event": 42,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest3",
+                "label": " ",
+                "event": 43,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest4",
+                "label": " ",
+                "event": 44,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest5",
+                "label": " ",
+                "event": 45,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest6",
+                "label": " ",
+                "event": 46,
+                "hidden": true
+              },
+              {
+                "type": "button",
+                "name": "pest7",
+                "label": " ",
+                "event": 47,
+                "hidden": true
+              },
+              {
+                "type": "space"
+              },
+              {
+                "type": "button",
+                "name": "pest_nueva",
+                "label": "+",
+                "event": 48,
+                "weight": 0,
+                "help": "Nueva pestaña (Amiga-T)",
+                "tr": {
+                  "help": 44
                 }
               }
             ]

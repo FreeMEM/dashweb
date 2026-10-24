@@ -55,6 +55,11 @@ const ID_ESTRELLA = 26
 const ID_CANDADO = 27
 const ID_BUSCADORES = 28
 const ID_DESCARGAS = 29
+const ID_PESTANA = 40          # + número de pestaña: su botón de la barra de pestañas (tarea 46)
+const ID_PESTANA_MAS = 48      # el "+" de la barra
+const ID_NUEVA_PESTANA = 49    # menú Proyecto (Amiga-T)
+const ID_CERRAR_PESTANA = 50   # (Amiga-W)
+const MAX_PESTANAS = 8
 # y los del programa
 const ID_TIC = 11         # el temporizador: las cargas en curso y los setTimeout/setInterval de las páginas
 const ID_RANGO = 12       # la barra, después de maquetar en el dibujo (el ancho cambió)
@@ -102,6 +107,28 @@ struct Ventana
     animando: Bool = false       # alguna animación de CSS viva: un fotograma en cada tic (unos 15 por segundo)
     fotograma: Int = 0           # time_ms del último fotograma pintado
     io_pagina: Pagina = nil      # la maqueta de la última vez que se miraron los IntersectionObserver
+    # sus pestañas (tarea 46): los campos de arriba son los de la de delante; las de detrás, guardados en la suya
+    pestanas: [Pestana] = nil
+    pestana: Int = 0
+end
+
+# Lo de una pestaña de detrás (lo mismo que en Ventana para la de delante); quieta: sin temporizadores ni carga
+struct Pestana
+    actual: Documento = nil
+    desde: Int = 0
+    pasos: [String] = nil
+    visto: Int = -1
+    carga: Carga = nil
+    carga_dir: String = ""
+    preparando: Documento = nil
+    js_cuando: Int = -1
+    foco: Nodo = nil
+    empezada: Int = 0
+    io_pagina: Pagina = nil
+    animando: Bool = false
+    fotograma: Int = 0
+    url: String = ""          # lo escrito en la barra de la dirección
+    estado: String = ""       # lo que decía la barra de estado
 end
 
 var dw_ventanas: [Ventana] = []
@@ -328,6 +355,37 @@ end
 
 # Lo escrito por la salida (los errores del JavaScript, la traza), al fichero o la consola ya: si el navegador no
 # acaba (una página que no termina de llegar), no se pierde en el búfer de AmigaDOS
+# Las teclas modificadoras pulsadas ahora (PeekQualifier de input.device: IEQUALIFIER_*): Mayúsculas o Amiga con un
+# clic en un enlace lo abren en una pestaña nueva (tarea 46). input.device se abre la primera vez y queda abierto
+@header "#include <devices/input.h>"
+@header "#include <devices/inputevent.h>"
+@header "#include <proto/input.h>"
+@native func modificadoras() -> Int
+"""
+    static struct IOStdReq *io = NULL;
+    static int abierto = 0;
+    if (!abierto) {
+        struct MsgPort *mp = CreateMsgPort();
+        abierto = -1;
+        if (mp) {
+            io = (struct IOStdReq *)CreateIORequest(mp, sizeof(struct IOStdReq));
+            if (io && !OpenDevice((STRPTR)"input.device", 0, (struct IORequest *)io, 0)) abierto = 1;
+        }
+    }
+    if (abierto != 1) return 0;
+    {
+        struct Device *InputBase = io->io_Device;
+        return (LONG)PeekQualifier();
+    }
+"""
+end
+
+func con_mayusculas_o_amiga() -> Bool
+    q = modificadoras()
+    # IEQUALIFIER_LSHIFT 1, RSHIFT 2, LCOMMAND 0x40, RCOMMAND 0x80
+    return (q & 0xC3) != 0
+end
+
 @native func vaciar_salida()
 """
     Flush(Output());
@@ -911,6 +969,7 @@ func mostrar(w: Ventana, d: Documento, direccion: String)
     temporizadores(w)
     actualizar_giro(w)
     indicadores(w)
+    pestanas_barra(w)
     # al historial (tachyon:historial) lo que llegó bien, no las páginas propias
     if w.actual.error == "" and (str_starts(w.actual.direccion, "http:") or str_starts(w.actual.direccion, "https:"))
         historial_agregar(FICHERO_HISTORIAL, w.actual.direccion, w.actual.titulo, historial_ahora())
@@ -1317,7 +1376,12 @@ func clic(w: Ventana)
     elif r == FORM_NADA
         destino = documento_enlace(w.actual, n)
         if destino != ""
-            navegar(w, destino)
+            # con Mayúsculas o Amiga, en una pestaña nueva (como Ctrl-clic en los navegadores de hoy)
+            if con_mayusculas_o_amiga()
+                nueva_pestana(w, destino)
+            else
+                navegar(w, destino)
+            end
         end
     end
 end
@@ -1442,6 +1506,199 @@ end
 end
 
 # Una ventana nueva con esa dirección ("" = la página de inicio); nil si ya hay MAX_VENTANAS
+# === Pestañas (tarea 46) ===
+# Una fila de botones encima de la página, escondida con una sola: Dash no añade objetos MUI mientras corre, así que
+# son MAX_PESTANAS botones hechos de antes que se enseñan con el título de su página (la de delante, en negrita).
+
+func _pestanas(w: Ventana) -> [Pestana]
+    if w.pestanas == nil
+        var ps: [Pestana] = []
+        ps.push(Pestana())
+        w.pestanas = ps
+        w.pestana = 0
+    end
+    return w.pestanas
+end
+
+# La de delante, a su Pestana
+func pestana_guardar(w: Ventana)
+    p = _pestanas(w)[w.pestana]
+    p.actual = w.actual
+    p.desde = w.desde
+    p.pasos = w.pasos
+    p.visto = w.visto
+    p.carga = w.carga
+    p.carga_dir = w.carga_dir
+    p.preparando = w.preparando
+    p.js_cuando = w.js_cuando
+    p.foco = w.foco
+    p.empezada = w.empezada
+    p.io_pagina = w.io_pagina
+    p.animando = w.animando
+    p.fotograma = w.fotograma
+    p.url = mui_get_text(w.v.url)
+    p.estado = mui_get_text(w.v.estado)
+end
+
+# La pestaña i, delante (su página, su dirección, sus botones y su barra de estado)
+func pestana_traer(w: Ventana, i: Int)
+    p = _pestanas(w)[i]
+    w.pestana = i
+    w.actual = p.actual
+    w.desde = p.desde
+    w.pasos = p.pasos
+    w.visto = p.visto
+    w.carga = p.carga
+    w.carga_dir = p.carga_dir
+    w.preparando = p.preparando
+    w.js_cuando = p.js_cuando
+    w.foco = p.foco
+    w.empezada = p.empezada
+    w.io_pagina = p.io_pagina
+    w.animando = p.animando
+    w.fotograma = p.fotograma
+    mui_set_text(w.v.url, p.url)
+    if w.actual != nil and w.actual.titulo != "" and w.actual.titulo != "Tachyon"
+        mui_set_text(w.v.window, w.actual.titulo + " - Tachyon")
+    else
+        mui_set_text(w.v.window, "Tachyon")
+    end
+    dw_estado(w, p.estado)
+    modo_carga(w, w.carga != nil or w.preparando != nil)
+    botones(w)
+    indicadores(w)
+    ajustar_barra(w)
+    actualizar_giro(w)
+    pestanas_barra(w)
+    mui_canvas_redraw(w.v.pagina)
+    programar()
+end
+
+func _pestana_boton(w: Ventana, i: Int) -> Int
+    if i == 0
+        return w.v.pest0
+    elif i == 1
+        return w.v.pest1
+    elif i == 2
+        return w.v.pest2
+    elif i == 3
+        return w.v.pest3
+    elif i == 4
+        return w.v.pest4
+    elif i == 5
+        return w.v.pest5
+    elif i == 6
+        return w.v.pest6
+    end
+    return w.v.pest7
+end
+
+# El nombre de la pestaña i en su botón: el título de su página (o su dirección), cortado
+func _pestana_nombre(w: Ventana, i: Int) -> String
+    d = w.actual
+    url = mui_get_text(w.v.url)
+    if i != w.pestana
+        d = w.pestanas[i].actual
+        url = w.pestanas[i].url
+    end
+    t = url
+    if d != nil and d.titulo != ""
+        t = d.titulo
+    end
+    if t == ""
+        t = tr(160, "Nueva pestaña")
+    end
+    if t.length > 18
+        t = t[:16] + "..."
+    end
+    return t
+end
+
+# La barra de pestañas al día: escondida con una sola; cada botón con su nombre, el de delante en negrita
+func pestanas_barra(w: Ventana)
+    ps = _pestanas(w)
+    mui_set_visible(w.v.pestanas, ps.length > 1)
+    if ps.length <= 1
+        return
+    end
+    for i in (0..MAX_PESTANAS - 1)
+        b = _pestana_boton(w, i)
+        if i < ps.length
+            nombre = _pestana_nombre(w, i)
+            if i == w.pestana
+                nombre = "\eb" + nombre
+            end
+            mui_set_text(b, nombre)
+        end
+        mui_set_visible(b, i < ps.length)
+    end
+end
+
+# Una pestaña nueva, delante, con direccion (o la página de inicio)
+func nueva_pestana(w: Ventana, direccion: String)
+    ps = _pestanas(w)
+    if ps.length >= MAX_PESTANAS
+        dw_estado(w, hueco(tr(161, "Como mucho %1 pestañas por ventana"), "" + MAX_PESTANAS))
+        return
+    end
+    pestana_guardar(w)
+    ps.push(Pestana())
+    var nada: Documento = nil
+    var sin_carga: Carga = nil
+    var nadie: Nodo = nil
+    var sin_pagina: Pagina = nil
+    var sin_pasos: [String] = []
+    w.actual = nada
+    w.preparando = nada
+    w.carga = sin_carga
+    w.foco = nadie
+    w.io_pagina = sin_pagina
+    w.pasos = sin_pasos
+    w.visto = -1
+    w.desde = 0
+    w.js_cuando = -1
+    w.animando = false
+    w.fotograma = 0
+    w.pestana = ps.length - 1
+    mui_set_text(w.v.url, "")
+    botones(w)
+    pestanas_barra(w)
+    if direccion != ""
+        navegar(w, direccion)
+    else
+        abrir(w, "")
+    end
+    pestanas_barra(w)
+end
+
+# Cierra la de delante (la última, la ventana) y trae la de al lado
+func cerrar_pestana(w: Ventana)
+    ps = _pestanas(w)
+    if ps.length <= 1
+        cerrar_ventana(w)
+        return
+    end
+    parar_carga(w)
+    if w.actual != nil
+        documento_liberar(w.actual)
+    end
+    ps.remove(w.pestana)
+    i = w.pestana
+    if i >= ps.length
+        i = ps.length - 1
+    end
+    pestana_traer(w, i)
+end
+
+# Un botón de la barra: esa pestaña, delante
+func elegir_pestana(w: Ventana, i: Int)
+    if w.pestanas == nil or i >= w.pestanas.length or i == w.pestana
+        return
+    end
+    pestana_guardar(w)
+    pestana_traer(w, i)
+end
+
 func nueva_ventana(direccion: String) -> Ventana
     var nada: Ventana = nil
     k = dw_ventanas.length
@@ -1490,6 +1747,20 @@ func cerrar_ventana(w: Ventana)
         documento_liberar(w.actual)
         var ninguno: Documento = nil
         w.actual = ninguno
+    end
+    # (las pestañas de detrás: sus páginas y lo que estuviera llegando)
+    if w.pestanas != nil
+        for i in (0..w.pestanas.length - 1)
+            p = w.pestanas[i]
+            if i != w.pestana
+                if p.carga != nil
+                    http_cancelar(p.carga)
+                end
+                if p.actual != nil
+                    documento_liberar(p.actual)
+                end
+            end
+        end
     end
     w.abierta = false
     mui_window_close(w.v.window)
@@ -1658,6 +1929,18 @@ Main
             w = activa()
             if w == nil
                 break
+            end
+            if ev >= ID_PESTANA and ev < ID_PESTANA + MAX_PESTANAS
+                elegir_pestana(w, ev - ID_PESTANA)
+                continue
+            end
+            if ev == ID_PESTANA_MAS or ev == ID_NUEVA_PESTANA
+                nueva_pestana(w, "")
+                continue
+            end
+            if ev == ID_CERRAR_PESTANA
+                cerrar_pestana(w)
+                continue
             end
             if ev == ID_IR
                 direccion = str_trim(mui_get_text(w.v.url))

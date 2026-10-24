@@ -131,6 +131,15 @@ _Close
 MSG_43
 \033c© 2026 Francisco Antonio Tapias Bravo\n\033cMIT License · github.com/FreeMEM/tachyon\n\n\033cA browser for the Amiga made in Dash, with MUI and AmiSSL.\n\033cIt includes, adapted for AmigaOS:\n\033cQuickJS (Fabrice Bellard and Charlie Gordon)\n\033cHubbub and LibParserUtils (NetSurf)\n\033cand also stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm and MintVID.\n\033cTheir licences are in the Licencias drawer.
 ; \033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicencia MIT · github.com/FreeMEM/tachyon\n\n\033cUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\033cLleva, adaptados para AmigaOS:\n\033cQuickJS (Fabrice Bellard y Charlie Gordon)\n\033cHubbub y LibParserUtils (NetSurf)\n\033cy también stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm y MintVID.\n\033cSus licencias, en el cajón Licencias.
+MSG_44
+New tab (Amiga-T)
+; Nueva pestaña (Amiga-T)
+MSG_45
+New tab
+; Nueva pestaña
+MSG_46
+Close tab
+; Cerrar pestaña
 MSG_100
 This page can't be bookmarked
 ; Esta página no se guarda en marcadores
@@ -305,6 +314,12 @@ https://en.wikipedia.org/
 MSG_159
 built on %1 at %2
 ; compilado el %1 a las %2
+MSG_160
+New tab
+; Nueva pestaña
+MSG_161
+At most %1 tabs per window
+; Como mucho %1 pestañas por ventana
 MSG_300
 Its JavaScript-free version: light, the one that runs best on an Amiga. Private.
 ; Su versión sin JavaScript: ligera, la que mejor va en un Amiga. Privado.

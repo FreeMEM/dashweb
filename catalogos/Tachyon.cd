@@ -86,6 +86,12 @@ MSG_42 (42//)
 _Cerrar
 MSG_43 (43//)
 \033c© 2026 Francisco Antonio Tapias Bravo\n\033cLicencia MIT · github.com/FreeMEM/tachyon\n\n\033cUn navegador para Amiga hecho en Dash, con MUI y AmiSSL.\n\033cLleva, adaptados para AmigaOS:\n\033cQuickJS (Fabrice Bellard y Charlie Gordon)\n\033cHubbub y LibParserUtils (NetSurf)\n\033cy también stb, NanoSVG, Brotli, libwebp,\n\033cTJpgDec, fdlibm y MintVID.\n\033cSus licencias, en el cajón Licencias.
+MSG_44 (44//)
+Nueva pestaña (Amiga-T)
+MSG_45 (45//)
+Nueva pestaña
+MSG_46 (46//)
+Cerrar pestaña
 MSG_100 (100//)
 Esta página no se guarda en marcadores
 MSG_101 (101//)
@@ -202,6 +208,10 @@ MSG_158 (158//)
 https://es.wikipedia.org/
 MSG_159 (159//)
 compilado el %1 a las %2
+MSG_160 (160//)
+Nueva pestaña
+MSG_161 (161//)
+Como mucho %1 pestañas por ventana
 MSG_300 (300//)
 Su versión sin JavaScript: ligera, la que mejor va en un Amiga. Privado.
 MSG_301 (301//)

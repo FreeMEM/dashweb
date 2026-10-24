@@ -512,6 +512,10 @@ tarea, con el estilo de Dash.
       (así casi todo el código sigue igual). Las de detrás, quietas: sin temporizadores ni cargas (la carga sigue al
       volver) y, más adelante, sin imágenes decodificadas. Menú Proyecto: Nueva pestaña (Amiga-T), Cerrar pestaña
       (Amiga-W); un enlace con el botón central del ratón, en una pestaña nueva.
+      Hecha la primera parte (2026-10-24; ver la bitácora): abrir, cambiar y cerrar pestañas. Falta: soltar las
+      imágenes decodificadas de las de detrás (y descartarlas con poca memoria) y medir la memoria de cada una.
+      Un enlace con Mayúsculas o Amiga pulsada, en una pestaña nueva: hecho, sin poderlo ver en el emulador (ver la
+      bitácora).
 
 - [x] 44. **Actualizarse desde Tachyon (usuario, 2026-10-23), como Chrome.** Al arrancar (como mucho una vez al día;
       una preferencia lo apaga) y desde el menú ("Buscar actualizaciones"), mirar la última versión publicada en
@@ -4463,4 +4467,24 @@ Formato:
 - tests/test_maqueta_subrayado.dash (nuevo) y test_maqueta_inset.dash (inline-size). Visto en la copia: las barras en
   su proporción y el pie con sus subrayados naranja. Queda distinto: la letra del código (LetterGothic, algo más
   pequeña que la monospace de Chrome con el mismo interlineado).
+
+### 2026-10-24 — Tarea 46 (1): pestañas
+- src/navegador.dashui: una fila bajo la barra de herramientas (escondida con una sola pestaña) con 8 botones
+  escondidos, un hueco y un "+"; menú Proyecto: Nueva pestaña (Amiga-T) y Cerrar pestaña (Amiga-W). Dash no añade
+  objetos MUI mientras corre: los botones se enseñan con el título de su página (cortado a 18; la de delante en
+  negrita, \eb).
+- src/dashweb.dash: Ventana sigue con los campos de la pestaña de delante (casi todo el código, igual) y una lista
+  de Pestana con los de las de detrás; cambiar de pestaña (pestana_guardar / pestana_traer) los guarda y trae, y pone
+  al día la dirección, el título, la barra de estado, los botones, la barra de desplazamiento y la página. Las de
+  detrás, quietas: sin temporizadores ni carga (sigue al volver). Cerrar la última cierra la ventana; cerrar la
+  ventana suelta las páginas de todas.
+- Visto en el emulador (rtg): Amiga-T abre la de inicio en una segunda pestaña, la barra sale con "Buscador" y
+  "Tachyon", un clic en la primera la trae entera (su dirección, su título, su página) y Amiga-W cierra la de
+  delante y esconde la barra. Ojo: sin el hueco, al enseñar la fila MUI estrechaba la ventana (los botones tienen
+  un ancho máximo).
+- (2) Mayúsculas o Amiga con un clic en un enlace: en una pestaña nueva (modificadoras: PeekQualifier de
+  input.device). Sin ver en el emulador: tools/amiga/clicar.dash tiene ahora "C X Y" (clic con Mayúsculas, pulsada
+  un segundo), pero una tecla metida con IND_WRITEEVENT no cambia el estado que da PeekQualifier (sale 0; el
+  dispositivo sí se abre). Con un teclado de verdad debería verse; si no, pedir a Dash el Qualifier del clic en el
+  lienzo de MUI (mui_canvas_button solo dice si fue clic). El clic sin teclas, como siempre (visto).
 
