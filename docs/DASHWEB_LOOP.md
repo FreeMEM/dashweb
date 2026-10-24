@@ -4599,3 +4599,8 @@ Formato:
 - Batería 107/107 (con la 50). Visto: test_navegar_js; la /l/ de DuckDuckGo de la captura en la máquina RTG ancha: pasa a
   https://github.com/FreeMEM/dash y lo carga.
 - Pendiente: navigator.language sigue 'es-ES' fijo; debería seguir al idioma de Locale.
+
+### 2026-10-24 — Publicada la v0.7.1-alfa
+- Con la 50 y la 51 (los resultados de DuckDuckGo, el buscador de serie, no abrían). Batería 107/107; MUI 3.8
+  (sys32rtg38) con la /l/ de DuckDuckGo: salta a github.com/FreeMEM/dash. PR #9; paquete en un worktree limpio de
+  main; release con tachyon.lha, Tachyon.gz y los nueve catálogos (11 ficheros).
