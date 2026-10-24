@@ -1245,7 +1245,29 @@ func _declarar(ganadoras: {String: Candidata}, d: Declaracion, autor: Bool, esp:
         var lugar: [String] = []
         tam = "auto"
         fija = "scroll"
-        for t in _palabras(v)
+        # varias capas (separadas por comas): entera en background-capas (lib/maqueta.dash pinta sus degradados, cada
+        # uno con su sitio y su tamaño; tarea 48j) y lo de siempre con la que lleva imagen (o la última); el color va en
+        # la última
+        capas = css_partir(v, 44)
+        uno = v
+        if capas.length > 1
+            _proponer(ganadoras, "background-capas", Candidata(v, d.importante, autor, esp, orden))
+            uno = capas[capas.length - 1]
+            for c in capas
+                if str_find(str_lower(c), "url(") >= 0
+                    uno = c
+                    break
+                end
+            end
+            for t in _palabras(capas[capas.length - 1])
+                if _es_color(t) and not str_starts(str_lower(t), "linear-gradient(") and not str_starts(str_lower(t), "-webkit-linear-gradient(") and not str_starts(t, "/")
+                    color = t
+                end
+            end
+        else
+            _proponer(ganadoras, "background-capas", Candidata("none", d.importante, autor, esp, orden))
+        end
+        for t in _palabras(uno)
             tl = str_lower(t)
             if str_starts(tl, "url(") or str_starts(tl, "linear-gradient(") or str_starts(tl, "-webkit-linear-gradient(") or str_starts(tl, "-moz-linear-gradient(") or str_starts(tl, "-o-linear-gradient(")
                 imagen = t

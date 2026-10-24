@@ -461,6 +461,29 @@ tarea, con el estilo de Dash.
          fondo, solo si la web tiene uno en 2D cuando no hay WebGL (se le puede pedir a la sesión de las webs).
          Mirado (2026-10-24, rtg): entera en 37 s, el cartel, los textos y los botones bien; solo falta el fondo
          (el error de WebGL no para lo demás). "Qué es" e "Info del Evento" del menú parten en dos líneas.
+      [x] g. trasfondo.freemem.space: las capturas (WebP diferidas) se quedaban en negro.
+         Hecho (2026-10-24; ver la bitácora): las maquetas caras del JavaScript, como mucho un tercio del tiempo.
+      [x] h. Maquetar otra vez solo una caja que no puede mover nada de fuera (absoluta con ancho y alto fijos, como
+         el escritorio de trasfondo: 960x600): el panel cambia su "CPU 2,1 %" cada segundo y hoy eso es la maqueta
+         entera (~730 ms y 160 de estilo en el emulador). Guardar al maquetar dónde y con qué se maquetó cada una
+         (su contenedor, el pase, sus recortes y desplazamientos de fuera), quitar sus dibujos y poner los nuevos.
+         Hecho (2026-10-24; ver la bitácora).
+      [x] i. trasfondo: en el panel del escritorio, la fila "Red" junta "entra" y "sale" (y sus cifras: "133 B/s36 B/s");
+         en Chrome van separadas.
+         Hecho (2026-10-24; ver la bitácora): min-width.
+      [x] j. trasfondo: los botones de las barras del escritorio y de sus ventanas (wb-profundidad, wb-cierre) son
+         varios linear-gradient de un color con su background-position y background-size sobre un color: salen
+         como un cuadro negro (o blanco). Pintar cada capa de fondo con su tamaño y su sitio.
+         Hecho (2026-10-24; ver la bitácora).
+      k. React #412 ("Connection closed") de vez en cuando (2 de ~10 cargas de la copia de trasfondo en el
+         emulador): la página se queda sin hidratar. Next cierra el flujo de self.__next_f en DOMContentLoaded (o
+         al momento si readyState ya no es "loading"): mirar si a veces se cierra antes de que corran todos los
+         <script> en línea que lo llenan (el orden de los async frente a los de en línea).
+         Medido (2026-10-24, copia con un script que apunta los push y el flujo): en las buenas, Next toma
+         __next_f y crea su ReadableStream a ~4,5 s, llegan 2 push y DOMContentLoaded (cierre) ~760 ms después;
+         en la del #412, solo 100 ms después: los scripts corrieron en otro orden (¿el async de Next tras los
+         datos en línea?). Con el diagnóstico puesto, 0 de 14 cargas: sin reproducir; mirar cómo ordena
+         lib/jsdom.dash los async que llegan tarde.
       b. Cada web: comparar con Chrome y arreglar lo que salga.
 
 - [ ] 46. **Pestañas (usuario, 2026-10-23; le preocupa la memoria).** Varias páginas en una ventana. Una sola zona
@@ -4314,3 +4337,66 @@ Formato:
   cruzan la fila (lib/lienzo.dash). tests/pages/estrellas.html y boing.html, con su código nuevo. En el emulador
   (rtg, con JIT): estrellas ~20 fotogramas/s (antes ~4), bola ~11/s. Con 120 estrellas el cielo se ve casi vacío:
   se le propuso a la web un mínimo de 300 y un umbral de 40 ms.
+
+### 2026-10-24 — Tarea 48g: trasfondo.freemem.space y las maquetas caras del JavaScript
+- En el emulador salía bien arriba, pero sus capturas de pantalla (WebP con loading="lazy", tras la portada) se
+  quedaban en cajas negras. Con una copia servida en local y la traza: aga-panel.webp llegaba a los 15 s y a los 45
+  aún no estaba decodificada (sola, en una página mínima, en 1,5 s). El escritorio de mentira de la portada cambia
+  cada segundo el texto de su panel ("CPU 2,1 %"): cada cambio era la maqueta entera, ~160 ms de estilo y ~730 de
+  maqueta (500 bloques). Al proceso que decodifica (prioridad -1) no le quedaba tiempo.
+- lib/documento.dash: si la última maqueta entera por el JavaScript pasó de 150 ms, la siguiente espera a que haya
+  pasado el doble (los cambios se juntan; lo del ratón no espera). src/dashweb.dash lo activa
+  (documento_aplazar) y despierta cuando toca aunque la página no tenga más temporizadores; las pruebas siguen
+  con cada cambio al momento.
+- Con eso aga-panel.webp se decodifica 4,6 s después de llegar, la página está entera a los 19,7 s y, bajándola
+  entera (scrollBy desde la copia), todas sus imágenes salen. El panel se pone al día cada ~2 s en vez de cada 1.
+- Pendiente (48h): maquetar otra vez solo esa caja.
+
+### 2026-10-24 — Tarea 48h: maquetar sola una caja absoluta de tamaño fijo
+- Una caja con position: absolute y width y height en px no mueve nada de fuera por lo que lleve dentro. Al
+  maquetarla (_absoluto) se apunta en la página (Pagina.limites) con qué se maquetó (su contenedor y lo de
+  alrededor: _cat_atomica, _alto_definido, la línea...) y su primer dibujo propio con dónde quedó; sus dibujos
+  llevan la caja (Dibujo.lim).
+- lib/documento.dash: si todo lo tocado por el JavaScript está dentro de una de ellas (no sus propios atributos;
+  lo que React tocó y luego quitó no cuenta) y los estilos que cambian son de dentro, maqueta_rehacer la maqueta
+  sola y pone lo que le hicieron los de fuera a la de antes (moverla, recortarla, su capa, velarla), sacado de dónde
+  acabó aquel dibujo; si algo de fuera la transforma, anima, fija o pega, la maqueta entera como antes. Se repinta
+  solo su zona.
+- tests/test_documento_limite.dash: un texto que se alarga en una fila flex dentro de una caja con scale(0.5), en un
+  marco relative con overflow: hidden y z-index, queda igual que con la maqueta entera (sitio, recorte, capa y su
+  caja para el JavaScript); un cambio fuera o en el style de la caja, maqueta entera.
+- trasfondo.freemem.space (copia local, emulador rtg): cada ciclo del panel, de ~870 ms a 500-640 (el escritorio
+  tiene 320 de los 510 bloques de la página). Y la traza dice por qué no se maqueta sola cuando no.
+- Visto: React #412 una vez en cinco cargas de la copia (sin hidratar); no se repitió.
+
+### 2026-10-24 — Tarea 48i: min-width
+- min-width solo se miraba en las cajas flex. Las columnas "entra" y "sale" del panel de trasfondo.freemem.space
+  (em inline-block con min-width: 82px y text-align: right) salían pegadas.
+- lib/maqueta.dash: un bloque no baja de su min-width (manda sobre width y max-width, CSS 2.1 10.4); al medir un
+  flotante o un inline-block, tampoco; y al medir lo de dentro, el fondo de un elemento con min-width cuenta como el
+  de uno con width (en una fila flex, las dos columnas saltaban de línea), solo hasta su min-width (al medir se
+  estira a 4000), y sin fondo deja el rectángulo vacío que ya dejaba una caja con width.
+- tests/test_maqueta_inset.dash: 82 y 82 en un bloque; 164 a la derecha (136) en la fila flex. En la copia de
+  trasfondo, "entra" y "sale" y sus cifras, cada una a la derecha de su columna.
+- Ojo, Dash: reusar en _ancho_flotante_medir el nombre de una variable que era un Nodo (medido) para un Int compiló
+  sin aviso y daba anchos de basura (la prueba se colgaba); se cambió el nombre. Pendiente de contárselo a Dash
+  (el mensaje a su sesión no llegó: va en otro modo de permisos).
+
+### 2026-10-24 — Tarea 48b (trasfondo): un absoluto con width fijo más ancho que su contenedor
+- El escritorio de la portada de trasfondo.freemem.space mide 960 (width) con scale(0.93) en un marco de 891 con
+  overflow: hidden. _absoluto encogía a su contenedor todo absoluto más ancho: se maquetaba a 891 y luego se
+  encogía (la barra "Workbench Screen" y el panel no llegaban a la derecha).
+- lib/maqueta.dash: con width fijo se queda su ancho (CSS 2.1 10.3.7) si cabe en la ventana o si un overflow de
+  fuera lo recorta (_recortado_fuera, hasta su antepasado posicionado); si no, como antes.
+- tests/test_maqueta_inset.dash: 300 recortado por su marco; 600 en una ventana de 400, al contenedor (100).
+  En la copia de trasfondo, la barra y el panel ya llegan al borde derecho, como en Chrome.
+
+### 2026-10-24 — Tarea 48j: fondos de varias capas
+- background con varias capas (separadas por comas) se leía como una: se juntaban sus palabras y salía el último
+  degradado a tamaño completo (los botones de profundidad y de cierre de las barras del Workbench de trasfondo,
+  tres linear-gradient de un color de 9x7, 8x6 y 10x8 px sobre gris, eran un cuadro negro o blanco).
+- lib/estilo.dash: con varias capas, la declaración entera va en background-capas y lo de siempre se queda con
+  la capa que lleva imagen (o la última; el color, de la última): las imágenes de fondo, como antes.
+- lib/maqueta.dash (_fondo_capas): cada capa que es un linear-gradient, de la última a la primera, con su
+  background-position y background-size en px (sin tamaño, toda la caja).
+- Visto en la copia de trasfondo: los botones de la ventana del cajón ya son su dibujo.

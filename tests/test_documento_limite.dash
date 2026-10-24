@@ -1,0 +1,75 @@
+# Test: un cambio del JavaScript dentro de una caja absoluta con width y height en px maqueta solo esa caja (tarea
+# 48h; el panel del escritorio de trasfondo.freemem.space cambia su "CPU 2,1 %" cada segundo). La caja va en un
+# marco relative (top: 10px: la mueve), con overflow: hidden (la recorta) y z-index (su capa), y ella misma con
+# scale(0.5): el texto que se alarga, a la derecha de una fila flex, queda igual que con la maqueta entera (sitio,
+# recorte y capa; y su caja para el JavaScript), y la página es la misma (no se maquetó entera). Un cambio fuera
+# de la caja, o en el style de la caja misma, maqueta entera.
+# memcheck
+# expect-out: parcial: true | texto: true | se movió: true
+# expect-out: igual que entera: true true true true
+# expect-out: fuera: false | su style: false
+# expect-out: memcheck: vivos 0 objetos y 0 strings (escapados 0 y 0), errores 0
+
+import "../lib/documento.dash"
+
+func texto_de(p: Pagina, n: Nodo) -> Dibujo
+    var nada: Dibujo = nil
+    for d in p.dibujos
+        if d.tipo == D_TEXTO and d.nodo == n
+            return d
+        end
+    end
+    return nada
+end
+
+func como(d: Dibujo) -> String
+    if d == nil
+        return "nil"
+    end
+    return "" + d.x + "," + d.y + " " + d.texto + " capa " + d.capa + " recorte " + d.recorte + " " + d.rx0 + "," + d.ry0 + "-" + d.rx1 + "," + d.ry1
+end
+
+Main
+    h = "<body style='margin:0'><div id=marco style='position:relative;top:10px;z-index:3;height:120px;overflow:hidden'>"
+    h = h + "<div id=caja style='position:absolute;top:5px;left:7px;width:400px;height:200px;background:#123;transform:scale(0.5);transform-origin:0 0'>"
+    h = h + "<div style='display:flex;justify-content:space-between'><b>CPU</b><strong id=cpu>2,1 %</strong></div></div></div>"
+    h = h + "<p><span id=fuera>fuera</span></p><script>var cpu = document.getElementById('cpu'), caja = document.getElementById('caja'), fuera = document.getElementById('fuera');</script></body>"
+    d = documento_html("http://x/", h)
+    documento_maquetar(d, 300)
+    # (el primer cambio tras maquetar a otro ancho rehace el índice de las hojas: estilo entero)
+    js_evaluar(d.js, "cpu.setAttribute('data-x', '1')", "t.js")
+    documento_al_dia(d)
+    cpu = dom_por_id(d.doc, "cpu")
+    p = d.pagina
+    antes = texto_de(p, cpu)
+    x0 = 0
+    if antes != nil
+        x0 = antes.x
+    end
+    js_evaluar(d.js, "cpu.textContent = '12,3 %'", "t.js")
+    documento_al_dia(d)
+    nuevo = texto_de(d.pagina, cpu)
+    movido = nuevo != nil and nuevo.x < x0
+    Print "parcial: " + (d.pagina == p) + " | texto: " + (nuevo != nil and str_starts(nuevo.texto, "12,3")) + " | se movió: " + movido
+    parcial = como(nuevo)
+    cx = cpu.caja_x
+    cy = cpu.caja_y
+    cw = cpu.caja_w
+    documento_maquetar(d, 300)
+    entera = como(texto_de(d.pagina, cpu))
+    if parcial != entera
+        Print "parcial " + parcial + " | entera " + entera
+    end
+    Print "igual que entera: " + (parcial == entera) + " " + (cpu.caja_x == cx) + " " + (cpu.caja_y == cy) + " " + (cpu.caja_w == cw)
+    js_evaluar(d.js, "cpu.setAttribute('data-x', '2')", "t.js")
+    documento_al_dia(d)
+    p = d.pagina
+    js_evaluar(d.js, "fuera.textContent = 'fuera de la caja'", "t.js")
+    documento_al_dia(d)
+    r1 = d.pagina == p
+    p = d.pagina
+    js_evaluar(d.js, "caja.style.width = '300px'", "t.js")
+    documento_al_dia(d)
+    Print "fuera: " + r1 + " | su style: " + (d.pagina == p)
+    documento_liberar(d)
+end

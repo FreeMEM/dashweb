@@ -1039,6 +1039,10 @@ func temporizadores(w: Ventana)
         if espera >= 0
             w.js_cuando = time_ms() + espera
         end
+        # (una maqueta aplazada por cara: entonces, aunque la página no tenga más temporizadores)
+        if w.actual.aplazada >= 0 and (w.js_cuando < 0 or w.actual.aplazada < w.js_cuando)
+            w.js_cuando = w.actual.aplazada
+        end
         envio_del_js(w)
         desplazamiento_del_js(w)
         intersecciones(w, false)
@@ -1507,6 +1511,8 @@ Main
     http_seguir = true
     # la tarea de la red (lib/red.dash) sigue 30 s sin conexiones: guarda las sesiones TLS y los nombres entre páginas
     red_ociosa_ms = 60000
+    # las maquetas caras por el JavaScript, como mucho un tercio del tiempo (lib/documento.dash)
+    documento_aplazar = true
     cookies_cargar(FICHERO_COOKIES)
     descargas_cargar(FICHERO_DESCARGAS)
     # sin requesters de AmigaOS ("Inserte el volumen..."): una dirección que no existe falla sin más (D68)

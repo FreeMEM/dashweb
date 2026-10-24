@@ -54,7 +54,17 @@ struct Documento
     zy0: Int = 0
     zx1: Int = 0
     zy1: Int = 0
+    # lo que costó la última maqueta entera por el JavaScript y cuándo acabó: si pasa de DOCUMENTO_CARO ms, la
+    # siguiente espera a que haya pasado el doble (aplazada: cuándo toca; -1, ninguna). Un panel que cambia su texto
+    # cada segundo (trasfondo.freemem.space) se llevaba así el 90 % del tiempo y no se decodificaban sus imágenes
+    maqueta_ms: Int = 0
+    maqueta_fin: Int = 0
+    aplazada: Int = -1
 end
+
+const DOCUMENTO_CARO = 150
+# (lo pone el navegador; las pruebas quieren cada cambio al momento)
+var documento_aplazar: Bool = false
 
 # Un <svg> de la página con animaciones de CSS en sus elementos (la curva de trainalong.fit: stroke-dashoffset)
 struct SvgAnimado
@@ -617,8 +627,14 @@ func documento_al_dia(d: Documento) -> Bool
     if not d.raton_toques and (d.js == 0 or jsdom_cambios(d.js) == d.cambios)
         return false
     end
-    d.raton_toques = false
+    # (lo del ratón, ya; lo del JavaScript, cuando le toque si la última maqueta fue cara: los cambios se juntan)
     t0 = time_ms()
+    if documento_aplazar and not d.raton_toques and d.maqueta_ms > DOCUMENTO_CARO and t0 < d.maqueta_fin + 2 * d.maqueta_ms
+        d.aplazada = d.maqueta_fin + 2 * d.maqueta_ms
+        return false
+    end
+    d.aplazada = -1
+    d.raton_toques = false
     if d.js != 0
         d.cambios = jsdom_cambios(d.js)
     end
@@ -651,7 +667,14 @@ func documento_al_dia(d: Documento) -> Bool
     end
     # lo que cambia en el estilo, por si no mueve nada (tarea 37d)
     ligero = not hojas_nuevas and _documento_puede_ligero(d, toques)
-    if ligero
+    # todo lo tocado dentro de una caja que se puede maquetar sola (tarea 48h): se apunta qué estilos cambian, para
+    # saber que ninguno es de fuera
+    limite = _documento_limite(d, toques)
+    if hojas_nuevas
+        var ninguna: Nodo = nil
+        limite = ninguna
+    end
+    if ligero or limite != nil
         var cambios: [EstiloCambio] = []
         estilo_cambios = cambios
         estilo_apuntar = true
@@ -690,11 +713,47 @@ func documento_al_dia(d: Documento) -> Bool
     if traza_activa
         traza("estilo en " + (t1 - t0) + " ms; buscar imágenes en " + (time_ms() - t1) + " ms")
     end
+    if traza_activa and limite == nil and toques != nil
+        for t in toques
+            if t.nodo != nil and _dentro_de_nodo(t.nodo, d.doc) and maqueta_limite_de(d.pagina, t.nodo) == nil
+                traza("sin caja que maquetar sola: " + t.nodo.nombre + "." + dom_atributo(t.nodo, "class") + " (toque " + t.tipo + ")")
+                break
+            end
+        end
+    end
+    if traza_activa and limite != nil and not (parte and _documento_cambios_dentro(estilo_cambios, limite))
+        traza("la caja no se maqueta sola: estilo entero o un estilo de fuera cambia")
+    end
+    if limite != nil and parte and d.ancho > 0 and _documento_cambios_dentro(estilo_cambios, limite)
+        viejos = maqueta_dibujos_de(d.pagina, limite)
+        nuevos = maqueta_rehacer(d.pagina, d.doc, limite)
+        if traza_activa and nuevos == nil
+            traza("la caja no se maqueta sola: maqueta_rehacer no puede")
+        end
+        if nuevos != nil
+            for dib in viejos
+                _documento_zona(d, dib)
+            end
+            for dib in nuevos
+                _documento_zona(d, dib)
+            end
+            d.zona = not d.zona_entera
+            _documento_vistas(d)
+            d.maqueta_fin = time_ms()
+            d.maqueta_ms = d.maqueta_fin - t0
+            if traza_activa
+                traza("el JavaScript hizo " + toques.length + " cambios dentro de " + limite.nombre + "." + str_replace(str_trim(dom_atributo(limite, "class")), " ", ".") + ": maquetada sola en " + (time_ms() - t0) + " ms (" + maqueta_bloques + " bloques)")
+            end
+            return true
+        end
+    end
     if d.ancho > 0
         maqueta_conservar = parte
         d.pagina = maquetar(d.doc, d.ancho)
         _documento_vistas(d)
     end
+    d.maqueta_fin = time_ms()
+    d.maqueta_ms = d.maqueta_fin - t0
     if traza_activa
         cuantos = 0
         if toques != nil
@@ -1441,4 +1500,56 @@ func documento_video_dibujo(d: Documento, n: Nodo) -> Dibujo
     end
     var nada: Dibujo = nil
     return nada
+end
+
+# La caja que se puede maquetar sola con todo lo tocado dentro (tarea 48h: maqueta_rehacer); nil si no hay. Lo
+# tocado en sus atributos no puede ser ella misma (su class o su style la cambian a ella): entonces, la de fuera
+func _documento_limite(d: Documento, toques: [Toque]) -> Nodo
+    var nada: Nodo = nil
+    if d.pagina == nil or toques == nil or toques.length == 0
+        return nada
+    end
+    var b: Nodo = nil
+    for t in toques
+        if t.nodo == nil
+            return nada
+        end
+        # (lo que ya no está en el documento, como una fila que React tocó y luego quitó, no cuenta)
+        if not _dentro_de_nodo(t.nodo, d.doc)
+            continue
+        end
+        if b == nil
+            b = maqueta_limite_de(d.pagina, t.nodo)
+        end
+        while b != nil and not (_dentro_de_nodo(t.nodo, b) and not (t.tipo == TOQUE_ATRIBUTO and t.nodo == b))
+            b = maqueta_limite_de(d.pagina, b.padre)
+        end
+        if b == nil
+            return nada
+        end
+    end
+    return b
+end
+
+func _dentro_de_nodo(x: Nodo, anc: Nodo) -> Bool
+    while x != nil
+        if x == anc
+            return true
+        end
+        x = x.padre
+    end
+    return false
+end
+
+# ¿Los estilos que cambiaron son de lo de dentro de b (no de b ni de fuera)?
+func _documento_cambios_dentro(cambios: [EstiloCambio], b: Nodo) -> Bool
+    if cambios == nil
+        return false
+    end
+    for c in cambios
+        if c.nodo == b or not _dentro_de_nodo(c.nodo, b)
+            return false
+        end
+    end
+    return true
 end

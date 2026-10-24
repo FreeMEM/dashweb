@@ -99,6 +99,33 @@ struct Dibujo
     ch: Int = 0
     bcx: Int = 0         # (cx, cy antes de animarse)
     bcy: Int = 0
+    lim: Nodo = nil      # la caja que se puede maquetar sola que lo puso (la de más dentro; tarea 48h)
+end
+
+# === Maquetar otra vez una caja sola (tarea 48h) ===
+# Una caja absoluta con width y height en px no mueve nada de fuera por lo que lleve dentro: si el JavaScript solo
+# cambia lo de dentro (el "CPU 2,1 %" del escritorio de trasfondo.freemem.space, cada segundo), basta maquetarla a
+# ella. Al maquetar se apunta con qué se maquetó (el contenedor y lo que había alrededor) y uno de sus dibujos, el
+# de referencia, donde quedó entonces; lo que le hicieron luego los de fuera (moverla, recortarla, su capa, velarla)
+# se saca de dónde acabó ese dibujo y se hace igual a lo nuevo.
+
+struct Limite
+    nodo: Nodo
+    cx: Int
+    cy: Int
+    cw: Int
+    ch: Int
+    pl: Int
+    pt: Int
+    cat: Int
+    fondo: Bool
+    alto_def: Int
+    linea: Int
+    blanco: Int
+    temporal: Int
+    ref: Dibujo = nil   # su primer dibujo propio (su fondo, su borde...)
+    rx: Int = 0         # dónde estaba al acabar _absoluto (antes de lo de fuera)
+    ry: Int = 0
 end
 
 struct Pagina
@@ -106,6 +133,7 @@ struct Pagina
     ancho: Int
     alto: Int
     fondo: Int
+    limites: [Limite] = nil   # las cajas que se pueden maquetar solas (tarea 48h)
 end
 
 # Un trozo de una línea: una palabra (o una imagen, o un salto de línea forzado)
@@ -914,6 +942,12 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
             interior = mx
         end
     end
+    # min-width (manda sobre width y max-width, CSS 2.1 10.4; las columnas "entra" y "sale" de 82 px del panel de
+    # trasfondo.freemem.space, inline-block, salían juntas)
+    mn = _min_ancho(e, contenedor, bl + br + pl + pr)
+    if mn > interior
+        interior = mn
+    end
     if interior < 1
         interior = 1
     end
@@ -989,7 +1023,13 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         m.pagina.dibujos.push(caja_fondo)
     end
     var degradado: Dibujo = nil
-    if e.has("background-image") and _es_degradado(e["background-image"]) and not recorta_texto
+    # varias capas de degradados, cada una con su tamaño y su sitio (tarea 48j); las de tamaño auto, de toda la caja
+    var capas_llenas: [Dibujo] = []
+    capas = _val(e, "background-capas", "none") != "none" and not recorta_texto
+    if capas
+        _fondo_capas(m, n, e["background-capas"], x + ml + bl, y + mt + bt, interior + pl + pr, capas_llenas)
+    end
+    if not capas and e.has("background-image") and _es_degradado(e["background-image"]) and not recorta_texto
         degradado = _degradado(e["background-image"], x + ml, y + mt, interior + bl + br + pl + pr)
         if degradado != nil
             degradado.nodo = n
@@ -1182,7 +1222,7 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
         end
     end
     alto_caja = bt + pt + alto + pb + bb
-    if _midiendo > 0 and n != _medido and e.has("width") and e["width"] != "auto" and not str_ends(e["width"], "%")
+    if _midiendo > 0 and n != _medido and ((e.has("width") and e["width"] != "auto" and not str_ends(e["width"], "%")) or _min_ancho(e, 0, 0) > 0)
         # al medir: una caja con width que no pinta nada (alto 0, sin fondo) también ocupa ese ancho; un rectángulo
         # vacío de su caja lo cuenta (la sonrisa de Acid2: un <strong> de 6em dentro de flotantes)
         marca = _dibujo(D_RECT, x + ml, y + mt, interior + bl + br + pl + pr, 0, 0)
@@ -1235,6 +1275,9 @@ func _bloque_en(m: Maquetador, n: Nodo, x: Int, y: Int, ancho: Int, contenedor: 
     end
     if degradado != nil
         degradado.alto = alto_caja
+    end
+    for dc in capas_llenas
+        dc.alto = pt + alto + pb
     end
     _cat_fondo = true
     # (un borde redondo transparente no se pinta: el de los botones "quiet" de Wikipedia salía con el color del texto
@@ -1300,32 +1343,103 @@ end
 func _recortar(m: Maquetador, inicio: Int, x0: Int, y0: Int, x1: Int, y1: Int)
     i = inicio
     while i < m.pagina.dibujos.length
-        d = m.pagina.dibujos[i]
-        if not d.recorte
-            d.recorte = true
-            d.rx0 = x0
-            d.ry0 = y0
-            d.rx1 = x1
-            d.ry1 = y1
-        else
-            if x0 > d.rx0
-                d.rx0 = x0
-            end
-            if y0 > d.ry0
-                d.ry0 = y0
-            end
-            if x1 < d.rx1
-                d.rx1 = x1
-            end
-            if y1 < d.ry1
-                d.ry1 = y1
-            end
-        end
+        _recortar_uno(m.pagina.dibujos[i], x0, y0, x1, y1)
         i = i + 1
     end
 end
 
+func _recortar_uno(d: Dibujo, x0: Int, y0: Int, x1: Int, y1: Int)
+    if not d.recorte
+        d.recorte = true
+        d.rx0 = x0
+        d.ry0 = y0
+        d.rx1 = x1
+        d.ry1 = y1
+    else
+        if x0 > d.rx0
+            d.rx0 = x0
+        end
+        if y0 > d.ry0
+            d.ry0 = y0
+        end
+        if x1 < d.rx1
+            d.rx1 = x1
+        end
+        if y1 < d.ry1
+            d.ry1 = y1
+        end
+    end
+end
+
 # linear-gradient(...), también con prefijo (-webkit-, -moz-, -o-: la sintaxis vieja)
+# Las capas de un background con varias (la primera, encima: se ponen de la última a la primera): las que son un
+# linear-gradient, en x, y (la caja de relleno, ancho de ancho), con su background-position y background-size en px
+# (sin tamaño: toda la caja; su alto lo pone quien llama, que se apuntan en llenas). Los botones de las barras del
+# Workbench de trasfondo.freemem.space son tres degradados de un color de 9x7, 8x6 y 10x8 px sobre gris.
+func _fondo_capas(m: Maquetador, n: Nodo, v: String, x: Int, y: Int, ancho: Int, llenas: [Dibujo])
+    capas = css_partir(v, 44)
+    i = capas.length - 1
+    while i >= 0
+        var lugar: [Int] = []
+        var tam: [Int] = []
+        img = ""
+        tras_barra = false
+        for t in css_partir(str_trim(capas[i]), 32)
+            tl = str_lower(str_trim(t))
+            if tl == ""
+                continue
+            end
+            if _es_degradado(tl)
+                img = str_trim(t)
+            elif str_starts(tl, "/")
+                tras_barra = true
+                if tl.length > 1 and _es_longitud_css(tl[1:])
+                    tam.push(estilo_px(tl[1:], 16, ancho))
+                end
+            elif _es_longitud_css(tl)
+                if tras_barra
+                    tam.push(estilo_px(tl, 16, ancho))
+                else
+                    lugar.push(estilo_px(tl, 16, ancho))
+                end
+            end
+        end
+        if img != ""
+            dx = 0
+            dy = 0
+            if lugar.length >= 1
+                dx = lugar[0]
+            end
+            if lugar.length >= 2
+                dy = lugar[1]
+            end
+            w = ancho - dx
+            if tam.length >= 1
+                w = tam[0]
+            end
+            dg = _degradado(img, x + dx, y + dy, w)
+            if dg != nil
+                dg.nodo = n
+                if tam.length >= 2
+                    dg.alto = tam[1]
+                else
+                    llenas.push(dg)
+                end
+                m.pagina.dibujos.push(dg)
+            end
+        end
+        i = i - 1
+    end
+end
+
+func _es_longitud_css(t: String) -> Bool
+    if t == "0"
+        return true
+    end
+    c = str_code(t, 0)
+    return ((c >= 48 and c <= 57) or c == 45 or c == 46) and (str_ends(t, "px") or str_ends(t, "em") or str_ends(t, "rem") or str_ends(t, "%"))
+end
+
 func _es_degradado(v: String) -> Bool
     l = str_lower(str_trim(v))
     return str_starts(l, "linear-gradient(") or str_starts(l, "-webkit-linear-gradient(") or str_starts(l, "-moz-linear-gradient(") or str_starts(l, "-o-linear-gradient(")
@@ -2015,6 +2129,11 @@ end
 # width, o lo que mide su contenido.
 func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, pl: Int, pt: Int)
     e = n.estilo
+    # (con width y height en px: se apunta para maquetarla sola si solo cambia lo de dentro; tarea 48h)
+    var lim: Limite = nil
+    if _midiendo == 0 and _val(e, "position", "absolute") == "absolute" and _px_fijo(e, "width") and _px_fijo(e, "height")
+        lim = Limite(n, cx0, cy0, cw0, ch0, pl, pt, _cat_atomica, _cat_fondo, _alto_definido, m.ancho_linea, m.blanco, _abs_temporal)
+    end
     cx = cx0
     cy = cy0
     cw = cw0
@@ -2044,7 +2163,11 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
     else
         w = _ancho_flotante(m, n, cw)
     end
-    if w > cw
+    # más ancho que su contenedor: con width fijo se queda (CSS 2.1 10.3.7) si cabe en la ventana o lo que sobra lo
+    # recorta un overflow de fuera (el escritorio de trasfondo.freemem.space, 960 con scale(0.93) en un marco de 891,
+    # se maquetaba a 891 y luego se encogía: todo salía un 7 % más pequeño)
+    fijo = _val(e, "width", "auto") != "auto" and not str_ends(e["width"], "%")
+    if w > cw and not (fijo and (cx + l + w <= estilo_vw or _recortado_fuera(n)))
         w = cw
     end
     if w < 1
@@ -2178,6 +2301,27 @@ func _absoluto(m: Maquetador, n: Nodo, cx0: Int, cy0: Int, cw0: Int, ch0: Int, p
             end
         end
     end
+    if lim != nil
+        _limite_apuntar(m, lim, antes)
+    end
+end
+
+# ¿Lo recorta un overflow de su contenedor (hasta el antepasado posicionado, que es su caja)?
+func _recortado_fuera(n: Nodo) -> Bool
+    p = n.padre
+    while p != nil and p.tipo == DOM_ELEMENTO
+        for k in ["overflow", "overflow-x"]
+            v = _val(p.estilo, k, "visible")
+            if v == "hidden" or v == "clip" or v == "auto" or v == "scroll"
+                return true
+            end
+        end
+        if _val(p.estilo, "position", "static") != "static"
+            return false
+        end
+        p = p.padre
+    end
+    return false
 end
 
 func _relativo(m: Maquetador, n: Nodo, antes: Int, contenedor: Int)
@@ -2538,11 +2682,11 @@ func _medida_de(m: Maquetador, md: Medida, n: Nodo, alto: Int, antes: Int, x: In
         cuenta = not decoracion
         if decoracion and d.nodo != nil
             w = _val(d.nodo.estilo, "width", "auto")
-            cuenta = w != "auto" and not str_ends(w, "%")
+            cuenta = (w != "auto" and not str_ends(w, "%")) or _min_ancho(d.nodo.estilo, 0, 0) > 0
         end
         if cuenta
             dx0 = d.x
-            dx1 = d.x + d.ancho
+            dx1 = d.x + _ancho_que_cuenta(d, decoracion)
             if d.recorte
                 if dx0 < d.rx0
                     dx0 = d.rx0
@@ -2655,11 +2799,16 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     e = h.estilo
     extra = _px(e, "margin-left", ancho) + _px(e, "margin-right", ancho)
     caja = _borde(e, "left") + _borde(e, "right") + _px(e, "padding-left", ancho) + _px(e, "padding-right", ancho)
+    # (con min-width, nunca menos: en el contenido, sin la caja)
+    mn = _min_ancho(e, ancho, caja)
     if e.has("width") and e["width"] != "auto"
         w = _px(e, "width", ancho)
         if w > 0
             if (e.has("box-sizing") and e["box-sizing"] == "border-box") or e["display"] == "table" or e["display"] == "inline-table"
-                return w + extra
+                w = w - caja
+            end
+            if w < mn
+                w = mn
             end
             return w + caja + extra
         end
@@ -2695,7 +2844,7 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
         cuenta = not decoracion
         if decoracion and d.nodo != nil and d.nodo != h
             w = _val(d.nodo.estilo, "width", "auto")
-            cuenta = w != "auto" and not str_ends(w, "%")
+            cuenta = (w != "auto" and not str_ends(w, "%")) or _min_ancho(d.nodo.estilo, 0, 0) > 0
         end
         if cuenta and d.nodo != nil and d.nodo != h
             # lo de un absoluto de dentro no cuenta (CSS 2.1 10.3.7: está fuera del flujo); con right: 0 llegaba al
@@ -2709,7 +2858,7 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
         if cuenta
             # (lo recortado por un overflow, solo hasta su recorte: lo que desborda no ensancha)
             dx0 = d.x
-            dx1 = d.x + d.ancho
+            dx1 = d.x + _ancho_que_cuenta(d, decoracion)
             if d.recorte
                 if dx0 < d.rx0
                     dx0 = d.rx0
@@ -2743,10 +2892,48 @@ func _ancho_flotante_medir(m: Maquetador, h: Nodo, ancho: Int) -> Int
     while m.pagina.dibujos.length > antes
         m.pagina.dibujos.pop()
     end
+    lleno = derecha - izquierda
     if derecha <= izquierda
-        return caja + extra
+        lleno = 0
     end
-    return derecha - izquierda + caja + extra
+    if lleno < mn
+        lleno = mn
+    end
+    return lleno + caja + extra
+end
+
+# Lo que cuenta de un dibujo para medir un ancho: entero, salvo el fondo o borde de un elemento sin width y con
+# min-width, que se estira a lo que haya (al medir, 4000): solo hasta su min-width
+func _ancho_que_cuenta(d: Dibujo, decoracion: Bool) -> Int
+    if not decoracion or d.nodo == nil or _val(d.nodo.estilo, "width", "auto") != "auto"
+        return d.ancho
+    end
+    e = d.nodo.estilo
+    caja = _borde(e, "left") + _borde(e, "right") + _px(e, "padding-left", 0) + _px(e, "padding-right", 0)
+    mn = _min_ancho(e, 0, caja) + caja
+    if mn < d.ancho
+        return mn
+    end
+    return d.ancho
+end
+
+# El min-width de e en px del contenido (sin los bordes y rellenos de caja si es border-box); 0 si no tiene
+func _min_ancho(e: {String: String}, contenedor: Int, caja: Int) -> Int
+    if not e.has("min-width")
+        return 0
+    end
+    v = e["min-width"]
+    if v == "auto" or v == "0" or v == "0px" or v == "none" or str_ends(v, "content")
+        return 0
+    end
+    mn = _px(e, "min-width", contenedor)
+    if e.has("box-sizing") and e["box-sizing"] == "border-box"
+        mn = mn - caja
+    end
+    if mn < 0
+        return 0
+    end
+    return mn
 end
 
 # Un flotante ya colocado
@@ -6729,4 +6916,234 @@ func _proporcion(v: String) -> Int
         return 0
     end
     return a * 1000 / b
+end
+
+# ¿Un width o height en px? ("960px", "0")
+func _px_fijo(e: {String: String}, k: String) -> Bool
+    if not e.has(k)
+        return false
+    end
+    v = e[k]
+    return str_ends(v, "px") and str_find(v, "(") < 0 or v == "0"
+end
+
+func _limite_apuntar(m: Maquetador, l: Limite, antes: Int)
+    n = l.nodo
+    i = antes
+    while i < m.pagina.dibujos.length
+        d = m.pagina.dibujos[i]
+        if l.ref == nil and d.nodo == n
+            l.ref = d
+        end
+        if d.lim == nil
+            d.lim = n
+        end
+        i = i + 1
+    end
+    if l.ref == nil
+        return
+    end
+    l.rx = l.ref.x
+    l.ry = l.ref.y
+    p = m.pagina
+    if p.limites == nil
+        var ls: [Limite] = []
+        p.limites = ls
+    end
+    # (la última vez que se maquetó en esta maqueta es la que vale: flex y grid maquetan de un momento y mueven)
+    k = 0
+    while k < p.limites.length
+        if p.limites[k].nodo == n
+            p.limites.remove(k)
+        else
+            k = k + 1
+        end
+    end
+    p.limites.push(l)
+end
+
+func _limite_en(p: Pagina, n: Nodo) -> Limite
+    if p != nil and p.limites != nil
+        for l in p.limites
+            if l.nodo == n
+                return l
+            end
+        end
+    end
+    var nada: Limite = nil
+    return nada
+end
+
+# La caja de este tipo que lleva a n (n mismo o la más cercana por fuera) en la maqueta p; nil si no hay
+func maqueta_limite_de(p: Pagina, n: Nodo) -> Nodo
+    x = n
+    if p != nil and p.limites != nil and p.limites.length > 0
+        while x != nil and x.tipo == DOM_ELEMENTO
+            if _limite_en(p, x) != nil
+                return x
+            end
+            x = x.padre
+        end
+    end
+    var nada: Nodo = nil
+    return nada
+end
+
+func _de_limite(d: Dibujo, b: Nodo) -> Bool
+    if d.lim != nil and _dentro_de(d.lim, b)
+        return true
+    end
+    return d.nodo != nil and _dentro_de(d.nodo, b)
+end
+
+# Sus dibujos en la página
+func maqueta_dibujos_de(p: Pagina, b: Nodo) -> [Dibujo]
+    var r: [Dibujo] = []
+    for d in p.dibujos
+        if _de_limite(d, b)
+            r.push(d)
+        end
+    end
+    return r
+end
+
+# Lo de dentro, como sin maquetar: lo medido y sus cajas (las de los de en línea se suman si no)
+func _limite_olvidar(n: Nodo)
+    n.cl_pase = 0
+    n.caja_pase = 0
+    n.caja_bloque = 0
+    for h in n.hijos
+        if h.tipo == DOM_ELEMENTO
+            _limite_olvidar(h)
+        end
+    end
+end
+
+# b otra vez en p (ya con su estilo nuevo): sus dibujos nuevos, ya puestos en p en lugar de los de antes; nil si no
+# se puede (algo de fuera la transforma, anima, fija o pega; lo de dentro se anima): entonces, la maqueta entera
+func maqueta_rehacer(p: Pagina, doc: Nodo, b: Nodo) -> [Dibujo]
+    var nada: [Dibujo] = nil
+    maqueta_bloques = 0
+    l = _limite_en(p, b)
+    if l == nil or l.ref == nil
+        return nada
+    end
+    ref = l.ref
+    if ref.anim != nil or ref.fijo or ref.pega != nil
+        return nada
+    end
+    for d in p.dibujos
+        if d.anim != nil and _de_limite(d, b)
+            return nada
+        end
+    end
+    # lo de fuera: su capa (la de fuera manda) y si la vela; con un transform, nada
+    capa = 0
+    con_capa = false
+    velada = false
+    a = b.padre
+    while a != nil and a.tipo == DOM_ELEMENTO
+        if _transformacion(a.estilo) != ""
+            return nada
+        end
+        if a.estilo.has("z-index") and a.estilo["z-index"] != "auto" and _val(a.estilo, "position", "static") != "static"
+            capa = Int(a.estilo["z-index"])
+            con_capa = true
+        end
+        if _invisible(a)
+            velada = true
+        end
+        a = a.padre
+    end
+    var dibs: [Dibujo] = []
+    p2 = Pagina(dibs, p.ancho, 0, p.fondo)
+    m2 = Maquetador(p2, _fuentes_abiertas, _topaz)
+    var cajas: [CajaNodo] = []
+    m2.cajas = cajas
+    m2.ancho_linea = l.linea
+    m2.blanco = l.blanco
+    _limite_olvidar(b)
+    cat = _cat_atomica
+    fondo = _cat_fondo
+    ad = _alto_definido
+    tmp = _abs_temporal
+    pend = _abs_pend.length
+    _cat_atomica = l.cat
+    _cat_fondo = l.fondo
+    _alto_definido = l.alto_def
+    _abs_temporal = l.temporal
+    _absoluto(m2, b, l.cx, l.cy, l.cw, l.ch, l.pl, l.pt)
+    _cat_atomica = cat
+    _cat_fondo = fondo
+    _alto_definido = ad
+    _abs_temporal = tmp
+    while _abs_pend.length > pend
+        _abs_pend.pop()
+        _abs_px.pop()
+        _abs_py.pop()
+    end
+    l2 = _limite_en(p2, b)
+    if l2 == nil or l2.ref == nil or m2.pegajosos != nil
+        return nada
+    end
+    for d in p2.dibujos
+        if d.anim != nil
+            return nada
+        end
+    end
+    # lo que le hicieron los de fuera a la de antes, a la nueva
+    dx = ref.x - l.rx
+    dy = ref.y - l.ry
+    for d in p2.dibujos
+        if dx != 0 or dy != 0
+            _mover(d, dx, dy)
+        end
+        if ref.recorte
+            _recortar_uno(d, ref.rx0, ref.ry0, ref.rx1, ref.ry1)
+        end
+        if con_capa
+            d.capa = capa
+        end
+        if velada
+            d.velado = true
+        end
+    end
+    for c in m2.cajas
+        if c.ref == nil
+            c.x = c.x + dx
+            c.y = c.y + dy
+        end
+    end
+    _cajas_finales(m2, doc)
+    # en la lista, donde estaba la primera de antes (_por_capas las deja en su sitio: es estable)
+    var r: [Dibujo] = []
+    puesta = false
+    for d in p.dibujos
+        if _de_limite(d, b)
+            if not puesta
+                for nd in p2.dibujos
+                    r.push(nd)
+                end
+                puesta = true
+            end
+        else
+            r.push(d)
+        end
+    end
+    p.dibujos = r
+    _por_capas(p)
+    # y las de dentro y ella, las de ahora
+    k = 0
+    while k < p.limites.length
+        if _dentro_de(p.limites[k].nodo, b)
+            p.limites.remove(k)
+        else
+            k = k + 1
+        end
+    end
+    for nl in p2.limites
+        p.limites.push(nl)
+    end
+    # (lo de fuera la movió: la próxima vez, desde lo nuevo, igual)
+    return p2.dibujos
 end
